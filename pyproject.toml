@@ -37,6 +37,9 @@ include = ["src", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "characterization: pins behavior of a third-party dependency sbt2 relies on",
+]
 
 [tool.coverage.run]
 source = ["sbt2", "strategies"]
