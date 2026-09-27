@@ -6,6 +6,13 @@ repos:
     hooks:
       - id: gitlint
 
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
   - repo: local
     hooks:
       - id: prune-merged-branches
