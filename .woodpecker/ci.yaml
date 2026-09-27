@@ -1,0 +1,25 @@
+when:
+  - event: pull_request
+  - event: push
+    branch: main
+
+variables:
+  - &image ghcr.io/astral-sh/uv:0.12.19-python3.14-trixie
+  - &env
+    UV_LINK_MODE: copy
+    UV_PYTHON_DOWNLOADS: never
+
+steps:
+  - name: lint
+    image: *image
+    environment: *env
+    commands:
+      - uv sync --locked
+      - uvx pre-commit run --all-files --show-diff-on-failure
+
+  - name: test
+    image: *image
+    environment: *env
+    commands:
+      - uv sync --locked
+      - uv run --locked pytest --cov
