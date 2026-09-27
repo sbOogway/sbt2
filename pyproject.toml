@@ -28,7 +28,20 @@ nautilus-trader = { index = "nautech" }
 [dependency-groups]
 dev = [
     "pyright[nodejs]>=1.1.414",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.pyright]
 include = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["sbt2", "strategies"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
