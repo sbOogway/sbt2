@@ -24,3 +24,11 @@ explicit = true
 
 [tool.uv.sources]
 nautilus-trader = { index = "nautech" }
+
+[dependency-groups]
+dev = [
+    "pyright[nodejs]>=1.1.414",
+]
+
+[tool.pyright]
+include = ["src", "tests"]
