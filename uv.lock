@@ -1,0 +1,28 @@
+version = 1
+revision = 3
+requires-python = ">=3.14"
+resolution-markers = [
+    "platform_machine == 'x86_64' and sys_platform == 'linux'",
+]
+supported-markers = [
+    "platform_machine == 'x86_64' and sys_platform == 'linux'",
+]
+
+[[package]]
+name = "nautilus-trader"
+version = "2.0.0rc6.dev20260927+18861"
+source = { registry = "https://packages.nautechsystems.io/simple" }
+wheels = [
+    { url = "https://packages.nautechsystems.io/simple/nautilus-trader/nautilus_trader-2.0.0rc6.dev20260927+18861-cp314-cp314-manylinux_2_34_x86_64.whl", hash = "sha256:d511d6d8f02ab3c1cfb09f317057333792fc11056d6c2736afe130d11deb1bb6" },
+]
+
+[[package]]
+name = "sbt2"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "nautilus-trader" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "nautilus-trader", specifier = "==2.0.0rc6.dev20260927+18861", index = "https://packages.nautechsystems.io/simple" }]
