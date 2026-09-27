@@ -26,6 +26,25 @@
 - Keep coupling loose: depend on interfaces (protocols or abstract types), not on concrete implementations.
 - Split functions inside a module freely, but do not grow its public interface to do so.
 
+## Workflow
+
+- Start every feature or issue on a new branch from an up-to-date `main`. Never commit to `main` directly.
+- Name the branch after the change type and topic, e.g. `feat/funding-ingest`, `fix/snapshot-grid`.
+- Open a draft pull request on GitHub as soon as the branch has its first commit, linking the issue it addresses.
+- Do the work on that branch, then mark the pull request ready for review.
+- Stop and wait for the user's code review. Do not merge the pull request yourself.
+- Address every review comment with new commits on the same branch, then ask for review again.
+- Repeat until the user approves. Only the user decides when the work is done.
+
+## Commits
+
+- Write commit messages in the Conventional Commits format: `type(scope): summary`.
+- Use `feat` for a new feature, `fix` for a bug fix, and `refactor`, `perf`, `test`, `docs`, `build`, `ci` or `chore` for everything else.
+- Mark breaking changes with `!` after the type or a `BREAKING CHANGE:` footer.
+- Make every commit atomic: one logical change per commit, which builds and passes the tests on its own.
+- Do not mix unrelated changes, such as a refactor and a feature, in one commit. Split them.
+- Do not rewrite history on a branch under review; add commits instead.
+
 ## Pre-commit
 
 - Keep pre-commit configured in the repo.
