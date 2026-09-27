@@ -1,4 +1,5 @@
 default_install_hook_types: [pre-commit, commit-msg, post-merge]
+default_stages: [pre-commit]
 
 repos:
   - repo: https://github.com/jorisroovers/gitlint
