@@ -1,3 +1,4 @@
+from sbt2.strategy.adapter import AdapterConfig, importable_config
 from sbt2.strategy.api import (
     Bars,
     Fill,
@@ -21,6 +22,7 @@ from sbt2.strategy.reconciler import (
 )
 
 __all__ = [
+    "AdapterConfig",
     "Bars",
     "Cancel",
     "Fill",
@@ -36,6 +38,7 @@ __all__ = [
     "UnknownParameterError",
     "WorkingOrder",
     "import_strategy",
+    "importable_config",
     "reconcile",
     "resolve_params",
 ]
