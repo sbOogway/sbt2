@@ -27,6 +27,7 @@ nautilus-trader = { index = "nautech" }
 
 [dependency-groups]
 dev = [
+    "pyarrow>=25.0.1",
     "pyright[nodejs]>=1.1.414",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
@@ -37,6 +38,9 @@ include = ["src", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "characterization: pins behavior of a third-party dependency sbt2 relies on",
+]
 
 [tool.coverage.run]
 source = ["sbt2", "strategies"]
