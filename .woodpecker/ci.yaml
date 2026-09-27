@@ -22,4 +22,12 @@ steps:
     environment: *env
     commands:
       - uv sync --locked
-      - uv run --locked pytest --cov
+      - uv run --locked pytest --cov --cov-report=term-missing --cov-report=xml
+
+  - name: coverage
+    image: woodpeckerci/plugin-codecov:2.3.2
+    settings:
+      files:
+        - coverage.xml
+      token:
+        from_secret: codecov_token
