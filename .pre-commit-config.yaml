@@ -1,7 +1,18 @@
-default_install_hook_types: [pre-commit, commit-msg]
+default_install_hook_types: [pre-commit, commit-msg, post-merge]
 
 repos:
   - repo: https://github.com/jorisroovers/gitlint
     rev: v0.19.1
     hooks:
       - id: gitlint
+
+  - repo: local
+    hooks:
+      - id: prune-merged-branches
+        name: prune merged branches
+        entry: scripts/prune-merged-branches.sh
+        language: script
+        stages: [post-merge]
+        always_run: true
+        pass_filenames: false
+        verbose: true
