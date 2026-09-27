@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Any
 
 from nautilus_trader.backtest import BacktestEngine, BacktestEngineConfig
-from nautilus_trader.common import LoggerConfig, LogLevel
+from nautilus_trader.common import Cache, LoggerConfig, LogLevel
 from nautilus_trader.execution import FixedFeeModel
 from nautilus_trader.model import (
     AccountType,
@@ -131,10 +131,10 @@ def run_long_one_btc(
     return run_engine(data, BuyOneOnFirstQuote(), portfolio)
 
 
-def funding_payments(engine: BacktestEngine) -> list[Money]:
+def funding_payments(cache: Cache) -> list[Money]:
     return [
         adjustment.pnl_change
-        for position in engine.cache.positions()
+        for position in cache.positions()
         for adjustment in position.adjustments()
         if adjustment.adjustment_type == PositionAdjustmentType.FUNDING
         and adjustment.pnl_change is not None
