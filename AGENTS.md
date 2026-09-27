@@ -39,7 +39,7 @@
 ## Commits
 
 - Write commit messages in the Conventional Commits format: `type(scope): summary`.
-- Use `feat` for a new feature, `fix` for a bug fix, and `refactor`, `perf`, `test`, `docs`, `build`, `ci` or `chore` for everything else.
+- Use `feat` for a new feature, `fix` for a bug fix, and `refactor`, `perf`, `test`, `docs`, `build`, `ci`, `chore`, `style` or `revert` for everything else.
 - Mark breaking changes with `!` after the type or a `BREAKING CHANGE:` footer.
 - Make every commit atomic: one logical change per commit, which builds and passes the tests on its own.
 - Do not mix unrelated changes, such as a refactor and a feature, in one commit. Split them.

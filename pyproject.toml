@@ -1,0 +1,47 @@
+[project]
+name = "sbt2"
+version = "0.1.0"
+description = "Backtesting framework on nautilus_trader"
+requires-python = ">=3.14"
+dependencies = [
+    "nautilus-trader==2.0.0rc6.dev20260927+18861",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = ["sbt2", "strategies"]
+
+[tool.uv]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[[tool.uv.index]]
+name = "nautech"
+url = "https://packages.nautechsystems.io/simple"
+explicit = true
+
+[tool.uv.sources]
+nautilus-trader = { index = "nautech" }
+
+[dependency-groups]
+dev = [
+    "pyright[nodejs]>=1.1.414",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+]
+
+[tool.pyright]
+include = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["sbt2", "strategies"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
