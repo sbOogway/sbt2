@@ -52,7 +52,7 @@
 - After the design questions, present a test plan and wait for approval before writing any code.
 - Group the plan by module under test. For each test give:
   - its signature, e.g. `def test_unknown_classes_list_the_known_profiles() -> None:`
-  - whether it is a unit or an integration test
+  - its markers: one level (`unit`, `integration` or `e2e`) and any kinds that apply (`characterization`, `golden`, `live`, `realdata`)
   - a plain-language description of the setup, the action and the expected outcome
 - After approval, work one behaviour at a time: write its tests, run them and check that they fail for the expected reason, implement until they pass, then commit before starting the next.
 - Commit each behaviour's tests together with the code that makes them pass. Never commit failing tests.
