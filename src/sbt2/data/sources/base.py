@@ -85,3 +85,18 @@ class Source(Protocol):
     def parse_instrument(self, path: Path) -> Any:
         """The instrument of a snapshot, initialised at the start of its day."""
         ...
+
+
+def data_types(source: Source, names: tuple[str, ...]) -> tuple[type, ...]:
+    """The source's data types called ``names``; all of them when ``names`` is empty."""
+    served = {each.__name__: each for each in source.data_types}
+    unknown = [each for each in names if each not in served]
+    if unknown:
+        raise UnsupportedDataTypeError(
+            f"the source serves no {', '.join(unknown)}; it serves {', '.join(served)}"
+        )
+    return tuple(served[each] for each in names) or source.data_types
+
+
+def is_known_gap(source: Source, symbol: str, data_type: type, day: date) -> bool:
+    return Gap(source.instrument_id(symbol), data_type, day) in source.known_gaps

@@ -10,8 +10,8 @@ from typing import Any, Protocol
 import pandas as pd
 
 from sbt2.data.catalog import Bounds, CatalogWriter, DayFile
-from sbt2.data.days import data_types, days, is_known_gap
-from sbt2.data.sources import Source
+from sbt2.data.days import days
+from sbt2.data.sources import Source, data_types, is_known_gap
 
 _ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _DAY_NANOS = 86_400_000_000_000
