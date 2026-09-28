@@ -1,0 +1,26 @@
+from collections.abc import Sequence
+from dataclasses import dataclass
+from datetime import timedelta
+from decimal import Decimal
+
+from nautilus_trader.model import BarSpecification
+
+from sbt2.strategy import Strategy
+
+
+@dataclass(frozen=True)
+class LookbackParams:
+    lookback: int = 20
+    stop: Decimal = Decimal("0.02")
+
+
+class MinuteLookback(Strategy[LookbackParams]):
+    Params = LookbackParams
+
+    @classmethod
+    def warmup(cls, params: LookbackParams) -> timedelta:
+        return timedelta(minutes=params.lookback)
+
+    @classmethod
+    def inputs(cls, params: LookbackParams) -> Sequence[BarSpecification]:
+        return (BarSpecification.from_str("1-MINUTE-LAST"),)
