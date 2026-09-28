@@ -19,6 +19,7 @@ class RunSpec:
     """One backtest as written in a spec file.
 
     ``capital`` is a nautilus money string such as ``"10000 USDT"``.
+    ``liquidation`` overrides the venue profile's ``liquidation_enabled``.
     """
 
     strategy: str
@@ -29,6 +30,7 @@ class RunSpec:
     capital: str
     seed: int = 42
     equity_interval: str = "1h"
+    liquidation: bool | None = None
     params: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
