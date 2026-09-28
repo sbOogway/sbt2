@@ -2,10 +2,11 @@ import importlib
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, fields
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any, ClassVar, get_type_hints
 
+from nautilus_trader.core import dt_to_unix_nanos
 from nautilus_trader.model import (
     AggregationSource,
     BarSpecification,
@@ -70,7 +71,7 @@ class Strategy[P](NautilusStrategy, ABC):
         self.instrument_ids = [
             InstrumentId.from_str(each) for each in config.instruments
         ]
-        self._trade_start_ns = _to_nanos(datetime.fromisoformat(config.trade_start))
+        self._trade_start_ns = dt_to_unix_nanos(config.trade_start)
 
     @classmethod
     def warmup(cls, params: P) -> timedelta:
@@ -165,8 +166,3 @@ def _decimal(name: str, value: str | float) -> Decimal:
         raise InvalidParameterError(
             f"parameter {name} must be a decimal, got {value!r}"
         ) from None
-
-
-def _to_nanos(moment: datetime) -> int:
-    since_epoch = moment - datetime(1970, 1, 1, tzinfo=UTC)
-    return since_epoch // timedelta(microseconds=1) * 1_000
