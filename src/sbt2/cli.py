@@ -98,11 +98,11 @@ def download(
     retries: Annotated[int, typer.Option(min=0, help="Per file.")] = 5,
 ) -> None:
     """Fetch a source's raw files for a range of days, and today's instruments."""
-    request = data.DownloadRequest(
-        tuple(symbol), start.date(), end.date(), tuple(data_type or ())
-    )
     options = data.DownloadOptions(data_root / "raw", concurrency, retries)
     try:
+        request = data.DownloadRequest(
+            tuple(symbol), start.date(), end.date(), tuple(data_type or ())
+        )
         report = _download(source, request, options)
     except Exception:
         logger.exception("download from %s failed", source)

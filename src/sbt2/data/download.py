@@ -47,6 +47,10 @@ class DownloadRequest:
     data: tuple[str, ...] = ()
     taken_on: date = field(default_factory=lambda: datetime.now(UTC).date())
 
+    def __post_init__(self) -> None:
+        if self.end < self.start:
+            raise ValueError(f"the range ends on {self.end}, before {self.start}")
+
 
 @dataclass(frozen=True)
 class Item:

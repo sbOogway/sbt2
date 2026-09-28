@@ -300,3 +300,8 @@ def test_progress_hears_of_every_file_and_byte(
     assert progress.files == 3
     assert progress.size == len(TRADES) + len(b"[]") + len(b"{}")
     assert set(progress.results) == set(report.results)
+
+
+def test_a_range_ending_before_it_starts_is_refused() -> None:
+    with pytest.raises(ValueError, match="before 2025-01-02"):
+        DownloadRequest(("BTCUSDT",), NEXT_DAY, DAY)

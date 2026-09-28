@@ -134,6 +134,17 @@ def test_a_data_type_the_source_does_not_serve_fails_before_any_fetch(
     assert not (tmp_path / "raw").exists()
 
 
+def test_a_reversed_range_fails_the_command(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app,
+        ["download", "--source", "fake", "--symbol", "BTCUSDT"]
+        + ["--start", "2025-01-02", "--end", "2025-01-01", "--data", str(tmp_path)],
+    )
+
+    assert result.exit_code == 1
+    assert "before 2025-01-02" in result.output
+
+
 def test_an_unknown_source_fails_the_command(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
