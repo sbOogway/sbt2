@@ -2,18 +2,22 @@ import hashlib
 import json
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from functools import cached_property
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 from nautilus_trader.model import (
+    FundingRateUpdate,
     InstrumentId,
+    MarkPriceUpdate,
     NautilusDataType,
+    TradeTick,
 )
 from nautilus_trader.persistence import ParquetDataCatalog
 
+from sbt2.data import frames
 from sbt2.data.days import days
 from sbt2.sources import Gap
 
@@ -123,6 +127,23 @@ class Catalog:
             digest.update(_canonical(instrument).encode())
         return digest.hexdigest()
 
+    def trades(self, instrument_id: InstrumentId, window: Window) -> pd.DataFrame:
+        return frames.trades(self._records(_Series(instrument_id, TradeTick), window))
+
+    def mark_prices(self, instrument_id: InstrumentId, window: Window) -> pd.DataFrame:
+        series = _Series(instrument_id, MarkPriceUpdate)
+        return frames.mark_prices(self._records(series, window))
+
+    def funding(self, instrument_id: InstrumentId, window: Window) -> pd.DataFrame:
+        series = _Series(instrument_id, FundingRateUpdate)
+        return frames.funding(self._records(series, window))
+
+    def bars(
+        self, instrument_id: InstrumentId, window: Window, interval: timedelta
+    ) -> pd.DataFrame:
+        """Bars resampled from trades by nautilus's rules for internal time bars."""
+        return frames.bars(self.trades(instrument_id, window), interval, window.end)
+
     @cached_property
     def _nautilus(self) -> ParquetDataCatalog:
         return ParquetDataCatalog(str(self._path))
@@ -138,6 +159,12 @@ class Catalog:
             _days_of(_clipped(intervals, window.nanos)), known_gaps
         )
         return Coverage(series.instrument_id, series.data_type, missing, known)
+
+    def _records(self, series: _Series, window: Window) -> list[Any]:
+        first, last = window.nanos
+        return self._nautilus.query(
+            series.nautilus_type, [str(series.instrument_id)], first, last
+        )
 
     def _file_lines(self, selection: Selection) -> list[str]:
         return sorted(
