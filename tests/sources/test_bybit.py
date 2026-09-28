@@ -1,13 +1,12 @@
 import asyncio
 import json
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from datetime import date
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from typing import Any
 
 import pandas as pd
 import pytest
-from bybit_replay import bybit_replay
 from nautilus_trader.model import (
     CryptoPerpetual,
     FundingRateUpdate,
@@ -22,23 +21,9 @@ from sbt2.sources import (
     RawFile,
     Source,
     UnsupportedDataTypeError,
-    source,
 )
-from sbt2.sources.bybit import BybitSource, Endpoints
 
-REPO_CONFIG = Path(__file__).parents[2] / "config" / "sources.toml"
 DAY = date(2025, 1, 1)
-
-
-@pytest.fixture
-def bybit() -> Source:
-    return source("bybit", REPO_CONFIG)
-
-
-@pytest.fixture
-def replayed() -> Iterator[Source]:
-    with bybit_replay() as api:
-        yield BybitSource(frozenset(), Endpoints(api=api))
 
 
 def fetched(raw: RawFile) -> Any:
