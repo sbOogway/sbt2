@@ -5,11 +5,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from nautilus_trader.model import (
+    Bar,
     FundingRateUpdate,
+    InstrumentId,
     MarkPriceUpdate,
     NautilusDataType,
     TradeTick,
 )
+
+from sbt2.sources import candle_type
 
 type Bounds = tuple[int, int]
 
@@ -17,6 +21,7 @@ _DIRECTORIES: Mapping[type, str] = {
     TradeTick: "trades",
     MarkPriceUpdate: "mark_prices",
     FundingRateUpdate: "funding_rates",
+    Bar: "bars",
 }
 
 
@@ -26,6 +31,13 @@ def nautilus_type(data_type: type) -> NautilusDataType:
 
 def directory(data_type: type) -> str:
     return _DIRECTORIES[data_type]
+
+
+def identifier(data_type: type, instrument_id: InstrumentId) -> str:
+    """The name nautilus files an instrument's data under: bars go by bar type."""
+    if data_type is Bar:
+        return str(candle_type(instrument_id))
+    return str(instrument_id)
 
 
 def file_name(bounds: Bounds) -> str:
