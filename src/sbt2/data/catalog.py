@@ -17,7 +17,7 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.persistence import ParquetDataCatalog
 
-from sbt2.data import frames
+from sbt2.data import frames, layout
 from sbt2.data.days import days
 from sbt2.sources import Gap
 
@@ -93,7 +93,7 @@ class _Series:
 
     @property
     def nautilus_type(self) -> NautilusDataType:
-        return _nautilus_type(self.data_type)
+        return layout.nautilus_type(self.data_type)
 
     def split(
         self, uncovered: Iterable[date], known_gaps: frozenset[Gap]
@@ -211,10 +211,10 @@ class Catalog:
         return _days_of(intervals)
 
     def _instrument_ids(self, data_type: type) -> list[InstrumentId]:
-        folder = self._path / "data" / _directory(data_type)
+        folder = self._path / "data" / layout.directory(data_type)
         if not folder.is_dir():
             return []
-        names = self._nautilus.list_instruments(_nautilus_type(data_type))
+        names = self._nautilus.list_instruments(layout.nautilus_type(data_type))
         return [InstrumentId.from_str(each) for each in sorted(names)]
 
     def _records(self, series: _Series, window: Window) -> list[Any]:
@@ -229,7 +229,7 @@ class Catalog:
             for instrument_id in selection.instrument_ids
             for data_type in selection.data_types
             for name in self._files(_Series(instrument_id, data_type))
-            if _overlaps(_file_bounds(name), selection.window.nanos)
+            if _overlaps(layout.file_bounds(name), selection.window.nanos)
         )
 
     def _files(self, series: _Series) -> list[str]:
@@ -244,18 +244,6 @@ def _nanos(moment: datetime) -> int:
 
 def _day(nanos: int) -> date:
     return datetime.fromtimestamp(nanos // 1_000_000_000, UTC).date()
-
-
-def _nautilus_type(data_type: type) -> NautilusDataType:
-    return getattr(NautilusDataType, data_type.__name__)
-
-
-def _directory(data_type: type) -> str:
-    return {
-        TradeTick: "trades",
-        MarkPriceUpdate: "mark_prices",
-        FundingRateUpdate: "funding_rates",
-    }[data_type]
 
 
 def _ts_init(instrument: Any) -> int:
@@ -277,18 +265,6 @@ def _days_of(intervals: Iterable[Interval]) -> list[date]:
 
 def _overlaps(one: Interval, other: Interval) -> bool:
     return one[0] <= other[1] and other[0] <= one[1]
-
-
-def _file_bounds(name: str) -> Interval:
-    """The bounds nautilus encodes in a data file's name."""
-    first, last = Path(name).stem.split("_")
-    return _file_timestamp(first), _file_timestamp(last)
-
-
-def _file_timestamp(text: str) -> int:
-    moment, nanos = text[:19], text[20:29]
-    seconds = datetime.strptime(moment, "%Y-%m-%dT%H-%M-%S").replace(tzinfo=UTC)
-    return int(seconds.timestamp()) * 1_000_000_000 + int(nanos)
 
 
 def _canonical(instrument: Any) -> str:
