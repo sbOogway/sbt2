@@ -82,6 +82,16 @@ def test_the_carry_ledger_holds_the_venue_funding_payments(
     assert list(carry["ts_event"].dt.hour) == [8, 16]
 
 
+def test_funding_paid_before_a_reversal_stays_in_the_carry_ledger(
+    tmp_path: Path, catalog: Path
+) -> None:
+    store, run_id = run(tmp_path, catalog, strategy="run_strategies:BuyThenReverse")
+
+    carry = store.load(run_id, "carry")
+    assert amounts(carry, "pnl_change") == [FUNDING, FUNDING, *[-FUNDING] * 3]
+    assert len(store.load(run_id, "positions")) == 2
+
+
 def test_equity_ends_at_the_balance_less_fees_and_funding(
     tmp_path: Path, catalog: Path
 ) -> None:
