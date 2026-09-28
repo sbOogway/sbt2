@@ -1,4 +1,4 @@
-from sbt2.data.catalog import Catalog, Coverage, Selection, Window
+from sbt2.data.catalog import Catalog, Coverage, Holding, Selection, Window
 from sbt2.data.download import (
     INSTRUMENT,
     DownloadOptions,
@@ -34,6 +34,7 @@ __all__ = [
     "DownloadReport",
     "DownloadRequest",
     "FileResult",
+    "Holding",
     "IngestOptions",
     "IngestOutcome",
     "IngestProgress",

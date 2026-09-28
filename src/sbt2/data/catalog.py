@@ -23,6 +23,9 @@ from sbt2.sources import Gap
 
 type Interval = tuple[int, int]
 
+# The data types sbt2 writes, which status reports on.
+_STORED: tuple[type, ...] = (TradeTick, MarkPriceUpdate, FundingRateUpdate)
+
 
 @dataclass(frozen=True)
 class Window:
@@ -63,6 +66,23 @@ class Coverage:
     instrument_id: InstrumentId
     data_type: type
     missing: tuple[date, ...]
+    known_gaps: tuple[date, ...]
+
+
+@dataclass(frozen=True)
+class Holding:
+    """What the catalog holds of one data type for one instrument.
+
+    ``days`` counts the covered days from ``first`` to ``last``. ``gaps`` and
+    ``known_gaps`` are the uncovered days between them, or in the window asked for.
+    """
+
+    instrument_id: InstrumentId
+    data_type: type
+    first: date
+    last: date
+    days: int
+    gaps: tuple[date, ...]
     known_gaps: tuple[date, ...]
 
 
@@ -144,6 +164,18 @@ class Catalog:
         """Bars resampled from trades by nautilus's rules for internal time bars."""
         return frames.bars(self.trades(instrument_id, window), interval, window.end)
 
+    def status(
+        self, known_gaps: frozenset[Gap], window: Window | None = None
+    ) -> tuple[Holding, ...]:
+        """A holding per instrument and data type the catalog has files for."""
+        if not self._path.is_dir():
+            return ()
+        return tuple(
+            self._holding(_Series(instrument_id, data_type), known_gaps, window)
+            for data_type in _STORED
+            for instrument_id in self._instrument_ids(data_type)
+        )
+
     @cached_property
     def _nautilus(self) -> ParquetDataCatalog:
         return ParquetDataCatalog(str(self._path))
@@ -159,6 +191,37 @@ class Catalog:
             _days_of(_clipped(intervals, window.nanos)), known_gaps
         )
         return Coverage(series.instrument_id, series.data_type, missing, known)
+
+    def _holding(
+        self, series: _Series, known_gaps: frozenset[Gap], window: Window | None
+    ) -> Holding:
+        covered = self._covered_days(series)
+        checked = window.days if window else tuple(days(covered[0], covered[-1]))
+        present = set(covered)
+        uncovered = [each for each in checked if each not in present]
+        gaps, known = series.split(uncovered, known_gaps)
+        return Holding(
+            series.instrument_id,
+            series.data_type,
+            covered[0],
+            covered[-1],
+            len(covered),
+            gaps,
+            known,
+        )
+
+    def _covered_days(self, series: _Series) -> list[date]:
+        intervals = self._nautilus.get_intervals(
+            series.nautilus_type, str(series.instrument_id)
+        )
+        return _days_of(intervals)
+
+    def _instrument_ids(self, data_type: type) -> list[InstrumentId]:
+        folder = self._path / "data" / _directory(data_type)
+        if not folder.is_dir():
+            return []
+        names = self._nautilus.list_instruments(_nautilus_type(data_type))
+        return [InstrumentId.from_str(each) for each in sorted(names)]
 
     def _records(self, series: _Series, window: Window) -> list[Any]:
         first, last = window.nanos
@@ -191,6 +254,14 @@ def _day(nanos: int) -> date:
 
 def _nautilus_type(data_type: type) -> NautilusDataType:
     return getattr(NautilusDataType, data_type.__name__)
+
+
+def _directory(data_type: type) -> str:
+    return {
+        TradeTick: "trades",
+        MarkPriceUpdate: "mark_prices",
+        FundingRateUpdate: "funding_rates",
+    }[data_type]
 
 
 def _ts_init(instrument: Any) -> int:
