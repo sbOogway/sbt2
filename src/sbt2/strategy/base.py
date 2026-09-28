@@ -1,12 +1,14 @@
 import importlib
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, fields
-from datetime import datetime, timedelta
+from dataclasses import asdict, dataclass, fields
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any, ClassVar, get_type_hints
 
-from nautilus_trader.model import Bar, BarType, InstrumentId, Money
+from nautilus_trader.model import BarType, InstrumentId
+from nautilus_trader.trading import ImportableStrategyConfig
+from nautilus_trader.trading import Strategy as NautilusStrategy
 
 
 @dataclass(frozen=True)
@@ -23,47 +25,59 @@ type Input = Bars
 
 
 @dataclass(frozen=True)
-class State:
-    time: datetime
-    bars: Mapping[BarType, Bar]
-    positions: Mapping[InstrumentId, Decimal]
-    equity: Money
-
-
-@dataclass(frozen=True)
-class TargetPosition:
-    """The signed net position wanted on an instrument, reached with market orders."""
-
-    instrument_id: InstrumentId
-    quantity: Decimal
-
-
-type Intent = TargetPosition
-
-
-@dataclass(frozen=True)
-class Fill:
-    instrument_id: InstrumentId
-    quantity: Decimal
-    price: Decimal
-    time: datetime
-
-
-@dataclass(frozen=True)
 class NoParams:
     pass
 
 
-class Strategy[P](ABC):
-    """A plain-Python strategy: it reads state and returns intents, never orders.
+@dataclass(frozen=True)
+class StrategyRun:
+    """What to run: a strategy import path, its instruments and parameters.
+
+    ``trade_start`` is the segment start; before it the strategy only warms up.
+    """
+
+    strategy: str
+    instruments: Sequence[str]
+    params: Mapping[str, Any]
+    trade_start: datetime
+
+
+@dataclass(frozen=True)
+class RunConfig:
+    """``StrategyRun`` as the JSON primitives nautilus passes to the strategy."""
+
+    instruments: list[str]
+    params: dict[str, Any]
+    trade_start: str
+
+
+def importable_config(run: StrategyRun) -> ImportableStrategyConfig:
+    config = RunConfig(
+        list(run.instruments), dict(run.params), run.trade_start.isoformat()
+    )
+    return ImportableStrategyConfig(
+        run.strategy, f"{__name__}:RunConfig", asdict(config)
+    )
+
+
+class Strategy[P](NautilusStrategy, ABC):
+    """A nautilus strategy that sbt2 can describe without running it.
 
     ``Params`` is a dataclass: its fields are the parameter schema and defaults.
+    The declared input bars are subscribed on start, so a subclass that
+    overrides ``on_start`` calls ``super().on_start()``. Orders submitted while
+    ``warming_up`` are dropped.
     """
 
     Params: ClassVar[type[Any]] = NoParams
 
-    def __init__(self, params: P) -> None:
-        self.params = params
+    def __init__(self, config: RunConfig) -> None:
+        super().__init__(config)
+        self.params: P = resolve_params(type(self), config.params)
+        self.instrument_ids = [
+            InstrumentId.from_str(each) for each in config.instruments
+        ]
+        self._trade_start_ns = _to_nanos(datetime.fromisoformat(config.trade_start))
 
     @classmethod
     def warmup(cls, params: P) -> timedelta:
@@ -73,11 +87,28 @@ class Strategy[P](ABC):
     @abstractmethod
     def inputs(cls, params: P) -> Sequence[Input]: ...
 
-    @abstractmethod
-    def decide(self, state: State) -> Sequence[Intent]: ...
+    @property
+    def warming_up(self) -> bool:
+        return self.clock.timestamp_ns() < self._trade_start_ns
 
-    def on_fill(self, fill: Fill) -> None:
-        return None
+    def bar_types(self) -> list[BarType]:
+        return [
+            bars.bar_type(instrument_id)
+            for instrument_id in self.instrument_ids
+            for bars in self.inputs(self.params)
+        ]
+
+    def on_start(self) -> None:
+        for bar_type in self.bar_types():
+            self.subscribe_bars(bar_type)
+
+    def submit_order(self, order: Any, *args: Any, **kwargs: Any) -> None:
+        if not self.warming_up:
+            super().submit_order(order, *args, **kwargs)
+
+    def submit_order_list(self, order_list: Any, *args: Any, **kwargs: Any) -> None:
+        if not self.warming_up:
+            super().submit_order_list(order_list, *args, **kwargs)
 
 
 class UnknownParameterError(ValueError):
@@ -93,7 +124,7 @@ def import_strategy(path: str) -> type[Strategy[Any]]:
     module_name, _, class_name = path.partition(":")
     strategy = getattr(importlib.import_module(module_name), class_name)
     if not (isinstance(strategy, type) and issubclass(strategy, Strategy)):
-        raise TypeError(f"{path} is not a Strategy subclass")
+        raise TypeError(f"{path} is not an sbt2 Strategy subclass")
     return strategy
 
 
@@ -141,3 +172,8 @@ def _decimal(name: str, value: str | float) -> Decimal:
         raise InvalidParameterError(
             f"parameter {name} must be a decimal, got {value!r}"
         ) from None
+
+
+def _to_nanos(moment: datetime) -> int:
+    since_epoch = moment - datetime(1970, 1, 1, tzinfo=UTC)
+    return since_epoch // timedelta(microseconds=1) * 1_000

@@ -3,16 +3,9 @@ from dataclasses import dataclass
 from datetime import timedelta
 from decimal import Decimal
 
-from sbt2.strategy import (
-    Bars,
-    Fill,
-    Input,
-    Intent,
-    NoParams,
-    State,
-    Strategy,
-    TargetPosition,
-)
+from nautilus_trader.model import Bar, OrderSide, Quantity
+
+from sbt2.strategy import Bars, Input, NoParams, Strategy
 
 MINUTE_BARS = Bars("1-MINUTE-LAST")
 
@@ -23,8 +16,8 @@ class StepParams:
     lookback: int = 3
 
 
-class StepUp(Strategy[StepParams]):
-    """Adds ``step`` to the real position on every bar."""
+class BuyEveryBar(Strategy[StepParams]):
+    """Buys ``step`` on every bar, warm-up included."""
 
     Params = StepParams
 
@@ -36,32 +29,29 @@ class StepUp(Strategy[StepParams]):
     def inputs(cls, params: StepParams) -> Sequence[Input]:
         return (MINUTE_BARS,)
 
-    def decide(self, state: State) -> Sequence[Intent]:
-        return [
-            TargetPosition(instrument_id, position + self.params.step)
-            for instrument_id, position in state.positions.items()
-        ]
+    def on_bar(self, bar: Bar) -> None:
+        quantity = Quantity.from_str(str(self.params.step))
+        order = self.order_factory.market(
+            bar.bar_type.instrument_id, OrderSide.BUY, quantity
+        )
+        self.submit_order(order)
 
 
-class OneEquityUnitUntilFilled(Strategy[NoParams]):
-    """Holds one unit per 10,000 of equity, and goes flat after its first fill."""
-
-    def __init__(self, params: NoParams) -> None:
-        super().__init__(params)
-        self.filled = False
+class CountWarmupBars(Strategy[NoParams]):
+    def on_start(self) -> None:
+        super().on_start()
+        self.warmup_bars = 0
+        self.trading_bars = 0
 
     @classmethod
     def inputs(cls, params: NoParams) -> Sequence[Input]:
         return (MINUTE_BARS,)
 
-    def decide(self, state: State) -> Sequence[Intent]:
-        units = Decimal(0) if self.filled else state.equity.as_decimal() / 10_000
-        return [
-            TargetPosition(bar_type.instrument_id, units) for bar_type in state.bars
-        ]
-
-    def on_fill(self, fill: Fill) -> None:
-        self.filled = True
+    def on_bar(self, bar: Bar) -> None:
+        if self.warming_up:
+            self.warmup_bars += 1
+        else:
+            self.trading_bars += 1
 
 
 class NotAStrategy:

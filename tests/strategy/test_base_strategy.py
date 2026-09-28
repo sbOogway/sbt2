@@ -14,7 +14,6 @@ from nautilus_trader.model import (
     InstrumentId,
     Money,
     OmsType,
-    OrderSide,
     Price,
     Quantity,
     Symbol,
@@ -22,13 +21,15 @@ from nautilus_trader.model import (
     TradeTick,
     Venue,
 )
+from nautilus_trader.trading import Strategy as NautilusStrategy
+from toy_strategies import CountWarmupBars
 
-from sbt2.strategy import AdapterConfig, importable_config
+from sbt2.strategy import RunConfig, StrategyRun, importable_config
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 TRADE_START = START + timedelta(minutes=3)
 LAST_BAR_MINUTE = 9
-VENUE = Venue("BYBIT")
+BARS_FROM_TRADE_START = LAST_BAR_MINUTE - 3 + 1
 BTC = InstrumentId.from_str("BTCUSDT-PERP.BYBIT")
 USDT = Currency.from_str("USDT")
 
@@ -66,13 +67,12 @@ def trades() -> list[TradeTick]:
     ]
 
 
-def run(strategy: str, params: dict[str, Any] | None = None) -> BacktestEngine:
-    config = AdapterConfig(strategy, [str(BTC)], params or {}, TRADE_START)
+def engine_with_trades() -> BacktestEngine:
     engine = BacktestEngine(
         BacktestEngineConfig(logging=LoggerConfig(stdout_level=LogLevel.ERROR))
     )
     engine.add_venue(
-        VENUE,
+        Venue("BYBIT"),
         OmsType.NETTING,
         AccountType.MARGIN,
         [Money.from_str("10000 USDT")],
@@ -81,50 +81,48 @@ def run(strategy: str, params: dict[str, Any] | None = None) -> BacktestEngine:
     )
     engine.add_instrument(perpetual())
     engine.add_data(trades())
-    engine.add_strategy_from_config(importable_config(config))
+    return engine
+
+
+def run_from_path(
+    strategy: str, params: dict[str, Any] | None = None
+) -> BacktestEngine:
+    engine = engine_with_trades()
+    run = StrategyRun(strategy, [str(BTC)], params or {}, TRADE_START)
+    engine.add_strategy_from_config(importable_config(run))
     engine.run()
     return engine
 
 
-def orders(engine: BacktestEngine) -> list[Any]:
-    return engine.cache.orders()
+def run_instance(strategy: NautilusStrategy) -> None:
+    engine = engine_with_trades()
+    engine.add_strategy(strategy)
+    engine.run()
 
 
-def net_position(engine: BacktestEngine) -> Decimal:
-    return engine.portfolio.net_position(BTC)
+def test_orders_submitted_during_warmup_are_dropped() -> None:
+    engine = run_from_path("toy_strategies:BuyEveryBar")
 
-
-def test_no_orders_before_the_trade_start() -> None:
-    engine = run("toy_strategies:StepUp")
-
-    first_order = min(order.ts_init for order in orders(engine))
+    first_order = min(order.ts_init for order in engine.cache.orders())
     assert first_order == nanos(TRADE_START)
+    assert len(engine.cache.orders()) == BARS_FROM_TRADE_START
 
 
-def test_targets_move_the_real_position_on_every_bar_after_the_start() -> None:
-    engine = run("toy_strategies:StepUp", {"step": Decimal("0.250")})
+def test_params_survive_the_importable_config() -> None:
+    engine = run_from_path("toy_strategies:BuyEveryBar", {"step": Decimal("0.250")})
 
-    bars_after_start = LAST_BAR_MINUTE - 3 + 1
-    assert len(orders(engine)) == bars_after_start
-    assert net_position(engine) == bars_after_start * Decimal("0.250")
-
-
-def test_quantities_below_the_size_increment_are_not_ordered() -> None:
-    engine = run("toy_strategies:StepUp", {"step": "0.0004"})
-
-    assert orders(engine) == []
+    expected = BARS_FROM_TRADE_START * Decimal("0.250")
+    assert engine.portfolio.net_position(BTC) == expected
 
 
-def test_fills_reach_the_strategy() -> None:
-    engine = run("toy_strategies:OneEquityUnitUntilFilled")
+def test_declared_bars_are_subscribed_and_warmup_ends_at_the_trade_start() -> None:
+    strategy = CountWarmupBars(RunConfig([str(BTC)], {}, TRADE_START.isoformat()))
 
-    assert [(order.side, str(order.quantity)) for order in orders(engine)] == [
-        (OrderSide.BUY, "1.000"),
-        (OrderSide.SELL, "1.000"),
-    ]
-    assert net_position(engine) == 0
+    run_instance(strategy)
+
+    assert (strategy.warmup_bars, strategy.trading_bars) == (3, BARS_FROM_TRADE_START)
 
 
-def test_unknown_params_fail_when_the_adapter_is_built() -> None:
+def test_unknown_params_fail_when_the_strategy_is_built() -> None:
     with pytest.raises(RuntimeError, match="unknown parameters size"):
-        run("toy_strategies:StepUp", {"size": 1})
+        run_from_path("toy_strategies:BuyEveryBar", {"size": 1})
