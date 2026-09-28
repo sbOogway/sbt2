@@ -30,6 +30,7 @@
 
 - Start every feature or issue on a new branch from an up-to-date `main`. Never commit to `main` directly.
 - Name the branch after the change type and topic, e.g. `feat/funding-ingest`, `fix/snapshot-grid`.
+- Before starting work on a new issue, ask the user about its open design points with the question tool, and wait for the answers.
 - Open a draft pull request on GitHub as soon as the branch has its first commit, linking the issue it addresses.
 - Do the work on that branch, then mark the pull request ready for review.
 - Stop and wait for the user's code review. Do not merge the pull request yourself.
