@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from nautilus_trader.model import InstrumentId, TradeTick
 
-from sbt2.sources import Gap, UnknownSourceError, source
+from sbt2.sources import Gap, UnknownSourceError, known_gaps, source
 
 REPO_CONFIG = Path(__file__).parents[2] / "config" / "sources.toml"
 
@@ -28,3 +28,30 @@ def test_known_gaps_come_from_the_config(tmp_path: Path) -> None:
 def test_unknown_source_is_refused() -> None:
     with pytest.raises(UnknownSourceError, match="known: bybit"):
         source("nope", REPO_CONFIG)
+
+
+def test_known_gaps_combine_every_configured_source(tmp_path: Path) -> None:
+    config = tmp_path / "sources.toml"
+    config.write_text(
+        "[bybit]\n"
+        "known_gaps = [\n"
+        '  { symbol = "BTCUSDT", data = "trades", day = 2020-03-25 },\n'
+        '  { symbol = "ETHUSDT", data = "trades", day = 2020-03-26 },\n'
+        "]\n"
+    )
+
+    assert known_gaps(config) == {
+        Gap(
+            InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT"), TradeTick, date(2020, 3, 25)
+        ),
+        Gap(
+            InstrumentId.from_str("ETHUSDT-LINEAR.BYBIT"), TradeTick, date(2020, 3, 26)
+        ),
+    }
+
+
+def test_a_config_without_sources_has_no_known_gaps(tmp_path: Path) -> None:
+    config = tmp_path / "sources.toml"
+    config.write_text("")
+
+    assert known_gaps(config) == frozenset()

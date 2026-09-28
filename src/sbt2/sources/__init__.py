@@ -23,6 +23,7 @@ __all__ = [
     "Source",
     "UnknownSourceError",
     "UnsupportedDataTypeError",
+    "known_gaps",
     "source",
 ]
 
@@ -43,5 +44,15 @@ def source(name: str, config: Path) -> Source:
         raise UnknownSourceError(
             f"no source {name}; known: {', '.join(sorted(_FACTORIES))}"
         ) from None
+    return factory(_tables(config).get(name, {}))
+
+
+def known_gaps(config: Path) -> frozenset[Gap]:
+    """The known gaps of every source with a table in ``config``."""
+    names = _tables(config)
+    return frozenset().union(*(source(name, config).known_gaps for name in names))
+
+
+def _tables(config: Path) -> dict[str, Any]:
     with config.open("rb") as file:
-        return factory(tomllib.load(file).get(name, {}))
+        return tomllib.load(file)

@@ -1,3 +1,4 @@
+from sbt2.data.catalog import Catalog, Coverage, Holding, Selection, Window
 from sbt2.data.download import (
     INSTRUMENT,
     DownloadOptions,
@@ -25,12 +26,15 @@ from sbt2.data.ingest import (
 
 __all__ = [
     "INSTRUMENT",
+    "Catalog",
+    "Coverage",
     "Day",
     "DayResult",
     "DownloadOptions",
     "DownloadReport",
     "DownloadRequest",
     "FileResult",
+    "Holding",
     "IngestOptions",
     "IngestOutcome",
     "IngestProgress",
@@ -42,6 +46,8 @@ __all__ = [
     "Outcome",
     "OutsideDayError",
     "Progress",
+    "Selection",
+    "Window",
     "download",
     "ingest",
 ]
