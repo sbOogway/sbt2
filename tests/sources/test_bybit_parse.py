@@ -108,7 +108,7 @@ def test_funding_off_its_interval_grid_is_refused(
         list(bybit.parse(funding_file, FundingRateUpdate, instrument))
 
 
-def test_mark_prices_are_each_minutes_close_at_its_end(
+def test_mark_prices_are_each_minutes_close_just_before_its_end(
     replayed: Source, instrument: Any, tmp_path: Path
 ) -> None:
     klines = saved(replayed.day_file("BTCUSDT", MarkPriceUpdate, DAY), tmp_path)
@@ -116,10 +116,10 @@ def test_mark_prices_are_each_minutes_close_at_its_end(
     marks = list(replayed.parse(klines, MarkPriceUpdate, instrument))
 
     assert [each.ts_event for each in marks] == [
-        DAY_NANOS + minute * MINUTE_NANOS for minute in range(1, 1441)
+        DAY_NANOS + minute * MINUTE_NANOS - 1 for minute in range(1, 1441)
     ]
     assert (marks[719].ts_event, str(marks[719].value)) == (
-        DAY_NANOS + 720 * MINUTE_NANOS,
+        DAY_NANOS + 720 * MINUTE_NANOS - 1,
         "93396.41",
     )
 
