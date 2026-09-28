@@ -1,13 +1,17 @@
 import re
 import tomllib
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import UTC, date, datetime, time
 from pathlib import Path
 from typing import Any
 
 _INTERVAL = re.compile(r"(\d+)([smhd])")
 _UNIT_MS = {"s": 1_000, "m": 60_000, "h": 3_600_000, "d": 86_400_000}
+
+
+class UnknownSpecKeyError(ValueError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -45,7 +49,19 @@ class RunSpec:
 def read_spec(path: Path, overrides: Mapping[str, Any]) -> RunSpec:
     with path.open("rb") as file:
         table = tomllib.load(file)
-    return RunSpec(**{**table, **overrides})
+    values = {**table, **overrides}
+    _reject_unknown(path, values)
+    return RunSpec(**values)
+
+
+def _reject_unknown(path: Path, values: Mapping[str, Any]) -> None:
+    valid = {each.name for each in fields(RunSpec)}
+    unknown = sorted(set(values) - valid)
+    if unknown:
+        raise UnknownSpecKeyError(
+            f"unknown keys {', '.join(unknown)} in {path}; "
+            f"valid: {', '.join(sorted(valid))}"
+        )
 
 
 def utc(moment: date | datetime | str) -> datetime:

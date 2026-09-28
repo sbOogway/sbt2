@@ -18,6 +18,7 @@ from nautilus_trader.model import (
 from sbt2.spec import (
     InstrumentVenueError,
     ResolvedRunSpec,
+    UnknownSpecKeyError,
     UnknownVenueProfileError,
     load,
 )
@@ -216,8 +217,10 @@ def test_instrument_on_another_venue_fails(paths: tuple[Path, Path]) -> None:
         resolved(paths, instruments=[BTC, "BTCUSDT-LINEAR.BINANCE"])
 
 
-def test_unknown_spec_key_fails(paths: tuple[Path, Path]) -> None:
-    with pytest.raises(TypeError, match="symbols"):
+def test_unknown_spec_key_fails_listing_the_valid_ones(
+    paths: tuple[Path, Path],
+) -> None:
+    with pytest.raises(UnknownSpecKeyError, match="symbols .* valid: capital, end"):
         resolved(paths, symbols=["BTCUSDT"])
 
 
