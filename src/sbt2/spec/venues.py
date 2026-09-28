@@ -1,6 +1,7 @@
 import importlib
 import tomllib
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -15,18 +16,35 @@ class UnknownVenueProfileError(LookupError):
     pass
 
 
-def venue_profile(path: Path, name: str) -> tuple[AssetProfile, dict[str, Any]]:
-    """The asset profile a venue profile names, and its ``BacktestVenueConfig`` arguments.
+class InvalidVenueProfileError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class VenueProfile:
+    """``arguments`` are the ``BacktestVenueConfig`` arguments; ``source`` names
+    the data source the venue's data comes from."""
+
+    asset: AssetProfile
+    source: str
+    arguments: dict[str, Any]
+
+
+def venue_profile(path: Path, name: str) -> VenueProfile:
+    """The venue profile called ``name``.
 
     The arguments start from the asset profile's venue defaults. Model arguments stay
     as ``{path, config}`` tables until ``venue_objects`` imports them.
     """
     arguments = _profile_table(path, name)
+    if "source" not in arguments:
+        raise InvalidVenueProfileError(f"the venue profile {name} names no source")
+    source = arguments.pop("source")
     asset = asset_profile(
         AssetClass.from_str(arguments.pop("asset_class")),
         InstrumentClass.from_str(arguments.pop("instrument_class")),
     )
-    return asset, {**asset.venue_defaults, **arguments}
+    return VenueProfile(asset, source, {**asset.venue_defaults, **arguments})
 
 
 def venue_objects(arguments: Mapping[str, Any]) -> dict[str, Any]:

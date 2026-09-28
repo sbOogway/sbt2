@@ -35,6 +35,7 @@ _SUMMARY_SCHEMA = pa.schema(
         ("git_sha", pa.string()),
         ("git_dirty", pa.bool_()),
         ("data_fingerprint", pa.string()),
+        ("known_gaps", pa.list_(pa.string())),
         ("currency", pa.string()),
         ("net_return", pa.float64()),
         ("annualized_return", pa.float64()),
@@ -165,9 +166,18 @@ def _summary(run: _Run, metrics: HeadlineMetrics) -> dict[str, object]:
         "end": run.spec.end,
         "split": None,
         "segment": None,
-        **asdict(run.provenance),
+        **_provenance(run.provenance),
         "currency": run.currency,
         **asdict(metrics),
+    }
+
+
+def _provenance(provenance: Provenance) -> dict[str, object]:
+    return {
+        "git_sha": provenance.git_sha,
+        "git_dirty": provenance.git_dirty,
+        "data_fingerprint": provenance.data_fingerprint,
+        "known_gaps": [str(each) for each in provenance.known_gaps],
     }
 
 

@@ -4,11 +4,12 @@ from typing import Any
 
 from sbt2.spec.parse import UnknownSpecKeyError, read_spec
 from sbt2.spec.resolve import InstrumentVenueError, ResolvedRunSpec, resolve
-from sbt2.spec.venues import UnknownVenueProfileError
+from sbt2.spec.venues import InvalidVenueProfileError, UnknownVenueProfileError
 
 __all__ = [
     "VENUE_PROFILES",
     "InstrumentVenueError",
+    "InvalidVenueProfileError",
     "ResolvedRunSpec",
     "UnknownSpecKeyError",
     "UnknownVenueProfileError",

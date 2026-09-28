@@ -1,10 +1,20 @@
 import subprocess
 import uuid
+from dataclasses import replace
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
 import pytest
-from nautilus_run import END, START, RunOutput, round_trip_with_funding, spec
+from nautilus_run import (
+    END,
+    INSTRUMENT_ID,
+    START,
+    RunOutput,
+    round_trip_with_funding,
+    spec,
+)
+from nautilus_trader.model import FundingRateUpdate
 
 from sbt2.results import (
     IncompleteRunError,
@@ -15,6 +25,7 @@ from sbt2.results import (
     Reports,
     UnknownRunError,
 )
+from sbt2.sources import Gap
 
 PROVENANCE = Provenance(git_sha="abc123", git_dirty=False)
 
@@ -36,9 +47,12 @@ def write(sink: OutputSink, output: RunOutput) -> None:
 
 
 def finished_run(
-    store: ParquetResultStore, output: RunOutput, benchmark: pd.Series | None = None
+    store: ParquetResultStore,
+    output: RunOutput,
+    benchmark: pd.Series | None = None,
+    provenance: Provenance = PROVENANCE,
 ) -> str:
-    sink = store.new_run(spec(), PROVENANCE)
+    sink = store.new_run(spec(), provenance)
     write(sink, output)
     sink.finalize(benchmark)
     return sink.run_id
@@ -90,6 +104,27 @@ def test_summary_holds_the_run_provenance_and_headline_metrics(
     assert summary["net_return"] == pytest.approx(993 / 10_000)
     assert summary["max_drawdown"] <= 0
     assert pd.isna(summary["alpha"]) and pd.isna(summary["beta"])
+
+
+def test_the_summary_lists_the_known_gap_days_the_run_skipped(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    gap = Gap(INSTRUMENT_ID, FundingRateUpdate, date(2024, 1, 2))
+    finished_run(store, output, provenance=replace(PROVENANCE, known_gaps=(gap,)))
+
+    [summary] = store.runs().to_dict("records")
+    assert list(summary["known_gaps"]) == [
+        "BTCUSDT-LINEAR.BYBIT FundingRateUpdate 2024-01-02"
+    ]
+
+
+def test_a_run_without_known_gaps_lists_none(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    finished_run(store, output)
+
+    [summary] = store.runs().to_dict("records")
+    assert list(summary["known_gaps"]) == []
 
 
 def test_fields_later_milestones_fill_are_null(

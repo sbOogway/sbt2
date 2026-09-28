@@ -1,5 +1,6 @@
 [bybit_linear]
 name = "BYBIT"
+source = "bybit"
 asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 # Bybit's base (non-VIP) rates for USDT perpetuals.

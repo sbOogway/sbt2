@@ -67,6 +67,9 @@ class FakeSource:
     def instrument_id(self, symbol: str) -> InstrumentId:
         return instrument_id(symbol)
 
+    def symbol(self, instrument_id: InstrumentId) -> str:
+        return instrument_id.symbol.value
+
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         if data_type is TradeTick:
             path = trades_path(symbol, day)

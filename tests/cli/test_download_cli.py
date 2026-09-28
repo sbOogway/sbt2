@@ -36,6 +36,9 @@ class ApiSource:
     def instrument_id(self, symbol: str) -> InstrumentId:
         return InstrumentId.from_str(f"{symbol}.FAKE")
 
+    def symbol(self, instrument_id: InstrumentId) -> str:
+        return instrument_id.symbol.value
+
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         return self._raw(f"{symbol}/trades/{day.isoformat()}.csv")
 

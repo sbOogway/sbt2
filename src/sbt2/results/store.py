@@ -6,6 +6,7 @@ from typing import Literal, Protocol
 import pandas as pd
 
 from sbt2.results.sink import OutputSink
+from sbt2.sources import Gap
 from sbt2.spec import ResolvedRunSpec
 
 Table = Literal["equity", "carry", "fills", "positions", "account", "orders", "summary"]
@@ -13,11 +14,15 @@ Table = Literal["equity", "carry", "fills", "positions", "account", "orders", "s
 
 @dataclass(frozen=True)
 class Provenance:
-    """Which code and data a run used, beyond what its spec asked for."""
+    """Which code and data a run used, beyond what its spec asked for.
+
+    ``known_gaps`` are the days of the run's data the source confirmed it lacks.
+    """
 
     git_sha: str
     git_dirty: bool
     data_fingerprint: str | None = None
+    known_gaps: tuple[Gap, ...] = ()
 
     @classmethod
     def of_repo(cls, repo: Path) -> Provenance:

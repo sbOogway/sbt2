@@ -42,6 +42,9 @@ class Gap:
     data_type: type
     day: date
 
+    def __str__(self) -> str:
+        return f"{self.instrument_id} {self.data_type.__name__} {self.day.isoformat()}"
+
 
 class Source(Protocol):
     @property
@@ -53,6 +56,10 @@ class Source(Protocol):
     def known_gaps(self) -> frozenset[Gap]: ...
 
     def instrument_id(self, symbol: str) -> InstrumentId: ...
+
+    def symbol(self, instrument_id: InstrumentId) -> str:
+        """The inverse of ``instrument_id``."""
+        ...
 
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         """The raw file holding ``data_type`` for one UTC day."""
