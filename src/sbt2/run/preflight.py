@@ -2,6 +2,7 @@ import logging
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from datetime import date, timedelta
+from operator import attrgetter
 from pathlib import Path
 
 import nautilus_trader.model
@@ -59,16 +60,9 @@ def preflight(
     Returns the known-gap days the run will skip.
     """
     _check_snapshots(spec)
-    folders.catalog.mkdir(parents=True, exist_ok=True)
-    uncovered = _uncovered(spec, Catalog(folders.catalog), source.known_gaps)
-    if uncovered.missing:
-        _fetch(source, uncovered.missing, folders)
-        uncovered = _uncovered(spec, Catalog(folders.catalog), source.known_gaps)
-    if uncovered.missing:
-        described = ", ".join(map(str, uncovered.missing))
-        raise MissingDataError(f"the catalog lacks {described}")
+    known_gaps = _check_coverage(spec, source, folders)
     _check_instruments(spec, Catalog(folders.catalog))
-    return uncovered.known_gaps
+    return known_gaps
 
 
 def _check_snapshots(spec: ResolvedRunSpec) -> None:
@@ -79,6 +73,21 @@ def _check_snapshots(spec: ResolvedRunSpec) -> None:
             f"the run from {spec.start} to {spec.end} takes {snapshots:,} snapshots "
             f"at {interval}; nautilus keeps at most {SNAPSHOT_BUFFER:,}"
         )
+
+
+def _check_coverage(
+    spec: ResolvedRunSpec, source: Source, folders: DataFolders
+) -> tuple[Gap, ...]:
+    """Fetch the days the catalog lacks, and return the known gaps."""
+    folders.catalog.mkdir(parents=True, exist_ok=True)
+    uncovered = _uncovered(spec, Catalog(folders.catalog), source.known_gaps)
+    if uncovered.missing:
+        _fetch(source, uncovered.missing, folders)
+        uncovered = _uncovered(spec, Catalog(folders.catalog), source.known_gaps)
+    if uncovered.missing:
+        described = ", ".join(map(str, uncovered.missing))
+        raise MissingDataError(f"the catalog lacks {described}")
+    return uncovered.known_gaps
 
 
 def _check_instruments(spec: ResolvedRunSpec, catalog: Catalog) -> None:
@@ -143,8 +152,8 @@ def _uncovered(
     trading = frozenset(spec.asset.calendar.trading_days(window.start, window.end))
     coverage = catalog.coverage(selection, known_gaps)
     return _Uncovered(
-        missing=tuple(_gaps(coverage, trading, _missing)),
-        known_gaps=tuple(_gaps(coverage, trading, _known_gaps)),
+        missing=tuple(_gaps(coverage, trading, attrgetter("missing"))),
+        known_gaps=tuple(_gaps(coverage, trading, attrgetter("known_gaps"))),
     )
 
 
@@ -157,14 +166,6 @@ def _gaps(
         for day in days(each):
             if day in trading:
                 yield Gap(each.instrument_id, each.data_type, day)
-
-
-def _missing(coverage: Coverage) -> tuple[date, ...]:
-    return coverage.missing
-
-
-def _known_gaps(coverage: Coverage) -> tuple[date, ...]:
-    return coverage.known_gaps
 
 
 def _selection(spec: ResolvedRunSpec) -> Selection:
