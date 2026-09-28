@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 from nautilus_trader.model import FundingRateUpdate, TradeTick
-from served_source import INSTRUMENT_ID, SYMBOL, ServedSource
+from served_source import INSTRUMENT_ID, SYMBOL, ServedSource, spot_pair
 
 from sbt2.assets import Calendar
 from sbt2.data import (
@@ -18,7 +18,13 @@ from sbt2.data import (
     download,
     ingest,
 )
-from sbt2.run import DataFolders, MissingDataError, SnapshotBufferError, preflight
+from sbt2.run import (
+    DataFolders,
+    InstrumentAssetClassError,
+    MissingDataError,
+    SnapshotBufferError,
+    preflight,
+)
 from sbt2.sources import Gap
 from sbt2.spec import ResolvedRunSpec, load
 
@@ -165,6 +171,29 @@ def test_days_the_calendar_closes_are_not_required(
     weekdays = replace(run.asset, calendar=Weekdays(run.asset.calendar))
 
     assert preflight(replace(run, asset=weekdays), source, folders) == ()
+
+
+def test_an_instrument_the_source_lacks_fails_as_missing_data(
+    tmp_path: Path, folders: DataFolders
+) -> None:
+    source = ServedSource()
+    source.serve_days(DAY, NEXT_DAY)
+
+    with pytest.raises(MissingDataError, match="BTCUSDT-LINEAR.BYBIT"):
+        preflight(spec(tmp_path), source, folders)
+
+
+def test_an_instrument_of_another_asset_class_fails(
+    tmp_path: Path, folders: DataFolders
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY, spot_pair())
+
+    with pytest.raises(
+        InstrumentAssetClassError,
+        match="BTCUSDT-LINEAR.BYBIT is CRYPTOCURRENCY/SPOT, not .* CRYPTOCURRENCY/SWAP",
+    ):
+        preflight(spec(tmp_path), source, folders)
 
 
 def test_a_segment_over_the_snapshot_buffer_fails_before_fetching(

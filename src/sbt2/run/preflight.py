@@ -13,6 +13,7 @@ from sbt2.data import (
     DownloadRequest,
     IngestOptions,
     IngestRequest,
+    NoSnapshotError,
     Outcome,
     Selection,
     Window,
@@ -46,6 +47,10 @@ class MissingDataError(PreflightError):
     pass
 
 
+class InstrumentAssetClassError(PreflightError):
+    pass
+
+
 def preflight(
     spec: ResolvedRunSpec, source: Source, folders: DataFolders
 ) -> tuple[Gap, ...]:
@@ -62,6 +67,7 @@ def preflight(
     if uncovered.missing:
         described = ", ".join(map(str, uncovered.missing))
         raise MissingDataError(f"the catalog lacks {described}")
+    _check_instruments(spec, Catalog(folders.catalog))
     return uncovered.known_gaps
 
 
@@ -73,6 +79,22 @@ def _check_snapshots(spec: ResolvedRunSpec) -> None:
             f"the run from {spec.start} to {spec.end} takes {snapshots:,} snapshots "
             f"at {interval}; nautilus keeps at most {SNAPSHOT_BUFFER:,}"
         )
+
+
+def _check_instruments(spec: ResolvedRunSpec, catalog: Catalog) -> None:
+    ids = spec.strategy.instruments
+    instruments = catalog.instruments(ids)
+    absent = [str(each) for each in ids if each not in instruments]
+    if absent:
+        raise MissingDataError(f"the catalog has no instrument {', '.join(absent)}")
+    profile = spec.asset
+    for each in instruments.values():
+        if not profile.covers(each):
+            raise InstrumentAssetClassError(
+                f"{each.id} is {each.asset_class.name}/{each.instrument_class.name}, "
+                f"not the run's {profile.asset_class.name}/"
+                f"{profile.instrument_class.name}"
+            )
 
 
 def _fetch(source: Source, missing: tuple[Gap, ...], folders: DataFolders) -> None:
@@ -94,11 +116,15 @@ def _fetch(source: Source, missing: tuple[Gap, ...], folders: DataFolders) -> No
     )
     for each in report.having(Outcome.FAILED):
         logger.warning("failed to fetch %s: %s", each.item.raw.path, each.reason)
-    ingest(
-        source,
-        IngestRequest(symbols, first, last, types),
-        IngestOptions(folders.raw, folders.catalog),
-    )
+    try:
+        ingest(
+            source,
+            IngestRequest(symbols, first, last, types),
+            IngestOptions(folders.raw, folders.catalog),
+        )
+    except NoSnapshotError as error:
+        ids = ", ".join(sorted({str(each.instrument_id) for each in missing}))
+        raise MissingDataError(f"no instrument for {ids}: {error}") from error
 
 
 @dataclass(frozen=True)

@@ -42,10 +42,14 @@ class ServedSource:
         self.fetched: list[PurePosixPath] = []
         self._files: dict[PurePosixPath, bytes] = {}
 
-    def serve(self, first: date, last: date, *data_types: type) -> None:
-        """The instrument, and every day from ``first`` to ``last`` of each type."""
-        self.serve_instrument(perpetual())
-        for data_type in data_types or DATA_TYPES:
+    def serve(self, first: date, last: date, instrument: Any = None) -> None:
+        """An instrument, the perpetual by default, and every day of each type
+        from ``first`` to ``last``."""
+        self.serve_instrument(instrument or perpetual())
+        self.serve_days(first, last)
+
+    def serve_days(self, first: date, last: date) -> None:
+        for data_type in DATA_TYPES:
             for offset in range((last - first).days + 1):
                 self.serve_day(data_type, first + timedelta(days=offset))
 
