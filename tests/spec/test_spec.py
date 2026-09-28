@@ -135,6 +135,16 @@ def test_run_config_is_built_from_the_resolved_arguments(
     assert config.chunk_size == 1000
 
 
+def test_engine_arguments_reach_the_engine_config(paths: tuple[Path, Path]) -> None:
+    engine = {"shutdown_on_error": True, "run_analysis": False}
+
+    config = resolved(paths).run_config("/catalog", engine).engine
+
+    assert config.shutdown_on_error
+    assert not config.run_analysis
+    assert config.portfolio is not None
+
+
 def test_portfolio_samples_equity_at_the_interval_in_mark_prices(
     paths: tuple[Path, Path],
 ) -> None:

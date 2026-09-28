@@ -50,11 +50,17 @@ class ResolvedRunSpec:
         """The canonical JSON the hash is taken of."""
         return canonical_json(self._document())
 
-    def run_config(self, catalog_path: str, **machine: Any) -> BacktestRunConfig:
+    def run_config(
+        self,
+        catalog_path: str,
+        engine: Mapping[str, Any] | None = None,
+        **machine: Any,
+    ) -> BacktestRunConfig:
         """The nautilus run config, reading data from ``catalog_path``.
 
-        ``machine`` holds ``BacktestRunConfig`` arguments that never change the
-        results, such as ``chunk_size``; like the catalog path, they are not hashed.
+        ``engine`` and ``machine`` hold ``BacktestEngineConfig`` and
+        ``BacktestRunConfig`` arguments that never change the results, such as
+        ``logging`` or ``chunk_size``; like the catalog path, they are not hashed.
         """
         return BacktestRunConfig(
             [BacktestVenueConfig(**venue_objects(self.venue))],
@@ -63,7 +69,8 @@ class ResolvedRunSpec:
                 for arguments in self.data
             ],
             engine=BacktestEngineConfig(
-                portfolio=self.asset.portfolio_config(self.equity_interval_ms)
+                portfolio=self.asset.portfolio_config(self.equity_interval_ms),
+                **(engine or {}),
             ),
             start=self.start,
             end=self.end,
