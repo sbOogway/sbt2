@@ -10,8 +10,6 @@ from typer.testing import CliRunner
 from sbt2.cli import app
 from sbt2.results import ParquetResultStore
 
-pytestmark = pytest.mark.golden
-
 HERE = Path(__file__).parent
 REPO = HERE.parents[1]
 METRICS = [
@@ -61,6 +59,8 @@ def data(tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.mark.golden
+@pytest.mark.e2e
 @pytest.mark.parametrize("name", ["ma_cross", "ma_cross_candles"])
 def test_the_spec_keeps_producing_its_golden_numbers(
     name: str,

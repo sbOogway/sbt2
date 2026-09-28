@@ -25,6 +25,7 @@ def fingerprint(local: LocalCatalog) -> str:
     return Catalog(local.path).fingerprint(TRADES)
 
 
+@pytest.mark.unit
 def test_the_same_catalog_gives_the_same_fingerprint(
     local: LocalCatalog, tmp_path: Path
 ) -> None:
@@ -35,6 +36,7 @@ def test_the_same_catalog_gives_the_same_fingerprint(
     assert re.fullmatch("[0-9a-f]{64}", fingerprint(local))
 
 
+@pytest.mark.unit
 def test_a_changed_file_in_the_window_changes_it(local: LocalCatalog) -> None:
     before = fingerprint(local)
 
@@ -43,6 +45,7 @@ def test_a_changed_file_in_the_window_changes_it(local: LocalCatalog) -> None:
     assert fingerprint(local) != before
 
 
+@pytest.mark.unit
 def test_files_outside_the_window_do_not_change_it(local: LocalCatalog) -> None:
     before = fingerprint(local)
 
@@ -51,6 +54,7 @@ def test_files_outside_the_window_do_not_change_it(local: LocalCatalog) -> None:
     assert fingerprint(local) == before
 
 
+@pytest.mark.unit
 def test_unselected_data_types_do_not_change_it(local: LocalCatalog) -> None:
     before = fingerprint(local)
 
@@ -59,6 +63,7 @@ def test_unselected_data_types_do_not_change_it(local: LocalCatalog) -> None:
     assert fingerprint(local) == before
 
 
+@pytest.mark.unit
 def test_a_replaced_instrument_changes_it(local: LocalCatalog) -> None:
     before = fingerprint(local)
 
@@ -67,6 +72,7 @@ def test_a_replaced_instrument_changes_it(local: LocalCatalog) -> None:
     assert fingerprint(local) != before
 
 
+@pytest.mark.unit
 def test_candle_files_in_the_window_change_the_fingerprint(
     local: LocalCatalog,
 ) -> None:

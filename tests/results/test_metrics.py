@@ -51,6 +51,7 @@ def metrics(
     )
 
 
+@pytest.mark.unit
 def test_equity_curve_is_forward_filled_from_warmup_onto_the_grid() -> None:
     snapshots = equity(
         {START - 2 * HOUR: 100.0, START + 30 * HOUR: 110.0, START + 4 * DAY: 120.0}
@@ -62,6 +63,7 @@ def test_equity_curve_is_forward_filled_from_warmup_onto_the_grid() -> None:
     assert list(curve) == [100.0, 100.0, 110.0, 110.0, 120.0]
 
 
+@pytest.mark.unit
 def test_equity_curve_keeps_the_last_snapshot_at_a_timestamp_and_one_currency() -> None:
     snapshots = pd.concat(
         [
@@ -74,6 +76,7 @@ def test_equity_curve_keeps_the_last_snapshot_at_a_timestamp_and_one_currency() 
     assert equity_curve(snapshots, "USDT", SEGMENT).iloc[0] == 101.0
 
 
+@pytest.mark.unit
 def test_equity_curve_ends_on_the_segment_end_off_the_interval() -> None:
     segment = Segment(START, START + DAY + HOUR, DAY, days_per_year=365)
 
@@ -82,6 +85,7 @@ def test_equity_curve_ends_on_the_segment_end_off_the_interval() -> None:
     assert list(curve.index) == [START, START + DAY, START + DAY + HOUR]
 
 
+@pytest.mark.unit
 def test_net_return_and_max_drawdown_come_from_the_curve() -> None:
     result = metrics(daily_equity(100.0, 120.0, 90.0, 99.0, 110.0))
 
@@ -89,6 +93,7 @@ def test_net_return_and_max_drawdown_come_from_the_curve() -> None:
     assert result.max_drawdown == pytest.approx(-0.25)
 
 
+@pytest.mark.unit
 def test_annualized_statistics_use_the_asset_calendar_year() -> None:
     run_equity = daily_equity(100.0, 101.0, 100.5, 102.0, 103.0)
     stock_year = Segment(START, START + 4 * DAY, DAY, days_per_year=252)
@@ -100,16 +105,19 @@ def test_annualized_statistics_use_the_asset_calendar_year() -> None:
     assert crypto.annualized_return != stock.annualized_return
 
 
+@pytest.mark.unit
 def test_flat_equity_has_no_sharpe() -> None:
     assert metrics(daily_equity(100.0)).sharpe is None
 
 
+@pytest.mark.unit
 def test_alpha_and_beta_are_absent_without_a_benchmark() -> None:
     result = metrics(daily_equity(100.0, 101.0, 100.5, 102.0, 103.0))
 
     assert (result.alpha, result.beta) == (None, None)
 
 
+@pytest.mark.unit
 def test_alpha_and_beta_against_intraday_benchmark_returns() -> None:
     run_equity = daily_equity(100.0, 101.0, 100.5, 102.0, 103.0)
     curve = equity_curve(run_equity, "USDT", SEGMENT)
@@ -125,6 +133,7 @@ def test_alpha_and_beta_against_intraday_benchmark_returns() -> None:
     assert result.alpha == pytest.approx(0.0, abs=1e-9)
 
 
+@pytest.mark.unit
 def test_trades_fees_and_carry_are_totalled_in_the_settlement_currency() -> None:
     run = RunTables(
         daily_equity(100.0),
@@ -140,12 +149,14 @@ def test_trades_fees_and_carry_are_totalled_in_the_settlement_currency() -> None
     assert result.total_carry == pytest.approx(-3.5)
 
 
+@pytest.mark.unit
 def test_a_run_without_fills_or_carry_totals_zero() -> None:
     result = metrics(daily_equity(100.0))
 
     assert (result.trade_count, result.total_fees, result.total_carry) == (0, 0, 0)
 
 
+@pytest.mark.unit
 def test_amounts_in_another_currency_fail() -> None:
     run = RunTables(daily_equity(100.0), fills("0.001 BTC"), NO_CARRY, "USDT")
 

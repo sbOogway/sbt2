@@ -65,6 +65,7 @@ def outcomes(report: DownloadReport) -> dict[tuple[str, date], Outcome]:
     return {(each.item.data, each.item.day): each.outcome for each in report.results}
 
 
+@pytest.mark.unit
 def test_fetches_each_days_files_and_todays_instrument_snapshot(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -82,6 +83,7 @@ def test_fetches_each_days_files_and_todays_instrument_snapshot(
     assert (tmp_path / "fake/instrument/BTCUSDT/2026-09-28.json").read_bytes() == b"{}"
 
 
+@pytest.mark.unit
 def test_the_end_day_is_included(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -94,6 +96,7 @@ def test_the_end_day_is_included(
     assert len(report.having(Outcome.FETCHED)) == 5
 
 
+@pytest.mark.unit
 def test_a_rerun_skips_complete_files_without_asking_the_source(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -108,6 +111,7 @@ def test_a_rerun_skips_complete_files_without_asking_the_source(
     assert api.calls[funding_key("BTCUSDT", DAY)] == 1
 
 
+@pytest.mark.unit
 def test_a_stale_part_file_is_replaced(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -122,6 +126,7 @@ def test_a_stale_part_file_is_replaced(
     assert not part.exists()
 
 
+@pytest.mark.unit
 def test_a_truncated_body_is_retried(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -134,6 +139,7 @@ def test_a_truncated_body_is_retried(
     assert (tmp_path / "fake/trades/BTCUSDT/2025-01-01.csv").read_bytes() == TRADES
 
 
+@pytest.mark.unit
 def test_a_body_still_truncated_after_the_retries_leaves_no_file(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -150,6 +156,7 @@ def test_a_body_still_truncated_after_the_retries_leaves_no_file(
     assert not (tmp_path / "fake/trades/BTCUSDT/2025-01-01.csv").exists()
 
 
+@pytest.mark.unit
 def test_a_404_is_missing_and_the_other_files_still_come(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -165,6 +172,7 @@ def test_a_404_is_missing_and_the_other_files_still_come(
     assert files.requests[trades_path("BTCUSDT", NEXT_DAY)] == 1
 
 
+@pytest.mark.unit
 def test_a_source_error_saying_missing_is_missing(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -180,6 +188,7 @@ def test_a_source_error_saying_missing_is_missing(
     assert api.calls[instrument_key("NOPEUSDT", TODAY)] == 1
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize("status", [429, 500, 503])
 def test_transient_http_errors_are_retried(
     tmp_path: Path, files: FileServer, api: FakeApi, status: int
@@ -193,6 +202,7 @@ def test_transient_http_errors_are_retried(
     assert files.requests[trades_path("BTCUSDT", DAY)] == 3
 
 
+@pytest.mark.unit
 def test_other_http_errors_fail_without_a_retry(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -206,6 +216,7 @@ def test_other_http_errors_fail_without_a_retry(
     assert files.requests[trades_path("BTCUSDT", DAY)] == 1
 
 
+@pytest.mark.unit
 def test_source_errors_are_retried(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -218,6 +229,7 @@ def test_source_errors_are_retried(
     assert api.calls[funding_key("BTCUSDT", DAY)] == 2
 
 
+@pytest.mark.unit
 def test_a_file_failing_every_retry_is_failed_with_the_last_error(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -235,6 +247,7 @@ def test_a_file_failing_every_retry_is_failed_with_the_last_error(
     assert api.calls[funding_key("BTCUSDT", DAY)] == 3
 
 
+@pytest.mark.unit
 def test_known_gaps_are_not_requested(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -249,6 +262,7 @@ def test_known_gaps_are_not_requested(
     assert files.requests[trades_path("BTCUSDT", DAY)] == 0
 
 
+@pytest.mark.unit
 def test_only_the_requested_data_types_are_fetched(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -261,6 +275,7 @@ def test_only_the_requested_data_types_are_fetched(
     assert set(outcomes(report)) == {(INSTRUMENT, TODAY), ("TradeTick", DAY)}
 
 
+@pytest.mark.unit
 def test_a_data_type_the_source_does_not_serve_is_refused(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -270,6 +285,7 @@ def test_a_data_type_the_source_does_not_serve_is_refused(
         )
 
 
+@pytest.mark.unit
 def test_fetches_run_at_most_the_concurrency_at_once(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -285,6 +301,7 @@ def test_fetches_run_at_most_the_concurrency_at_once(
     assert api.most_in_flight == 3
 
 
+@pytest.mark.unit
 def test_progress_hears_of_every_file_and_byte(
     tmp_path: Path, files: FileServer, api: FakeApi
 ) -> None:
@@ -302,6 +319,7 @@ def test_progress_hears_of_every_file_and_byte(
     assert set(progress.results) == set(report.results)
 
 
+@pytest.mark.unit
 def test_a_range_ending_before_it_starts_is_refused() -> None:
     with pytest.raises(ValueError, match="before 2025-01-02"):
         DownloadRequest(("BTCUSDT",), NEXT_DAY, DAY)

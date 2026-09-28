@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import pytest
 from local_catalog import DAY, LocalCatalog, days, midnight
 from local_source import CANDLE_TYPE, INSTRUMENT_ID, perpetual, start_of
 from nautilus_trader.model import (
@@ -52,6 +53,7 @@ def utc(ts: int) -> datetime:
     return midnight(DAY) + timedelta(microseconds=(ts - START) // 1000)
 
 
+@pytest.mark.unit
 def test_trades_load_as_a_frame_indexed_by_event_time(tmp_path: Path) -> None:
     sell = trade(1, START + MINUTE, AggressorSide.SELL)
     catalog = trades_catalog(tmp_path, [trade(0, START), sell])
@@ -68,6 +70,7 @@ def test_trades_load_as_a_frame_indexed_by_event_time(tmp_path: Path) -> None:
     }
 
 
+@pytest.mark.unit
 def test_loaders_keep_to_the_window(tmp_path: Path) -> None:
     catalog = trades_catalog(tmp_path, trades_every_half_minute(6))
     window = Window(
@@ -79,6 +82,7 @@ def test_loaders_keep_to_the_window(tmp_path: Path) -> None:
     assert list(frame["trade_id"]) == ["1", "2", "3"]
 
 
+@pytest.mark.unit
 def test_mark_prices_load_as_a_frame(tmp_path: Path) -> None:
     catalog = ParquetDataCatalog(str(tmp_path))
     catalog.write_instruments([perpetual()])
@@ -95,6 +99,7 @@ def test_mark_prices_load_as_a_frame(tmp_path: Path) -> None:
     assert frame.to_dict("list") == {"price": [50000.0, 50000.5]}
 
 
+@pytest.mark.unit
 def test_funding_loads_as_a_frame(tmp_path: Path) -> None:
     eight_hours = 8 * 60 * MINUTE
     local = LocalCatalog(tmp_path)
@@ -113,6 +118,7 @@ def candle(minute: int, ohlc: str, volume: str) -> Bar:
     return Bar(CANDLE_TYPE, open_, high, low, close, Quantity.from_str(volume), ts, ts)
 
 
+@pytest.mark.unit
 def test_candles_load_as_a_frame_of_ohlcv(tmp_path: Path) -> None:
     catalog = ParquetDataCatalog(str(tmp_path))
     catalog.write_instruments([perpetual()])
@@ -137,6 +143,7 @@ def test_candles_load_as_a_frame_of_ohlcv(tmp_path: Path) -> None:
     }
 
 
+@pytest.mark.unit
 def test_an_empty_window_loads_an_empty_frame_with_the_columns(
     tmp_path: Path,
 ) -> None:

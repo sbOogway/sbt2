@@ -11,8 +11,6 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.trading import Strategy
 
-pytestmark = pytest.mark.characterization
-
 MINUTE = 60_000_000_000
 BAR_TYPE = BarType.from_str(f"{INSTRUMENT_ID}-1-MINUTE-LAST-INTERNAL")
 
@@ -45,6 +43,8 @@ def ohlcv(bar: Bar) -> tuple[str, str, str, str, str]:
     return (str(bar.open), str(bar.high), str(bar.low), str(bar.close), str(bar.volume))
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_time_bars_close_on_the_right_and_include_the_boundary_trade() -> None:
     bars = recorded_bars(5)
 
@@ -56,10 +56,14 @@ def test_time_bars_close_on_the_right_and_include_the_boundary_trade() -> None:
     ]
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_trailing_partial_bar_is_not_emitted() -> None:
     assert len(recorded_bars(6)) == len(recorded_bars(5))
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_a_bar_without_trades_repeats_the_close_with_zero_volume() -> None:
     recorder = BarRecorder()
     run_engine([trade(0), trade(5), trade(6)], recorder)

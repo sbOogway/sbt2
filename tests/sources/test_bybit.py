@@ -32,21 +32,25 @@ def fetched(raw: RawFile) -> Any:
     return json.loads(asyncio.run(raw.origin()))
 
 
+@pytest.mark.unit
 def test_instrument_ids_are_linear_bybit_ids(bybit: Source) -> None:
     assert bybit.instrument_id("BTCUSDT") == InstrumentId.from_str(
         "BTCUSDT-LINEAR.BYBIT"
     )
 
 
+@pytest.mark.unit
 def test_the_symbol_of_an_instrument_id_is_its_bybit_symbol(bybit: Source) -> None:
     assert bybit.symbol(InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT")) == "BTCUSDT"
 
 
+@pytest.mark.unit
 def test_an_instrument_id_of_another_venue_has_no_bybit_symbol(bybit: Source) -> None:
     with pytest.raises(ValueError, match="BTCUSDT-PERP.BINANCE"):
         bybit.symbol(InstrumentId.from_str("BTCUSDT-PERP.BINANCE"))
 
 
+@pytest.mark.unit
 def test_trades_come_from_the_daily_public_dump(bybit: Source) -> None:
     assert bybit.day_file("BTCUSDT", TradeTick, DAY) == RawFile(
         PurePosixPath("bybit/linear/BTCUSDT/trading/BTCUSDT2025-01-01.csv.gz"),
@@ -54,10 +58,12 @@ def test_trades_come_from_the_daily_public_dump(bybit: Source) -> None:
     )
 
 
+@pytest.mark.unit
 def test_serves_trades_funding_mark_prices_and_candles_per_day(bybit: Source) -> None:
     assert bybit.data_types == (TradeTick, FundingRateUpdate, MarkPriceUpdate, Bar)
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize(
     ("data_type", "path"),
     [
@@ -72,11 +78,13 @@ def test_rest_data_is_saved_one_json_file_per_day(
     assert bybit.day_file("BTCUSDT", data_type, DAY).path == PurePosixPath(path)
 
 
+@pytest.mark.unit
 def test_unserved_data_type_is_refused(bybit: Source) -> None:
     with pytest.raises(UnsupportedDataTypeError):
         bybit.day_file("BTCUSDT", OrderBookDelta, DAY)
 
 
+@pytest.mark.unit
 def test_instrument_snapshot_is_saved_under_the_day_it_is_taken(
     bybit: Source,
 ) -> None:
@@ -85,6 +93,7 @@ def test_instrument_snapshot_is_saved_under_the_day_it_is_taken(
     )
 
 
+@pytest.mark.unit
 def test_instrument_snapshot_takes_margin_from_the_lowest_risk_tier(
     replayed: Source,
 ) -> None:
@@ -98,6 +107,7 @@ def test_instrument_snapshot_takes_margin_from_the_lowest_risk_tier(
     )
 
 
+@pytest.mark.unit
 def test_instrument_snapshot_keeps_the_funding_interval_in_minutes(
     replayed: Source,
 ) -> None:
@@ -106,6 +116,7 @@ def test_instrument_snapshot_keeps_the_funding_interval_in_minutes(
     assert CryptoPerpetual.from_dict(spec).info == {"fundingInterval": 480}
 
 
+@pytest.mark.unit
 def test_funding_is_the_days_settlements_as_returned(replayed: Source) -> None:
     rates = fetched(replayed.day_file("BTCUSDT", FundingRateUpdate, DAY))
 
@@ -117,6 +128,7 @@ def test_funding_is_the_days_settlements_as_returned(replayed: Source) -> None:
     assert [each.get("interval") for each in rates] == [None, 480, 480]
 
 
+@pytest.mark.unit
 def test_mark_prices_are_every_minute_of_the_day(replayed: Source) -> None:
     pages = fetched(replayed.day_file("BTCUSDT", MarkPriceUpdate, DAY))
 
@@ -125,6 +137,7 @@ def test_mark_prices_are_every_minute_of_the_day(replayed: Source) -> None:
     assert opens == [each.value // 1_000_000 for each in day]
 
 
+@pytest.mark.unit
 def test_candles_are_every_minute_of_the_day(replayed: Source) -> None:
     bars = fetched(replayed.day_file("BTCUSDT", Bar, DAY))
 
@@ -137,6 +150,7 @@ def test_candles_are_every_minute_of_the_day(replayed: Source) -> None:
     }
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "raw_file",
     [

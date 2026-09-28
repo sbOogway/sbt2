@@ -17,8 +17,6 @@ from nautilus_trader.model import (
 from nautilus_trader.persistence import ParquetDataCatalog
 from nautilus_trader.trading import Strategy
 
-pytestmark = pytest.mark.characterization
-
 TRADES = NautilusDataType.TradeTick
 MARKS = NautilusDataType.MarkPriceUpdate
 FULL_DAYS = (0, 2)
@@ -52,6 +50,8 @@ def catalog(tmp_path: Path) -> ParquetDataCatalog:
     return build_catalog_with_an_empty_middle_day(tmp_path)
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 def test_catalog_writers_write_no_file_for_no_rows(tmp_path: Path) -> None:
     catalog = new_catalog(tmp_path)
 
@@ -60,6 +60,8 @@ def test_catalog_writers_write_no_file_for_no_rows(tmp_path: Path) -> None:
     assert list(tmp_path.rglob("*.parquet")) == []
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 @pytest.mark.parametrize("data_type", [TRADES, MARKS])
 def test_zero_row_day_file_counts_as_a_covered_interval(
     catalog: ParquetDataCatalog, data_type: NautilusDataType
@@ -69,6 +71,8 @@ def test_zero_row_day_file_counts_as_a_covered_interval(
     assert intervals == [day_bounds(day) for day in range(DAYS)]
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 @pytest.mark.parametrize("data_type", [TRADES, MARKS])
 def test_zero_row_day_file_leaves_no_missing_interval(
     catalog: ParquetDataCatalog, data_type: NautilusDataType
@@ -82,6 +86,8 @@ def test_zero_row_day_file_leaves_no_missing_interval(
     assert missing == []
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 def test_zero_row_day_file_adds_no_rows(catalog: ParquetDataCatalog) -> None:
     expected = [trade(ts) for day in FULL_DAYS for ts in hours(day)]
 
@@ -111,6 +117,8 @@ def run_over_catalog(path: Path) -> tuple[BacktestResult, RecordTrades]:
     return result, strategy
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_node_streams_across_a_zero_row_day(tmp_path: Path) -> None:
     build_catalog_with_an_empty_middle_day(tmp_path)
 

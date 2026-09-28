@@ -71,6 +71,7 @@ def ingest(data: Path, *options: str) -> Any:
     )
 
 
+@pytest.mark.e2e
 def test_ingests_bybit_trades_into_the_catalog(data: Path) -> None:
     result = ingest(data)
 
@@ -82,6 +83,7 @@ def test_ingests_bybit_trades_into_the_catalog(data: Path) -> None:
     assert "days: 1 written, 0 empty, 0 skipped, 1 missing" in result.output
 
 
+@pytest.mark.e2e
 def test_a_changed_snapshot_fails_unless_reingested(data: Path) -> None:
     ingest(data)
     write_snapshot(data, "2025-02-01", margin_init="0.01")
@@ -95,6 +97,7 @@ def test_a_changed_snapshot_fails_unless_reingested(data: Path) -> None:
     assert "days: 1 written" in reingested.output
 
 
+@pytest.mark.e2e
 def test_a_reversed_range_fails_the_command(tmp_path: Path) -> None:
     result = runner.invoke(
         app,

@@ -11,8 +11,6 @@ from nautilus_trader.model import Bar, FundingRateUpdate, MarkPriceUpdate, Trade
 from sbt2.data import DownloadOptions, DownloadRequest, Outcome, download
 from sbt2.sources import Source, source
 
-pytestmark = pytest.mark.live
-
 REPO_CONFIG = Path(__file__).parents[2] / "config" / "sources.toml"
 DAY = date(2025, 1, 1)
 DAY_START = pd.Timestamp(DAY, tz="UTC").value
@@ -46,10 +44,14 @@ def instrument(raw: tuple[Source, Path]) -> Any:
     )
 
 
+@pytest.mark.live
+@pytest.mark.integration
 def test_the_instrument_snapshot_is_btcusdt(raw: tuple[Source, Path]) -> None:
     assert str(instrument(raw).id) == "BTCUSDT-LINEAR.BYBIT"
 
 
+@pytest.mark.live
+@pytest.mark.integration
 def test_the_trades_dump_parses_into_the_days_trades(raw: tuple[Source, Path]) -> None:
     bybit, _ = raw
     stamps = [
@@ -62,6 +64,8 @@ def test_the_trades_dump_parses_into_the_days_trades(raw: tuple[Source, Path]) -
     assert stamps == sorted(stamps)
 
 
+@pytest.mark.live
+@pytest.mark.integration
 def test_funding_settles_every_eight_hours(raw: tuple[Source, Path]) -> None:
     bybit, _ = raw
     records = bybit.parse(
@@ -73,6 +77,8 @@ def test_funding_settles_every_eight_hours(raw: tuple[Source, Path]) -> None:
     ]
 
 
+@pytest.mark.live
+@pytest.mark.integration
 def test_mark_price_covers_every_minute(raw: tuple[Source, Path]) -> None:
     bybit, _ = raw
     records = bybit.parse(
@@ -84,6 +90,8 @@ def test_mark_price_covers_every_minute(raw: tuple[Source, Path]) -> None:
     ]
 
 
+@pytest.mark.live
+@pytest.mark.integration
 def test_candles_cover_every_minute(raw: tuple[Source, Path]) -> None:
     bybit, _ = raw
     records = bybit.parse(day_file(raw, Bar), Bar, instrument(raw))

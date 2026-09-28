@@ -47,6 +47,7 @@ def btc_perpetual() -> CryptoPerpetual:
     )
 
 
+@pytest.mark.unit
 def test_lookup_by_nautilus_classes_returns_the_profile() -> None:
     profile = crypto_perp()
 
@@ -54,6 +55,7 @@ def test_lookup_by_nautilus_classes_returns_the_profile() -> None:
     assert profile.instrument_class == InstrumentClass.SWAP
 
 
+@pytest.mark.unit
 def test_unknown_classes_list_the_known_profiles() -> None:
     with pytest.raises(
         UnknownAssetClassError,
@@ -62,10 +64,12 @@ def test_unknown_classes_list_the_known_profiles() -> None:
         asset_profile(AssetClass.EQUITY, InstrumentClass.SPOT)
 
 
+@pytest.mark.unit
 def test_crypto_perp_covers_nautilus_perpetuals() -> None:
     assert crypto_perp().covers(btc_perpetual())
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize(
     ("asset_class", "instrument_class"),
     [
@@ -81,14 +85,17 @@ def test_crypto_perp_does_not_cover_other_instruments(
     assert not crypto_perp().covers(other)
 
 
+@pytest.mark.unit
 def test_crypto_perp_trades_perpetuals_every_day_of_the_year() -> None:
     assert crypto_perp().days_per_year == 365
 
 
+@pytest.mark.unit
 def test_crypto_perp_funding_is_settled_natively_from_funding_updates() -> None:
     assert crypto_perp().carry.data_types == (FundingRateUpdate,)
 
 
+@pytest.mark.unit
 def test_crypto_perp_values_positions_at_mark_price() -> None:
     perp = crypto_perp()
 
@@ -96,6 +103,7 @@ def test_crypto_perp_values_positions_at_mark_price() -> None:
     assert perp.valuation_price is MarkPriceUpdate
 
 
+@pytest.mark.unit
 def test_crypto_perp_portfolio_uses_mark_prices() -> None:
     config = crypto_perp().portfolio_config(HOURLY)
 
@@ -103,6 +111,7 @@ def test_crypto_perp_portfolio_uses_mark_prices() -> None:
     assert config.snapshot_interval_ms == HOURLY
 
 
+@pytest.mark.unit
 def test_crypto_perp_venue_defaults_build_a_netting_margin_venue_without_liquidation() -> (
     None
 ):

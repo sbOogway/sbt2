@@ -119,6 +119,7 @@ def run_instance(strategy: NautilusStrategy) -> None:
     engine.run()
 
 
+@pytest.mark.integration
 def test_orders_submitted_during_warmup_are_dropped() -> None:
     engine = run_from_path("toy_strategies:BuyEveryBar")
 
@@ -127,6 +128,7 @@ def test_orders_submitted_during_warmup_are_dropped() -> None:
     assert len(engine.cache.orders()) == BARS_FROM_TRADE_START
 
 
+@pytest.mark.integration
 def test_params_survive_the_importable_config() -> None:
     engine = run_from_path("toy_strategies:BuyEveryBar", {"step": Decimal("0.250")})
 
@@ -134,6 +136,7 @@ def test_params_survive_the_importable_config() -> None:
     assert engine.portfolio.net_position(BTC) == expected
 
 
+@pytest.mark.integration
 def test_declared_bars_are_subscribed_and_warmup_ends_at_the_trade_start() -> None:
     strategy = CountWarmupBars(RunConfig([str(BTC)], {}, TRADE_START.isoformat()))
 
@@ -142,6 +145,7 @@ def test_declared_bars_are_subscribed_and_warmup_ends_at_the_trade_start() -> No
     assert (strategy.warmup_bars, strategy.trading_bars) == (3, BARS_FROM_TRADE_START)
 
 
+@pytest.mark.unit
 def test_declared_bars_are_aggregated_internally_for_every_instrument() -> None:
     strategy = CountWarmupBars(RunConfig([str(BTC)], {}, TRADE_START.isoformat()))
 
@@ -150,6 +154,7 @@ def test_declared_bars_are_aggregated_internally_for_every_instrument() -> None:
     ]
 
 
+@pytest.mark.integration
 def test_a_candle_run_subscribes_bars_aggregated_from_candles() -> None:
     config = RunConfig([str(BTC)], {}, START.isoformat(), "1-MINUTE-EXTERNAL")
     strategy = RecordBars(config)
@@ -163,6 +168,7 @@ def test_a_candle_run_subscribes_bars_aggregated_from_candles() -> None:
     ]
 
 
+@pytest.mark.integration
 @pytest.mark.parametrize(
     ("bar", "closes", "first"),
     [
@@ -191,11 +197,13 @@ def test_bars_built_from_candles_arrive_under_the_types_the_strategy_is_given(
     assert strategy.bars[-1].ts_event == nanos(START + timedelta(days=2))
 
 
+@pytest.mark.integration
 def test_unknown_params_fail_when_the_strategy_is_built() -> None:
     with pytest.raises(RuntimeError, match="unknown parameters size"):
         run_from_path("toy_strategies:BuyEveryBar", {"size": 1})
 
 
+@pytest.mark.unit
 def test_build_strategy_imports_and_configures_the_run() -> None:
     run = StrategyRun("toy_strategies:BuyEveryBar", [BTC], {"lookback": 5}, START)
 
@@ -205,6 +213,7 @@ def test_build_strategy_imports_and_configures_the_run() -> None:
     assert strategy.params.lookback == 5
 
 
+@pytest.mark.integration
 def test_a_handler_exception_is_kept_as_the_failure() -> None:
     strategy = FailOnSecondBar(RunConfig([str(BTC)], {}, START.isoformat()))
 
@@ -214,6 +223,7 @@ def test_a_handler_exception_is_kept_as_the_failure() -> None:
     assert str(strategy.failure) == "failed on bar 2"
 
 
+@pytest.mark.integration
 def test_a_clean_run_has_no_failure() -> None:
     strategy = CountWarmupBars(RunConfig([str(BTC)], {}, TRADE_START.isoformat()))
 

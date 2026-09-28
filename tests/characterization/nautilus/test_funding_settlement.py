@@ -23,11 +23,11 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.trading import Strategy
 
-pytestmark = pytest.mark.characterization
-
 FIRST_FUNDING = START + FUNDING_INTERVAL
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_venue_charges_funding_as_rate_times_mark_notional() -> None:
     fundings = [funding(START + k * FUNDING_INTERVAL) for k in (1, 2, 3)]
     end = quote(START + 4 * FUNDING_INTERVAL)
@@ -39,6 +39,8 @@ def test_venue_charges_funding_as_rate_times_mark_notional() -> None:
     assert account.balance_total(USDT) == usdt("9985.00")
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_funding_notional_uses_mark_price_not_quotes() -> None:
     data = [
         quote(START),
@@ -50,6 +52,8 @@ def test_funding_notional_uses_mark_price_not_quotes() -> None:
     assert funding_payments(run_long_one_btc(data).cache) == [usdt("-4.00")]
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_funding_without_interval_never_settles() -> None:
     data = [
         quote(START),
@@ -61,6 +65,8 @@ def test_funding_without_interval_never_settles() -> None:
     assert funding_payments(run_long_one_btc(data).cache) == []
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 @pytest.mark.parametrize("offset", [-4 * HOUR, 1])
 def test_funding_off_an_epoch_aligned_interval_boundary_never_settles(
     offset: int,
@@ -71,6 +77,8 @@ def test_funding_off_an_epoch_aligned_interval_boundary_never_settles(
     assert funding_payments(run_long_one_btc(data).cache) == []
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_position_opened_at_funding_timestamp_pays_that_funding() -> None:
     data = [
         mark(START),
@@ -82,6 +90,8 @@ def test_position_opened_at_funding_timestamp_pays_that_funding() -> None:
     assert funding_payments(run_long_one_btc(data).cache) == [usdt("-5.00")]
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_position_opened_after_funding_timestamp_does_not_pay_it() -> None:
     opened = quote(FIRST_FUNDING + 1)
     data = [mark(START), funding(FIRST_FUNDING), opened, quote(FIRST_FUNDING + HOUR)]
@@ -119,6 +129,8 @@ def fundings_of(position: Position) -> list[object]:
     ]
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_reversing_a_netting_position_moves_its_funding_to_a_snapshot() -> None:
     reverse_at = FIRST_FUNDING + HOUR
     second_funding = START + 2 * FUNDING_INTERVAL

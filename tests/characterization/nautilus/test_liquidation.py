@@ -28,8 +28,6 @@ from nautilus_trader.model import (
 from nautilus_trader.portfolio import PortfolioConfig
 from nautilus_trader.trading import Strategy
 
-pytestmark = pytest.mark.characterization
-
 # A 1 BTC long bought at 50,000 on 10,000 USDT keeps 10 USDT of equity at
 # 40,010, under its 25 USDT maintenance margin (0.5% of the entry notional at
 # leverage 10).
@@ -84,6 +82,8 @@ def run_long_with_liquidation(data: Sequence[Any]) -> BacktestEngine:
     return engine
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_liquidation_never_fires_without_quotes() -> None:
     engine = run_long_with_liquidation(falling_trades_and_marks())
 
@@ -91,6 +91,8 @@ def test_liquidation_never_fires_without_quotes() -> None:
     assert position.is_open
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_liquidation_fires_on_quotes() -> None:
     engine = run_long_with_liquidation([*falling_trades_and_marks(), *falling_quotes()])
 

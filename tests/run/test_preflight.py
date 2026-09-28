@@ -90,6 +90,7 @@ def stock(source: ServedSource, folders: DataFolders, first: date, last: date) -
     source.fetched.clear()
 
 
+@pytest.mark.integration
 def test_a_covered_run_passes_without_fetching(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -101,6 +102,7 @@ def test_a_covered_run_passes_without_fetching(
     assert source.fetched == []
 
 
+@pytest.mark.integration
 def test_missing_days_are_fetched_and_ingested_before_the_check(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -113,6 +115,7 @@ def test_missing_days_are_fetched_and_ingested_before_the_check(
     assert len(Catalog(folders.catalog).trades(INSTRUMENT_ID, next_day)) == 24
 
 
+@pytest.mark.integration
 def test_an_empty_catalog_is_filled_from_the_source(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -122,6 +125,7 @@ def test_an_empty_catalog_is_filled_from_the_source(
     assert preflight(spec(tmp_path), source, folders) == ()
 
 
+@pytest.mark.integration
 def test_a_candle_run_fetches_its_missing_candle_days(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -135,6 +139,7 @@ def test_a_candle_run_fetches_its_missing_candle_days(
     assert len(Catalog(folders.catalog).candles(INSTRUMENT_ID, window)) == 48
 
 
+@pytest.mark.integration
 def test_days_still_missing_after_the_fetch_fail_naming_each(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -150,6 +155,7 @@ def test_days_still_missing_after_the_fetch_fail_naming_each(
     assert source.day_file(SYMBOL, TradeTick, NEXT_DAY).path in source.fetched
 
 
+@pytest.mark.integration
 def test_the_warmup_days_are_checked_too(tmp_path: Path, folders: DataFolders) -> None:
     source = ServedSource()
     source.serve(DAY, date(2024, 1, 3))
@@ -161,6 +167,7 @@ def test_the_warmup_days_are_checked_too(tmp_path: Path, folders: DataFolders) -
         preflight(run, source, folders)
 
 
+@pytest.mark.integration
 def test_known_gap_days_pass_and_are_returned(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -174,6 +181,7 @@ def test_known_gap_days_pass_and_are_returned(
     assert source.fetched == []
 
 
+@pytest.mark.integration
 def test_days_the_calendar_closes_are_not_required(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -187,6 +195,7 @@ def test_days_the_calendar_closes_are_not_required(
     assert preflight(replace(run, asset=weekdays), source, folders) == ()
 
 
+@pytest.mark.integration
 def test_an_instrument_the_source_lacks_fails_as_missing_data(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -197,6 +206,7 @@ def test_an_instrument_the_source_lacks_fails_as_missing_data(
         preflight(spec(tmp_path), source, folders)
 
 
+@pytest.mark.integration
 def test_an_instrument_of_another_asset_class_fails(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -210,6 +220,7 @@ def test_an_instrument_of_another_asset_class_fails(
         preflight(spec(tmp_path), source, folders)
 
 
+@pytest.mark.integration
 def test_a_segment_over_the_snapshot_buffer_fails_before_fetching(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -222,6 +233,7 @@ def test_a_segment_over_the_snapshot_buffer_fails_before_fetching(
     assert source.fetched == []
 
 
+@pytest.mark.integration
 def test_a_segment_filling_the_snapshot_buffer_exactly_passes(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -233,6 +245,7 @@ def test_a_segment_filling_the_snapshot_buffer_exactly_passes(
     assert preflight(run, source, folders) == ()
 
 
+@pytest.mark.integration
 def test_liquidation_on_a_run_without_quotes_fails_before_fetching(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -245,6 +258,7 @@ def test_liquidation_on_a_run_without_quotes_fails_before_fetching(
     assert source.fetched == []
 
 
+@pytest.mark.integration
 def test_liquidation_on_a_run_streaming_quotes_passes_the_guard(
     tmp_path: Path, folders: DataFolders
 ) -> None:
