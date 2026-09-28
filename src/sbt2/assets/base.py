@@ -1,9 +1,8 @@
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Protocol
 
-from nautilus_trader.backtest import SimulationModule
 from nautilus_trader.model import AssetClass, InstrumentClass, MarkPriceUpdate
 from nautilus_trader.portfolio import PortfolioConfig
 
@@ -16,18 +15,9 @@ class Calendar(Protocol):
 
 @dataclass(frozen=True)
 class Carry:
-    """A non-trade cost or income, settled natively by the venue unless a module is given."""
+    """A non-trade cost or income, settled natively by the venue."""
 
-    name: str
     data_types: tuple[type, ...]
-    module: Callable[[], SimulationModule] | None = None
-
-
-@dataclass(frozen=True)
-class BuyAndHold:
-    pays_carry: bool
-    pays_entry_fee: bool
-    pays_exit_fee: bool
 
 
 @dataclass(frozen=True)
@@ -36,14 +26,12 @@ class AssetProfile:
 
     asset_class: AssetClass
     instrument_class: InstrumentClass
-    instrument_type: type
     calendar: Calendar
     days_per_year: int
     carry: Carry
     venue_defaults: Mapping[str, Any]
     reference_prices: tuple[type, ...]
     valuation_price: type
-    buy_and_hold: BuyAndHold
 
     def covers(self, instrument: Any) -> bool:
         return (

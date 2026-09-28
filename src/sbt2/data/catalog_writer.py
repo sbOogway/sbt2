@@ -1,6 +1,5 @@
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,22 +15,14 @@ from nautilus_trader.model import (
 from nautilus_trader.persistence import ParquetDataCatalog
 from nautilus_trader.serialization import get_arrow_schema_bytes
 
+from sbt2.data import layout
+
 # Nautilus's own writers stage under "<file>#N"; its reader ignores such names.
 _PARTIAL_SUFFIX = "#sbt2"
-
-type Bounds = tuple[int, int]
 
 _TYPED_WRITERS: Mapping[type, Callable[..., str]] = {
     TradeTick: ParquetDataCatalog.write_trade_ticks,
     MarkPriceUpdate: ParquetDataCatalog.write_mark_price_updates,
-}
-
-# Nautilus's directory for each type sbt2 writes itself, for funding (no Python
-# writer) and for zero-row days (its writers write no file for an empty list).
-_DIRECTORIES: Mapping[type, str] = {
-    TradeTick: "trades",
-    MarkPriceUpdate: "mark_prices",
-    FundingRateUpdate: "funding_rates",
 }
 
 
@@ -48,7 +39,7 @@ _METADATA: Mapping[type, tuple[str, ...]] = {
 class DayFile:
     data_type: type
     instrument: Any
-    bounds: Bounds
+    bounds: layout.Bounds
 
 
 class CatalogWriter:
@@ -60,7 +51,7 @@ class CatalogWriter:
 
     def has(self, day: DayFile) -> bool:
         intervals = self._catalog.get_intervals(
-            _nautilus_type(day.data_type), str(day.instrument.id)
+            layout.nautilus_type(day.data_type), str(day.instrument.id)
         )
         return day.bounds in intervals
 
@@ -84,7 +75,7 @@ class CatalogWriter:
         """Every version of the instrument and all its ``data_types`` files."""
         for data_type in data_types:
             self._catalog.delete_data_range(
-                _nautilus_type(data_type), str(instrument_id)
+                layout.nautilus_type(data_type), str(instrument_id)
             )
         for each in self._catalog.list_parquet_files(
             NautilusDataType.Instrument, str(instrument_id)
@@ -98,10 +89,6 @@ class CatalogWriter:
         target.parent.mkdir(parents=True, exist_ok=True)
         pq.write_table(table, partial)
         partial.replace(target)
-
-
-def _nautilus_type(data_type: type) -> NautilusDataType:
-    return getattr(NautilusDataType, data_type.__name__)
 
 
 def _zero_rows(day: DayFile) -> pa.Table:
@@ -118,23 +105,15 @@ def _metadata(day: DayFile) -> dict[str, str]:
     return {"instrument_id": str(instrument.id), **precisions}
 
 
+# sbt2 writes funding (nautilus has no Python writer) and zero-row days (its
+# writers write no file for an empty list) itself, where nautilus would.
 def _relative_path(day: DayFile) -> Path:
     return Path(
         "data",
-        _DIRECTORIES[day.data_type],
+        layout.directory(day.data_type),
         str(day.instrument.id),
-        _file_name(day.bounds),
+        layout.file_name(day.bounds),
     )
-
-
-def _file_name(bounds: Bounds) -> str:
-    return "_".join(_file_timestamp(ts) for ts in bounds) + ".parquet"
-
-
-def _file_timestamp(ts: int) -> str:
-    seconds, nanos = divmod(ts, 1_000_000_000)
-    moment = datetime.fromtimestamp(seconds, UTC)
-    return f"{moment:%Y-%m-%dT%H-%M-%S}-{nanos:09d}Z"
 
 
 def _arrow_schema(data_type: type) -> pa.Schema:

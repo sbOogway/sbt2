@@ -1,10 +1,7 @@
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timedelta
 from typing import Any
 
 import pandas as pd
-
-_OHLC = ["open", "high", "low", "close"]
 
 
 def trades(records: Sequence[Any]) -> pd.DataFrame:
@@ -31,22 +28,6 @@ def funding(records: Sequence[Any]) -> pd.DataFrame:
             "interval": [int(each.interval) for each in records],
         },
     )
-
-
-def bars(trades: pd.DataFrame, interval: timedelta, end: datetime) -> pd.DataFrame:
-    """Time bars closed and labelled on the right, as nautilus builds them.
-
-    A bar without trades repeats the previous close with zero volume, and none
-    closes at or after ``end``.
-    """
-    grouped = trades.resample(interval, closed="right", label="right")
-    bars = grouped["price"].ohlc()
-    close = bars["close"].ffill()
-    for column in _OHLC:
-        bars[column] = bars[column].fillna(close)
-    bars["volume"] = grouped["size"].sum()
-    bars = bars.reindex(columns=[*_OHLC, "volume"]).astype(float)
-    return bars.drop(bars.index[bars.index >= end])
 
 
 def _frame(records: Sequence[Any], columns: Mapping[str, list[Any]]) -> pd.DataFrame:
