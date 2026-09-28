@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from datetime import date, timedelta
 
-from sbt2.sources import Gap, Source, UnsupportedDataTypeError
+from sbt2.data.sources import Gap, Source, UnsupportedDataTypeError
 
 
 def data_types(source: Source, names: tuple[str, ...]) -> tuple[type, ...]:

@@ -20,7 +20,8 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from sbt2 import data, sources, spec
+from sbt2 import data, spec
+from sbt2.data import sources
 from sbt2.results import ParquetResultStore, Provenance
 from sbt2.run import DataFolders, RunSettings, execute, preflight
 

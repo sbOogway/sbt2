@@ -3,7 +3,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
-from sbt2.sources.base import (
+from sbt2.data.sources.base import (
     CANDLES,
     Fetch,
     FundingOffGridError,
@@ -14,7 +14,7 @@ from sbt2.sources.base import (
     UnsupportedDataTypeError,
     candle_type,
 )
-from sbt2.sources.bybit import BybitSource
+from sbt2.data.sources.bybit import BybitSource
 
 __all__ = [
     "CANDLES",

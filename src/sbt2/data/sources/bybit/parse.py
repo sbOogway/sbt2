@@ -20,7 +20,7 @@ from nautilus_trader.model import (
 )
 from pyarrow import csv
 
-from sbt2.sources.base import FundingOffGridError
+from sbt2.data.sources.base import FundingOffGridError
 
 _NANOS_PER_MINUTE = 60_000_000_000
 _NANOS_PER_MILLI = 1_000_000

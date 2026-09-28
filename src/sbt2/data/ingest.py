@@ -12,7 +12,7 @@ import pandas as pd
 from sbt2.data.catalog_writer import CatalogWriter, DayFile
 from sbt2.data.days import data_types, days, is_known_gap
 from sbt2.data.layout import Bounds
-from sbt2.sources import Source
+from sbt2.data.sources import Source
 
 _ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _DAY_NANOS = 86_400_000_000_000

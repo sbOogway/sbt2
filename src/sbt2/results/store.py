@@ -5,8 +5,8 @@ from typing import Literal, Protocol
 
 import pandas as pd
 
+from sbt2.data.sources import Gap
 from sbt2.results.sink import OutputSink
-from sbt2.sources import Gap
 from sbt2.spec import ResolvedRunSpec
 
 Table = Literal["equity", "carry", "fills", "positions", "account", "orders", "summary"]

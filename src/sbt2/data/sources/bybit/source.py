@@ -13,9 +13,9 @@ from nautilus_trader.model import (
     TradeTick,
 )
 
-from sbt2.sources.base import Gap, RawFile, UnsupportedDataTypeError
-from sbt2.sources.bybit import parse
-from sbt2.sources.bybit.api import BybitApi
+from sbt2.data.sources.base import Gap, RawFile, UnsupportedDataTypeError
+from sbt2.data.sources.bybit import parse
+from sbt2.data.sources.bybit.api import BybitApi
 
 _DATA_NAMES: Mapping[str, type] = {
     "trades": TradeTick,

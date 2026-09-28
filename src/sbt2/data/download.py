@@ -12,7 +12,7 @@ from typing import Protocol
 import httpx
 
 from sbt2.data.days import data_types, days, is_known_gap
-from sbt2.sources import Fetch, MissingAtSourceError, RawFile, Source
+from sbt2.data.sources import Fetch, MissingAtSourceError, RawFile, Source
 
 logger = logging.getLogger(__name__)
 

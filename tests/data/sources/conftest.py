@@ -4,10 +4,10 @@ from pathlib import Path
 import pytest
 from bybit_replay import bybit_replay
 
-from sbt2.sources import Source, source
-from sbt2.sources.bybit import BybitSource, Endpoints
+from sbt2.data.sources import Source, source
+from sbt2.data.sources.bybit import BybitSource, Endpoints
 
-REPO_CONFIG = Path(__file__).parents[2] / "config" / "sources.toml"
+REPO_CONFIG = Path(__file__).parents[3] / "config" / "sources.toml"
 
 
 @pytest.fixture

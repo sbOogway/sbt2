@@ -8,9 +8,9 @@ import pytest
 from nautilus_trader.model import InstrumentId, TradeTick
 from typer.testing import CliRunner
 
-from sbt2 import sources
 from sbt2.cli import SOURCES, app
-from sbt2.sources import Gap, MissingAtSourceError, RawFile
+from sbt2.data import sources
+from sbt2.data.sources import Gap, MissingAtSourceError, RawFile
 
 runner = CliRunner()
 
