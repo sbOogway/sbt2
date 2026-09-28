@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Backtesting framework on nautilus_trader"
 requires-python = ">=3.14"
 dependencies = [
-    "nautilus-trader==2.0.0rc6.dev20260927+18861",
+    "nautilus-trader==2.0.0rc6.dev20260927",
 ]
 
 [build-system]
