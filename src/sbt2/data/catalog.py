@@ -1,3 +1,5 @@
+import hashlib
+import json
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -111,6 +113,16 @@ class Catalog:
             latest[each.id] = each
         return latest
 
+    def fingerprint(self, selection: Selection) -> str:
+        """A hash of the names and sizes of the selected files in the window,
+        and of the selection's instruments."""
+        digest = hashlib.sha256()
+        for line in self._file_lines(selection):
+            digest.update(f"{line}\n".encode())
+        for instrument in self.instruments(selection.instrument_ids).values():
+            digest.update(_canonical(instrument).encode())
+        return digest.hexdigest()
+
     @cached_property
     def _nautilus(self) -> ParquetDataCatalog:
         return ParquetDataCatalog(str(self._path))
@@ -126,6 +138,20 @@ class Catalog:
             _days_of(_clipped(intervals, window.nanos)), known_gaps
         )
         return Coverage(series.instrument_id, series.data_type, missing, known)
+
+    def _file_lines(self, selection: Selection) -> list[str]:
+        return sorted(
+            f"{name} {(self._path / name).stat().st_size}"
+            for instrument_id in selection.instrument_ids
+            for data_type in selection.data_types
+            for name in self._files(_Series(instrument_id, data_type))
+            if _overlaps(_file_bounds(name), selection.window.nanos)
+        )
+
+    def _files(self, series: _Series) -> list[str]:
+        return self._nautilus.list_parquet_files(
+            series.nautilus_type, str(series.instrument_id)
+        )
 
 
 def _nanos(moment: datetime) -> int:
@@ -159,3 +185,19 @@ def _days_of(intervals: Iterable[Interval]) -> list[date]:
 
 def _overlaps(one: Interval, other: Interval) -> bool:
     return one[0] <= other[1] and other[0] <= one[1]
+
+
+def _file_bounds(name: str) -> Interval:
+    """The bounds nautilus encodes in a data file's name."""
+    first, last = Path(name).stem.split("_")
+    return _file_timestamp(first), _file_timestamp(last)
+
+
+def _file_timestamp(text: str) -> int:
+    moment, nanos = text[:19], text[20:29]
+    seconds = datetime.strptime(moment, "%Y-%m-%dT%H-%M-%S").replace(tzinfo=UTC)
+    return int(seconds.timestamp()) * 1_000_000_000 + int(nanos)
+
+
+def _canonical(instrument: Any) -> str:
+    return json.dumps(instrument.to_dict(), sort_keys=True, default=str)
