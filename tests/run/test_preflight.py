@@ -1,5 +1,5 @@
 from dataclasses import dataclass, replace
-from datetime import date, datetime
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 from typing import Any
 
@@ -9,10 +9,12 @@ from served_source import INSTRUMENT_ID, SYMBOL, ServedSource
 
 from sbt2.assets import Calendar
 from sbt2.data import (
+    Catalog,
     DownloadOptions,
     DownloadRequest,
     IngestOptions,
     IngestRequest,
+    Window,
     download,
     ingest,
 )
@@ -58,6 +60,10 @@ class Weekdays:
         return [each for each in days if each.weekday() < 5]
 
 
+def midnight(day: date) -> datetime:
+    return datetime.combine(day, time(), UTC)
+
+
 @pytest.fixture
 def folders(tmp_path: Path) -> DataFolders:
     return DataFolders(raw=tmp_path / "raw", catalog=tmp_path / "catalog")
@@ -88,6 +94,27 @@ def test_a_covered_run_passes_without_fetching(
     assert source.fetched == []
 
 
+def test_missing_days_are_fetched_and_ingested_before_the_check(
+    tmp_path: Path, folders: DataFolders
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+    stock(source, folders, DAY, DAY)
+
+    assert preflight(spec(tmp_path), source, folders) == ()
+    next_day = Window(midnight(NEXT_DAY), midnight(date(2024, 1, 3)))
+    assert len(Catalog(folders.catalog).trades(INSTRUMENT_ID, next_day)) == 24
+
+
+def test_an_empty_catalog_is_filled_from_the_source(
+    tmp_path: Path, folders: DataFolders
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+
+    assert preflight(spec(tmp_path), source, folders) == ()
+
+
 def test_days_still_missing_after_the_fetch_fail_naming_each(
     tmp_path: Path, folders: DataFolders
 ) -> None:
@@ -100,6 +127,7 @@ def test_days_still_missing_after_the_fetch_fail_naming_each(
         MissingDataError, match="BTCUSDT-LINEAR.BYBIT TradeTick 2024-01-02"
     ):
         preflight(spec(tmp_path), source, folders)
+    assert source.day_file(SYMBOL, TradeTick, NEXT_DAY).path in source.fetched
 
 
 def test_the_warmup_days_are_checked_too(tmp_path: Path, folders: DataFolders) -> None:
