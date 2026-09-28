@@ -1,6 +1,4 @@
 from sbt2.strategy.base import (
-    Bars,
-    Input,
     InvalidParameterError,
     NoParams,
     RunConfig,
@@ -13,8 +11,6 @@ from sbt2.strategy.base import (
 )
 
 __all__ = [
-    "Bars",
-    "Input",
     "InvalidParameterError",
     "NoParams",
     "RunConfig",

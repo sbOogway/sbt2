@@ -6,22 +6,14 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any, ClassVar, get_type_hints
 
-from nautilus_trader.model import BarType, InstrumentId
+from nautilus_trader.model import (
+    AggregationSource,
+    BarSpecification,
+    BarType,
+    InstrumentId,
+)
 from nautilus_trader.trading import ImportableStrategyConfig
 from nautilus_trader.trading import Strategy as NautilusStrategy
-
-
-@dataclass(frozen=True)
-class Bars:
-    """Time bars aggregated at run time from trades, e.g. ``Bars("1-MINUTE-LAST")``."""
-
-    spec: str
-
-    def bar_type(self, instrument_id: InstrumentId) -> BarType:
-        return BarType.from_str(f"{instrument_id}-{self.spec}-INTERNAL")
-
-
-type Input = Bars
 
 
 @dataclass(frozen=True)
@@ -64,7 +56,8 @@ class Strategy[P](NautilusStrategy, ABC):
     """A nautilus strategy that sbt2 can describe without running it.
 
     ``Params`` is a dataclass: its fields are the parameter schema and defaults.
-    The declared input bars are subscribed on start, so a subclass that
+    ``inputs`` declares the bars the strategy needs; they are aggregated at run
+    time from trades and subscribed on start, so a subclass that
     overrides ``on_start`` calls ``super().on_start()``. Orders submitted while
     ``warming_up`` are dropped.
     """
@@ -85,7 +78,7 @@ class Strategy[P](NautilusStrategy, ABC):
 
     @classmethod
     @abstractmethod
-    def inputs(cls, params: P) -> Sequence[Input]: ...
+    def inputs(cls, params: P) -> Sequence[BarSpecification]: ...
 
     @property
     def warming_up(self) -> bool:
@@ -93,9 +86,9 @@ class Strategy[P](NautilusStrategy, ABC):
 
     def bar_types(self) -> list[BarType]:
         return [
-            bars.bar_type(instrument_id)
+            BarType(instrument_id, spec, AggregationSource.INTERNAL)
             for instrument_id in self.instrument_ids
-            for bars in self.inputs(self.params)
+            for spec in self.inputs(self.params)
         ]
 
     def on_start(self) -> None:

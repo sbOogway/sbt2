@@ -2,19 +2,16 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
-from nautilus_trader.model import BarType, InstrumentId
+from nautilus_trader.model import BarSpecification
 from toy_strategies import BuyEveryBar, CountWarmupBars, StepParams
 
 from sbt2.strategy import (
-    Bars,
     InvalidParameterError,
     NoParams,
     UnknownParameterError,
     import_strategy,
     resolve_params,
 )
-
-BTC = InstrumentId.from_str("BTCUSDT-PERP.BYBIT")
 
 
 def test_strategy_is_imported_by_path() -> None:
@@ -49,17 +46,11 @@ def test_warmup_and_inputs_are_read_without_running() -> None:
     params = StepParams(lookback=5)
 
     assert BuyEveryBar.warmup(params) == timedelta(minutes=5)
-    assert BuyEveryBar.inputs(params) == (Bars("1-MINUTE-LAST"),)
+    assert BuyEveryBar.inputs(params) == (BarSpecification.from_str("1-MINUTE-LAST"),)
 
 
 def test_warmup_defaults_to_none() -> None:
     assert CountWarmupBars.warmup(NoParams()) == timedelta(0)
-
-
-def test_bars_are_aggregated_internally() -> None:
-    bar_type = Bars("1-MINUTE-LAST").bar_type(BTC)
-
-    assert bar_type == BarType.from_str("BTCUSDT-PERP.BYBIT-1-MINUTE-LAST-INTERNAL")
 
 
 @pytest.mark.parametrize("step", ["0.25", 0.25])

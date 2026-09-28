@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from datetime import timedelta
 from decimal import Decimal
 
-from nautilus_trader.model import Bar, OrderSide, Quantity
+from nautilus_trader.model import Bar, BarSpecification, OrderSide, Quantity
 
-from sbt2.strategy import Bars, Input, NoParams, Strategy
+from sbt2.strategy import NoParams, Strategy
 
-MINUTE_BARS = Bars("1-MINUTE-LAST")
+MINUTE_BARS = BarSpecification.from_str("1-MINUTE-LAST")
 
 
 @dataclass(frozen=True)
@@ -26,7 +26,7 @@ class BuyEveryBar(Strategy[StepParams]):
         return timedelta(minutes=params.lookback)
 
     @classmethod
-    def inputs(cls, params: StepParams) -> Sequence[Input]:
+    def inputs(cls, params: StepParams) -> Sequence[BarSpecification]:
         return (MINUTE_BARS,)
 
     def on_bar(self, bar: Bar) -> None:
@@ -44,7 +44,7 @@ class CountWarmupBars(Strategy[NoParams]):
         self.trading_bars = 0
 
     @classmethod
-    def inputs(cls, params: NoParams) -> Sequence[Input]:
+    def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
         return (MINUTE_BARS,)
 
     def on_bar(self, bar: Bar) -> None:

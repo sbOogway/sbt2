@@ -9,6 +9,7 @@ from nautilus_trader.execution import FixedFeeModel
 from nautilus_trader.model import (
     AccountType,
     AggressorSide,
+    BarType,
     CryptoPerpetual,
     Currency,
     InstrumentId,
@@ -121,6 +122,14 @@ def test_declared_bars_are_subscribed_and_warmup_ends_at_the_trade_start() -> No
     run_instance(strategy)
 
     assert (strategy.warmup_bars, strategy.trading_bars) == (3, BARS_FROM_TRADE_START)
+
+
+def test_declared_bars_are_aggregated_internally_for_every_instrument() -> None:
+    strategy = CountWarmupBars(RunConfig([str(BTC)], {}, TRADE_START.isoformat()))
+
+    assert strategy.bar_types() == [
+        BarType.from_str("BTCUSDT-PERP.BYBIT-1-MINUTE-LAST-INTERNAL")
+    ]
 
 
 def test_unknown_params_fail_when_the_strategy_is_built() -> None:
