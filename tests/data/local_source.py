@@ -45,6 +45,9 @@ class LocalSource:
     def instrument_id(self, symbol: str) -> InstrumentId:
         return InstrumentId.from_str(f"{symbol}-PERP.LOCAL")
 
+    def symbol(self, instrument_id: InstrumentId) -> str:
+        return instrument_id.symbol.value.removesuffix("-PERP")
+
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         path = PurePosixPath("local", symbol, data_type.__name__, f"{day}.json")
         return RawFile(path, "unused")

@@ -37,6 +37,15 @@ def test_instrument_ids_are_linear_bybit_ids(bybit: Source) -> None:
     )
 
 
+def test_the_symbol_of_an_instrument_id_is_its_bybit_symbol(bybit: Source) -> None:
+    assert bybit.symbol(InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT")) == "BTCUSDT"
+
+
+def test_an_instrument_id_of_another_venue_has_no_bybit_symbol(bybit: Source) -> None:
+    with pytest.raises(ValueError, match="BTCUSDT-PERP.BINANCE"):
+        bybit.symbol(InstrumentId.from_str("BTCUSDT-PERP.BINANCE"))
+
+
 def test_trades_come_from_the_daily_public_dump(bybit: Source) -> None:
     assert bybit.day_file("BTCUSDT", TradeTick, DAY) == RawFile(
         PurePosixPath("bybit/linear/BTCUSDT/trading/BTCUSDT2025-01-01.csv.gz"),

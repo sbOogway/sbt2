@@ -36,6 +36,7 @@ class Endpoints:
 
 
 _PUBLIC = Endpoints()
+_LINEAR_SUFFIX = "-LINEAR"
 
 
 class BybitSource:
@@ -68,6 +69,12 @@ class BybitSource:
 
     def instrument_id(self, symbol: str) -> InstrumentId:
         return _instrument_id(symbol)
+
+    def symbol(self, instrument_id: InstrumentId) -> str:
+        symbol = instrument_id.symbol.value.removesuffix(_LINEAR_SUFFIX)
+        if _instrument_id(symbol) != instrument_id:
+            raise ValueError(f"{instrument_id} is not a linear bybit instrument")
+        return symbol
 
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         if data_type is TradeTick:
@@ -105,7 +112,7 @@ class BybitSource:
 
 
 def _instrument_id(symbol: str) -> InstrumentId:
-    return InstrumentId.from_str(f"{symbol}-LINEAR.BYBIT")
+    return InstrumentId.from_str(f"{symbol}{_LINEAR_SUFFIX}.BYBIT")
 
 
 def _data_name(data_type: type) -> str:
