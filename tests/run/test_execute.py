@@ -23,6 +23,7 @@ capital = "10000 USDT"
 VENUES = """
 [test_linear]
 name = "BYBIT"
+source = "bybit"
 asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 default_leverage = "10"

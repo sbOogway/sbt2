@@ -55,6 +55,7 @@ def spec(end: datetime = END) -> ResolvedRunSpec:
     return ResolvedRunSpec(
         strategy=StrategyRun("toy:RoundTrip", [INSTRUMENT_ID], {"lots": 1}, START),
         asset=asset_profile(AssetClass.CRYPTOCURRENCY, InstrumentClass.SWAP),
+        source="bybit",
         venue={"name": "BYBIT", "starting_balances": ["10000 USDT"]},
         data=[],
         equity_interval_ms=3_600_000,

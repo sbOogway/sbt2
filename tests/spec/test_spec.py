@@ -19,6 +19,7 @@ from nautilus_trader.model import (
 
 from sbt2.spec import (
     InstrumentVenueError,
+    InvalidVenueProfileError,
     ResolvedRunSpec,
     UnknownSpecKeyError,
     UnknownVenueProfileError,
@@ -41,6 +42,7 @@ lookback = 30
 VENUES = """
 [test_linear]
 name = "BYBIT"
+source = "bybit"
 asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 default_leverage = "10"
@@ -48,9 +50,24 @@ fee_model = { path = "nautilus_trader.execution:MakerTakerFeeModel", config = { 
 
 [seeded_linear]
 name = "BYBIT"
+source = "bybit"
 asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 fill_model = { path = "nautilus_trader.execution:DefaultFillModel", config = { prob_fill_on_limit = 0.5, prob_slippage = 0.1 } }
+
+[other_source]
+name = "BYBIT"
+source = "mirror"
+asset_class = "CRYPTOCURRENCY"
+instrument_class = "SWAP"
+default_leverage = "10"
+fee_model = { path = "nautilus_trader.execution:MakerTakerFeeModel", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
+"""
+SOURCELESS = """
+[sourceless]
+name = "BYBIT"
+asset_class = "CRYPTOCURRENCY"
+instrument_class = "SWAP"
 """
 START = datetime(2024, 1, 1, tzinfo=UTC)
 END = datetime(2024, 2, 1, tzinfo=UTC)
@@ -88,6 +105,27 @@ def test_venue_profile_names_the_asset_profile(paths: tuple[Path, Path]) -> None
         AssetClass.CRYPTOCURRENCY,
         InstrumentClass.SWAP,
     )
+
+
+def test_the_venue_profile_names_the_data_source(paths: tuple[Path, Path]) -> None:
+    spec = resolved(paths)
+
+    assert spec.source == "bybit"
+    assert "source" not in spec.venue
+
+
+def test_the_data_source_is_not_part_of_the_spec_hash(
+    paths: tuple[Path, Path],
+) -> None:
+    assert resolved(paths).hash == resolved(paths, venue="other_source").hash
+
+
+def test_a_venue_profile_without_a_source_fails(paths: tuple[Path, Path]) -> None:
+    spec, venues = paths
+    venues.write_text(SOURCELESS)
+
+    with pytest.raises(InvalidVenueProfileError, match="sourceless.* source"):
+        load(spec, {"venue": "sourceless"}, venues)
 
 
 def test_venue_arguments_start_from_the_asset_defaults(

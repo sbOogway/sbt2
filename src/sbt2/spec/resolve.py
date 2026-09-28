@@ -32,10 +32,13 @@ class ResolvedRunSpec:
 
     ``venue`` and ``data`` are nautilus's own ``BacktestVenueConfig`` and
     ``BacktestDataConfig`` arguments as plain data, without the catalog path.
+    ``source`` names where missing data is fetched from; like the catalog path,
+    it is not hashed.
     """
 
     strategy: StrategyRun
     asset: AssetProfile
+    source: str
     venue: Mapping[str, Any]
     data: Sequence[Mapping[str, Any]]
     equity_interval_ms: int
@@ -100,7 +103,8 @@ class InstrumentVenueError(ValueError):
 
 
 def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
-    asset, venue = venue_profile(venue_profiles, spec.venue)
+    profile = venue_profile(venue_profiles, spec.venue)
+    asset, venue = profile.asset, profile.arguments
     instruments = _instruments(spec.instruments, venue["name"])
     strategy = import_strategy(spec.strategy)
     params = resolve_params(strategy, spec.params)
@@ -108,6 +112,7 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
     return ResolvedRunSpec(
         strategy=StrategyRun(spec.strategy, instruments, asdict(params), spec.start),
         asset=asset,
+        source=profile.source,
         venue=_seeded({**venue, "starting_balances": [spec.capital]}, spec.seed),
         data=_data(
             _data_types(strategy.inputs(params), asset),
