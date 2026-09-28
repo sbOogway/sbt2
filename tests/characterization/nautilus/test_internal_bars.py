@@ -58,3 +58,18 @@ def test_time_bars_close_on_the_right_and_include_the_boundary_trade() -> None:
 
 def test_trailing_partial_bar_is_not_emitted() -> None:
     assert len(recorded_bars(6)) == len(recorded_bars(5))
+
+
+def test_a_bar_without_trades_repeats_the_close_with_zero_volume() -> None:
+    recorder = BarRecorder()
+    run_engine([trade(0), trade(5), trade(6)], recorder)
+
+    assert [bar.ts_event for bar in recorder.bars] == [
+        START + k * MINUTE for k in range(4)
+    ]
+    assert [ohlcv(bar) for bar in recorder.bars] == [
+        ("50000.0", "50000.0", "50000.0", "50000.0", "0.100"),
+        ("50000.0", "50000.0", "50000.0", "50000.0", "0.000"),
+        ("50000.0", "50000.0", "50000.0", "50000.0", "0.000"),
+        ("50005.0", "50006.0", "50005.0", "50006.0", "0.200"),
+    ]
