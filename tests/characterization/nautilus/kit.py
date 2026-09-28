@@ -11,6 +11,7 @@ from nautilus_trader.common import Cache, LoggerConfig, LogLevel
 from nautilus_trader.execution import FixedFeeModel
 from nautilus_trader.model import (
     AccountType,
+    AggressorSide,
     CryptoPerpetual,
     Currency,
     FundingRateUpdate,
@@ -24,6 +25,8 @@ from nautilus_trader.model import (
     Quantity,
     QuoteTick,
     Symbol,
+    TradeId,
+    TradeTick,
     Venue,
 )
 from nautilus_trader.portfolio import PortfolioConfig
@@ -65,6 +68,18 @@ def quote(ts: int, price: str = "50000.0") -> QuoteTick:
     size = Quantity.from_str("10.000")
     return QuoteTick(
         INSTRUMENT_ID, Price.from_str(price), Price.from_str(price), size, size, ts, ts
+    )
+
+
+def trade(ts: int, price: str = "50000.0") -> TradeTick:
+    return TradeTick(
+        INSTRUMENT_ID,
+        Price.from_str(price),
+        Quantity.from_str("1.000"),
+        AggressorSide.BUY,
+        TradeId(str(ts)),
+        ts,
+        ts,
     )
 
 
