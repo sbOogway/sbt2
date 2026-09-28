@@ -61,6 +61,7 @@ def amounts(frame: pd.DataFrame, column: str) -> list[float]:
     return [Money.from_str(each).as_double() for each in frame[column]]
 
 
+@pytest.mark.integration
 def test_a_finished_run_is_listed_with_its_headline_metrics(
     tmp_path: Path, catalog: Path
 ) -> None:
@@ -73,6 +74,7 @@ def test_a_finished_run_is_listed_with_its_headline_metrics(
     assert summary["total_carry"] == pytest.approx(2 * FUNDING)
 
 
+@pytest.mark.integration
 def test_the_carry_ledger_holds_the_venue_funding_payments(
     tmp_path: Path, catalog: Path
 ) -> None:
@@ -83,6 +85,7 @@ def test_the_carry_ledger_holds_the_venue_funding_payments(
     assert list(carry["ts_event"].dt.hour) == [8, 16]
 
 
+@pytest.mark.integration
 def test_funding_paid_before_a_reversal_stays_in_the_carry_ledger(
     tmp_path: Path, catalog: Path
 ) -> None:
@@ -93,6 +96,7 @@ def test_funding_paid_before_a_reversal_stays_in_the_carry_ledger(
     assert len(store.load(run_id, "positions")) == 2
 
 
+@pytest.mark.integration
 def test_equity_ends_at_the_balance_less_fees_and_funding(
     tmp_path: Path, catalog: Path
 ) -> None:
@@ -104,6 +108,7 @@ def test_equity_ends_at_the_balance_less_fees_and_funding(
     )
 
 
+@pytest.mark.integration
 def test_nautilus_reports_are_stored(tmp_path: Path, catalog: Path) -> None:
     store, run_id = run(tmp_path, catalog)
 
@@ -113,6 +118,7 @@ def test_nautilus_reports_are_stored(tmp_path: Path, catalog: Path) -> None:
     assert not store.load(run_id, "account").empty
 
 
+@pytest.mark.integration
 def test_no_order_fills_during_warmup(tmp_path: Path, catalog: Path) -> None:
     store, run_id = run(tmp_path, catalog)
 
@@ -120,6 +126,7 @@ def test_no_order_fills_during_warmup(tmp_path: Path, catalog: Path) -> None:
     assert pd.to_datetime(fills["ts_event"], utc=True).min() >= START.replace(hour=2)
 
 
+@pytest.mark.integration
 def test_chunked_streaming_gives_the_same_result(tmp_path: Path, catalog: Path) -> None:
     spec = resolved(tmp_path)
     store = ParquetResultStore(tmp_path / "results")
@@ -133,6 +140,7 @@ def test_chunked_streaming_gives_the_same_result(tmp_path: Path, catalog: Path) 
     )
 
 
+@pytest.mark.integration
 def test_a_strategy_error_fails_the_run_without_a_summary(
     tmp_path: Path, catalog: Path
 ) -> None:
@@ -143,6 +151,7 @@ def test_a_strategy_error_fails_the_run_without_a_summary(
     assert ParquetResultStore(tmp_path / "results").runs().empty
 
 
+@pytest.mark.integration
 def test_invalid_strategy_params_fail_the_run(tmp_path: Path, catalog: Path) -> None:
     spec = resolved(tmp_path)
     broken = replace(spec, strategy=replace(spec.strategy, params={"hold_bars": "x"}))
@@ -154,6 +163,7 @@ def test_invalid_strategy_params_fail_the_run(tmp_path: Path, catalog: Path) -> 
         execute(broken, sink, RunSettings(catalog))
 
 
+@pytest.mark.integration
 def test_the_run_is_logged(
     tmp_path: Path, catalog: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -163,6 +173,7 @@ def test_the_run_is_logged(
     assert f"run {run_id} finished" in caplog.messages
 
 
+@pytest.mark.integration
 def test_a_catalog_without_the_instruments_fails_the_run(tmp_path: Path) -> None:
     empty = tmp_path / "empty"
     empty.mkdir()

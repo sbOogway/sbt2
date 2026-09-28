@@ -56,6 +56,7 @@ def funding_file(replayed: Source, tmp_path: Path) -> Path:
     return saved(replayed.day_file("BTCUSDT", FundingRateUpdate, DAY), tmp_path)
 
 
+@pytest.mark.unit
 def test_instrument_is_initialised_at_the_start_of_its_snapshot_day(
     instrument: Any,
 ) -> None:
@@ -63,6 +64,7 @@ def test_instrument_is_initialised_at_the_start_of_its_snapshot_day(
     assert str(instrument.margin_init) == "0.0066"
 
 
+@pytest.mark.unit
 def test_trades_come_in_time_order_with_exact_nanoseconds(
     bybit: Source, instrument: Any, trades_file: Path
 ) -> None:
@@ -76,6 +78,7 @@ def test_trades_come_in_time_order_with_exact_nanoseconds(
     assert all(each.ts_init == each.ts_event for each in ticks)
 
 
+@pytest.mark.unit
 def test_trades_keep_price_size_side_and_match_id(
     bybit: Source, instrument: Any, trades_file: Path
 ) -> None:
@@ -87,6 +90,7 @@ def test_trades_keep_price_size_side_and_match_id(
     assert str(tick.trade_id) == "29087039-f48d-5df6-a9ae-2a6dca8dbb16"
 
 
+@pytest.mark.unit
 def test_funding_without_interval_takes_the_instruments(
     bybit: Source, instrument: Any, funding_file: Path
 ) -> None:
@@ -98,6 +102,7 @@ def test_funding_without_interval_takes_the_instruments(
     assert [each.interval for each in rates] == [480, 480, 480]
 
 
+@pytest.mark.unit
 def test_funding_off_its_interval_grid_is_refused(
     bybit: Source, instrument: Any, funding_file: Path
 ) -> None:
@@ -109,6 +114,7 @@ def test_funding_off_its_interval_grid_is_refused(
         list(bybit.parse(funding_file, FundingRateUpdate, instrument))
 
 
+@pytest.mark.unit
 def test_mark_prices_are_each_minutes_close_just_before_its_end(
     replayed: Source, instrument: Any, tmp_path: Path
 ) -> None:
@@ -125,6 +131,7 @@ def test_mark_prices_are_each_minutes_close_just_before_its_end(
     )
 
 
+@pytest.mark.unit
 def test_candles_are_stamped_1_ns_before_their_close(
     replayed: Source, instrument: Any, tmp_path: Path
 ) -> None:
@@ -142,6 +149,7 @@ def test_candles_are_stamped_1_ns_before_their_close(
     )
 
 
+@pytest.mark.unit
 def test_unparsed_data_type_is_refused(
     bybit: Source, instrument: Any, trades_file: Path
 ) -> None:

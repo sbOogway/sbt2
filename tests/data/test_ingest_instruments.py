@@ -64,6 +64,7 @@ def catalog(tmp_path: Path, raw: Path) -> Path:
     return path
 
 
+@pytest.mark.unit
 def test_the_instrument_comes_from_the_snapshot_initialised_on_its_day(
     catalog: Path,
 ) -> None:
@@ -72,6 +73,7 @@ def test_the_instrument_comes_from_the_snapshot_initialised_on_its_day(
     assert instrument.ts_init == start_of(DAY)
 
 
+@pytest.mark.unit
 def test_the_newest_snapshot_is_the_one_ingested(tmp_path: Path, raw: Path) -> None:
     write_snapshot(raw, LATER, margin_init="0.02")
     catalog = tmp_path / "catalog"
@@ -83,6 +85,7 @@ def test_the_newest_snapshot_is_the_one_ingested(tmp_path: Path, raw: Path) -> N
     assert str(instrument.margin_init) == "0.02"
 
 
+@pytest.mark.unit
 def test_a_newer_snapshot_with_the_same_spec_keeps_the_catalogs(
     raw: Path, catalog: Path
 ) -> None:
@@ -94,6 +97,7 @@ def test_a_newer_snapshot_with_the_same_spec_keeps_the_catalogs(
     assert instrument.ts_init == start_of(DAY)
 
 
+@pytest.mark.unit
 def test_a_newer_snapshot_that_differs_fails_loudly(raw: Path, catalog: Path) -> None:
     write_snapshot(raw, LATER, margin_init="0.02")
 
@@ -104,6 +108,7 @@ def test_a_newer_snapshot_that_differs_fails_loudly(raw: Path, catalog: Path) ->
     assert instrument.ts_init == start_of(DAY)
 
 
+@pytest.mark.unit
 def test_reingest_replaces_the_instrument_and_rebuilds_its_days(
     raw: Path, catalog: Path
 ) -> None:
@@ -118,6 +123,7 @@ def test_reingest_replaces_the_instrument_and_rebuilds_its_days(
     assert [each.ts_event for each in trades] == [start_of(DAY) + 2 * HOUR]
 
 
+@pytest.mark.unit
 def test_reingest_removes_days_outside_the_requested_range(
     raw: Path, catalog: Path
 ) -> None:
@@ -131,11 +137,13 @@ def test_reingest_removes_days_outside_the_requested_range(
     assert trade_days(catalog) == [(start_of(DAY), start_of(other_day) - 1)]
 
 
+@pytest.mark.unit
 def test_a_symbol_without_a_snapshot_is_refused(tmp_path: Path) -> None:
     with pytest.raises(NoSnapshotError, match=SYMBOL):
         run(tmp_path / "raw", tmp_path / "catalog")
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize(
     ("data_type", "identifier"),
     [(MarkPriceUpdate, INSTRUMENT_ID), (Bar, CANDLE_TYPE)],

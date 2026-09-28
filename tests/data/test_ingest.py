@@ -91,6 +91,7 @@ def intervals(catalog: Path, data_type: NautilusDataType) -> list[tuple[int, int
     return ParquetDataCatalog(str(catalog)).get_intervals(data_type, str(INSTRUMENT_ID))
 
 
+@pytest.mark.unit
 def test_each_day_is_one_file_named_with_the_whole_days_bounds(
     raw: Path, catalog_path: Path
 ) -> None:
@@ -106,6 +107,7 @@ def test_each_day_is_one_file_named_with_the_whole_days_bounds(
     ]
 
 
+@pytest.mark.unit
 def test_every_served_data_type_is_ingested_by_default(
     raw: Path, catalog_path: Path
 ) -> None:
@@ -130,6 +132,7 @@ def test_every_served_data_type_is_ingested_by_default(
     ]
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize("data_type", [TradeTick, MarkPriceUpdate, FundingRateUpdate])
 def test_a_raw_file_without_rows_becomes_a_covered_empty_day(
     raw: Path, catalog_path: Path, data_type: type
@@ -145,6 +148,7 @@ def test_a_raw_file_without_rows_becomes_a_covered_empty_day(
     assert ParquetDataCatalog(str(catalog_path)).query(stored) == []
 
 
+@pytest.mark.unit
 def test_candles_are_written_under_their_bar_type_with_the_whole_days_bounds(
     raw: Path, catalog_path: Path
 ) -> None:
@@ -164,6 +168,7 @@ def test_candles_are_written_under_their_bar_type_with_the_whole_days_bounds(
     ]
 
 
+@pytest.mark.unit
 def test_a_day_without_candles_is_a_covered_empty_bar_file(
     raw: Path, catalog_path: Path
 ) -> None:
@@ -179,6 +184,7 @@ def test_a_day_without_candles_is_a_covered_empty_bar_file(
     assert catalog.query(NautilusDataType.Bar, [str(CANDLE_TYPE)]) == []
 
 
+@pytest.mark.unit
 def test_a_day_without_a_raw_file_is_missing_and_not_written(
     raw: Path, catalog_path: Path
 ) -> None:
@@ -190,6 +196,7 @@ def test_a_day_without_a_raw_file_is_missing_and_not_written(
     assert intervals(catalog_path, TRADES) == [bounds(DAY)]
 
 
+@pytest.mark.unit
 def test_known_gap_days_are_left_out(raw: Path, catalog_path: Path) -> None:
     source = LocalSource(frozenset({Gap(INSTRUMENT_ID, TradeTick, NEXT_DAY)}))
     write_day(raw, TradeTick, DAY, hourly(DAY))
@@ -199,6 +206,7 @@ def test_known_gap_days_are_left_out(raw: Path, catalog_path: Path) -> None:
     assert list(outcomes(report)) == [("TradeTick", DAY)]
 
 
+@pytest.mark.unit
 def test_a_rerun_skips_the_days_already_in_the_catalog(
     raw: Path, catalog_path: Path
 ) -> None:
@@ -217,6 +225,7 @@ def test_a_rerun_skips_the_days_already_in_the_catalog(
     assert len(trades) == 48
 
 
+@pytest.mark.unit
 def test_a_record_outside_its_day_fails_and_writes_nothing(
     raw: Path, catalog_path: Path
 ) -> None:
@@ -228,6 +237,7 @@ def test_a_record_outside_its_day_fails_and_writes_nothing(
     assert not (catalog_path / "data" / "trades").exists()
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize("rows", [[], [8 * HOUR]])
 def test_a_file_sbt2_writes_leaves_no_partial_file_behind(
     raw: Path, catalog_path: Path, rows: list[int]
@@ -240,6 +250,7 @@ def test_a_file_sbt2_writes_leaves_no_partial_file_behind(
     assert not [each for each in written if "#" in each]
 
 
+@pytest.mark.unit
 def test_a_partial_file_left_by_a_crash_is_not_a_covered_day(
     raw: Path, catalog_path: Path
 ) -> None:
@@ -261,6 +272,7 @@ def _day_file_name(day: date) -> str:
     return f"{day}T00-00-00-000000000Z_{day}T23-59-59-999999999Z.parquet"
 
 
+@pytest.mark.unit
 def test_progress_hears_of_every_planned_day(raw: Path, catalog_path: Path) -> None:
     write_day(raw, TradeTick, DAY, hourly(DAY))
     recorder = Recorder()
@@ -278,11 +290,13 @@ def test_progress_hears_of_every_planned_day(raw: Path, catalog_path: Path) -> N
     ]
 
 
+@pytest.mark.unit
 def test_an_unserved_data_type_is_refused(raw: Path, catalog_path: Path) -> None:
     with pytest.raises(UnsupportedDataTypeError, match="OrderBookDelta"):
         run(raw, catalog_path, request(DAY, "OrderBookDelta"))
 
 
+@pytest.mark.unit
 def test_a_reversed_range_is_refused() -> None:
     with pytest.raises(ValueError, match="before"):
         IngestRequest((SYMBOL,), NEXT_DAY, DAY)

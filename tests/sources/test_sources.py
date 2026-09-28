@@ -9,10 +9,12 @@ from sbt2.sources import Gap, UnknownSourceError, known_gaps, source
 REPO_CONFIG = Path(__file__).parents[2] / "config" / "sources.toml"
 
 
+@pytest.mark.unit
 def test_repo_config_builds_bybit_without_known_gaps() -> None:
     assert source("bybit", REPO_CONFIG).known_gaps == frozenset()
 
 
+@pytest.mark.unit
 def test_known_gaps_come_from_the_config(tmp_path: Path) -> None:
     config = tmp_path / "sources.toml"
     config.write_text(
@@ -25,6 +27,7 @@ def test_known_gaps_come_from_the_config(tmp_path: Path) -> None:
     }
 
 
+@pytest.mark.unit
 def test_known_gaps_can_name_candles(tmp_path: Path) -> None:
     config = tmp_path / "sources.toml"
     config.write_text(
@@ -37,11 +40,13 @@ def test_known_gaps_can_name_candles(tmp_path: Path) -> None:
     }
 
 
+@pytest.mark.unit
 def test_unknown_source_is_refused() -> None:
     with pytest.raises(UnknownSourceError, match="known: bybit"):
         source("nope", REPO_CONFIG)
 
 
+@pytest.mark.unit
 def test_known_gaps_combine_every_configured_source(tmp_path: Path) -> None:
     config = tmp_path / "sources.toml"
     config.write_text(
@@ -62,6 +67,7 @@ def test_known_gaps_combine_every_configured_source(tmp_path: Path) -> None:
     }
 
 
+@pytest.mark.unit
 def test_a_config_without_sources_has_no_known_gaps(tmp_path: Path) -> None:
     config = tmp_path / "sources.toml"
     config.write_text("")

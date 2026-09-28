@@ -82,6 +82,7 @@ def download(tmp_path: Path, *options: str) -> Any:
     )
 
 
+@pytest.mark.e2e
 def test_downloads_into_the_raw_folder(
     tmp_path: Path, answers: dict[str, bytes | Exception]
 ) -> None:
@@ -100,6 +101,7 @@ def test_downloads_into_the_raw_folder(
     assert "files: 3 fetched, 0 skipped, 0 missing, 0 failed" in result.output
 
 
+@pytest.mark.e2e
 def test_missing_days_are_listed_and_do_not_fail_the_command(
     tmp_path: Path, answers: dict[str, bytes | Exception]
 ) -> None:
@@ -112,6 +114,7 @@ def test_missing_days_are_listed_and_do_not_fail_the_command(
     assert "missing at the source: BTCUSDT TradeTick 2025-01-02" in result.output
 
 
+@pytest.mark.e2e
 def test_a_failed_file_fails_the_command_after_the_rest_are_done(
     tmp_path: Path, answers: dict[str, bytes | Exception]
 ) -> None:
@@ -127,6 +130,7 @@ def test_a_failed_file_fails_the_command_after_the_rest_are_done(
     assert (tmp_path / "raw/BTCUSDT/trades/2025-01-02.csv").exists()
 
 
+@pytest.mark.e2e
 def test_a_data_type_the_source_does_not_serve_fails_before_any_fetch(
     tmp_path: Path, answers: dict[str, bytes | Exception]
 ) -> None:
@@ -137,6 +141,7 @@ def test_a_data_type_the_source_does_not_serve_fails_before_any_fetch(
     assert not (tmp_path / "raw").exists()
 
 
+@pytest.mark.e2e
 def test_a_reversed_range_fails_the_command(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
@@ -148,6 +153,7 @@ def test_a_reversed_range_fails_the_command(tmp_path: Path) -> None:
     assert "before 2025-01-02" in result.output
 
 
+@pytest.mark.e2e
 def test_an_unknown_source_fails_the_command(tmp_path: Path) -> None:
     result = runner.invoke(
         app,

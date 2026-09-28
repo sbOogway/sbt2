@@ -98,6 +98,7 @@ def resolved(paths: tuple[Path, Path], **overrides: Any) -> ResolvedRunSpec:
     return load(spec, overrides, venues)
 
 
+@pytest.mark.unit
 def test_strategy_run_has_instrument_ids_and_params_with_defaults(
     paths: tuple[Path, Path],
 ) -> None:
@@ -109,6 +110,7 @@ def test_strategy_run_has_instrument_ids_and_params_with_defaults(
     assert run.trade_start == START
 
 
+@pytest.mark.unit
 def test_venue_profile_names_the_asset_profile(paths: tuple[Path, Path]) -> None:
     asset = resolved(paths).asset
 
@@ -118,6 +120,7 @@ def test_venue_profile_names_the_asset_profile(paths: tuple[Path, Path]) -> None
     )
 
 
+@pytest.mark.unit
 def test_the_venue_profile_names_the_data_source(paths: tuple[Path, Path]) -> None:
     spec = resolved(paths)
 
@@ -125,12 +128,14 @@ def test_the_venue_profile_names_the_data_source(paths: tuple[Path, Path]) -> No
     assert "source" not in spec.venue
 
 
+@pytest.mark.unit
 def test_the_data_source_is_not_part_of_the_spec_hash(
     paths: tuple[Path, Path],
 ) -> None:
     assert resolved(paths).hash == resolved(paths, venue="other_source").hash
 
 
+@pytest.mark.unit
 def test_a_venue_profile_without_a_source_fails(paths: tuple[Path, Path]) -> None:
     spec, venues = paths
     venues.write_text(SOURCELESS)
@@ -139,6 +144,7 @@ def test_a_venue_profile_without_a_source_fails(paths: tuple[Path, Path]) -> Non
         load(spec, {"venue": "sourceless"}, venues)
 
 
+@pytest.mark.unit
 def test_venue_arguments_start_from_the_asset_defaults(
     paths: tuple[Path, Path],
 ) -> None:
@@ -151,6 +157,7 @@ def test_venue_arguments_start_from_the_asset_defaults(
     assert venue["starting_balances"] == ["10000 USDT"]
 
 
+@pytest.mark.unit
 def test_liquidation_follows_the_venue_profile_by_default(
     paths: tuple[Path, Path],
 ) -> None:
@@ -159,6 +166,7 @@ def test_liquidation_follows_the_venue_profile_by_default(
     assert venue["liquidation_enabled"] is False
 
 
+@pytest.mark.unit
 def test_the_liquidation_key_overrides_the_venue_profile(
     paths: tuple[Path, Path],
 ) -> None:
@@ -169,6 +177,7 @@ def test_the_liquidation_key_overrides_the_venue_profile(
     assert liquidated.hash != unset.hash
 
 
+@pytest.mark.unit
 def test_data_covers_declared_bars_and_the_asset_streams_from_warmup(
     paths: tuple[Path, Path],
 ) -> None:
@@ -184,6 +193,7 @@ def test_data_covers_declared_bars_and_the_asset_streams_from_warmup(
     }
 
 
+@pytest.mark.unit
 def test_bars_come_from_trades_by_default(paths: tuple[Path, Path]) -> None:
     spec = resolved(paths)
 
@@ -196,6 +206,7 @@ def test_bars_come_from_trades_by_default(paths: tuple[Path, Path]) -> None:
     )
 
 
+@pytest.mark.unit
 def test_a_candle_run_streams_one_minute_candles_instead_of_trades(
     paths: tuple[Path, Path],
 ) -> None:
@@ -212,6 +223,7 @@ def test_a_candle_run_streams_one_minute_candles_instead_of_trades(
     }
 
 
+@pytest.mark.unit
 def test_a_candle_run_has_the_strategy_aggregate_from_candles(
     paths: tuple[Path, Path],
 ) -> None:
@@ -221,10 +233,12 @@ def test_a_candle_run_has_the_strategy_aggregate_from_candles(
     )
 
 
+@pytest.mark.unit
 def test_the_bar_source_changes_the_hash(paths: tuple[Path, Path]) -> None:
     assert resolved(paths, bars="candles").hash != resolved(paths).hash
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "bar",
     ["1-MINUTE-LAST", "15-MINUTE-LAST", "1-HOUR-LAST", "4-HOUR-LAST", "1-DAY-LAST"],
@@ -237,6 +251,7 @@ def test_whole_minute_bars_are_built_from_candles(
     assert spec.data[0]["data_type"] == NautilusDataType.Bar
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "bar",
     [
@@ -256,11 +271,13 @@ def test_bars_candles_cannot_build_are_refused(
         resolved(paths, strategy=DECLARED_BAR, params={"bar": bar}, bars="candles")
 
 
+@pytest.mark.unit
 def test_an_unknown_bar_source_is_refused(paths: tuple[Path, Path]) -> None:
     with pytest.raises(UnknownBarSourceError, match="trades, candles"):
         resolved(paths, bars="quotes")
 
 
+@pytest.mark.unit
 def test_run_config_is_built_from_the_resolved_arguments(
     paths: tuple[Path, Path],
 ) -> None:
@@ -279,6 +296,7 @@ def test_run_config_is_built_from_the_resolved_arguments(
     assert config.chunk_size == 1000
 
 
+@pytest.mark.unit
 def test_engine_arguments_reach_the_engine_config(paths: tuple[Path, Path]) -> None:
     engine = {"shutdown_on_error": True, "run_analysis": False}
 
@@ -289,6 +307,7 @@ def test_engine_arguments_reach_the_engine_config(paths: tuple[Path, Path]) -> N
     assert config.portfolio is not None
 
 
+@pytest.mark.unit
 def test_portfolio_samples_equity_at_the_interval_in_mark_prices(
     paths: tuple[Path, Path],
 ) -> None:
@@ -300,15 +319,18 @@ def test_portfolio_samples_equity_at_the_interval_in_mark_prices(
     assert portfolio.use_mark_prices
 
 
+@pytest.mark.unit
 def test_equity_interval_defaults_to_one_hour(paths: tuple[Path, Path]) -> None:
     assert resolved(paths).equity_interval_ms == 3_600_000
 
 
+@pytest.mark.unit
 def test_malformed_equity_interval_fails(paths: tuple[Path, Path]) -> None:
     with pytest.raises(ValueError, match="1h"):
         resolved(paths, equity_interval="an hour")
 
 
+@pytest.mark.unit
 def test_overrides_replace_file_values(paths: tuple[Path, Path]) -> None:
     spec = resolved(paths, start="2024-01-15", params={"lookback": 5})
 
@@ -316,6 +338,7 @@ def test_overrides_replace_file_values(paths: tuple[Path, Path]) -> None:
     assert spec.strategy.params["lookback"] == 5
 
 
+@pytest.mark.unit
 def test_hash_is_stable_for_the_same_spec(paths: tuple[Path, Path]) -> None:
     first, second = resolved(paths), resolved(paths)
 
@@ -323,6 +346,7 @@ def test_hash_is_stable_for_the_same_spec(paths: tuple[Path, Path]) -> None:
     assert len(first.hash) == 64
 
 
+@pytest.mark.unit
 def test_json_is_the_hashed_document(paths: tuple[Path, Path]) -> None:
     spec = resolved(paths)
 
@@ -332,6 +356,7 @@ def test_json_is_the_hashed_document(paths: tuple[Path, Path]) -> None:
     assert hashlib.sha256(spec.to_json().encode()).hexdigest() == spec.hash
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "overrides",
     [
@@ -348,12 +373,14 @@ def test_hash_changes_with_the_backtest(
     assert resolved(paths, **overrides).hash != resolved(paths).hash
 
 
+@pytest.mark.unit
 def test_hash_ignores_the_seed_without_a_random_fill_model(
     paths: tuple[Path, Path],
 ) -> None:
     assert resolved(paths, seed=7).hash == resolved(paths).hash
 
 
+@pytest.mark.unit
 def test_seed_goes_to_the_fill_model(paths: tuple[Path, Path]) -> None:
     seeded = resolved(paths, venue="seeded_linear", seed=7)
 
@@ -363,6 +390,7 @@ def test_seed_goes_to_the_fill_model(paths: tuple[Path, Path]) -> None:
     assert venue.fill_model is not None
 
 
+@pytest.mark.unit
 def test_unknown_parameter_fails_listing_the_valid_ones(
     paths: tuple[Path, Path],
 ) -> None:
@@ -370,6 +398,7 @@ def test_unknown_parameter_fails_listing_the_valid_ones(
         resolved(paths, params={"lookbak": 5})
 
 
+@pytest.mark.unit
 def test_unknown_venue_profile_fails_listing_the_known_ones(
     paths: tuple[Path, Path],
 ) -> None:
@@ -377,11 +406,13 @@ def test_unknown_venue_profile_fails_listing_the_known_ones(
         resolved(paths, venue="binance_linear")
 
 
+@pytest.mark.unit
 def test_instrument_on_another_venue_fails(paths: tuple[Path, Path]) -> None:
     with pytest.raises(InstrumentVenueError, match="BTCUSDT-LINEAR.BINANCE"):
         resolved(paths, instruments=[BTC, "BTCUSDT-LINEAR.BINANCE"])
 
 
+@pytest.mark.unit
 def test_unknown_spec_key_fails_listing_the_valid_ones(
     paths: tuple[Path, Path],
 ) -> None:
@@ -391,6 +422,7 @@ def test_unknown_spec_key_fails_listing_the_valid_ones(
         resolved(paths, symbols=["BTCUSDT"])
 
 
+@pytest.mark.unit
 def test_dates_are_utc(paths: tuple[Path, Path]) -> None:
     spec = resolved(paths, start=datetime.fromisoformat("2024-01-01T02:00:00+02:00"))
 

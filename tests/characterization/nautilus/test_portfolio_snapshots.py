@@ -14,8 +14,6 @@ from nautilus_trader.model import Money, PortfolioSnapshot
 from nautilus_trader.portfolio import PortfolioConfig
 from nautilus_trader.trading import Strategy
 
-pytestmark = pytest.mark.characterization
-
 LAST_HOUR = 50
 HOURLY = 3_600_000
 RISING_MARKET = [
@@ -47,6 +45,8 @@ def final_equity(engine: BacktestEngine) -> Money:
     return equity
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_default_equity_curve_snapshots_start_each_utc_midnight_and_end() -> None:
     engine = run_engine(RISING_MARKET, BuyOneOnFirstQuote())
 
@@ -54,6 +54,8 @@ def test_default_equity_curve_snapshots_start_each_utc_midnight_and_end() -> Non
     assert final_equity(engine) == usdt("10500.00")
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_disabled_equity_curve_takes_no_snapshots() -> None:
     engine = run_engine(
         RISING_MARKET, BuyOneOnFirstQuote(), PortfolioConfig(equity_curve=False)
@@ -62,6 +64,8 @@ def test_disabled_equity_curve_takes_no_snapshots() -> None:
     assert snapshots(engine) == []
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_snapshot_interval_samples_while_a_position_is_open() -> None:
     portfolio = PortfolioConfig(equity_curve=False, snapshot_interval_ms=HOURLY)
     engine = run_engine(RISING_MARKET, BuyOneOnFirstQuote(), portfolio)
@@ -70,6 +74,8 @@ def test_snapshot_interval_samples_while_a_position_is_open() -> None:
     assert final_equity(engine) == usdt("10500.00")
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_snapshot_interval_takes_no_snapshots_while_flat() -> None:
     portfolio = PortfolioConfig(equity_curve=False, snapshot_interval_ms=HOURLY)
     engine = run_engine(RISING_MARKET, Idle(), portfolio)

@@ -29,8 +29,6 @@ from nautilus_trader.common import LoggerConfig, LogLevel
 from nautilus_trader.model import NautilusDataType, QuoteTick
 from nautilus_trader.trading import Strategy
 
-pytestmark = pytest.mark.characterization
-
 STREAMED_TYPES = [
     NautilusDataType.QuoteTick,
     NautilusDataType.MarkPriceUpdate,
@@ -87,6 +85,8 @@ def finished_node(tmp_path: Path) -> tuple[BacktestNode, str]:
     return run_node(config), config.id
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_node_streams_catalog_funding_and_the_venue_settles_it(
     finished_node: tuple[BacktestNode, str],
 ) -> None:
@@ -95,6 +95,8 @@ def test_node_streams_catalog_funding_and_the_venue_settles_it(
     assert funding_payments(node.get_engine_cache(run_id)) == [usdt("-5.00")] * 2
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_portfolio_snapshots_survive_the_run_without_disposal(
     finished_node: tuple[BacktestNode, str],
 ) -> None:
@@ -107,6 +109,8 @@ def test_portfolio_snapshots_survive_the_run_without_disposal(
     assert equity == usdt("9990.00")
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_default_disposal_silently_empties_the_engine_cache(tmp_path: Path) -> None:
     build_one_day_catalog(tmp_path)
     config = default_run_config(tmp_path)
@@ -145,6 +149,8 @@ def failing_run(path: Path, shutdown_on_error: bool) -> BacktestResult:
     return result
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_strategy_errors_are_logged_not_raised_and_the_run_goes_on(
     tmp_path: Path,
 ) -> None:
@@ -153,6 +159,8 @@ def test_strategy_errors_are_logged_not_raised_and_the_run_goes_on(
     assert result.backtest_end == START + 23 * HOUR
 
 
+@pytest.mark.characterization
+@pytest.mark.integration
 def test_shutdown_on_error_stops_the_run_early_without_raising(
     tmp_path: Path,
 ) -> None:

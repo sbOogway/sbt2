@@ -2,6 +2,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+import pytest
 from local_source import (
     INSTRUMENT_ID,
     SYMBOL,
@@ -105,6 +106,7 @@ def funding_payments(cache: Cache) -> list[Money]:
     ]
 
 
+@pytest.mark.integration
 def test_ingested_funding_streams_back_and_the_venue_settles_it(
     tmp_path: Path,
 ) -> None:

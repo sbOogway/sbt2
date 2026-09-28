@@ -17,6 +17,7 @@ capital = "10000 USDT"
 """
 
 
+@pytest.mark.unit
 def test_bybit_linear_builds_a_nautilus_venue(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -52,6 +52,7 @@ def served(
     return spec
 
 
+@pytest.mark.e2e
 def test_a_missing_spec_fails_the_run_and_logs_why(tmp_path: Path) -> None:
     log = tmp_path / "sbt2.log"
 
@@ -64,6 +65,7 @@ def test_a_missing_spec_fails_the_run_and_logs_why(tmp_path: Path) -> None:
     assert "FileNotFoundError" in log.read_text()
 
 
+@pytest.mark.e2e
 def test_an_invalid_spec_stores_nothing(tmp_path: Path) -> None:
     spec = tmp_path / "spec.toml"
     spec.write_text('colour = "blue"\n')
@@ -75,12 +77,14 @@ def test_an_invalid_spec_stores_nothing(tmp_path: Path) -> None:
     assert not (tmp_path / "results").exists()
 
 
+@pytest.mark.e2e
 def test_without_a_command_it_shows_the_commands() -> None:
     result = runner.invoke(app, [])
 
     assert "run" in result.output
 
 
+@pytest.mark.e2e
 def test_a_run_with_missing_data_fails_before_the_engine_starts(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -97,6 +101,7 @@ def test_a_run_with_missing_data_fails_before_the_engine_starts(
     assert not (tmp_path / "data" / "results").exists()
 
 
+@pytest.mark.e2e
 def test_a_run_stores_the_known_gap_days_it_skipped(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

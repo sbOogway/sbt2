@@ -6,8 +6,6 @@ from kit import FUNDING_INTERVAL, HOUR, INSTRUMENT_ID, START, funding, quote
 from nautilus_trader.model import NautilusDataType
 from nautilus_trader.persistence import ParquetDataCatalog
 
-pytestmark = pytest.mark.characterization
-
 QUOTES = NautilusDataType.QuoteTick
 
 
@@ -28,12 +26,16 @@ def missing_quote_intervals(
     )
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 def test_write_with_bounds_names_the_file_after_the_bounds(tmp_path: Path) -> None:
     written = write_hourly_quotes(new_catalog(tmp_path), 0)
 
     assert Path(written).name == catalog_file_name(day_bounds(0))
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 def test_write_without_bounds_names_the_file_after_the_data(tmp_path: Path) -> None:
     first, last = START + HOUR, START + 2 * HOUR
     written = new_catalog(tmp_path).write_quote_ticks([quote(first), quote(last)])
@@ -41,6 +43,8 @@ def test_write_without_bounds_names_the_file_after_the_data(tmp_path: Path) -> N
     assert Path(written).name == catalog_file_name((first, last))
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 def test_adjacent_day_files_leave_no_missing_interval(tmp_path: Path) -> None:
     catalog = new_catalog(tmp_path)
     write_hourly_quotes(catalog, 0)
@@ -49,6 +53,8 @@ def test_adjacent_day_files_leave_no_missing_interval(tmp_path: Path) -> None:
     assert missing_quote_intervals(catalog, 2) == []
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 def test_missing_day_is_reported_as_a_missing_interval(tmp_path: Path) -> None:
     catalog = new_catalog(tmp_path)
     write_hourly_quotes(catalog, 0)
@@ -57,6 +63,8 @@ def test_missing_day_is_reported_as_a_missing_interval(tmp_path: Path) -> None:
     assert missing_quote_intervals(catalog, 3) == [day_bounds(1)]
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 def test_catalog_has_no_python_writer_for_funding(tmp_path: Path) -> None:
     catalog = new_catalog(tmp_path)
 
@@ -64,6 +72,8 @@ def test_catalog_has_no_python_writer_for_funding(tmp_path: Path) -> None:
         catalog.write_custom_data([funding(START + FUNDING_INTERVAL)], *day_bounds(0))
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 def test_hand_written_funding_file_round_trips(tmp_path: Path) -> None:
     fundings = [funding(START + k * FUNDING_INTERVAL) for k in (1, 2)]
     write_funding(tmp_path, fundings, day_bounds(0))

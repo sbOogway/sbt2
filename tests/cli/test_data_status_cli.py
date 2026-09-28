@@ -5,6 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
+import pytest
 from nautilus_trader.model import (
     CryptoPerpetual,
     Currency,
@@ -73,6 +74,7 @@ def status(data: Path, *options: str) -> Any:
     return runner.invoke(app, ["data", "status", "--data", str(data), *options])
 
 
+@pytest.mark.e2e
 def test_status_prints_a_row_per_instrument_and_data_type(tmp_path: Path) -> None:
     data = ingested(tmp_path, date(2025, 1, 1), date(2025, 1, 2))
 
@@ -91,6 +93,7 @@ def test_status_prints_a_row_per_instrument_and_data_type(tmp_path: Path) -> Non
     ]
 
 
+@pytest.mark.e2e
 def test_status_shows_gaps_as_day_ranges(tmp_path: Path) -> None:
     data = ingested(tmp_path, date(2025, 1, 1), date(2025, 1, 4))
 
@@ -99,6 +102,7 @@ def test_status_shows_gaps_as_day_ranges(tmp_path: Path) -> None:
     assert "2025-01-02..2025-01-03" in result.stdout
 
 
+@pytest.mark.e2e
 def test_status_with_a_window_flags_days_outside_the_catalog(tmp_path: Path) -> None:
     data = ingested(tmp_path, date(2025, 1, 2))
 
@@ -108,6 +112,7 @@ def test_status_with_a_window_flags_days_outside_the_catalog(tmp_path: Path) -> 
     assert "2025-01-01,2025-01-03" in result.stdout
 
 
+@pytest.mark.e2e
 def test_status_of_an_empty_catalog_says_so(tmp_path: Path) -> None:
     result = status(tmp_path)
 

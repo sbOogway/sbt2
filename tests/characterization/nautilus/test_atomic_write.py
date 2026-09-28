@@ -9,8 +9,6 @@ from catalog_kit import catalog_file_name, day_bounds, new_catalog
 from kit import HOUR, INSTRUMENT_ID, trade
 from nautilus_trader.model import NautilusDataType
 
-pytestmark = pytest.mark.characterization
-
 # Large enough that encoding the file takes milliseconds, so the poll below
 # sees it while it is still being written.
 TICKS = 3_000_000
@@ -51,6 +49,8 @@ def killed(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
     return catalog, kill_while_writing(catalog)
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 def test_writer_writes_under_a_temporary_name_and_renames_when_done(
     killed: tuple[Path, Path],
 ) -> None:
@@ -59,6 +59,8 @@ def test_writer_writes_under_a_temporary_name_and_renames_when_done(
     assert first.name.startswith(catalog_file_name(day_bounds(0)) + "#")
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 def test_a_write_killed_midway_leaves_no_covered_day(
     killed: tuple[Path, Path],
 ) -> None:
@@ -71,6 +73,8 @@ def test_a_write_killed_midway_leaves_no_covered_day(
     assert intervals == []
 
 
+@pytest.mark.characterization
+@pytest.mark.unit
 def test_a_leftover_temporary_file_does_not_block_the_next_write(
     killed: tuple[Path, Path],
 ) -> None:

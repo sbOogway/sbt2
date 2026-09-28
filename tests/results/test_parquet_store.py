@@ -58,6 +58,7 @@ def finished_run(
     return sink.run_id
 
 
+@pytest.mark.unit
 def test_run_ids_are_time_sortable_uuid7(store: ParquetResultStore) -> None:
     first = store.new_run(spec(), PROVENANCE).run_id
     second = store.new_run(spec(), PROVENANCE).run_id
@@ -66,6 +67,7 @@ def test_run_ids_are_time_sortable_uuid7(store: ParquetResultStore) -> None:
     assert first < second
 
 
+@pytest.mark.unit
 def test_a_run_writes_its_tables_spec_and_summary_into_its_folder(
     store: ParquetResultStore, output: RunOutput, tmp_path: Path
 ) -> None:
@@ -84,6 +86,7 @@ def test_a_run_writes_its_tables_spec_and_summary_into_its_folder(
     assert (tmp_path / "runs" / run_id / "spec.json").read_text() == spec().to_json()
 
 
+@pytest.mark.unit
 def test_summary_holds_the_run_provenance_and_headline_metrics(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
@@ -106,6 +109,7 @@ def test_summary_holds_the_run_provenance_and_headline_metrics(
     assert pd.isna(summary["alpha"]) and pd.isna(summary["beta"])
 
 
+@pytest.mark.unit
 def test_the_summary_lists_the_known_gap_days_the_run_skipped(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
@@ -118,6 +122,7 @@ def test_the_summary_lists_the_known_gap_days_the_run_skipped(
     ]
 
 
+@pytest.mark.unit
 def test_a_run_without_known_gaps_lists_none(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
@@ -127,6 +132,7 @@ def test_a_run_without_known_gaps_lists_none(
     assert list(summary["known_gaps"]) == []
 
 
+@pytest.mark.unit
 def test_fields_later_milestones_fill_are_null(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
@@ -138,6 +144,7 @@ def test_fields_later_milestones_fill_are_null(
     )
 
 
+@pytest.mark.unit
 def test_a_benchmark_gives_alpha_and_beta(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
@@ -148,6 +155,7 @@ def test_a_benchmark_gives_alpha_and_beta(
     assert not pd.isna(summary["alpha"]) and not pd.isna(summary["beta"])
 
 
+@pytest.mark.unit
 def test_nautilus_reports_load_back_with_their_own_columns(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
@@ -165,6 +173,7 @@ def test_nautilus_reports_load_back_with_their_own_columns(
         assert loaded.index.equals(report.index)
 
 
+@pytest.mark.unit
 def test_nested_report_values_survive_the_round_trip(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
@@ -176,6 +185,7 @@ def test_nested_report_values_survive_the_round_trip(
     assert list(positions["trade_ids"]) == list(output.reports.positions["trade_ids"])
 
 
+@pytest.mark.unit
 def test_equity_and_carry_come_from_nautilus(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
@@ -191,6 +201,7 @@ def test_equity_and_carry_come_from_nautilus(
     assert funding["ts_event"] == START + pd.Timedelta(hours=8)
 
 
+@pytest.mark.unit
 def test_orders_are_optional(store: ParquetResultStore, output: RunOutput) -> None:
     sink = store.new_run(spec(), PROVENANCE)
     reports = output.reports
@@ -202,6 +213,7 @@ def test_orders_are_optional(store: ParquetResultStore, output: RunOutput) -> No
         store.load(sink.run_id, "orders")
 
 
+@pytest.mark.unit
 def test_a_run_without_funding_or_fills_finalizes(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
@@ -215,6 +227,7 @@ def test_a_run_without_funding_or_fills_finalizes(
     assert (summary["trade_count"], summary["total_carry"]) == (0, 0.0)
 
 
+@pytest.mark.unit
 def test_an_unfinished_run_is_not_listed_but_keeps_its_folder(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
@@ -225,6 +238,7 @@ def test_an_unfinished_run_is_not_listed_but_keeps_its_folder(
     assert len(store.load(sink.run_id, "equity")) == len(output.snapshots)
 
 
+@pytest.mark.unit
 def test_empty_store_lists_no_runs_with_summary_columns(
     store: ParquetResultStore,
 ) -> None:
@@ -234,6 +248,7 @@ def test_empty_store_lists_no_runs_with_summary_columns(
     assert {"run_id", "spec_hash", "net_return"} <= set(runs.columns)
 
 
+@pytest.mark.unit
 def test_finalize_before_writing_everything_fails(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
@@ -244,6 +259,7 @@ def test_finalize_before_writing_everything_fails(
         sink.finalize()
 
 
+@pytest.mark.unit
 def test_delete_removes_the_run(store: ParquetResultStore, output: RunOutput) -> None:
     run_id = finished_run(store, output)
 
@@ -254,6 +270,7 @@ def test_delete_removes_the_run(store: ParquetResultStore, output: RunOutput) ->
         store.load(run_id, "summary")
 
 
+@pytest.mark.unit
 @pytest.mark.parametrize("run_id", [str(uuid.uuid7()), "..", "../runs"])
 def test_unknown_or_malformed_run_ids_fail(
     store: ParquetResultStore, run_id: str
@@ -262,6 +279,7 @@ def test_unknown_or_malformed_run_ids_fail(
         store.delete(run_id)
 
 
+@pytest.mark.unit
 def test_provenance_reads_the_git_revision_and_dirty_tree(tmp_path: Path) -> None:
     git = ["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@t"]
     subprocess.run([*git, "init", "-q"], check=True)
@@ -278,6 +296,7 @@ def test_provenance_reads_the_git_revision_and_dirty_tree(tmp_path: Path) -> Non
     assert dirty.git_dirty
 
 
+@pytest.mark.unit
 def test_missing_nested_values_stay_missing(
     store: ParquetResultStore, output: RunOutput
 ) -> None:

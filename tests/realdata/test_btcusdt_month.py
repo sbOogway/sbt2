@@ -18,8 +18,6 @@ from sbt2.cli import app
 from sbt2.data import Catalog, Window
 from sbt2.results import ParquetResultStore
 
-pytestmark = pytest.mark.realdata
-
 HERE = Path(__file__).parent
 REPO = HERE.parents[1]
 INSTRUMENT_ID = InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT")
@@ -89,11 +87,15 @@ def settlements_in_position(month: MonthRun) -> list[pd.Timestamp]:
     return [each for each in times if first_fill <= each < pd.Timestamp(END)]
 
 
+@pytest.mark.realdata
+@pytest.mark.e2e
 def test_the_month_runs_and_stores_one_run(month: MonthRun) -> None:
     assert len(month.runs) == 1
     assert not month.fills.empty
 
 
+@pytest.mark.realdata
+@pytest.mark.e2e
 def test_the_carry_ledger_has_a_payment_at_every_settlement_while_in_position(
     month: MonthRun,
 ) -> None:
@@ -102,6 +104,8 @@ def test_the_carry_ledger_has_a_payment_at_every_settlement_while_in_position(
     assert list(month.carry["ts_event"]) == expected
 
 
+@pytest.mark.realdata
+@pytest.mark.e2e
 def test_each_payment_is_the_rate_times_the_mark_notional(month: MonthRun) -> None:
     rates = month.funding["rate"]
     expected = [
