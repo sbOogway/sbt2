@@ -23,9 +23,9 @@ from nautilus_trader.model import (
     Venue,
 )
 from nautilus_trader.trading import Strategy as NautilusStrategy
-from toy_strategies import CountWarmupBars
+from toy_strategies import BuyEveryBar, CountWarmupBars, FailOnSecondBar
 
-from sbt2.strategy import RunConfig, StrategyRun, importable_config
+from sbt2.strategy import RunConfig, StrategyRun, build_strategy, importable_config
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 TRADE_START = START + timedelta(minutes=3)
@@ -135,3 +135,29 @@ def test_declared_bars_are_aggregated_internally_for_every_instrument() -> None:
 def test_unknown_params_fail_when_the_strategy_is_built() -> None:
     with pytest.raises(RuntimeError, match="unknown parameters size"):
         run_from_path("toy_strategies:BuyEveryBar", {"size": 1})
+
+
+def test_build_strategy_imports_and_configures_the_run() -> None:
+    run = StrategyRun("toy_strategies:BuyEveryBar", [BTC], {"lookback": 5}, START)
+
+    strategy = build_strategy(run)
+
+    assert isinstance(strategy, BuyEveryBar)
+    assert strategy.params.lookback == 5
+
+
+def test_a_handler_exception_is_kept_as_the_failure() -> None:
+    strategy = FailOnSecondBar(RunConfig([str(BTC)], {}, START.isoformat()))
+
+    run_instance(strategy)
+
+    assert isinstance(strategy.failure, ValueError)
+    assert str(strategy.failure) == "failed on bar 2"
+
+
+def test_a_clean_run_has_no_failure() -> None:
+    strategy = CountWarmupBars(RunConfig([str(BTC)], {}, TRADE_START.isoformat()))
+
+    run_instance(strategy)
+
+    assert strategy.failure is None
