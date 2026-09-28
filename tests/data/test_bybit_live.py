@@ -1,0 +1,84 @@
+"""Downloads a real day from Bybit and parses it; run with ``pytest -m live``."""
+
+from datetime import UTC, date, datetime
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+import pytest
+from nautilus_trader.model import FundingRateUpdate, MarkPriceUpdate, TradeTick
+
+from sbt2.data import DownloadOptions, DownloadRequest, Outcome, download
+from sbt2.sources import Source, source
+
+pytestmark = pytest.mark.live
+
+REPO_CONFIG = Path(__file__).parents[2] / "config" / "sources.toml"
+DAY = date(2025, 1, 1)
+DAY_START = pd.Timestamp(DAY, tz="UTC").value
+DAY_END = DAY_START + pd.Timedelta(days=1).value
+MINUTE = pd.Timedelta(minutes=1).value
+HOUR = pd.Timedelta(hours=1).value
+
+
+@pytest.fixture(scope="module")
+def raw(tmp_path_factory: pytest.TempPathFactory) -> tuple[Source, Path]:
+    bybit = source("bybit", REPO_CONFIG)
+    root = tmp_path_factory.mktemp("raw")
+    report = download(
+        bybit, DownloadRequest(("BTCUSDT",), DAY, DAY), DownloadOptions(root)
+    )
+    assert report.results
+    assert {each.outcome for each in report.results} == {Outcome.FETCHED}, report
+    return bybit, root
+
+
+def day_file(raw: tuple[Source, Path], data_type: type) -> Path:
+    bybit, root = raw
+    return root / bybit.day_file("BTCUSDT", data_type, DAY).path
+
+
+def instrument(raw: tuple[Source, Path]) -> Any:
+    bybit, root = raw
+    today = datetime.now(UTC).date()
+    return bybit.parse_instrument(
+        root / bybit.instrument_snapshot("BTCUSDT", today).path
+    )
+
+
+def test_the_instrument_snapshot_is_btcusdt(raw: tuple[Source, Path]) -> None:
+    assert str(instrument(raw).id) == "BTCUSDT-LINEAR.BYBIT"
+
+
+def test_the_trades_dump_parses_into_the_days_trades(raw: tuple[Source, Path]) -> None:
+    bybit, _ = raw
+    stamps = [
+        each.ts_event
+        for each in bybit.parse(day_file(raw, TradeTick), TradeTick, instrument(raw))
+    ]
+
+    assert len(stamps) > 100_000
+    assert DAY_START <= stamps[0] and stamps[-1] < DAY_END
+    assert stamps == sorted(stamps)
+
+
+def test_funding_settles_every_eight_hours(raw: tuple[Source, Path]) -> None:
+    bybit, _ = raw
+    records = bybit.parse(
+        day_file(raw, FundingRateUpdate), FundingRateUpdate, instrument(raw)
+    )
+
+    assert [each.ts_event for each in records] == [
+        DAY_START + hours * HOUR for hours in (0, 8, 16)
+    ]
+
+
+def test_mark_price_covers_every_minute(raw: tuple[Source, Path]) -> None:
+    bybit, _ = raw
+    records = bybit.parse(
+        day_file(raw, MarkPriceUpdate), MarkPriceUpdate, instrument(raw)
+    )
+
+    assert [each.ts_event for each in records] == [
+        DAY_START + MINUTE * n for n in range(1, 1441)
+    ]
