@@ -44,11 +44,12 @@ include = ["src", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["-m", "not live"]
+addopts = ["-m", "not live and not realdata"]
 markers = [
     "characterization: pins behavior of a third-party dependency sbt2 relies on",
     "golden: a fixed spec that must keep producing the same numbers",
     "live: reaches a real data source over the network; run with -m live",
+    "realdata: runs on a month of real data in data/, fetching what it lacks; run with -m realdata",
 ]
 
 [tool.coverage.run]
