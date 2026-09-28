@@ -1,0 +1,6 @@
+[bybit_linear]
+name = "BYBIT"
+asset_class = "CRYPTOCURRENCY"
+instrument_class = "SWAP"
+# Bybit's base (non-VIP) rates for USDT perpetuals.
+fee_model = { path = "nautilus_trader.execution:MakerTakerFeeModel", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
