@@ -30,7 +30,7 @@ class StrategyRun:
     """
 
     strategy: str
-    instruments: Sequence[str]
+    instruments: Sequence[InstrumentId]
     params: Mapping[str, Any]
     trade_start: datetime
 
@@ -46,7 +46,9 @@ class RunConfig:
 
 def importable_config(run: StrategyRun) -> ImportableStrategyConfig:
     config = RunConfig(
-        list(run.instruments), dict(run.params), run.trade_start.isoformat()
+        [str(each) for each in run.instruments],
+        dict(run.params),
+        run.trade_start.isoformat(),
     )
     return ImportableStrategyConfig(
         run.strategy, f"{__name__}:RunConfig", asdict(config)

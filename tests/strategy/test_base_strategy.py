@@ -89,7 +89,7 @@ def run_from_path(
     strategy: str, params: dict[str, Any] | None = None
 ) -> BacktestEngine:
     engine = engine_with_trades()
-    run = StrategyRun(strategy, [str(BTC)], params or {}, TRADE_START)
+    run = StrategyRun(strategy, [BTC], params or {}, TRADE_START)
     engine.add_strategy_from_config(importable_config(run))
     engine.run()
     return engine
