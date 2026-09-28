@@ -1,0 +1,29 @@
+when:
+  - event: cron
+    cron: live
+  - event: manual
+
+variables:
+  - &image ghcr.io/astral-sh/uv:0.12.19-python3.14-trixie
+  - &env
+    UV_LINK_MODE: copy
+    UV_PYTHON_DOWNLOADS: never
+
+steps:
+  - name: bybit-latency
+    image: curlimages/curl
+    commands:
+      - |
+        for url in https://api.bybit.com/v5/market/time https://public.bybit.com/; do
+          echo "$url"
+          for i in 1 2 3 4 5; do
+            curl -sS -o /dev/null -w "  http=%{http_code} dns=%{time_namelookup} tcp=%{time_connect} tls=%{time_appconnect} ttfb=%{time_starttransfer} total=%{time_total}\n" "$url"
+          done
+        done
+
+  - name: live
+    image: *image
+    environment: *env
+    commands:
+      - uv sync --locked
+      - uv run --locked pytest -m live
