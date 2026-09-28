@@ -45,6 +45,7 @@ include = ["src", "tests"]
 testpaths = ["tests"]
 markers = [
     "characterization: pins behavior of a third-party dependency sbt2 relies on",
+    "golden: a fixed spec that must keep producing the same numbers",
 ]
 
 [tool.coverage.run]
