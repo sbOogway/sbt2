@@ -6,6 +6,7 @@ from pathlib import Path
 
 from nautilus_trader.model import (
     Bar,
+    BarType,
     FundingRateUpdate,
     InstrumentId,
     MarkPriceUpdate,
@@ -38,6 +39,13 @@ def identifier(data_type: type, instrument_id: InstrumentId) -> str:
     if data_type is Bar:
         return str(candle_type(instrument_id))
     return str(instrument_id)
+
+
+def instrument_id(data_type: type, identifier: str) -> InstrumentId:
+    """The inverse of ``identifier``."""
+    if data_type is Bar:
+        return BarType.from_str(identifier).instrument_id
+    return InstrumentId.from_str(identifier)
 
 
 def file_name(bounds: Bounds) -> str:

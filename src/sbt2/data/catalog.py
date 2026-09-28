@@ -9,6 +9,7 @@ from typing import Any
 
 import pandas as pd
 from nautilus_trader.model import (
+    Bar,
     FundingRateUpdate,
     InstrumentId,
     MarkPriceUpdate,
@@ -24,7 +25,7 @@ from sbt2.sources import Gap
 type Interval = tuple[int, int]
 
 # The data types sbt2 writes, which status reports on.
-_STORED: tuple[type, ...] = (TradeTick, MarkPriceUpdate, FundingRateUpdate)
+_STORED: tuple[type, ...] = (TradeTick, MarkPriceUpdate, FundingRateUpdate, Bar)
 
 
 @dataclass(frozen=True)
@@ -95,6 +96,10 @@ class _Series:
     def nautilus_type(self) -> NautilusDataType:
         return layout.nautilus_type(self.data_type)
 
+    @property
+    def identifier(self) -> str:
+        return layout.identifier(self.data_type, self.instrument_id)
+
     def split(
         self, uncovered: Iterable[date], known_gaps: frozenset[Gap]
     ) -> tuple[tuple[date, ...], tuple[date, ...]]:
@@ -158,6 +163,10 @@ class Catalog:
         series = _Series(instrument_id, FundingRateUpdate)
         return frames.funding(self._records(series, window))
 
+    def candles(self, instrument_id: InstrumentId, window: Window) -> pd.DataFrame:
+        """The 1-minute candles, each stamped 1 ns before its close."""
+        return frames.candles(self._records(_Series(instrument_id, Bar), window))
+
     def status(
         self, known_gaps: frozenset[Gap], window: Window | None = None
     ) -> tuple[Holding, ...]:
@@ -179,7 +188,7 @@ class Catalog:
     ) -> Coverage:
         first, last = window.nanos
         intervals = self._nautilus.get_missing_intervals_for_request(
-            first, last, series.nautilus_type, str(series.instrument_id)
+            first, last, series.nautilus_type, series.identifier
         )
         missing, known = series.split(
             _days_of(_clipped(intervals, window.nanos)), known_gaps
@@ -206,7 +215,7 @@ class Catalog:
 
     def _covered_days(self, series: _Series) -> list[date]:
         intervals = self._nautilus.get_intervals(
-            series.nautilus_type, str(series.instrument_id)
+            series.nautilus_type, series.identifier
         )
         return _days_of(intervals)
 
@@ -215,12 +224,12 @@ class Catalog:
         if not folder.is_dir():
             return []
         names = self._nautilus.list_instruments(layout.nautilus_type(data_type))
-        return [InstrumentId.from_str(each) for each in sorted(names)]
+        return [layout.instrument_id(data_type, each) for each in sorted(names)]
 
     def _records(self, series: _Series, window: Window) -> list[Any]:
         first, last = window.nanos
         return self._nautilus.query(
-            series.nautilus_type, [str(series.instrument_id)], first, last
+            series.nautilus_type, [series.identifier], first, last
         )
 
     def _file_lines(self, selection: Selection) -> list[str]:
@@ -234,7 +243,7 @@ class Catalog:
 
     def _files(self, series: _Series) -> list[str]:
         return self._nautilus.list_parquet_files(
-            series.nautilus_type, str(series.instrument_id)
+            series.nautilus_type, series.identifier
         )
 
 

@@ -3,9 +3,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from local_catalog import DAY, LocalCatalog, days, midnight
-from local_source import INSTRUMENT_ID, perpetual, start_of
+from local_source import CANDLE_TYPE, INSTRUMENT_ID, perpetual, start_of
 from nautilus_trader.model import (
     AggressorSide,
+    Bar,
     FundingRateUpdate,
     MarkPriceUpdate,
     Price,
@@ -104,6 +105,36 @@ def test_funding_loads_as_a_frame(tmp_path: Path) -> None:
     assert frame.index.name == "ts_event"
     assert list(frame.index) == [utc(START + k * eight_hours) for k in range(3)]
     assert frame.to_dict("list") == {"rate": [0.0001] * 3, "interval": [480] * 3}
+
+
+def candle(minute: int, ohlc: str, volume: str) -> Bar:
+    open_, high, low, close = (Price.from_str(each) for each in ohlc.split())
+    ts = START + (minute + 1) * MINUTE - 1
+    return Bar(CANDLE_TYPE, open_, high, low, close, Quantity.from_str(volume), ts, ts)
+
+
+def test_candles_load_as_a_frame_of_ohlcv(tmp_path: Path) -> None:
+    catalog = ParquetDataCatalog(str(tmp_path))
+    catalog.write_instruments([perpetual()])
+    candles = [
+        candle(0, "50000.0 50010.0 49990.0 50005.0", "1.500"),
+        candle(1, "50005.0 50005.0 50005.0 50005.0", "0.000"),
+    ]
+    catalog.write_bars(candles, *BOUNDS)
+
+    frame = Catalog(tmp_path).candles(INSTRUMENT_ID, DAY_WINDOW)
+
+    assert frame.index.name == "ts_event"
+    assert [each.value for each in frame.index] == [
+        START + k * MINUTE - 1 for k in (1, 2)
+    ]
+    assert frame.to_dict("list") == {
+        "open": [50000.0, 50005.0],
+        "high": [50010.0, 50005.0],
+        "low": [49990.0, 50005.0],
+        "close": [50005.0, 50005.0],
+        "volume": [1.5, 0.0],
+    }
 
 
 def test_an_empty_window_loads_an_empty_frame_with_the_columns(

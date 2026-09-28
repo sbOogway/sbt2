@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from local_catalog import DAY, LocalCatalog, days
 from local_source import INSTRUMENT_ID
-from nautilus_trader.model import MarkPriceUpdate, TradeTick
+from nautilus_trader.model import Bar, MarkPriceUpdate, TradeTick
 
 from sbt2.data import Catalog, Selection
 
@@ -65,3 +65,15 @@ def test_a_replaced_instrument_changes_it(local: LocalCatalog) -> None:
     local.reingest("0.02", TradeTick, DAY, DAY_2)
 
     assert fingerprint(local) != before
+
+
+def test_candle_files_in_the_window_change_the_fingerprint(
+    local: LocalCatalog,
+) -> None:
+    candles = Selection((INSTRUMENT_ID,), (Bar,), days(DAY, DAY_2))
+    local.add(Bar, DAY, DAY_2)
+    before = Catalog(local.path).fingerprint(candles)
+
+    local.rewrite(Bar, DAY_2, rows=5)
+
+    assert Catalog(local.path).fingerprint(candles) != before

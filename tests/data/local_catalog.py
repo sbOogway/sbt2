@@ -3,9 +3,16 @@
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 
-from local_source import INSTRUMENT_ID, SYMBOL, LocalSource, start_of, write_day
+from local_source import (
+    CANDLE_TYPE,
+    INSTRUMENT_ID,
+    SYMBOL,
+    LocalSource,
+    start_of,
+    write_day,
+)
 from local_source import write_snapshot as write_raw_snapshot
-from nautilus_trader.model import FundingRateUpdate, MarkPriceUpdate, TradeTick
+from nautilus_trader.model import Bar, FundingRateUpdate, MarkPriceUpdate, TradeTick
 
 from sbt2.data import IngestOptions, IngestRequest, Window, ingest
 from sbt2.sources import Gap
@@ -16,6 +23,7 @@ DIRECTORIES = {
     TradeTick: "trades",
     MarkPriceUpdate: "mark_prices",
     FundingRateUpdate: "funding_rates",
+    Bar: "bars",
 }
 
 
@@ -50,7 +58,8 @@ class LocalCatalog:
         ingest(LocalSource(), request, IngestOptions(self.raw, self.path))
 
     def _day_files(self, data_type: type, day: date) -> list[Path]:
-        folder = self.path / "data" / DIRECTORIES[data_type] / str(INSTRUMENT_ID)
+        identifier = CANDLE_TYPE if data_type is Bar else INSTRUMENT_ID
+        folder = self.path / "data" / DIRECTORIES[data_type] / str(identifier)
         return list(folder.glob(f"{day.isoformat()}T*.parquet"))
 
 

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from local_catalog import DAY, LocalCatalog, days, gap, midnight
 from local_source import INSTRUMENT_ID
-from nautilus_trader.model import MarkPriceUpdate, TradeTick
+from nautilus_trader.model import Bar, MarkPriceUpdate, TradeTick
 
 from sbt2.data import Catalog, Coverage, Selection, Window
 
@@ -94,3 +94,14 @@ def test_an_empty_day_counts_as_covered(local: LocalCatalog) -> None:
     local.add(TradeTick, DAY, rows=0)
 
     assert trades_coverage(local, days(DAY, DAY)).missing == ()
+
+
+def test_candle_coverage_is_found_under_the_instruments_bar_type(
+    local: LocalCatalog,
+) -> None:
+    local.add(Bar, DAY, DAY_3)
+    selection = Selection((INSTRUMENT_ID,), (Bar,), days(DAY, DAY_3))
+
+    assert Catalog(local.path).coverage(selection) == (
+        Coverage(INSTRUMENT_ID, Bar, (DAY_2,), ()),
+    )
