@@ -102,6 +102,14 @@ def test_instrument_snapshot_takes_margin_from_the_lowest_risk_tier(
     )
 
 
+def test_instrument_snapshot_keeps_the_funding_interval_in_minutes(
+    replayed: Source,
+) -> None:
+    spec = fetched(replayed.instrument_snapshot("BTCUSDT", DAY))
+
+    assert CryptoPerpetual.from_dict(spec).info == {"fundingInterval": 480}
+
+
 def test_funding_is_the_days_settlements_as_returned(replayed: Source) -> None:
     rates = fetched(replayed.day_file("BTCUSDT", FundingRateUpdate, DAY))
 
