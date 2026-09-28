@@ -177,7 +177,7 @@ def test_a_rerun_skips_the_days_already_in_the_catalog(
     assert len(trades) == 48
 
 
-def test_a_record_outside_its_day_fails_and_leaves_no_partial_day(
+def test_a_record_outside_its_day_fails_and_writes_nothing(
     raw: Path, catalog_path: Path
 ) -> None:
     write_day(raw, TradeTick, DAY, [start_of(DAY), start_of(NEXT_DAY)])
@@ -185,16 +185,40 @@ def test_a_record_outside_its_day_fails_and_leaves_no_partial_day(
     with pytest.raises(OutsideDayError, match="1 records outside its UTC day"):
         run(raw, catalog_path, request(DAY, "TradeTick"))
 
-    assert intervals(catalog_path, TRADES) == []
-    assert not list((catalog_path / ".staging").iterdir())
+    assert not (catalog_path / "data" / "trades").exists()
 
 
-def test_staging_is_empty_after_a_run(raw: Path, catalog_path: Path) -> None:
-    write_day(raw, TradeTick, DAY, hourly(DAY))
+@pytest.mark.parametrize("rows", [[], [8 * HOUR]])
+def test_a_file_sbt2_writes_leaves_no_partial_file_behind(
+    raw: Path, catalog_path: Path, rows: list[int]
+) -> None:
+    write_day(raw, FundingRateUpdate, DAY, [start_of(DAY) + each for each in rows])
 
-    run(raw, catalog_path, request(DAY, "TradeTick"))
+    run(raw, catalog_path, request(DAY, "FundingRateUpdate"))
 
-    assert not list((catalog_path / ".staging").iterdir())
+    written = [each.name for each in catalog_path.rglob("*") if each.is_file()]
+    assert not [each for each in written if "#" in each]
+
+
+def test_a_partial_file_left_by_a_crash_is_not_a_covered_day(
+    raw: Path, catalog_path: Path
+) -> None:
+    leftover = catalog_path / "data" / "funding_rates" / str(INSTRUMENT_ID)
+    leftover.mkdir(parents=True)
+    (leftover / (_day_file_name(DAY) + "#sbt2")).write_bytes(b"trunc")
+    write_day(raw, FundingRateUpdate, DAY, [start_of(DAY) + 8 * HOUR])
+
+    report = run(raw, catalog_path, request(DAY, "FundingRateUpdate"))
+
+    assert outcomes(report) == {("FundingRateUpdate", DAY): IngestOutcome.WRITTEN}
+    fundings = ParquetDataCatalog(str(catalog_path)).query(
+        NautilusDataType.FundingRateUpdate
+    )
+    assert [each.ts_event for each in fundings] == [start_of(DAY) + 8 * HOUR]
+
+
+def _day_file_name(day: date) -> str:
+    return f"{day}T00-00-00-000000000Z_{day}T23-59-59-999999999Z.parquet"
 
 
 def test_progress_hears_of_every_planned_day(raw: Path, catalog_path: Path) -> None:

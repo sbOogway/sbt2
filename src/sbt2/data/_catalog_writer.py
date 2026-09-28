@@ -1,5 +1,3 @@
-import shutil
-import uuid
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -18,10 +16,10 @@ from nautilus_trader.model import (
 from nautilus_trader.persistence import ParquetDataCatalog
 from nautilus_trader.serialization import get_arrow_schema_bytes
 
-STAGING = ".staging"
+# Nautilus's own writers stage under "<file>#N"; its reader ignores such names.
+_PARTIAL_SUFFIX = "#sbt2"
 
 type Bounds = tuple[int, int]
-type _Write = Callable[[Path], Sequence[str]]
 
 _TYPED_WRITERS: Mapping[type, Callable[..., str]] = {
     TradeTick: ParquetDataCatalog.write_trade_ticks,
@@ -54,12 +52,11 @@ class DayFile:
 
 
 class CatalogWriter:
-    """Writes whole files into a nautilus catalog, each staged and then moved in."""
+    """Writes whole files into a nautilus catalog; a file appears only once complete."""
 
     def __init__(self, path: Path) -> None:
         self._path = path
         self._catalog = ParquetDataCatalog(str(path))
-        shutil.rmtree(path / STAGING, ignore_errors=True)
 
     def has(self, day: DayFile) -> bool:
         intervals = self._catalog.get_intervals(
@@ -69,11 +66,11 @@ class CatalogWriter:
 
     def write(self, day: DayFile, records: Sequence[Any]) -> None:
         if not records:
-            self._staged(lambda root: [_write_zero_rows(root, day)])
+            self._write_table(day, _zero_rows(day))
         elif day.data_type is FundingRateUpdate:
-            self._staged(lambda root: [_write_funding(root, day, records)])
+            self._write_table(day, _funding_table(records))
         else:
-            self._staged(lambda root: [_write_typed(root, day, records)])
+            _TYPED_WRITERS[day.data_type](self._catalog, list(records), *day.bounds)
 
     def instrument(self, instrument_id: InstrumentId) -> Any | None:
         """The latest version of the instrument in the catalog, if any."""
@@ -81,9 +78,7 @@ class CatalogWriter:
         return max(stored, key=lambda each: each.ts_init, default=None)
 
     def write_instrument(self, instrument: Any) -> None:
-        self._staged(
-            lambda root: _catalog(root).write_instruments([instrument]),
-        )
+        self._catalog.write_instruments([instrument])
 
     def remove(self, instrument_id: InstrumentId, data_types: Sequence[type]) -> None:
         """Every version of the instrument and all its ``data_types`` files."""
@@ -96,36 +91,23 @@ class CatalogWriter:
         ):
             (self._path / each).unlink()
 
-    def _staged(self, write: _Write) -> None:
-        """Runs ``write`` into a fresh staging root, then moves its files in."""
-        root = self._path / STAGING / uuid.uuid4().hex
-        root.mkdir(parents=True)
-        try:
-            for relative in write(root):
-                target = self._path / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                (root / relative).replace(target)
-        finally:
-            shutil.rmtree(root)
-
-
-def _catalog(root: Path) -> ParquetDataCatalog:
-    return ParquetDataCatalog(str(root))
+    def _write_table(self, day: DayFile, table: pa.Table) -> None:
+        """Writes under a partial name and renames, as nautilus's writers do."""
+        target = self._path / _relative_path(day)
+        partial = target.with_name(target.name + _PARTIAL_SUFFIX)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        pq.write_table(table, partial)
+        partial.replace(target)
 
 
 def _nautilus_type(data_type: type) -> NautilusDataType:
     return getattr(NautilusDataType, data_type.__name__)
 
 
-def _write_typed(root: Path, day: DayFile, records: Sequence[Any]) -> str:
-    writer = _TYPED_WRITERS[day.data_type]
-    return writer(_catalog(root), list(records), *day.bounds)
-
-
-def _write_zero_rows(root: Path, day: DayFile) -> str:
+def _zero_rows(day: DayFile) -> pa.Table:
     schema = _arrow_schema(day.data_type)
     metadata = {**(schema.metadata or {}), **_metadata(day)}
-    return _write_table(root, day, schema.with_metadata(metadata).empty_table())
+    return schema.with_metadata(metadata).empty_table()
 
 
 def _metadata(day: DayFile) -> dict[str, str]:
@@ -136,22 +118,13 @@ def _metadata(day: DayFile) -> dict[str, str]:
     return {"instrument_id": str(instrument.id), **precisions}
 
 
-def _write_funding(
-    root: Path, day: DayFile, fundings: Sequence[FundingRateUpdate]
-) -> str:
-    return _write_table(root, day, _funding_table(fundings))
-
-
-def _write_table(root: Path, day: DayFile, table: pa.Table) -> str:
-    relative = Path(
+def _relative_path(day: DayFile) -> Path:
+    return Path(
         "data",
         _DIRECTORIES[day.data_type],
         str(day.instrument.id),
         _file_name(day.bounds),
     )
-    (root / relative).parent.mkdir(parents=True)
-    pq.write_table(table, root / relative)
-    return str(relative)
 
 
 def _file_name(bounds: Bounds) -> str:
