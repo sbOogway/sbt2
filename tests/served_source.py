@@ -15,6 +15,7 @@ from typing import Any
 import nautilus_trader.model
 from nautilus_trader.model import (
     AggressorSide,
+    Bar,
     CryptoPerpetual,
     CurrencyPair,
     FundingRateUpdate,
@@ -26,13 +27,13 @@ from nautilus_trader.model import (
     TradeTick,
 )
 
-from sbt2.sources import Gap, MissingAtSourceError, RawFile
+from sbt2.sources import Gap, MissingAtSourceError, RawFile, candle_type
 
 SYMBOL = "BTCUSDT"
 INSTRUMENT_ID = InstrumentId.from_str(f"{SYMBOL}-LINEAR.BYBIT")
 PRICE = "50000.0"
 FUNDING_INTERVAL_MINUTES = 480
-DATA_TYPES: tuple[type, ...] = (TradeTick, MarkPriceUpdate, FundingRateUpdate)
+DATA_TYPES: tuple[type, ...] = (TradeTick, MarkPriceUpdate, FundingRateUpdate, Bar)
 _HOUR = 3_600_000_000_000
 
 
@@ -169,7 +170,14 @@ def _funding(instrument_id: InstrumentId, ts: int) -> FundingRateUpdate:
     )
 
 
+def _candle(instrument_id: InstrumentId, ts: int) -> Bar:
+    price = Price.from_str(PRICE)
+    volume = Quantity.from_str("1.000")
+    return Bar(candle_type(instrument_id), price, price, price, price, volume, ts, ts)
+
+
 _RECORDS = {
+    Bar: _candle,
     TradeTick: _trade,
     MarkPriceUpdate: _mark,
     FundingRateUpdate: _funding,
