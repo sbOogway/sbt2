@@ -4,9 +4,9 @@ from pathlib import Path
 import pytest
 from nautilus_trader.model import Bar, InstrumentId, TradeTick
 
-from sbt2.sources import Gap, UnknownSourceError, known_gaps, source
+from sbt2.data.sources import Gap, UnknownSourceError, known_gaps, source
 
-REPO_CONFIG = Path(__file__).parents[2] / "config" / "sources.toml"
+REPO_CONFIG = Path(__file__).parents[3] / "config" / "sources.toml"
 
 
 @pytest.mark.unit

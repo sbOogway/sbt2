@@ -17,7 +17,7 @@ from nautilus_trader.model import (
     TradeTick,
 )
 
-from sbt2.sources import (
+from sbt2.data.sources import (
     MissingAtSourceError,
     RawFile,
     Source,

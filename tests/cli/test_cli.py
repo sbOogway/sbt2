@@ -6,10 +6,10 @@ from nautilus_trader.model import FundingRateUpdate
 from served_source import INSTRUMENT_ID, ServedSource
 from typer.testing import CliRunner
 
-from sbt2 import sources
 from sbt2.cli import app
+from sbt2.data import sources
+from sbt2.data.sources import Gap
 from sbt2.results import ParquetResultStore, Provenance
-from sbt2.sources import Gap
 
 runner = CliRunner()
 SPEC = """

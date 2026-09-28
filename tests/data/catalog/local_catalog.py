@@ -15,7 +15,7 @@ from local_source import write_snapshot as write_raw_snapshot
 from nautilus_trader.model import Bar, FundingRateUpdate, MarkPriceUpdate, TradeTick
 
 from sbt2.data import IngestOptions, IngestRequest, Window, ingest
-from sbt2.sources import Gap
+from sbt2.data.sources import Gap
 
 HOUR = 3_600_000_000_000
 DAY = date(2024, 1, 1)

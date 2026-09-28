@@ -22,7 +22,7 @@ from nautilus_trader.model import (
     TradeTick,
 )
 
-from sbt2.sources import Gap, RawFile, candle_type
+from sbt2.data.sources import Gap, RawFile, candle_type
 
 SYMBOL = "BTCUSDT"
 INSTRUMENT_ID = InstrumentId.from_str(f"{SYMBOL}-PERP.LOCAL")

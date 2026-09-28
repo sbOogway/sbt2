@@ -21,7 +21,7 @@ from nautilus_trader.model import (
 )
 
 from sbt2.assets import AssetProfile
-from sbt2.sources import CANDLES, candle_type
+from sbt2.data.sources import CANDLES, candle_type
 from sbt2.spec.canonical import canonical_hash, canonical_json
 from sbt2.spec.parse import RunSpec
 from sbt2.spec.venues import venue_objects, venue_profile

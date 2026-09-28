@@ -29,7 +29,7 @@ from sbt2.data import (
     OutsideDayError,
     ingest,
 )
-from sbt2.sources import Gap, UnsupportedDataTypeError
+from sbt2.data.sources import Gap, UnsupportedDataTypeError
 
 DAY = date(2024, 1, 1)
 NEXT_DAY = DAY + timedelta(days=1)

@@ -16,7 +16,7 @@ from nautilus_trader.model import (
 from nautilus_trader.persistence import ParquetDataCatalog
 from nautilus_trader.serialization import get_arrow_schema_bytes
 
-from sbt2.data import layout
+from sbt2.data.catalog import layout
 
 # Nautilus's own writers stage under "<file>#N"; its reader ignores such names.
 _PARTIAL_SUFFIX = "#sbt2"

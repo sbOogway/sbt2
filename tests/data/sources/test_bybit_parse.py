@@ -16,7 +16,12 @@ from nautilus_trader.model import (
     TradeTick,
 )
 
-from sbt2.sources import FundingOffGridError, RawFile, Source, UnsupportedDataTypeError
+from sbt2.data.sources import (
+    FundingOffGridError,
+    RawFile,
+    Source,
+    UnsupportedDataTypeError,
+)
 
 DAY = date(2025, 1, 1)
 DAY_NANOS = pd.Timestamp(DAY, tz="UTC").value

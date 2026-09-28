@@ -11,8 +11,15 @@ from typing import Protocol
 
 import httpx
 
-from sbt2.data.days import data_types, days, is_known_gap
-from sbt2.sources import Fetch, MissingAtSourceError, RawFile, Source
+from sbt2.data.days import days
+from sbt2.data.sources import (
+    Fetch,
+    MissingAtSourceError,
+    RawFile,
+    Source,
+    data_types,
+    is_known_gap,
+)
 
 logger = logging.getLogger(__name__)
 

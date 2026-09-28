@@ -16,6 +16,7 @@ from nautilus_run import (
 )
 from nautilus_trader.model import FundingRateUpdate
 
+from sbt2.data.sources import Gap
 from sbt2.results import (
     IncompleteRunError,
     MissingTableError,
@@ -25,7 +26,6 @@ from sbt2.results import (
     Reports,
     UnknownRunError,
 )
-from sbt2.sources import Gap
 
 PROVENANCE = Provenance(git_sha="abc123", git_dirty=False)
 

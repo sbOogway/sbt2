@@ -18,6 +18,7 @@ from sbt2.data import (
     download,
     ingest,
 )
+from sbt2.data.sources import Gap, UnsupportedDataTypeError
 from sbt2.run import (
     DataFolders,
     InstrumentAssetClassError,
@@ -26,7 +27,6 @@ from sbt2.run import (
     SnapshotBufferError,
     preflight,
 )
-from sbt2.sources import Gap, UnsupportedDataTypeError
 from sbt2.spec import ResolvedRunSpec, load
 
 VENUES = """

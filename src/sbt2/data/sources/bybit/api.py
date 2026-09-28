@@ -9,7 +9,7 @@ import httpx
 from nautilus_trader.adapters.bybit import BybitHttpClient, BybitProductType
 from nautilus_trader.model import Bar
 
-from sbt2.sources.base import MissingAtSourceError, candle_type
+from sbt2.data.sources.base import MissingAtSourceError, candle_type
 
 _LINEAR = BybitProductType.LINEAR
 _INVALID_PARAMS = 10001

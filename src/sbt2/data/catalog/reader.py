@@ -18,9 +18,9 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.persistence import ParquetDataCatalog
 
-from sbt2.data import frames, layout
+from sbt2.data.catalog import frames, layout
 from sbt2.data.days import days
-from sbt2.sources import Gap
+from sbt2.data.sources import Gap
 
 type Interval = tuple[int, int]
 
