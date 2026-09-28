@@ -8,12 +8,14 @@ from nautilus_trader.model import BarType, InstrumentId
 
 type Fetch = Callable[[], Awaitable[bytes]]
 
-CANDLES = "1-MINUTE-LAST-EXTERNAL"
+# The candles as the origin of a composite bar type, as in
+# "BTCUSDT-LINEAR.BYBIT-1-HOUR-LAST-INTERNAL@1-MINUTE-EXTERNAL".
+CANDLES = "1-MINUTE-EXTERNAL"
 
 
 def candle_type(instrument_id: InstrumentId) -> BarType:
     """The bar type of the 1-minute candles a source serves as ``Bar``."""
-    return BarType.from_str(f"{instrument_id}-{CANDLES}")
+    return BarType.from_str(f"{instrument_id}-1-MINUTE-LAST-EXTERNAL")
 
 
 class MissingAtSourceError(LookupError):

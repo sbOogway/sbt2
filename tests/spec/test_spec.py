@@ -212,6 +212,15 @@ def test_a_candle_run_streams_one_minute_candles_instead_of_trades(
     }
 
 
+def test_a_candle_run_has_the_strategy_aggregate_from_candles(
+    paths: tuple[Path, Path],
+) -> None:
+    assert resolved(paths).strategy.aggregated_from is None
+    assert (
+        resolved(paths, bars="candles").strategy.aggregated_from == "1-MINUTE-EXTERNAL"
+    )
+
+
 def test_the_bar_source_changes_the_hash(paths: tuple[Path, Path]) -> None:
     assert resolved(paths, bars="candles").hash != resolved(paths).hash
 

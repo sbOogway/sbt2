@@ -2,8 +2,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from decimal import Decimal
+from typing import Any
 
-from nautilus_trader.model import Bar, BarSpecification, OrderSide, Quantity
+from nautilus_trader.model import Bar, BarSpecification, BarType, OrderSide, Quantity
 
 from sbt2.strategy import NoParams, Strategy
 
@@ -71,3 +72,30 @@ class FailOnSecondBar(Strategy[NoParams]):
         self.bars += 1
         if self.bars == 2:
             raise ValueError(f"failed on bar {self.bars}")
+
+
+@dataclass(frozen=True)
+class BarParams:
+    bar: str = "1-HOUR-LAST"
+
+
+class RecordBars(Strategy[BarParams]):
+    """Keeps every bar it gets, and every bar type it subscribes to."""
+
+    Params = BarParams
+
+    @classmethod
+    def inputs(cls, params: BarParams) -> Sequence[BarSpecification]:
+        return (BarSpecification.from_str(params.bar),)
+
+    def on_start(self) -> None:
+        self.bars: list[Bar] = []
+        self.subscribed: list[BarType] = []
+        super().on_start()
+
+    def subscribe_bars(self, bar_type: BarType, *args: Any, **kwargs: Any) -> None:
+        self.subscribed.append(bar_type)
+        super().subscribe_bars(bar_type, *args, **kwargs)
+
+    def on_bar(self, bar: Bar) -> None:
+        self.bars.append(bar)

@@ -21,7 +21,7 @@ from nautilus_trader.model import (
 )
 
 from sbt2.assets import AssetProfile
-from sbt2.sources import candle_type
+from sbt2.sources import CANDLES, candle_type
 from sbt2.spec.canonical import canonical_hash, canonical_json
 from sbt2.spec.parse import RunSpec
 from sbt2.spec.venues import venue_objects, venue_profile
@@ -123,7 +123,13 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
     params = resolve_params(strategy, spec.params)
     data_start = spec.start - strategy.warmup(params)
     return ResolvedRunSpec(
-        strategy=StrategyRun(spec.strategy, instruments, asdict(params), spec.start),
+        strategy=StrategyRun(
+            spec.strategy,
+            instruments,
+            asdict(params),
+            spec.start,
+            CANDLES if spec.bars == "candles" else None,
+        ),
         asset=asset,
         source=profile.source,
         venue=_seeded(_venue_arguments(spec, venue), spec.seed),
