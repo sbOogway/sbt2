@@ -54,8 +54,9 @@
   - its signature, e.g. `def test_unknown_classes_list_the_known_profiles() -> None:`
   - whether it is a unit or an integration test
   - a plain-language description of the setup, the action and the expected outcome
-- After approval, write the tests, run them, and check that they fail for the expected reason. Then implement until they pass.
+- After approval, work one behaviour at a time: write its tests, run them and check that they fail for the expected reason, implement until they pass, then commit before starting the next.
 - Commit each behaviour's tests together with the code that makes them pass. Never commit failing tests.
+- Do not build the whole feature first and split it into commits afterwards.
 - If a test turns out to be missing or wrong during implementation, stop. Present the added or changed tests in the same format and wait for approval.
 - Edge-case tests that do not change the agreed behaviour can be added without asking. List them in the pull request description.
 
