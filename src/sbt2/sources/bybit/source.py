@@ -60,7 +60,7 @@ class BybitSource:
         return self._known_gaps
 
     def instrument_id(self, symbol: str) -> InstrumentId:
-        return InstrumentId.from_str(f"{symbol}-LINEAR.BYBIT")
+        return _instrument_id(symbol)
 
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         if data_type is TradeTick:
@@ -88,6 +88,10 @@ class BybitSource:
         )
 
 
+def _instrument_id(symbol: str) -> InstrumentId:
+    return InstrumentId.from_str(f"{symbol}-LINEAR.BYBIT")
+
+
 def _data_name(data_type: type) -> str:
     return next(name for name, each in _DATA_NAMES.items() if each is data_type)
 
@@ -102,7 +106,7 @@ def _symbol_dir(symbol: str) -> PurePosixPath:
 
 def _gap(entry: Mapping[str, Any]) -> Gap:
     return Gap(
-        InstrumentId.from_str(f"{entry['symbol']}-LINEAR.BYBIT"),
+        _instrument_id(entry["symbol"]),
         _DATA_NAMES[entry["data"]],
         entry["day"],
     )
