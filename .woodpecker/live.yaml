@@ -1,6 +1,6 @@
 when:
   - event: cron
-    cron: nightly
+    cron: live
   - event: manual
 
 variables:
