@@ -1,0 +1,54 @@
+from collections.abc import Sequence
+from dataclasses import dataclass
+from datetime import timedelta
+
+from nautilus_trader.model import Bar, BarSpecification, OrderSide, Quantity
+
+from sbt2.strategy import NoParams, Strategy
+
+HOURLY_BARS = BarSpecification.from_str("1-HOUR-LAST")
+
+
+@dataclass(frozen=True)
+class HoldParams:
+    hold_bars: int = 20
+
+
+class BuyThenSell(Strategy[HoldParams]):
+    """Buys 1 BTC on the first bar after warm-up and sells it ``hold_bars`` later."""
+
+    Params = HoldParams
+
+    @classmethod
+    def warmup(cls, params: HoldParams) -> timedelta:
+        return timedelta(hours=2)
+
+    @classmethod
+    def inputs(cls, params: HoldParams) -> Sequence[BarSpecification]:
+        return (HOURLY_BARS,)
+
+    def on_start(self) -> None:
+        super().on_start()
+        self.bars = 0
+
+    def on_bar(self, bar: Bar) -> None:
+        if self.warming_up:
+            return
+        self.bars += 1
+        side = {1: OrderSide.BUY, 1 + self.params.hold_bars: OrderSide.SELL}.get(
+            self.bars
+        )
+        if side is not None:
+            order = self.order_factory.market(
+                bar.bar_type.instrument_id, side, Quantity.from_str("1.000")
+            )
+            self.submit_order(order)
+
+
+class FailOnBar(Strategy[NoParams]):
+    @classmethod
+    def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
+        return (HOURLY_BARS,)
+
+    def on_bar(self, bar: Bar) -> None:
+        raise RuntimeError("strategy blew up")

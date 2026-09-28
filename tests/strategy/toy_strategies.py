@@ -56,3 +56,18 @@ class CountWarmupBars(Strategy[NoParams]):
 
 class NotAStrategy:
     pass
+
+
+class FailOnSecondBar(Strategy[NoParams]):
+    def on_start(self) -> None:
+        super().on_start()
+        self.bars = 0
+
+    @classmethod
+    def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
+        return (MINUTE_BARS,)
+
+    def on_bar(self, bar: Bar) -> None:
+        self.bars += 1
+        if self.bars == 2:
+            raise ValueError(f"failed on bar {self.bars}")

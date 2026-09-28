@@ -22,11 +22,15 @@ from kit import (
 )
 from nautilus_trader.backtest import (
     BacktestDataConfig,
+    BacktestEngineConfig,
     BacktestNode,
+    BacktestResult,
     BacktestRunConfig,
     BacktestVenueConfig,
 )
-from nautilus_trader.model import NautilusDataType
+from nautilus_trader.common import LoggerConfig, LogLevel
+from nautilus_trader.model import NautilusDataType, QuoteTick
+from nautilus_trader.trading import Strategy
 
 pytestmark = pytest.mark.characterization
 
@@ -125,3 +129,48 @@ def test_default_disposal_silently_empties_the_engine_cache(tmp_path: Path) -> N
 
     assert cache.account_id(VENUE) is None
     assert funding_payments(cache) == []
+
+
+class FailOnQuote(Strategy):
+    def on_start(self) -> None:
+        self.subscribe_quotes(INSTRUMENT_ID)
+
+    def on_quote(self, quote: QuoteTick) -> None:
+        raise RuntimeError("strategy failed")
+
+
+def failing_run(path: Path, shutdown_on_error: bool) -> BacktestResult:
+    build_one_day_catalog(path)
+    start, end = day_bounds(0)
+    config = BacktestRunConfig(
+        venues(),
+        catalog_streams(path),
+        engine=BacktestEngineConfig(
+            logging=LoggerConfig(stdout_level=LogLevel.ERROR),
+            shutdown_on_error=shutdown_on_error,
+        ),
+        raise_exception=True,
+        start=start,
+        end=end,
+    )
+    node = BacktestNode([config])
+    node.build()
+    node.add_strategy(config.id, FailOnQuote())
+    [result] = node.run()
+    return result
+
+
+def test_strategy_errors_are_logged_not_raised_and_the_run_goes_on(
+    tmp_path: Path,
+) -> None:
+    result = failing_run(tmp_path, shutdown_on_error=False)
+
+    assert result.backtest_end == START + 23 * HOUR
+
+
+def test_shutdown_on_error_stops_the_run_early_without_raising(
+    tmp_path: Path,
+) -> None:
+    result = failing_run(tmp_path, shutdown_on_error=True)
+
+    assert result.backtest_end == START

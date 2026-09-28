@@ -1,6 +1,7 @@
+import functools
 import importlib
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -45,13 +46,20 @@ class RunConfig:
 
 
 def importable_config(run: StrategyRun) -> ImportableStrategyConfig:
-    config = RunConfig(
+    return ImportableStrategyConfig(
+        run.strategy, f"{__name__}:RunConfig", asdict(_run_config(run))
+    )
+
+
+def build_strategy(run: StrategyRun) -> Strategy[Any]:
+    return import_strategy(run.strategy)(_run_config(run))
+
+
+def _run_config(run: StrategyRun) -> RunConfig:
+    return RunConfig(
         [str(each) for each in run.instruments],
         dict(run.params),
         run.trade_start.isoformat(),
-    )
-    return ImportableStrategyConfig(
-        run.strategy, f"{__name__}:RunConfig", asdict(config)
     )
 
 
@@ -62,13 +70,21 @@ class Strategy[P](NautilusStrategy, ABC):
     ``inputs`` declares the bars the strategy needs; they are aggregated at run
     time from trades and subscribed on start, so a subclass that
     overrides ``on_start`` calls ``super().on_start()``. Orders submitted while
-    ``warming_up`` are dropped.
+    ``warming_up`` are dropped. The first exception raised by a subclass's
+    ``on_*`` handler is kept in ``failure``.
     """
 
     Params: ClassVar[type[Any]] = NoParams
 
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        for name, handler in list(vars(cls).items()):
+            if name.startswith("on_") and callable(handler):
+                setattr(cls, name, _recording_failure(handler))
+
     def __init__(self, config: RunConfig) -> None:
         super().__init__(config)
+        self.failure: BaseException | None = None
         self.params: P = resolve_params(type(self), config.params)
         self.instrument_ids = [
             InstrumentId.from_str(each) for each in config.instruments
@@ -105,6 +121,21 @@ class Strategy[P](NautilusStrategy, ABC):
     def submit_order_list(self, order_list: Any, *args: Any, **kwargs: Any) -> None:
         if not self.warming_up:
             super().submit_order_list(order_list, *args, **kwargs)
+
+
+def _recording_failure(handler: Callable[..., Any]) -> Callable[..., Any]:
+    """Nautilus logs a handler's exception and never raises it out of the run."""
+
+    @functools.wraps(handler)
+    def recorded(self: Strategy[Any], *args: Any, **kwargs: Any) -> Any:
+        try:
+            return handler(self, *args, **kwargs)
+        except BaseException as error:
+            if self.failure is None:
+                self.failure = error
+            raise
+
+    return recorded
 
 
 class UnknownParameterError(ValueError):
