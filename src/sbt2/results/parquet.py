@@ -15,6 +15,7 @@ from sbt2.results.metrics import HeadlineMetrics, RunTables, Segment, headline_m
 from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
 from sbt2.results.store import MissingTableError, Provenance, Table, UnknownRunError
 from sbt2.results.tables import carry_table, equity_table, read_table, write_table
+from sbt2.sources import Gap
 from sbt2.spec import ResolvedRunSpec
 
 RESULTS = Path("data/results")
@@ -35,6 +36,7 @@ _SUMMARY_SCHEMA = pa.schema(
         ("git_sha", pa.string()),
         ("git_dirty", pa.bool_()),
         ("data_fingerprint", pa.string()),
+        ("known_gaps", pa.list_(pa.string())),
         ("currency", pa.string()),
         ("net_return", pa.float64()),
         ("annualized_return", pa.float64()),
@@ -165,10 +167,23 @@ def _summary(run: _Run, metrics: HeadlineMetrics) -> dict[str, object]:
         "end": run.spec.end,
         "split": None,
         "segment": None,
-        **asdict(run.provenance),
+        **_provenance(run.provenance),
         "currency": run.currency,
         **asdict(metrics),
     }
+
+
+def _provenance(provenance: Provenance) -> dict[str, object]:
+    return {
+        "git_sha": provenance.git_sha,
+        "git_dirty": provenance.git_dirty,
+        "data_fingerprint": provenance.data_fingerprint,
+        "known_gaps": [_described(each) for each in provenance.known_gaps],
+    }
+
+
+def _described(gap: Gap) -> str:
+    return f"{gap.instrument_id} {gap.data_type.__name__} {gap.day.isoformat()}"
 
 
 def _canonical_uuid(run_id: str) -> str:
