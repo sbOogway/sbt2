@@ -61,7 +61,7 @@ def data(tmp_path: Path) -> Path:
     return tmp_path
 
 
-@pytest.mark.parametrize("name", ["ma_cross"])
+@pytest.mark.parametrize("name", ["ma_cross", "ma_cross_candles"])
 def test_the_spec_keeps_producing_its_golden_numbers(
     name: str,
     data: Path,

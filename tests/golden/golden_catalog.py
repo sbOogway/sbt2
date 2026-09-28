@@ -8,6 +8,8 @@ import pyarrow.parquet as pq
 from nautilus_trader.core import dt_to_unix_nanos
 from nautilus_trader.model import (
     AggressorSide,
+    Bar,
+    BarType,
     CryptoPerpetual,
     Currency,
     FundingRateUpdate,
@@ -23,6 +25,7 @@ from nautilus_trader.persistence import ParquetDataCatalog
 from nautilus_trader.serialization import get_arrow_schema_bytes
 
 INSTRUMENT_ID = InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT")
+CANDLE_TYPE = BarType.from_str(f"{INSTRUMENT_ID}-1-MINUTE-LAST-EXTERNAL")
 START = datetime(2024, 1, 1, tzinfo=UTC)
 DAYS = 5
 WAVE_MINUTES = 20 * 60
@@ -35,8 +38,9 @@ DAY_NS = 86_400_000_000_000
 def build_catalog(path: Path) -> None:
     """A perp whose price zigzags every 20h on a slow uptrend.
 
-    One trade and one mark price a minute, at the same price; funding every 8h
-    on the epoch-aligned boundaries, cycling through ``FUNDING_RATES``.
+    One trade, one mark price and one flat 1-minute candle a minute, at the
+    same price; funding every 8h on the epoch-aligned boundaries, cycling
+    through ``FUNDING_RATES``.
     """
     path.mkdir(parents=True, exist_ok=True)
     catalog = ParquetDataCatalog(str(path))
@@ -47,6 +51,7 @@ def build_catalog(path: Path) -> None:
         minutes = range(first, last, MINUTE_NS)
         catalog.write_trade_ticks([_trade(ts) for ts in minutes], first, last)
         catalog.write_mark_price_updates([_mark(ts) for ts in minutes], first, last)
+        catalog.write_bars([_candle(ts) for ts in minutes], first, last)
         _write_funding(path, _fundings(day), (first, last))
 
 
@@ -88,6 +93,14 @@ def _trade(ts: int) -> TradeTick:
         ts,
         ts,
     )
+
+
+def _candle(minute_start: int) -> Bar:
+    """The minute's trade as a candle, stamped 1 ns before its close as ingest does."""
+    price = price_at(minute_start)
+    ts = minute_start + MINUTE_NS - 1
+    volume = Quantity.from_str("10.000")
+    return Bar(CANDLE_TYPE, price, price, price, price, volume, ts, ts)
 
 
 def _mark(ts: int) -> MarkPriceUpdate:
