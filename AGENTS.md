@@ -30,12 +30,34 @@
 
 - Start every feature or issue on a new branch from an up-to-date `main`. Never commit to `main` directly.
 - Name the branch after the change type and topic, e.g. `feat/funding-ingest`, `fix/snapshot-grid`.
-- Before starting work on a new issue, ask the user about its open design points with the question tool, and wait for the answers.
-- Open a draft pull request on GitHub as soon as the branch has its first commit, linking the issue it addresses.
+- Before creating the branch, settle the design questions and get the test plan approved (see below).
+- Open a draft pull request on GitHub as soon as the branch has its first commit, linking the issue it addresses and including the approved test plan.
 - Do the work on that branch, then mark the pull request ready for review.
 - Stop and wait for the user's code review. Do not merge the pull request yourself.
 - Address every review comment with new commits on the same branch, then ask for review again.
 - Repeat until the user approves. Only the user decides when the work is done.
+
+## Design questions
+
+- Ask only about decisions that change a public interface, observable behaviour or a data format, or that are costly to reverse.
+- Do not ask when the issue, the code or these rules already settle the answer.
+- Ask with the question tool and wait for the answers.
+- Settle every other decision yourself with the conventional option, and list it as an assumption next to the test plan.
+- Do not ask for permission to proceed or to confirm a plan in general.
+
+## Test-driven development
+
+- Use it for `feat` and `fix` work. A fix starts with a test that reproduces the bug.
+- A refactor adds no tests and must keep the existing ones passing unchanged. `docs`, `chore`, `ci` and `build` work skip it.
+- After the design questions, present a test plan and wait for approval before writing any code.
+- Group the plan by module under test. For each test give:
+  - its signature, e.g. `def test_unknown_classes_list_the_known_profiles() -> None:`
+  - whether it is a unit or an integration test
+  - a plain-language description of the setup, the action and the expected outcome
+- After approval, write the tests, run them, and check that they fail for the expected reason. Then implement until they pass.
+- Commit each behaviour's tests together with the code that makes them pass. Never commit failing tests.
+- If a test turns out to be missing or wrong during implementation, stop. Present the added or changed tests in the same format and wait for approval.
+- Edge-case tests that do not change the agreed behaviour can be added without asking. List them in the pull request description.
 
 ## Commits
 
