@@ -1,8 +1,8 @@
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass
 from datetime import date
-from pathlib import PurePosixPath
-from typing import Protocol
+from pathlib import Path, PurePosixPath
+from typing import Any, Protocol
 
 from nautilus_trader.model import InstrumentId
 
@@ -15,6 +15,10 @@ class MissingAtSourceError(LookupError):
 
 class UnsupportedDataTypeError(LookupError):
     pass
+
+
+class FundingOffGridError(ValueError):
+    """A funding record off its interval's grid, which nautilus would silently skip."""
 
 
 @dataclass(frozen=True)
@@ -56,4 +60,12 @@ class Source(Protocol):
 
     def instrument_snapshot(self, symbol: str, taken_on: date) -> RawFile:
         """Today's instrument spec, saved under the date it is taken on."""
+        ...
+
+    def parse(self, path: Path, data_type: type, instrument: Any) -> Iterator[Any]:
+        """The ``data_type`` records of one raw day file, in time order."""
+        ...
+
+    def parse_instrument(self, path: Path) -> Any:
+        """The instrument of a snapshot, initialised at the start of its day."""
         ...

@@ -29,15 +29,18 @@ class BybitApi:
         """Today's spec as nautilus ``to_dict`` JSON, margin from the lowest risk tier.
 
         Nautilus fills margin with placeholders; the public risk-limit endpoint
-        has the real rates.
+        has the real rates. Nautilus drops the funding interval, which Bybit's
+        instruments-info has; it is kept in ``info`` as ``fundingInterval``.
         """
         instrument = await _instrument(self._nautilus(), symbol)
         tier = await self._lowest_risk_tier(symbol)
+        spec = await self._instrument_info(symbol)
         return _json(
             {
                 **instrument.to_dict(),
                 "margin_init": tier["initialMargin"],
                 "margin_maint": tier["maintenanceMargin"],
+                "info": {"fundingInterval": spec["fundingInterval"]},
             }
         )
 
@@ -65,6 +68,16 @@ class BybitApi:
                 http, "/v5/market/risk-limit", {"category": "linear", "symbol": symbol}
             )
         return next(each for each in body["result"]["list"] if each["isLowestRisk"])
+
+    async def _instrument_info(self, symbol: str) -> Mapping[str, Any]:
+        async with self._http() as http:
+            body = await _get(
+                http,
+                "/v5/market/instruments-info",
+                {"category": "linear", "symbol": symbol, "limit": "1000"},
+            )
+        (spec,) = body["result"]["list"]
+        return spec
 
     def _nautilus(self) -> BybitHttpClient:
         # Download schedules the retries; nautilus's own would multiply them.

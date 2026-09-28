@@ -5,6 +5,7 @@ from typing import Any
 
 from sbt2.sources.base import (
     Fetch,
+    FundingOffGridError,
     Gap,
     MissingAtSourceError,
     RawFile,
@@ -15,6 +16,7 @@ from sbt2.sources.bybit import BybitSource
 
 __all__ = [
     "Fetch",
+    "FundingOffGridError",
     "Gap",
     "MissingAtSourceError",
     "RawFile",
