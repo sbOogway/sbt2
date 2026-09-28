@@ -86,3 +86,9 @@ class FailOnBar(Strategy[NoParams]):
 
     def on_bar(self, bar: Bar) -> None:
         raise RuntimeError("strategy blew up")
+
+
+class HoldOnQuoteBars(Strategy[NoParams]):
+    @classmethod
+    def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
+        return (BarSpecification.from_str("1-HOUR-BID"),)

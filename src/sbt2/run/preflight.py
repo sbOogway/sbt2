@@ -52,6 +52,10 @@ class InstrumentAssetClassError(PreflightError):
     pass
 
 
+class LiquidationWithoutQuotesError(PreflightError):
+    pass
+
+
 def preflight(
     spec: ResolvedRunSpec, source: Source, folders: DataFolders
 ) -> tuple[Gap, ...]:
@@ -60,6 +64,7 @@ def preflight(
     Returns the known-gap days the run will skip.
     """
     _check_snapshots(spec)
+    _check_liquidation(spec)
     known_gaps = _check_coverage(spec, source, folders)
     _check_instruments(spec, Catalog(folders.catalog))
     return known_gaps
@@ -72,6 +77,15 @@ def _check_snapshots(spec: ResolvedRunSpec) -> None:
         raise SnapshotBufferError(
             f"the run from {spec.start} to {spec.end} takes {snapshots:,} snapshots "
             f"at {interval}; nautilus keeps at most {SNAPSHOT_BUFFER:,}"
+        )
+
+
+def _check_liquidation(spec: ResolvedRunSpec) -> None:
+    streamed = {str(each["data_type"]) for each in spec.data}
+    if spec.venue.get("liquidation_enabled") and "QuoteTick" not in streamed:
+        raise LiquidationWithoutQuotesError(
+            "the run has liquidation on but streams no quotes; nautilus liquidates "
+            "only on quotes, so it never would. Set liquidation = false"
         )
 
 

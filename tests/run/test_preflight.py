@@ -21,11 +21,12 @@ from sbt2.data import (
 from sbt2.run import (
     DataFolders,
     InstrumentAssetClassError,
+    LiquidationWithoutQuotesError,
     MissingDataError,
     SnapshotBufferError,
     preflight,
 )
-from sbt2.sources import Gap
+from sbt2.sources import Gap, UnsupportedDataTypeError
 from sbt2.spec import ResolvedRunSpec, load
 
 VENUES = """
@@ -217,3 +218,28 @@ def test_a_segment_filling_the_snapshot_buffer_exactly_passes(
     run = spec(tmp_path, end=LAST_SNAPSHOT, equity_interval='"1s"')
 
     assert preflight(run, source, folders) == ()
+
+
+def test_liquidation_on_a_run_without_quotes_fails_before_fetching(
+    tmp_path: Path, folders: DataFolders
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+    run = spec(tmp_path, liquidation="true")
+
+    with pytest.raises(LiquidationWithoutQuotesError, match="only on quotes"):
+        preflight(run, source, folders)
+    assert source.fetched == []
+
+
+def test_liquidation_on_a_run_streaming_quotes_passes_the_guard(
+    tmp_path: Path, folders: DataFolders
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+    run = spec(
+        tmp_path, strategy='"run_strategies:HoldOnQuoteBars"', liquidation="true"
+    )
+
+    with pytest.raises(UnsupportedDataTypeError, match="no QuoteTick"):
+        preflight(run, source, folders)

@@ -103,7 +103,7 @@ def test_crypto_perp_portfolio_uses_mark_prices() -> None:
     assert config.snapshot_interval_ms == HOURLY
 
 
-def test_crypto_perp_venue_defaults_build_a_netting_margin_venue_with_liquidation() -> (
+def test_crypto_perp_venue_defaults_build_a_netting_margin_venue_without_liquidation() -> (
     None
 ):
     defaults = crypto_perp().venue_defaults
@@ -114,4 +114,4 @@ def test_crypto_perp_venue_defaults_build_a_netting_margin_venue_with_liquidatio
 
     assert venue.oms_type == OmsType.NETTING
     assert venue.account_type == AccountType.MARGIN
-    assert venue.liquidation_enabled
+    assert venue.liquidation_enabled is False

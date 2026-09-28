@@ -28,5 +28,5 @@ def test_bybit_linear_builds_a_nautilus_venue(
 
     assert venue.name == "BYBIT"
     assert venue.oms_type == OmsType.NETTING
-    assert venue.liquidation_enabled
+    assert venue.liquidation_enabled is False
     assert isinstance(venue.fee_model, MakerTakerFeeModel)

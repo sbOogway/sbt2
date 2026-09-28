@@ -143,7 +143,7 @@ def test_venue_arguments_start_from_the_asset_defaults(
 
     assert venue["oms_type"] == OmsType.NETTING
     assert venue["account_type"] == AccountType.MARGIN
-    assert venue["liquidation_enabled"] is True
+    assert venue["liquidation_enabled"] is False
     assert venue["default_leverage"] == "10"
     assert venue["starting_balances"] == ["10000 USDT"]
 
