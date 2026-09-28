@@ -25,7 +25,7 @@ class RunSettings:
 
     catalog: Path
     chunk_size: int = 100_000
-    log_level: LogLevel = LogLevel.ERROR
+    log_level: LogLevel = LogLevel.INFO
 
 
 class BacktestError(RuntimeError):
