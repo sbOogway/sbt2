@@ -1,3 +1,5 @@
+import hashlib
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -165,6 +167,15 @@ def test_hash_is_stable_for_the_same_spec(paths: tuple[Path, Path]) -> None:
 
     assert first.hash == second.hash
     assert len(first.hash) == 64
+
+
+def test_json_is_the_hashed_document(paths: tuple[Path, Path]) -> None:
+    spec = resolved(paths)
+
+    document = json.loads(spec.to_json())
+    assert document["strategy"]["params"] == {"lookback": 30, "stop": "0.02"}
+    assert document["start"] == "2024-01-01T00:00:00+00:00"
+    assert hashlib.sha256(spec.to_json().encode()).hexdigest() == spec.hash
 
 
 @pytest.mark.parametrize(

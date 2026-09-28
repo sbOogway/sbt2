@@ -20,7 +20,7 @@ from nautilus_trader.model import (
 )
 
 from sbt2.assets import AssetProfile
-from sbt2.spec.canonical import canonical_hash
+from sbt2.spec.canonical import canonical_hash, canonical_json
 from sbt2.spec.parse import RunSpec
 from sbt2.spec.venues import venue_objects, venue_profile
 from sbt2.strategy import StrategyRun, import_strategy, resolve_params
@@ -45,6 +45,10 @@ class ResolvedRunSpec:
     @property
     def hash(self) -> str:
         return canonical_hash(self._document())
+
+    def to_json(self) -> str:
+        """The canonical JSON the hash is taken of."""
+        return canonical_json(self._document())
 
     def run_config(self, catalog_path: str, **machine: Any) -> BacktestRunConfig:
         """The nautilus run config, reading data from ``catalog_path``.
