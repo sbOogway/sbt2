@@ -3,7 +3,7 @@ import logging
 import random
 from collections.abc import Iterator
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from itertools import product
 from pathlib import Path
@@ -11,14 +11,8 @@ from typing import Protocol
 
 import httpx
 
-from sbt2.sources import (
-    Fetch,
-    Gap,
-    MissingAtSourceError,
-    RawFile,
-    Source,
-    UnsupportedDataTypeError,
-)
+from sbt2.data.days import data_types, days, is_known_gap
+from sbt2.sources import Fetch, MissingAtSourceError, RawFile, Source
 
 logger = logging.getLogger(__name__)
 
@@ -136,27 +130,12 @@ def _snapshots(source: Source, request: DownloadRequest) -> Iterator[Item]:
 
 
 def _day_files(source: Source, request: DownloadRequest) -> Iterator[Item]:
-    data_types = _data_types(source, request.data)
-    days = _days(request.start, request.end)
-    for symbol, data_type, day in product(request.symbols, data_types, days):
-        if Gap(source.instrument_id(symbol), data_type, day) not in source.known_gaps:
+    types = data_types(source, request.data)
+    span = days(request.start, request.end)
+    for symbol, data_type, day in product(request.symbols, types, span):
+        if not is_known_gap(source, symbol, data_type, day):
             raw = source.day_file(symbol, data_type, day)
             yield Item(symbol, data_type.__name__, day, raw)
-
-
-def _data_types(source: Source, names: tuple[str, ...]) -> tuple[type, ...]:
-    served = {each.__name__: each for each in source.data_types}
-    unknown = [each for each in names if each not in served]
-    if unknown:
-        raise UnsupportedDataTypeError(
-            f"the source serves no {', '.join(unknown)}; it serves {', '.join(served)}"
-        )
-    return tuple(served[each] for each in names) or source.data_types
-
-
-def _days(start: date, end: date) -> Iterator[date]:
-    for offset in range((end - start).days + 1):
-        yield start + timedelta(days=offset)
 
 
 async def _download_all(

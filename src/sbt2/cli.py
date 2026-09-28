@@ -133,6 +133,65 @@ def _described(item: data.Item) -> str:
     return f"{item.symbol} {item.data} {item.day.isoformat()}"
 
 
+@app.command()
+def ingest(
+    source: Annotated[str, typer.Option(help="A source in config/sources.toml.")],
+    symbol: Annotated[list[str], typer.Option(help="Repeat for several.")],
+    start: Annotated[datetime, typer.Option(formats=DAY, help="The first UTC day.")],
+    end: Annotated[
+        datetime, typer.Option(formats=DAY, help="The last UTC day, included.")
+    ],
+    data_type: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--type",
+            help="A nautilus data type the source serves; repeat for several. "
+            "Default: all of them.",
+        ),
+    ] = None,
+    data_root: Annotated[
+        Path,
+        typer.Option("--data", help="Reads PATH/raw, writes PATH/catalog."),
+    ] = DATA,
+    reingest: Annotated[
+        bool,
+        typer.Option(
+            help="Replace the catalog's instrument with a newer snapshot that "
+            "differs, and rebuild its days."
+        ),
+    ] = False,
+) -> None:
+    """Write a source's raw files for a range of days into the catalog."""
+    options = data.IngestOptions(data_root / "raw", data_root / "catalog")
+    try:
+        request = data.IngestRequest(
+            tuple(symbol), start.date(), end.date(), tuple(data_type or ()), reingest
+        )
+        report = _ingest(source, request, options)
+    except Exception:
+        logger.exception("ingest from %s failed", source)
+        raise typer.Exit(1) from None
+    _log_ingest_summary(report)
+
+
+def _ingest(
+    name: str, request: data.IngestRequest, options: data.IngestOptions
+) -> data.IngestReport:
+    adapter = sources.source(name, SOURCES)
+    with _ingest_bar() as bar:
+        return data.ingest(adapter, request, replace(options, progress=bar))
+
+
+def _log_ingest_summary(report: data.IngestReport) -> None:
+    for each in report.having(data.IngestOutcome.MISSING):
+        day = each.day
+        logger.warning(
+            "no raw file: %s %s %s", day.symbol, day.data, day.day.isoformat()
+        )
+    counts = (f"{len(report.having(each))} {each}" for each in data.IngestOutcome)
+    logger.info("days: %s", ", ".join(counts))
+
+
 class _DownloadBar:
     """Files done out of those planned, and the bytes received so far."""
 
@@ -154,15 +213,41 @@ class _DownloadBar:
 
 @contextmanager
 def _download_bar() -> Iterator[_DownloadBar]:
+    with _progress(TextColumn("{task.fields[size]}")) as progress:
+        yield _DownloadBar(progress)
+
+
+class _IngestBar:
+    """Days done out of those planned."""
+
+    def __init__(self, progress: Progress) -> None:
+        self._progress = progress
+        self._task = progress.add_task("ingest", total=None)
+
+    def planned(self, days: int) -> None:
+        self._progress.update(self._task, total=days)
+
+    def finished(self, result: data.DayResult) -> None:
+        self._progress.advance(self._task)
+
+
+@contextmanager
+def _ingest_bar() -> Iterator[_IngestBar]:
+    with _progress() as progress:
+        yield _IngestBar(progress)
+
+
+@contextmanager
+def _progress(*extra: TextColumn) -> Iterator[Progress]:
     with Progress(
         TextColumn("{task.description}"),
         BarColumn(),
         MofNCompleteColumn(),
-        TextColumn("{task.fields[size]}"),
+        *extra,
         TimeElapsedColumn(),
         console=Console(stderr=True),
     ) as progress:
-        yield _DownloadBar(progress)
+        yield progress
 
 
 def _configure_logging(level: Level, log_file: Path | None) -> None:

@@ -62,9 +62,11 @@ def funding(path: Path, instrument: Any) -> Iterator[FundingRateUpdate]:
 
 
 def mark_prices(path: Path, instrument: Any) -> Iterator[MarkPriceUpdate]:
-    """Each 1-minute kline's close, at the end of its minute.
+    """Each 1-minute kline's close, 1 ns before the end of its minute.
 
-    Mark prices fall between ticks, so they keep the price precision rather
+    The last close then stays inside the day's catalog file bounds, which end
+    1 ns before midnight, so each day's file comes from that day's raw file
+    alone. Mark prices fall between ticks, so they keep the price precision rather
     than being rounded to the tick as ``make_price`` does.
     """
     klines = sorted(
@@ -73,7 +75,7 @@ def mark_prices(path: Path, instrument: Any) -> Iterator[MarkPriceUpdate]:
         for kline in page["result"]["list"]
     )
     for start_ms, close in klines:
-        ts = start_ms * _NANOS_PER_MILLI + _NANOS_PER_MINUTE
+        ts = start_ms * _NANOS_PER_MILLI + _NANOS_PER_MINUTE - 1
         price = Price(float(close), instrument.price_precision)
         yield MarkPriceUpdate(instrument.id, price, ts, ts)
 
