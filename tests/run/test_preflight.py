@@ -122,6 +122,19 @@ def test_an_empty_catalog_is_filled_from_the_source(
     assert preflight(spec(tmp_path), source, folders) == ()
 
 
+def test_a_candle_run_fetches_its_missing_candle_days(
+    tmp_path: Path, folders: DataFolders
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+
+    assert preflight(spec(tmp_path, bars='"candles"'), source, folders) == ()
+    days = {each.parent.name for each in source.fetched if each.suffix == ".json"}
+    assert days == {"Bar", "MarkPriceUpdate", "FundingRateUpdate"}
+    window = Window(midnight(DAY), midnight(date(2024, 1, 3)))
+    assert len(Catalog(folders.catalog).candles(INSTRUMENT_ID, window)) == 48
+
+
 def test_days_still_missing_after_the_fetch_fail_naming_each(
     tmp_path: Path, folders: DataFolders
 ) -> None:

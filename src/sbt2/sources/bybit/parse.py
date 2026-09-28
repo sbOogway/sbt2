@@ -9,6 +9,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 from nautilus_trader.model import (
     AggressorSide,
+    Bar,
     CryptoPerpetual,
     FundingRateUpdate,
     MarkPriceUpdate,
@@ -73,6 +74,16 @@ def mark_prices(path: Path, instrument: Any) -> Iterator[MarkPriceUpdate]:
         ts = start_ms * _NANOS_PER_MILLI + _NANOS_PER_MINUTE - 1
         price = Price(float(close), instrument.price_precision)
         yield MarkPriceUpdate(instrument.id, price, ts, ts)
+
+
+def candles(path: Path, instrument: Any) -> Iterator[Bar]:
+    """Each candle 1 ns before its close, as mark prices are, so a day's last
+    candle stays inside the day's catalog file bounds."""
+    for record in sorted(
+        json.loads(path.read_text()), key=lambda each: each["ts_event"]
+    ):
+        ts = record["ts_event"] - 1
+        yield Bar.from_dict({**record, "ts_event": ts, "ts_init": ts})
 
 
 def _snapshot_day_nanos(path: Path) -> int:

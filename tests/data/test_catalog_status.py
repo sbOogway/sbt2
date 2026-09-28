@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from local_catalog import DAY, LocalCatalog, days, gap
 from local_source import INSTRUMENT_ID
-from nautilus_trader.model import FundingRateUpdate, TradeTick
+from nautilus_trader.model import Bar, FundingRateUpdate, TradeTick
 
 from sbt2.data import Catalog, Holding
 
@@ -70,3 +70,13 @@ def test_a_data_type_whose_files_were_removed_is_not_listed(
 
     holdings = Catalog(local.path).status(frozenset())
     assert [each.data_type for each in holdings] == [TradeTick]
+
+
+def test_status_lists_candles_under_their_instrument(local: LocalCatalog) -> None:
+    local.add(TradeTick, DAY)
+    local.add(Bar, DAY, DAY_3)
+
+    holdings = Catalog(local.path).status(frozenset())
+
+    assert Holding(INSTRUMENT_ID, Bar, DAY, DAY_3, 2, (DAY_2,), ()) in holdings
+    assert len(holdings) == 2

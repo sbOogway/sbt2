@@ -30,6 +30,16 @@ def funding(records: Sequence[Any]) -> pd.DataFrame:
     )
 
 
+def candles(records: Sequence[Any]) -> pd.DataFrame:
+    return _frame(
+        records,
+        {
+            name: [float(getattr(each, name)) for each in records]
+            for name in ("open", "high", "low", "close", "volume")
+        },
+    )
+
+
 def _frame(records: Sequence[Any], columns: Mapping[str, list[Any]]) -> pd.DataFrame:
     events = pd.to_datetime([each.ts_event for each in records], unit="ns", utc=True)
     return pd.DataFrame(columns, index=pd.DatetimeIndex(events, name="ts_event"))

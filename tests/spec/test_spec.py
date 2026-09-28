@@ -18,9 +18,11 @@ from nautilus_trader.model import (
 )
 
 from sbt2.spec import (
+    CandleBarError,
     InstrumentVenueError,
     InvalidVenueProfileError,
     ResolvedRunSpec,
+    UnknownBarSourceError,
     UnknownSpecKeyError,
     UnknownVenueProfileError,
     load,
@@ -77,6 +79,7 @@ name = "BYBIT"
 asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 """
+DECLARED_BAR = "spec_strategies:DeclaredBar"
 START = datetime(2024, 1, 1, tzinfo=UTC)
 END = datetime(2024, 2, 1, tzinfo=UTC)
 DATA_START = datetime(2023, 12, 31, 23, 30, tzinfo=UTC)
@@ -179,6 +182,83 @@ def test_data_covers_declared_bars_and_the_asset_streams_from_warmup(
     assert {(each["start_time"], each["end_time"]) for each in data} == {
         (DATA_START, END)
     }
+
+
+def test_bars_come_from_trades_by_default(paths: tuple[Path, Path]) -> None:
+    spec = resolved(paths)
+
+    streamed = [each["data_type"] for each in spec.data]
+    assert NautilusDataType.TradeTick in streamed
+    assert NautilusDataType.Bar not in streamed
+    assert spec.hash == resolved(paths, bars="trades").hash
+    assert spec.hash == (
+        "1cc7061e15749201a3beb8417bc803f52f56d4f01192e0f53948add85daa875c"
+    )
+
+
+def test_a_candle_run_streams_one_minute_candles_instead_of_trades(
+    paths: tuple[Path, Path],
+) -> None:
+    data = resolved(paths, bars="candles").data
+
+    assert [each["data_type"] for each in data] == [
+        NautilusDataType.Bar,
+        NautilusDataType.FundingRateUpdate,
+        NautilusDataType.MarkPriceUpdate,
+    ]
+    assert data[0]["bar_types"] == [f"{BTC}-1-MINUTE-LAST-EXTERNAL"]
+    assert {(each["start_time"], each["end_time"]) for each in data} == {
+        (DATA_START, END)
+    }
+
+
+def test_a_candle_run_has_the_strategy_aggregate_from_candles(
+    paths: tuple[Path, Path],
+) -> None:
+    assert resolved(paths).strategy.aggregated_from is None
+    assert (
+        resolved(paths, bars="candles").strategy.aggregated_from == "1-MINUTE-EXTERNAL"
+    )
+
+
+def test_the_bar_source_changes_the_hash(paths: tuple[Path, Path]) -> None:
+    assert resolved(paths, bars="candles").hash != resolved(paths).hash
+
+
+@pytest.mark.parametrize(
+    "bar",
+    ["1-MINUTE-LAST", "15-MINUTE-LAST", "1-HOUR-LAST", "4-HOUR-LAST", "1-DAY-LAST"],
+)
+def test_whole_minute_bars_are_built_from_candles(
+    paths: tuple[Path, Path], bar: str
+) -> None:
+    spec = resolved(paths, strategy=DECLARED_BAR, params={"bar": bar}, bars="candles")
+
+    assert spec.data[0]["data_type"] == NautilusDataType.Bar
+
+
+@pytest.mark.parametrize(
+    "bar",
+    [
+        "30-SECOND-LAST",
+        "500-MILLISECOND-LAST",
+        "1-HOUR-BID",
+        "1-HOUR-ASK",
+        "1-HOUR-MID",
+        "100-TICK-LAST",
+        "10-VOLUME-LAST",
+    ],
+)
+def test_bars_candles_cannot_build_are_refused(
+    paths: tuple[Path, Path], bar: str
+) -> None:
+    with pytest.raises(CandleBarError, match=bar):
+        resolved(paths, strategy=DECLARED_BAR, params={"bar": bar}, bars="candles")
+
+
+def test_an_unknown_bar_source_is_refused(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(UnknownBarSourceError, match="trades, candles"):
+        resolved(paths, bars="quotes")
 
 
 def test_run_config_is_built_from_the_resolved_arguments(
@@ -305,7 +385,9 @@ def test_instrument_on_another_venue_fails(paths: tuple[Path, Path]) -> None:
 def test_unknown_spec_key_fails_listing_the_valid_ones(
     paths: tuple[Path, Path],
 ) -> None:
-    with pytest.raises(UnknownSpecKeyError, match="symbols .* valid: capital, end"):
+    with pytest.raises(
+        UnknownSpecKeyError, match="symbols .* valid: bars, capital, end"
+    ):
         resolved(paths, symbols=["BTCUSDT"])
 
 

@@ -2,7 +2,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from nautilus_trader.model import InstrumentId, TradeTick
+from nautilus_trader.model import Bar, InstrumentId, TradeTick
 
 from sbt2.sources import Gap, UnknownSourceError, known_gaps, source
 
@@ -22,6 +22,18 @@ def test_known_gaps_come_from_the_config(tmp_path: Path) -> None:
 
     assert source("bybit", config).known_gaps == {
         Gap(InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT"), TradeTick, date(2020, 3, 25))
+    }
+
+
+def test_known_gaps_can_name_candles(tmp_path: Path) -> None:
+    config = tmp_path / "sources.toml"
+    config.write_text(
+        "[bybit]\n"
+        'known_gaps = [{ symbol = "BTCUSDT", data = "candles", day = 2020-03-25 }]\n'
+    )
+
+    assert source("bybit", config).known_gaps == {
+        Gap(InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT"), Bar, date(2020, 3, 25))
     }
 
 

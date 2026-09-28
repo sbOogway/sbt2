@@ -1,0 +1,13 @@
+strategy = "strategies.ma_cross:MovingAverageCross"
+instruments = ["BTCUSDT-LINEAR.BYBIT"]
+start = 2025-01-01
+end = 2025-02-01
+venue = "bybit_linear"
+capital = "10000 USDT"
+bars = "candles"
+
+[params]
+fast = 10
+slow = 30
+bar = "1-HOUR-LAST"
+quantity = "0.100"

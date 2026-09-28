@@ -28,12 +28,15 @@ class StrategyRun:
     """What to run: a strategy import path, its instruments and parameters.
 
     ``trade_start`` is the segment start; before it the strategy only warms up.
+    ``aggregated_from`` names the external bars the declared bars are built
+    from, such as ``"1-MINUTE-EXTERNAL"``; ``None`` builds them from trades.
     """
 
     strategy: str
     instruments: Sequence[InstrumentId]
     params: Mapping[str, Any]
     trade_start: datetime
+    aggregated_from: str | None = None
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,7 @@ class RunConfig:
     instruments: list[str]
     params: dict[str, Any]
     trade_start: str
+    aggregated_from: str | None = None
 
 
 def importable_config(run: StrategyRun) -> ImportableStrategyConfig:
@@ -60,6 +64,7 @@ def _run_config(run: StrategyRun) -> RunConfig:
         [str(each) for each in run.instruments],
         dict(run.params),
         run.trade_start.isoformat(),
+        run.aggregated_from,
     )
 
 
@@ -68,8 +73,9 @@ class Strategy[P](NautilusStrategy, ABC):
 
     ``Params`` is a dataclass: its fields are the parameter schema and defaults.
     ``inputs`` declares the bars the strategy needs; they are aggregated at run
-    time from trades and subscribed on start, so a subclass that
-    overrides ``on_start`` calls ``super().on_start()``. Orders submitted while
+    time from trades or 1-minute candles and subscribed on start, so a subclass
+    that overrides ``on_start`` calls ``super().on_start()``. Either way they
+    arrive under the types ``bar_types`` gives. Orders submitted while
     ``warming_up`` are dropped. The first exception raised by a subclass's
     ``on_*`` handler is kept in ``failure``.
     """
@@ -90,6 +96,7 @@ class Strategy[P](NautilusStrategy, ABC):
             InstrumentId.from_str(each) for each in config.instruments
         ]
         self._trade_start_ns = dt_to_unix_nanos(config.trade_start)
+        self._aggregated_from = config.aggregated_from
 
     @classmethod
     def warmup(cls, params: P) -> timedelta:
@@ -112,7 +119,13 @@ class Strategy[P](NautilusStrategy, ABC):
 
     def on_start(self) -> None:
         for bar_type in self.bar_types():
-            self.subscribe_bars(bar_type)
+            self.subscribe_bars(self._subscribed(bar_type))
+
+    def _subscribed(self, bar_type: BarType) -> BarType:
+        """Nautilus delivers a composite bar type's bars under its standard type."""
+        if self._aggregated_from is None:
+            return bar_type
+        return BarType.from_str(f"{bar_type}@{self._aggregated_from}")
 
     def submit_order(self, order: Any, *args: Any, **kwargs: Any) -> None:
         if not self.warming_up:

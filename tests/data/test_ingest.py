@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from local_source import (
+    CANDLE_TYPE,
     INSTRUMENT_ID,
     SYMBOL,
     LocalSource,
@@ -11,6 +12,7 @@ from local_source import (
     write_snapshot,
 )
 from nautilus_trader.model import (
+    Bar,
     FundingRateUpdate,
     MarkPriceUpdate,
     NautilusDataType,
@@ -110,12 +112,16 @@ def test_every_served_data_type_is_ingested_by_default(
     write_day(raw, TradeTick, DAY, hourly(DAY))
     write_day(raw, MarkPriceUpdate, DAY, hourly(DAY))
     write_day(raw, FundingRateUpdate, DAY, [start_of(DAY) + 8 * HOUR])
+    write_day(raw, Bar, DAY, hourly(DAY))
 
     report = run(raw, catalog_path, request())
 
     assert set(outcomes(report).values()) == {IngestOutcome.WRITTEN}
     for data_type in (TRADES, NautilusDataType.MarkPriceUpdate):
         assert intervals(catalog_path, data_type) == [bounds(DAY)]
+    assert ParquetDataCatalog(str(catalog_path)).get_intervals(
+        NautilusDataType.Bar, str(CANDLE_TYPE)
+    ) == [bounds(DAY)]
     fundings = ParquetDataCatalog(str(catalog_path)).query(
         NautilusDataType.FundingRateUpdate
     )
@@ -137,6 +143,40 @@ def test_a_raw_file_without_rows_becomes_a_covered_empty_day(
     stored = getattr(NautilusDataType, name)
     assert intervals(catalog_path, stored) == [bounds(DAY)]
     assert ParquetDataCatalog(str(catalog_path)).query(stored) == []
+
+
+def test_candles_are_written_under_their_bar_type_with_the_whole_days_bounds(
+    raw: Path, catalog_path: Path
+) -> None:
+    write_day(raw, Bar, DAY, hourly(DAY)[:2])
+
+    run(raw, catalog_path, request(DAY, "Bar"))
+
+    folder = catalog_path / "data" / "bars" / str(CANDLE_TYPE)
+    assert [each.name for each in folder.iterdir()] == [
+        "2024-01-01T00-00-00-000000000Z_2024-01-01T23-59-59-999999999Z.parquet"
+    ]
+    bars = ParquetDataCatalog(str(catalog_path)).query(
+        NautilusDataType.Bar, [str(CANDLE_TYPE)]
+    )
+    assert [(each.bar_type, each.ts_event) for each in bars] == [
+        (CANDLE_TYPE, ts) for ts in hourly(DAY)[:2]
+    ]
+
+
+def test_a_day_without_candles_is_a_covered_empty_bar_file(
+    raw: Path, catalog_path: Path
+) -> None:
+    write_day(raw, Bar, DAY, [])
+
+    report = run(raw, catalog_path, request(DAY, "Bar"))
+
+    assert outcomes(report) == {("Bar", DAY): IngestOutcome.EMPTY}
+    catalog = ParquetDataCatalog(str(catalog_path))
+    assert catalog.get_intervals(NautilusDataType.Bar, str(CANDLE_TYPE)) == [
+        bounds(DAY)
+    ]
+    assert catalog.query(NautilusDataType.Bar, [str(CANDLE_TYPE)]) == []
 
 
 def test_a_day_without_a_raw_file_is_missing_and_not_written(

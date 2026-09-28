@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 from local_source import (
+    CANDLE_TYPE,
     INSTRUMENT_ID,
     SYMBOL,
     LocalSource,
@@ -11,7 +12,7 @@ from local_source import (
     write_day,
     write_snapshot,
 )
-from nautilus_trader.model import MarkPriceUpdate, NautilusDataType, TradeTick
+from nautilus_trader.model import Bar, MarkPriceUpdate, NautilusDataType, TradeTick
 from nautilus_trader.persistence import ParquetDataCatalog
 
 from sbt2.data import (
@@ -135,18 +136,24 @@ def test_a_symbol_without_a_snapshot_is_refused(tmp_path: Path) -> None:
         run(tmp_path / "raw", tmp_path / "catalog")
 
 
+@pytest.mark.parametrize(
+    ("data_type", "identifier"),
+    [(MarkPriceUpdate, INSTRUMENT_ID), (Bar, CANDLE_TYPE)],
+    ids=["mark_prices", "candles"],
+)
 def test_reingest_removes_every_data_type_of_the_instrument(
-    raw: Path, catalog: Path
+    raw: Path, catalog: Path, data_type: type, identifier: object
 ) -> None:
-    write_day(raw, MarkPriceUpdate, DAY, [start_of(DAY)])
-    run(raw, catalog, IngestRequest((SYMBOL,), DAY, DAY, ("MarkPriceUpdate",)))
+    name = data_type.__name__
+    write_day(raw, data_type, DAY, [start_of(DAY)])
+    run(raw, catalog, IngestRequest((SYMBOL,), DAY, DAY, (name,)))
     write_snapshot(raw, LATER, margin_init="0.02")
 
     run(raw, catalog, REINGEST)
 
     assert (
         ParquetDataCatalog(str(catalog)).get_intervals(
-            NautilusDataType.MarkPriceUpdate, str(INSTRUMENT_ID)
+            getattr(NautilusDataType, name), str(identifier)
         )
         == []
     )

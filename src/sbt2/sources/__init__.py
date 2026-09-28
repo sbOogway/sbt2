@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from sbt2.sources.base import (
+    CANDLES,
     Fetch,
     FundingOffGridError,
     Gap,
@@ -11,10 +12,12 @@ from sbt2.sources.base import (
     RawFile,
     Source,
     UnsupportedDataTypeError,
+    candle_type,
 )
 from sbt2.sources.bybit import BybitSource
 
 __all__ = [
+    "CANDLES",
     "Fetch",
     "FundingOffGridError",
     "Gap",
@@ -23,6 +26,7 @@ __all__ = [
     "Source",
     "UnknownSourceError",
     "UnsupportedDataTypeError",
+    "candle_type",
     "known_gaps",
     "source",
 ]

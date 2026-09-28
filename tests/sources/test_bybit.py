@@ -8,6 +8,7 @@ from typing import Any
 import pandas as pd
 import pytest
 from nautilus_trader.model import (
+    Bar,
     CryptoPerpetual,
     FundingRateUpdate,
     InstrumentId,
@@ -53,8 +54,8 @@ def test_trades_come_from_the_daily_public_dump(bybit: Source) -> None:
     )
 
 
-def test_serves_trades_funding_and_mark_prices_per_day(bybit: Source) -> None:
-    assert bybit.data_types == (TradeTick, FundingRateUpdate, MarkPriceUpdate)
+def test_serves_trades_funding_mark_prices_and_candles_per_day(bybit: Source) -> None:
+    assert bybit.data_types == (TradeTick, FundingRateUpdate, MarkPriceUpdate, Bar)
 
 
 @pytest.mark.parametrize(
@@ -62,6 +63,7 @@ def test_serves_trades_funding_and_mark_prices_per_day(bybit: Source) -> None:
     [
         (FundingRateUpdate, "bybit/linear/BTCUSDT/funding/BTCUSDT2025-01-01.json"),
         (MarkPriceUpdate, "bybit/linear/BTCUSDT/mark_price/BTCUSDT2025-01-01.json"),
+        (Bar, "bybit/linear/BTCUSDT/candles/BTCUSDT2025-01-01.json"),
     ],
 )
 def test_rest_data_is_saved_one_json_file_per_day(
@@ -123,14 +125,27 @@ def test_mark_prices_are_every_minute_of_the_day(replayed: Source) -> None:
     assert opens == [each.value // 1_000_000 for each in day]
 
 
+def test_candles_are_every_minute_of_the_day(replayed: Source) -> None:
+    bars = fetched(replayed.day_file("BTCUSDT", Bar, DAY))
+
+    closes = pd.date_range(DAY, periods=1440, freq="min", tz="UTC") + pd.Timedelta(
+        minutes=1
+    )
+    assert [each["ts_event"] for each in bars] == [each.value for each in closes]
+    assert {each["bar_type"] for each in bars} == {
+        "BTCUSDT-LINEAR.BYBIT-1-MINUTE-LAST-EXTERNAL"
+    }
+
+
 @pytest.mark.parametrize(
     "raw_file",
     [
         lambda bybit: bybit.instrument_snapshot("NOPEUSDT", DAY),
         lambda bybit: bybit.day_file("NOPEUSDT", FundingRateUpdate, DAY),
         lambda bybit: bybit.day_file("NOPEUSDT", MarkPriceUpdate, DAY),
+        lambda bybit: bybit.day_file("NOPEUSDT", Bar, DAY),
     ],
-    ids=["instrument", "funding", "mark_price"],
+    ids=["instrument", "funding", "mark_price", "candles"],
 )
 def test_unlisted_symbol_is_missing_at_the_source(
     replayed: Source, raw_file: Callable[[Source], RawFile]

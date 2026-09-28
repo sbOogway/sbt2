@@ -9,6 +9,7 @@ from typing import Any
 
 from nautilus_trader.model import (
     AggressorSide,
+    Bar,
     CryptoPerpetual,
     Currency,
     FundingRateUpdate,
@@ -21,10 +22,11 @@ from nautilus_trader.model import (
     TradeTick,
 )
 
-from sbt2.sources import Gap, RawFile
+from sbt2.sources import Gap, RawFile, candle_type
 
 SYMBOL = "BTCUSDT"
 INSTRUMENT_ID = InstrumentId.from_str(f"{SYMBOL}-PERP.LOCAL")
+CANDLE_TYPE = candle_type(INSTRUMENT_ID)
 PRICE = "50000.0"
 FUNDING_RATE = Decimal("0.0001")
 FUNDING_INTERVAL_MINUTES = 480
@@ -36,7 +38,7 @@ class LocalSource:
 
     @property
     def data_types(self) -> tuple[type, ...]:
-        return (TradeTick, MarkPriceUpdate, FundingRateUpdate)
+        return (TradeTick, MarkPriceUpdate, FundingRateUpdate, Bar)
 
     @property
     def known_gaps(self) -> frozenset[Gap]:
@@ -135,8 +137,15 @@ def _funding(instrument_id: InstrumentId, ts: int) -> FundingRateUpdate:
     )
 
 
+def _candle(instrument_id: InstrumentId, ts: int) -> Bar:
+    price = Price.from_str(PRICE)
+    volume = Quantity.from_str("1.000")
+    return Bar(candle_type(instrument_id), price, price, price, price, volume, ts, ts)
+
+
 _RECORDS = {
     TradeTick: _trade,
     MarkPriceUpdate: _mark,
     FundingRateUpdate: _funding,
+    Bar: _candle,
 }

@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 from nautilus_trader.model import (
     AggressorSide,
+    Bar,
     FundingRateUpdate,
     MarkPriceUpdate,
     OrderBookDelta,
@@ -121,6 +122,23 @@ def test_mark_prices_are_each_minutes_close_just_before_its_end(
     assert (marks[719].ts_event, str(marks[719].value)) == (
         DAY_NANOS + 720 * MINUTE_NANOS - 1,
         "93396.41",
+    )
+
+
+def test_candles_are_stamped_1_ns_before_their_close(
+    replayed: Source, instrument: Any, tmp_path: Path
+) -> None:
+    candles = saved(replayed.day_file("BTCUSDT", Bar, DAY), tmp_path)
+
+    bars = list(replayed.parse(candles, Bar, instrument))
+
+    assert [(each.ts_event, each.ts_init) for each in (bars[0], bars[-1])] == [
+        (DAY_NANOS + MINUTE_NANOS - 1,) * 2,
+        (DAY_NANOS + 1440 * MINUTE_NANOS - 1,) * 2,
+    ]
+    assert str(bars[0]) == (
+        "BTCUSDT-LINEAR.BYBIT-1-MINUTE-LAST-EXTERNAL,"
+        f"93530.00,93590.80,93501.30,93590.50,30.284,{DAY_NANOS + MINUTE_NANOS - 1}"
     )
 
 

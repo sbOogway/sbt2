@@ -6,6 +6,7 @@ from typing import Any
 import pyarrow as pa
 import pyarrow.parquet as pq
 from nautilus_trader.model import (
+    Bar,
     FundingRateUpdate,
     InstrumentId,
     MarkPriceUpdate,
@@ -23,6 +24,7 @@ _PARTIAL_SUFFIX = "#sbt2"
 _TYPED_WRITERS: Mapping[type, Callable[..., str]] = {
     TradeTick: ParquetDataCatalog.write_trade_ticks,
     MarkPriceUpdate: ParquetDataCatalog.write_mark_price_updates,
+    Bar: ParquetDataCatalog.write_bars,
 }
 
 
@@ -32,6 +34,7 @@ _METADATA: Mapping[type, tuple[str, ...]] = {
     TradeTick: ("price_precision", "size_precision"),
     MarkPriceUpdate: ("price_precision",),
     FundingRateUpdate: (),
+    Bar: ("price_precision", "size_precision"),
 }
 
 
@@ -40,6 +43,10 @@ class DayFile:
     data_type: type
     instrument: Any
     bounds: layout.Bounds
+
+    @property
+    def identifier(self) -> str:
+        return layout.identifier(self.data_type, self.instrument.id)
 
 
 class CatalogWriter:
@@ -51,7 +58,7 @@ class CatalogWriter:
 
     def has(self, day: DayFile) -> bool:
         intervals = self._catalog.get_intervals(
-            layout.nautilus_type(day.data_type), str(day.instrument.id)
+            layout.nautilus_type(day.data_type), day.identifier
         )
         return day.bounds in intervals
 
@@ -75,7 +82,8 @@ class CatalogWriter:
         """Every version of the instrument and all its ``data_types`` files."""
         for data_type in data_types:
             self._catalog.delete_data_range(
-                layout.nautilus_type(data_type), str(instrument_id)
+                layout.nautilus_type(data_type),
+                layout.identifier(data_type, instrument_id),
             )
         for each in self._catalog.list_parquet_files(
             NautilusDataType.Instrument, str(instrument_id)
@@ -102,7 +110,10 @@ def _metadata(day: DayFile) -> dict[str, str]:
     precisions = {
         name: str(getattr(instrument, name)) for name in _METADATA[day.data_type]
     }
-    return {"instrument_id": str(instrument.id), **precisions}
+    names = {"instrument_id": str(instrument.id)}
+    if day.data_type is Bar:
+        names["bar_type"] = day.identifier
+    return {**names, **precisions}
 
 
 # sbt2 writes funding (nautilus has no Python writer) and zero-row days (its
@@ -111,7 +122,7 @@ def _relative_path(day: DayFile) -> Path:
     return Path(
         "data",
         layout.directory(day.data_type),
-        str(day.instrument.id),
+        day.identifier,
         layout.file_name(day.bounds),
     )
 

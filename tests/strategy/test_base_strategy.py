@@ -9,6 +9,7 @@ from nautilus_trader.execution import FixedFeeModel
 from nautilus_trader.model import (
     AccountType,
     AggressorSide,
+    Bar,
     BarType,
     CryptoPerpetual,
     Currency,
@@ -23,7 +24,7 @@ from nautilus_trader.model import (
     Venue,
 )
 from nautilus_trader.trading import Strategy as NautilusStrategy
-from toy_strategies import BuyEveryBar, CountWarmupBars, FailOnSecondBar
+from toy_strategies import BuyEveryBar, CountWarmupBars, FailOnSecondBar, RecordBars
 
 from sbt2.strategy import RunConfig, StrategyRun, build_strategy, importable_config
 
@@ -68,7 +69,25 @@ def trades() -> list[TradeTick]:
     ]
 
 
+def candles(days: int) -> list[Bar]:
+    """1-minute candles stamped 1 ns before their close; minute ``k`` trades at k."""
+    candle_type = BarType.from_str(f"{BTC}-1-MINUTE-LAST-EXTERNAL")
+    volume = Quantity.from_str("1.000")
+    bars = []
+    for minute in range(days * 24 * 60):
+        price = Price.from_str(f"{10000 + minute}.0")
+        ts = nanos(START + (minute + 1) * timedelta(minutes=1)) - 1
+        bars.append(Bar(candle_type, price, price, price, price, volume, ts, ts))
+    return bars
+
+
 def engine_with_trades() -> BacktestEngine:
+    engine = empty_engine()
+    engine.add_data(trades())
+    return engine
+
+
+def empty_engine() -> BacktestEngine:
     engine = BacktestEngine(
         BacktestEngineConfig(logging=LoggerConfig(stdout_level=LogLevel.ERROR))
     )
@@ -81,7 +100,6 @@ def engine_with_trades() -> BacktestEngine:
         fee_model=FixedFeeModel(Money.from_str("0 USDT")),
     )
     engine.add_instrument(perpetual())
-    engine.add_data(trades())
     return engine
 
 
@@ -130,6 +148,47 @@ def test_declared_bars_are_aggregated_internally_for_every_instrument() -> None:
     assert strategy.bar_types() == [
         BarType.from_str("BTCUSDT-PERP.BYBIT-1-MINUTE-LAST-INTERNAL")
     ]
+
+
+def test_a_candle_run_subscribes_bars_aggregated_from_candles() -> None:
+    config = RunConfig([str(BTC)], {}, START.isoformat(), "1-MINUTE-EXTERNAL")
+    strategy = RecordBars(config)
+    engine = empty_engine()
+    engine.add_strategy(strategy)
+
+    engine.run(start=nanos(START), end=nanos(START))
+
+    assert strategy.subscribed == [
+        BarType.from_str("BTCUSDT-PERP.BYBIT-1-HOUR-LAST-INTERNAL@1-MINUTE-EXTERNAL")
+    ]
+
+
+@pytest.mark.parametrize(
+    ("bar", "closes", "first"),
+    [
+        ("1-HOUR-LAST", 48, ("10000.0", "10059.0", "10000.0", "10059.0", "60.000")),
+        ("1-DAY-LAST", 2, ("10000.0", "11439.0", "10000.0", "11439.0", "1440.000")),
+    ],
+)
+def test_bars_built_from_candles_arrive_under_the_types_the_strategy_is_given(
+    bar: str, closes: int, first: tuple[str, ...]
+) -> None:
+    config = RunConfig([str(BTC)], {"bar": bar}, START.isoformat(), "1-MINUTE-EXTERNAL")
+    strategy = RecordBars(config)
+    engine = empty_engine()
+    engine.add_data(candles(days=2))
+    engine.add_strategy(strategy)
+
+    engine.run(end=nanos(START + timedelta(days=2)))
+
+    assert len(strategy.bars) == closes
+    assert {each.bar_type for each in strategy.bars} == set(strategy.bar_types())
+    head = strategy.bars[0]
+    assert (
+        tuple(map(str, (head.open, head.high, head.low, head.close, head.volume)))
+        == first
+    )
+    assert strategy.bars[-1].ts_event == nanos(START + timedelta(days=2))
 
 
 def test_unknown_params_fail_when_the_strategy_is_built() -> None:

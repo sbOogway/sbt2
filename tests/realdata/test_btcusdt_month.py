@@ -22,7 +22,6 @@ pytestmark = pytest.mark.realdata
 
 HERE = Path(__file__).parent
 REPO = HERE.parents[1]
-SPEC = HERE / "btcusdt_month.toml"
 INSTRUMENT_ID = InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT")
 START = datetime(2025, 1, 1, tzinfo=UTC)
 END = datetime(2025, 2, 1, tzinfo=UTC)
@@ -38,12 +37,15 @@ class MonthRun:
     marks: pd.DataFrame
 
 
-@pytest.fixture(scope="module")
-def month(tmp_path_factory: pytest.TempPathFactory) -> Iterator[MonthRun]:
+@pytest.fixture(scope="module", params=["btcusdt_month", "btcusdt_month_candles"])
+def month(
+    tmp_path_factory: pytest.TempPathFactory, request: pytest.FixtureRequest
+) -> Iterator[MonthRun]:
+    spec = HERE / f"{request.param}.toml"
     data = _data_folder(tmp_path_factory.mktemp("data"))
     with pytest.MonkeyPatch.context() as patch:
         patch.chdir(REPO)
-        result = CliRunner().invoke(app, ["run", str(SPEC), "--data", str(data)])
+        result = CliRunner().invoke(app, ["run", str(spec), "--data", str(data)])
     assert result.exit_code == 0, result.output
     yield _month_run(data)
 
