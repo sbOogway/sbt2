@@ -1,18 +1,21 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
+from functools import partial
 from pathlib import PurePosixPath
 from typing import Any
 
 from nautilus_trader.model import InstrumentId, TradeTick
 
 from sbt2.sources.base import Gap, RawFile, UnsupportedDataTypeError
+from sbt2.sources.bybit.api import BybitApi
 
 _DATA_NAMES: Mapping[str, type] = {"trades": TradeTick}
 
 
 @dataclass(frozen=True)
 class Endpoints:
+    api: str = "https://api.bybit.com"
     dumps: str = "https://public.bybit.com"
 
 
@@ -27,6 +30,7 @@ class BybitSource:
     ) -> None:
         self._known_gaps = known_gaps
         self._endpoints = endpoints
+        self._api = BybitApi(endpoints.api)
 
     @classmethod
     def from_config(cls, table: Mapping[str, Any]) -> BybitSource:
@@ -53,6 +57,16 @@ class BybitSource:
             _symbol_dir(symbol) / "trading" / name,
             f"{self._endpoints.dumps}/trading/{symbol}/{name}",
         )
+
+    def instrument_snapshot(self, symbol: str, taken_on: date) -> RawFile:
+        return RawFile(
+            _json_path(symbol, "instrument", taken_on),
+            partial(self._api.instrument_snapshot, symbol),
+        )
+
+
+def _json_path(symbol: str, kind: str, day: date) -> PurePosixPath:
+    return _symbol_dir(symbol) / kind / f"{symbol}{day.isoformat()}.json"
 
 
 def _symbol_dir(symbol: str) -> PurePosixPath:

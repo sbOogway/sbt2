@@ -53,3 +53,7 @@ class Source(Protocol):
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         """The raw file holding ``data_type`` for one UTC day."""
         ...
+
+    def instrument_snapshot(self, symbol: str, taken_on: date) -> RawFile:
+        """Today's instrument spec, saved under the date it is taken on."""
+        ...
