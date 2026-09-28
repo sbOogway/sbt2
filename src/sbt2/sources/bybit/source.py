@@ -6,6 +6,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from nautilus_trader.model import (
+    Bar,
     FundingRateUpdate,
     InstrumentId,
     MarkPriceUpdate,
@@ -20,12 +21,14 @@ _DATA_NAMES: Mapping[str, type] = {
     "trades": TradeTick,
     "funding": FundingRateUpdate,
     "mark_price": MarkPriceUpdate,
+    "candles": Bar,
 }
 
 _PARSERS: Mapping[type, Callable[[Path, Any], Iterator[Any]]] = {
     TradeTick: parse.trades,
     FundingRateUpdate: parse.funding,
     MarkPriceUpdate: parse.mark_prices,
+    Bar: parse.candles,
 }
 
 
@@ -53,6 +56,7 @@ class BybitSource:
         ] = {
             FundingRateUpdate: self._api.funding,
             MarkPriceUpdate: self._api.mark_prices,
+            Bar: self._api.candles,
         }
 
     @classmethod

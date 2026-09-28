@@ -7,8 +7,9 @@ from typing import Any
 
 import httpx
 from nautilus_trader.adapters.bybit import BybitHttpClient, BybitProductType
+from nautilus_trader.model import Bar
 
-from sbt2.sources.base import MissingAtSourceError
+from sbt2.sources.base import MissingAtSourceError, candle_type
 
 _LINEAR = BybitProductType.LINEAR
 _INVALID_PARAMS = 10001
@@ -52,6 +53,21 @@ class BybitApi:
         start, end = _day_window(day)
         rates = await client.request_funding_rates(_LINEAR, instrument.id, start, end)
         return _json([each.to_dict() for each in rates])
+
+    async def candles(self, symbol: str, day: date) -> bytes:
+        """The UTC day's 1-minute candles as nautilus ``to_dict`` JSON, stamped at
+        their close.
+
+        A request spans one day: Bybit refuses a month at once (error 10016).
+        """
+        client = self._nautilus()
+        instrument = await _instrument(client, symbol)
+        client.cache_instrument(instrument)
+        start, end = _day_window(day)
+        bars = await client.request_bars(
+            _LINEAR, candle_type(instrument.id), start, end
+        )
+        return _json([Bar.to_dict(each) for each in bars])
 
     async def mark_prices(self, symbol: str, day: date) -> bytes:
         """The UTC day's 1-minute mark-price klines, each response body as returned."""

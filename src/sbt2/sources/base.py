@@ -4,9 +4,16 @@ from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any, Protocol
 
-from nautilus_trader.model import InstrumentId
+from nautilus_trader.model import BarType, InstrumentId
 
 type Fetch = Callable[[], Awaitable[bytes]]
+
+CANDLES = "1-MINUTE-LAST-EXTERNAL"
+
+
+def candle_type(instrument_id: InstrumentId) -> BarType:
+    """The bar type of the 1-minute candles a source serves as ``Bar``."""
+    return BarType.from_str(f"{instrument_id}-{CANDLES}")
 
 
 class MissingAtSourceError(LookupError):
