@@ -6,7 +6,7 @@ from typing import Any
 
 import pandas as pd
 import pytest
-from nautilus_trader.model import FundingRateUpdate, MarkPriceUpdate, TradeTick
+from nautilus_trader.model import Bar, FundingRateUpdate, MarkPriceUpdate, TradeTick
 
 from sbt2.data import DownloadOptions, DownloadRequest, Outcome, download
 from sbt2.sources import Source, source
@@ -80,5 +80,14 @@ def test_mark_price_covers_every_minute(raw: tuple[Source, Path]) -> None:
     )
 
     assert [each.ts_event for each in records] == [
-        DAY_START + MINUTE * n for n in range(1, 1441)
+        DAY_START + MINUTE * n - 1 for n in range(1, 1441)
+    ]
+
+
+def test_candles_cover_every_minute(raw: tuple[Source, Path]) -> None:
+    bybit, _ = raw
+    records = bybit.parse(day_file(raw, Bar), Bar, instrument(raw))
+
+    assert [each.ts_event for each in records] == [
+        DAY_START + MINUTE * n - 1 for n in range(1, 1441)
     ]
