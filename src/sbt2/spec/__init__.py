@@ -3,8 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from sbt2.spec.parse import read_spec
-from sbt2.spec.resolve import InstrumentVenueError, resolve
-from sbt2.spec.resolved import ResolvedRunSpec
+from sbt2.spec.resolve import InstrumentVenueError, ResolvedRunSpec, resolve
 from sbt2.spec.venues import UnknownVenueProfileError
 
 __all__ = [
