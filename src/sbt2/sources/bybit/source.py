@@ -1,0 +1,112 @@
+from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import dataclass
+from datetime import date
+from functools import partial
+from pathlib import PurePosixPath
+from typing import Any
+
+from nautilus_trader.model import (
+    FundingRateUpdate,
+    InstrumentId,
+    MarkPriceUpdate,
+    TradeTick,
+)
+
+from sbt2.sources.base import Gap, RawFile, UnsupportedDataTypeError
+from sbt2.sources.bybit.api import BybitApi
+
+_DATA_NAMES: Mapping[str, type] = {
+    "trades": TradeTick,
+    "funding": FundingRateUpdate,
+    "mark_price": MarkPriceUpdate,
+}
+
+
+@dataclass(frozen=True)
+class Endpoints:
+    api: str = "https://api.bybit.com"
+    dumps: str = "https://public.bybit.com"
+
+
+_PUBLIC = Endpoints()
+
+
+class BybitSource:
+    """Bybit linear perpetuals."""
+
+    def __init__(
+        self, known_gaps: frozenset[Gap], endpoints: Endpoints = _PUBLIC
+    ) -> None:
+        self._known_gaps = known_gaps
+        self._endpoints = endpoints
+        self._api = BybitApi(endpoints.api)
+        self._rest_day_fetches: Mapping[
+            type, Callable[[str, date], Awaitable[bytes]]
+        ] = {
+            FundingRateUpdate: self._api.funding,
+            MarkPriceUpdate: self._api.mark_prices,
+        }
+
+    @classmethod
+    def from_config(cls, table: Mapping[str, Any]) -> BybitSource:
+        return cls(frozenset(_gap(each) for each in table.get("known_gaps", ())))
+
+    @property
+    def data_types(self) -> tuple[type, ...]:
+        return tuple(_DATA_NAMES.values())
+
+    @property
+    def known_gaps(self) -> frozenset[Gap]:
+        return self._known_gaps
+
+    def instrument_id(self, symbol: str) -> InstrumentId:
+        return _instrument_id(symbol)
+
+    def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
+        if data_type is TradeTick:
+            return self._trades(symbol, day)
+        fetch = self._rest_day_fetches.get(data_type)
+        if fetch is None:
+            raise UnsupportedDataTypeError(
+                f"bybit serves no {data_type.__name__} day files"
+            )
+        return RawFile(
+            _json_path(symbol, _data_name(data_type), day), partial(fetch, symbol, day)
+        )
+
+    def instrument_snapshot(self, symbol: str, taken_on: date) -> RawFile:
+        return RawFile(
+            _json_path(symbol, "instrument", taken_on),
+            partial(self._api.instrument_snapshot, symbol),
+        )
+
+    def _trades(self, symbol: str, day: date) -> RawFile:
+        name = f"{symbol}{day.isoformat()}.csv.gz"
+        return RawFile(
+            _symbol_dir(symbol) / "trading" / name,
+            f"{self._endpoints.dumps}/trading/{symbol}/{name}",
+        )
+
+
+def _instrument_id(symbol: str) -> InstrumentId:
+    return InstrumentId.from_str(f"{symbol}-LINEAR.BYBIT")
+
+
+def _data_name(data_type: type) -> str:
+    return next(name for name, each in _DATA_NAMES.items() if each is data_type)
+
+
+def _json_path(symbol: str, kind: str, day: date) -> PurePosixPath:
+    return _symbol_dir(symbol) / kind / f"{symbol}{day.isoformat()}.json"
+
+
+def _symbol_dir(symbol: str) -> PurePosixPath:
+    return PurePosixPath("bybit", "linear", symbol)
+
+
+def _gap(entry: Mapping[str, Any]) -> Gap:
+    return Gap(
+        _instrument_id(entry["symbol"]),
+        _DATA_NAMES[entry["data"]],
+        entry["day"],
+    )
