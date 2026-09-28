@@ -2,6 +2,7 @@ import json
 import re
 import urllib.request
 from collections.abc import Mapping
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
 import httpx
@@ -39,6 +40,24 @@ class BybitApi:
                 "margin_maint": tier["maintenanceMargin"],
             }
         )
+
+    async def funding(self, symbol: str, day: date) -> bytes:
+        """The UTC day's funding history as nautilus ``to_dict`` JSON."""
+        client = self._nautilus()
+        instrument = await _instrument(client, symbol)
+        client.cache_instrument(instrument)
+        start, end = _day_window(day)
+        rates = await client.request_funding_rates(_LINEAR, instrument.id, start, end)
+        return _json([each.to_dict() for each in rates])
+
+    async def mark_prices(self, symbol: str, day: date) -> bytes:
+        """The UTC day's 1-minute mark-price klines, each response body as returned."""
+        async with self._http() as http:
+            pages = [
+                await _get(http, "/v5/market/mark-price-kline", params)
+                for params in _mark_kline_pages(symbol, day)
+            ]
+        return _json(pages)
 
     async def _lowest_risk_tier(self, symbol: str) -> Mapping[str, Any]:
         async with self._http() as http:
@@ -78,6 +97,32 @@ async def _get(
     body = response.json()
     _check(body["retCode"], body["retMsg"], params["symbol"])
     return body
+
+
+def _day_window(day: date) -> tuple[datetime, datetime]:
+    """The UTC day as Bybit's inclusive, millisecond start and end."""
+    start = datetime.combine(day, time(), UTC)
+    return start, start + timedelta(days=1, milliseconds=-1)
+
+
+def _mark_kline_pages(symbol: str, day: date) -> list[dict[str, str]]:
+    """Query parameters for a day of 1-minute klines, in two halves of 720.
+
+    Bybit returns at most 1000 klines per request.
+    """
+    day_start, day_end = (int(each.timestamp() * 1000) for each in _day_window(day))
+    half = (day_end + 1 - day_start) // 2
+    return [
+        {
+            "category": "linear",
+            "symbol": symbol,
+            "interval": "1",
+            "start": str(start),
+            "end": str(start + half - 1),
+            "limit": "1000",
+        }
+        for start in (day_start, day_start + half)
+    ]
 
 
 def _check(code: int, message: str, symbol: str) -> None:

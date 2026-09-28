@@ -1,15 +1,18 @@
 import asyncio
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+import pandas as pd
 import pytest
 from bybit_replay import bybit_replay
 from nautilus_trader.model import (
     CryptoPerpetual,
+    FundingRateUpdate,
     InstrumentId,
+    MarkPriceUpdate,
     OrderBookDelta,
     TradeTick,
 )
@@ -56,6 +59,23 @@ def test_trades_come_from_the_daily_public_dump(bybit: Source) -> None:
     )
 
 
+def test_serves_trades_funding_and_mark_prices_per_day(bybit: Source) -> None:
+    assert bybit.data_types == (TradeTick, FundingRateUpdate, MarkPriceUpdate)
+
+
+@pytest.mark.parametrize(
+    ("data_type", "path"),
+    [
+        (FundingRateUpdate, "bybit/linear/BTCUSDT/funding/BTCUSDT2025-01-01.json"),
+        (MarkPriceUpdate, "bybit/linear/BTCUSDT/mark_price/BTCUSDT2025-01-01.json"),
+    ],
+)
+def test_rest_data_is_saved_one_json_file_per_day(
+    bybit: Source, data_type: type, path: str
+) -> None:
+    assert bybit.day_file("BTCUSDT", data_type, DAY).path == PurePosixPath(path)
+
+
 def test_unserved_data_type_is_refused(bybit: Source) -> None:
     with pytest.raises(UnsupportedDataTypeError):
         bybit.day_file("BTCUSDT", OrderBookDelta, DAY)
@@ -82,6 +102,36 @@ def test_instrument_snapshot_takes_margin_from_the_lowest_risk_tier(
     )
 
 
-def test_unlisted_symbol_is_missing_at_the_source(replayed: Source) -> None:
+def test_funding_is_the_days_settlements_as_returned(replayed: Source) -> None:
+    rates = fetched(replayed.day_file("BTCUSDT", FundingRateUpdate, DAY))
+
+    assert [pd.Timestamp(each["ts_event"], tz="UTC").hour for each in rates] == [
+        0,
+        8,
+        16,
+    ]
+    assert [each.get("interval") for each in rates] == [None, 480, 480]
+
+
+def test_mark_prices_are_every_minute_of_the_day(replayed: Source) -> None:
+    pages = fetched(replayed.day_file("BTCUSDT", MarkPriceUpdate, DAY))
+
+    opens = sorted(int(kline[0]) for page in pages for kline in page["result"]["list"])
+    day = pd.date_range(DAY, periods=1440, freq="min", tz="UTC")
+    assert opens == [each.value // 1_000_000 for each in day]
+
+
+@pytest.mark.parametrize(
+    "raw_file",
+    [
+        lambda bybit: bybit.instrument_snapshot("NOPEUSDT", DAY),
+        lambda bybit: bybit.day_file("NOPEUSDT", FundingRateUpdate, DAY),
+        lambda bybit: bybit.day_file("NOPEUSDT", MarkPriceUpdate, DAY),
+    ],
+    ids=["instrument", "funding", "mark_price"],
+)
+def test_unlisted_symbol_is_missing_at_the_source(
+    replayed: Source, raw_file: Callable[[Source], RawFile]
+) -> None:
     with pytest.raises(MissingAtSourceError, match="NOPEUSDT"):
-        fetched(replayed.instrument_snapshot("NOPEUSDT", DAY))
+        fetched(raw_file(replayed))

@@ -50,7 +50,7 @@ def _handler(responses: Mapping[Key, Any]) -> type[BaseHTTPRequestHandler]:
 def bybit_replay() -> Iterator[str]:
     """Serve the recorded responses; yields the base URL to use as Bybit's API."""
     server = ThreadingHTTPServer(("127.0.0.1", 0), _handler(_recorded()))
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread = threading.Thread(target=server.serve_forever, args=(0.05,), daemon=True)
     thread.start()
     try:
         yield f"http://127.0.0.1:{server.server_port}"

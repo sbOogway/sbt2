@@ -1,16 +1,25 @@
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from datetime import date
 from functools import partial
 from pathlib import PurePosixPath
 from typing import Any
 
-from nautilus_trader.model import InstrumentId, TradeTick
+from nautilus_trader.model import (
+    FundingRateUpdate,
+    InstrumentId,
+    MarkPriceUpdate,
+    TradeTick,
+)
 
 from sbt2.sources.base import Gap, RawFile, UnsupportedDataTypeError
 from sbt2.sources.bybit.api import BybitApi
 
-_DATA_NAMES: Mapping[str, type] = {"trades": TradeTick}
+_DATA_NAMES: Mapping[str, type] = {
+    "trades": TradeTick,
+    "funding": FundingRateUpdate,
+    "mark_price": MarkPriceUpdate,
+}
 
 
 @dataclass(frozen=True)
@@ -31,6 +40,12 @@ class BybitSource:
         self._known_gaps = known_gaps
         self._endpoints = endpoints
         self._api = BybitApi(endpoints.api)
+        self._rest_day_fetches: Mapping[
+            type, Callable[[str, date], Awaitable[bytes]]
+        ] = {
+            FundingRateUpdate: self._api.funding,
+            MarkPriceUpdate: self._api.mark_prices,
+        }
 
     @classmethod
     def from_config(cls, table: Mapping[str, Any]) -> BybitSource:
@@ -48,14 +63,15 @@ class BybitSource:
         return InstrumentId.from_str(f"{symbol}-LINEAR.BYBIT")
 
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
-        if data_type is not TradeTick:
+        if data_type is TradeTick:
+            return self._trades(symbol, day)
+        fetch = self._rest_day_fetches.get(data_type)
+        if fetch is None:
             raise UnsupportedDataTypeError(
                 f"bybit serves no {data_type.__name__} day files"
             )
-        name = f"{symbol}{day.isoformat()}.csv.gz"
         return RawFile(
-            _symbol_dir(symbol) / "trading" / name,
-            f"{self._endpoints.dumps}/trading/{symbol}/{name}",
+            _json_path(symbol, _data_name(data_type), day), partial(fetch, symbol, day)
         )
 
     def instrument_snapshot(self, symbol: str, taken_on: date) -> RawFile:
@@ -63,6 +79,17 @@ class BybitSource:
             _json_path(symbol, "instrument", taken_on),
             partial(self._api.instrument_snapshot, symbol),
         )
+
+    def _trades(self, symbol: str, day: date) -> RawFile:
+        name = f"{symbol}{day.isoformat()}.csv.gz"
+        return RawFile(
+            _symbol_dir(symbol) / "trading" / name,
+            f"{self._endpoints.dumps}/trading/{symbol}/{name}",
+        )
+
+
+def _data_name(data_type: type) -> str:
+    return next(name for name, each in _DATA_NAMES.items() if each is data_type)
 
 
 def _json_path(symbol: str, kind: str, day: date) -> PurePosixPath:
