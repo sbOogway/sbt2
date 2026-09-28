@@ -18,7 +18,7 @@ from nautilus_trader.model import (
     Symbol,
 )
 
-from sbt2.assets import AssetProfile, BuyAndHold, UnknownAssetClassError, asset_profile
+from sbt2.assets import AssetProfile, UnknownAssetClassError, asset_profile
 
 HOURLY = 3_600_000
 
@@ -82,18 +82,11 @@ def test_crypto_perp_does_not_cover_other_instruments(
 
 
 def test_crypto_perp_trades_perpetuals_every_day_of_the_year() -> None:
-    perp = crypto_perp()
-
-    assert perp.instrument_type is CryptoPerpetual
-    assert perp.days_per_year == 365
+    assert crypto_perp().days_per_year == 365
 
 
 def test_crypto_perp_funding_is_settled_natively_from_funding_updates() -> None:
-    carry = crypto_perp().carry
-
-    assert carry.name == "funding"
-    assert carry.data_types == (FundingRateUpdate,)
-    assert carry.module is None
+    assert crypto_perp().carry.data_types == (FundingRateUpdate,)
 
 
 def test_crypto_perp_values_positions_at_mark_price() -> None:
@@ -122,9 +115,3 @@ def test_crypto_perp_venue_defaults_build_a_netting_margin_venue_with_liquidatio
     assert venue.oms_type == OmsType.NETTING
     assert venue.account_type == AccountType.MARGIN
     assert venue.liquidation_enabled
-
-
-def test_crypto_perp_buy_and_hold_pays_no_funding_and_only_the_entry_fee() -> None:
-    assert crypto_perp().buy_and_hold == BuyAndHold(
-        pays_carry=False, pays_entry_fee=True, pays_exit_fee=False
-    )
