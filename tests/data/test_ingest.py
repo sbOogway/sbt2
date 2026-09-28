@@ -1,0 +1,224 @@
+from datetime import date, timedelta
+from pathlib import Path
+
+import pytest
+from local_source import (
+    INSTRUMENT_ID,
+    SYMBOL,
+    LocalSource,
+    start_of,
+    write_day,
+    write_snapshot,
+)
+from nautilus_trader.model import (
+    FundingRateUpdate,
+    MarkPriceUpdate,
+    NautilusDataType,
+    TradeTick,
+)
+from nautilus_trader.persistence import ParquetDataCatalog
+
+from sbt2.data import (
+    DayResult,
+    IngestOptions,
+    IngestOutcome,
+    IngestReport,
+    IngestRequest,
+    OutsideDayError,
+    ingest,
+)
+from sbt2.sources import Gap, UnsupportedDataTypeError
+
+DAY = date(2024, 1, 1)
+NEXT_DAY = DAY + timedelta(days=1)
+HOUR = 3_600_000_000_000
+DAY_NANOS = 24 * HOUR
+TRADES = NautilusDataType.TradeTick
+
+
+class Recorder:
+    def __init__(self) -> None:
+        self.days = 0
+        self.results: list[DayResult] = []
+
+    def planned(self, days: int) -> None:
+        self.days = days
+
+    def finished(self, result: DayResult) -> None:
+        self.results.append(result)
+
+
+@pytest.fixture
+def raw(tmp_path: Path) -> Path:
+    path = tmp_path / "raw"
+    write_snapshot(path, DAY)
+    return path
+
+
+@pytest.fixture
+def catalog_path(tmp_path: Path) -> Path:
+    return tmp_path / "catalog"
+
+
+def request(end: date = DAY, *data: str) -> IngestRequest:
+    return IngestRequest((SYMBOL,), DAY, end, data)
+
+
+def run(
+    raw: Path,
+    catalog: Path,
+    ingest_request: IngestRequest,
+    source: LocalSource | None = None,
+) -> IngestReport:
+    return ingest(source or LocalSource(), ingest_request, IngestOptions(raw, catalog))
+
+
+def hourly(day: date) -> list[int]:
+    return list(range(start_of(day), start_of(day) + DAY_NANOS, HOUR))
+
+
+def bounds(day: date) -> tuple[int, int]:
+    return start_of(day), start_of(day) + DAY_NANOS - 1
+
+
+def outcomes(report: IngestReport) -> dict[tuple[str, date], IngestOutcome]:
+    return {(each.day.data, each.day.day): each.outcome for each in report.results}
+
+
+def intervals(catalog: Path, data_type: NautilusDataType) -> list[tuple[int, int]]:
+    return ParquetDataCatalog(str(catalog)).get_intervals(data_type, str(INSTRUMENT_ID))
+
+
+def test_each_day_is_one_file_named_with_the_whole_days_bounds(
+    raw: Path, catalog_path: Path
+) -> None:
+    for day in (DAY, NEXT_DAY):
+        write_day(raw, TradeTick, day, hourly(day)[3:5])
+
+    run(raw, catalog_path, request(NEXT_DAY, "TradeTick"))
+
+    assert intervals(catalog_path, TRADES) == [bounds(DAY), bounds(NEXT_DAY)]
+    trades = ParquetDataCatalog(str(catalog_path)).query(TRADES)
+    assert [each.ts_event for each in trades] == hourly(DAY)[3:5] + hourly(NEXT_DAY)[
+        3:5
+    ]
+
+
+def test_every_served_data_type_is_ingested_by_default(
+    raw: Path, catalog_path: Path
+) -> None:
+    write_day(raw, TradeTick, DAY, hourly(DAY))
+    write_day(raw, MarkPriceUpdate, DAY, hourly(DAY))
+    write_day(raw, FundingRateUpdate, DAY, [start_of(DAY) + 8 * HOUR])
+
+    report = run(raw, catalog_path, request())
+
+    assert set(outcomes(report).values()) == {IngestOutcome.WRITTEN}
+    for data_type in (TRADES, NautilusDataType.MarkPriceUpdate):
+        assert intervals(catalog_path, data_type) == [bounds(DAY)]
+    fundings = ParquetDataCatalog(str(catalog_path)).query(
+        NautilusDataType.FundingRateUpdate
+    )
+    assert [(each.ts_event, each.interval) for each in fundings] == [
+        (start_of(DAY) + 8 * HOUR, 480)
+    ]
+
+
+@pytest.mark.parametrize("data_type", [TradeTick, MarkPriceUpdate, FundingRateUpdate])
+def test_a_raw_file_without_rows_becomes_a_covered_empty_day(
+    raw: Path, catalog_path: Path, data_type: type
+) -> None:
+    name = data_type.__name__
+    write_day(raw, data_type, DAY, [])
+
+    report = run(raw, catalog_path, request(DAY, name))
+
+    assert outcomes(report) == {(name, DAY): IngestOutcome.EMPTY}
+    stored = getattr(NautilusDataType, name)
+    assert intervals(catalog_path, stored) == [bounds(DAY)]
+    assert ParquetDataCatalog(str(catalog_path)).query(stored) == []
+
+
+def test_a_day_without_a_raw_file_is_missing_and_not_written(
+    raw: Path, catalog_path: Path
+) -> None:
+    write_day(raw, TradeTick, DAY, hourly(DAY))
+
+    report = run(raw, catalog_path, request(NEXT_DAY, "TradeTick"))
+
+    assert outcomes(report)[("TradeTick", NEXT_DAY)] is IngestOutcome.MISSING
+    assert intervals(catalog_path, TRADES) == [bounds(DAY)]
+
+
+def test_known_gap_days_are_left_out(raw: Path, catalog_path: Path) -> None:
+    source = LocalSource(frozenset({Gap(INSTRUMENT_ID, TradeTick, NEXT_DAY)}))
+    write_day(raw, TradeTick, DAY, hourly(DAY))
+
+    report = run(raw, catalog_path, request(NEXT_DAY, "TradeTick"), source)
+
+    assert list(outcomes(report)) == [("TradeTick", DAY)]
+
+
+def test_a_rerun_skips_the_days_already_in_the_catalog(
+    raw: Path, catalog_path: Path
+) -> None:
+    write_day(raw, TradeTick, DAY, hourly(DAY))
+    run(raw, catalog_path, request(DAY, "TradeTick"))
+    write_day(raw, TradeTick, DAY, hourly(DAY)[:1])
+    write_day(raw, TradeTick, NEXT_DAY, hourly(NEXT_DAY))
+
+    report = run(raw, catalog_path, request(NEXT_DAY, "TradeTick"))
+
+    assert outcomes(report) == {
+        ("TradeTick", DAY): IngestOutcome.SKIPPED,
+        ("TradeTick", NEXT_DAY): IngestOutcome.WRITTEN,
+    }
+    trades = ParquetDataCatalog(str(catalog_path)).query(TRADES)
+    assert len(trades) == 48
+
+
+def test_a_record_outside_its_day_fails_and_leaves_no_partial_day(
+    raw: Path, catalog_path: Path
+) -> None:
+    write_day(raw, TradeTick, DAY, [start_of(DAY), start_of(NEXT_DAY)])
+
+    with pytest.raises(OutsideDayError, match="1 records outside its UTC day"):
+        run(raw, catalog_path, request(DAY, "TradeTick"))
+
+    assert intervals(catalog_path, TRADES) == []
+    assert not list((catalog_path / ".staging").iterdir())
+
+
+def test_staging_is_empty_after_a_run(raw: Path, catalog_path: Path) -> None:
+    write_day(raw, TradeTick, DAY, hourly(DAY))
+
+    run(raw, catalog_path, request(DAY, "TradeTick"))
+
+    assert not list((catalog_path / ".staging").iterdir())
+
+
+def test_progress_hears_of_every_planned_day(raw: Path, catalog_path: Path) -> None:
+    write_day(raw, TradeTick, DAY, hourly(DAY))
+    recorder = Recorder()
+
+    ingest(
+        LocalSource(),
+        request(NEXT_DAY, "TradeTick"),
+        IngestOptions(raw, catalog_path, recorder),
+    )
+
+    assert recorder.days == 2
+    assert [each.outcome for each in recorder.results] == [
+        IngestOutcome.WRITTEN,
+        IngestOutcome.MISSING,
+    ]
+
+
+def test_an_unserved_data_type_is_refused(raw: Path, catalog_path: Path) -> None:
+    with pytest.raises(UnsupportedDataTypeError, match="OrderBookDelta"):
+        run(raw, catalog_path, request(DAY, "OrderBookDelta"))
+
+
+def test_a_reversed_range_is_refused() -> None:
+    with pytest.raises(ValueError, match="before"):
+        IngestRequest((SYMBOL,), NEXT_DAY, DAY)
