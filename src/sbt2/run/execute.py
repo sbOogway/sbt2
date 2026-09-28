@@ -100,16 +100,21 @@ def _write_output(backtest: _Backtest, sink: OutputSink) -> None:
 def _reports(cache: Cache, account: Any) -> Reports:
     return Reports(
         fills=ReportProvider.generate_fills_report(cache.orders()),
-        positions=ReportProvider.generate_positions_report(cache.positions()),
+        positions=ReportProvider.generate_positions_report(
+            cache.positions(), cache.position_snapshots()
+        ),
         account=ReportProvider.generate_account_report(account),
         orders=ReportProvider.generate_orders_report(cache.orders()),
     )
 
 
 def _funding(cache: Cache) -> list[PositionAdjusted]:
-    return [
+    """Reversing a netting position moves its earlier adjustments to a snapshot."""
+    positions = [*cache.position_snapshots(), *cache.positions()]
+    funding = [
         adjustment
-        for position in cache.positions()
+        for position in positions
         for adjustment in position.adjustments()
         if adjustment.adjustment_type == PositionAdjustmentType.FUNDING
     ]
+    return sorted(funding, key=lambda adjustment: adjustment.ts_event)

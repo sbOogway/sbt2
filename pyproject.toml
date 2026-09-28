@@ -7,7 +7,11 @@ dependencies = [
     "nautilus-trader==2.0.0rc6.dev20260927",
     "pandas>=3.0.6",
     "pyarrow>=25.0.1",
+    "typer>=0.27.2",
 ]
+
+[project.scripts]
+sbt2 = "sbt2.cli:app"
 
 [build-system]
 requires = ["uv_build>=0.12.19,<0.13"]
@@ -41,6 +45,7 @@ include = ["src", "tests"]
 testpaths = ["tests"]
 markers = [
     "characterization: pins behavior of a third-party dependency sbt2 relies on",
+    "golden: a fixed spec that must keep producing the same numbers",
 ]
 
 [tool.coverage.run]
