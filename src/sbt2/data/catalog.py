@@ -2,7 +2,7 @@ import hashlib
 import json
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from functools import cached_property
 from pathlib import Path
 from typing import Any
@@ -157,12 +157,6 @@ class Catalog:
     def funding(self, instrument_id: InstrumentId, window: Window) -> pd.DataFrame:
         series = _Series(instrument_id, FundingRateUpdate)
         return frames.funding(self._records(series, window))
-
-    def bars(
-        self, instrument_id: InstrumentId, window: Window, interval: timedelta
-    ) -> pd.DataFrame:
-        """Bars resampled from trades by nautilus's rules for internal time bars."""
-        return frames.bars(self.trades(instrument_id, window), interval, window.end)
 
     def status(
         self, known_gaps: frozenset[Gap], window: Window | None = None
