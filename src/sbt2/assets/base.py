@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import Any, Protocol
 
 from nautilus_trader.backtest import SimulationModule
-from nautilus_trader.model import MarkPriceUpdate
+from nautilus_trader.model import AssetClass, InstrumentClass, MarkPriceUpdate
 from nautilus_trader.portfolio import PortfolioConfig
 
 
@@ -31,8 +31,11 @@ class BuyAndHold:
 
 
 @dataclass(frozen=True)
-class AssetClass:
-    name: str
+class AssetProfile:
+    """What sbt2 needs to know about one nautilus asset class and instrument class."""
+
+    asset_class: AssetClass
+    instrument_class: InstrumentClass
     instrument_type: type
     calendar: Calendar
     days_per_year: int
@@ -41,6 +44,12 @@ class AssetClass:
     reference_prices: tuple[type, ...]
     valuation_price: type
     buy_and_hold: BuyAndHold
+
+    def covers(self, instrument: Any) -> bool:
+        return (
+            instrument.asset_class == self.asset_class
+            and instrument.instrument_class == self.instrument_class
+        )
 
     def portfolio_config(self, snapshot_interval_ms: int) -> PortfolioConfig:
         return PortfolioConfig(

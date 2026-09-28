@@ -1,36 +1,95 @@
+from decimal import Decimal
+from types import SimpleNamespace
+
 import pytest
 from nautilus_trader.backtest import BacktestVenueConfig
 from nautilus_trader.model import (
     AccountType,
+    AssetClass,
     CryptoPerpetual,
+    Currency,
     FundingRateUpdate,
+    InstrumentClass,
+    InstrumentId,
     MarkPriceUpdate,
     OmsType,
+    Price,
+    Quantity,
+    Symbol,
 )
 
-from sbt2.assets import BuyAndHold, UnknownAssetClassError, asset_class
+from sbt2.assets import AssetProfile, BuyAndHold, UnknownAssetClassError, asset_profile
 
 HOURLY = 3_600_000
 
 
-def test_lookup_by_name_returns_the_asset_class() -> None:
-    assert asset_class("crypto_perp").name == "crypto_perp"
+def crypto_perp() -> AssetProfile:
+    return asset_profile(AssetClass.CRYPTOCURRENCY, InstrumentClass.SWAP)
 
 
-def test_unknown_name_lists_the_known_asset_classes() -> None:
-    with pytest.raises(UnknownAssetClassError, match="known: crypto_perp"):
-        asset_class("equity")
+def btc_perpetual() -> CryptoPerpetual:
+    usdt = Currency.from_str("USDT")
+    return CryptoPerpetual(
+        InstrumentId.from_str("BTCUSDT-PERP.BYBIT"),
+        Symbol("BTCUSDT"),
+        Currency.from_str("BTC"),
+        usdt,
+        usdt,
+        False,
+        1,
+        3,
+        Price.from_str("0.1"),
+        Quantity.from_str("0.001"),
+        0,
+        0,
+        margin_init=Decimal("0.01"),
+        margin_maint=Decimal("0.005"),
+    )
+
+
+def test_lookup_by_nautilus_classes_returns_the_profile() -> None:
+    profile = crypto_perp()
+
+    assert profile.asset_class == AssetClass.CRYPTOCURRENCY
+    assert profile.instrument_class == InstrumentClass.SWAP
+
+
+def test_unknown_classes_list_the_known_profiles() -> None:
+    with pytest.raises(
+        UnknownAssetClassError,
+        match="no asset profile for EQUITY/SPOT; known: CRYPTOCURRENCY/SWAP",
+    ):
+        asset_profile(AssetClass.EQUITY, InstrumentClass.SPOT)
+
+
+def test_crypto_perp_covers_nautilus_perpetuals() -> None:
+    assert crypto_perp().covers(btc_perpetual())
+
+
+@pytest.mark.parametrize(
+    ("asset_class", "instrument_class"),
+    [
+        (AssetClass.CRYPTOCURRENCY, InstrumentClass.SPOT),
+        (AssetClass.EQUITY, InstrumentClass.SWAP),
+    ],
+)
+def test_crypto_perp_does_not_cover_other_instruments(
+    asset_class: AssetClass, instrument_class: InstrumentClass
+) -> None:
+    other = SimpleNamespace(asset_class=asset_class, instrument_class=instrument_class)
+
+    assert not crypto_perp().covers(other)
 
 
 def test_crypto_perp_trades_perpetuals_every_day_of_the_year() -> None:
-    perp = asset_class("crypto_perp")
+    perp = crypto_perp()
 
     assert perp.instrument_type is CryptoPerpetual
     assert perp.days_per_year == 365
 
 
 def test_crypto_perp_funding_is_settled_natively_from_funding_updates() -> None:
-    carry = asset_class("crypto_perp").carry
+    carry = crypto_perp().carry
 
     assert carry.name == "funding"
     assert carry.data_types == (FundingRateUpdate,)
@@ -38,14 +97,14 @@ def test_crypto_perp_funding_is_settled_natively_from_funding_updates() -> None:
 
 
 def test_crypto_perp_values_positions_at_mark_price() -> None:
-    perp = asset_class("crypto_perp")
+    perp = crypto_perp()
 
     assert perp.reference_prices == (MarkPriceUpdate,)
     assert perp.valuation_price is MarkPriceUpdate
 
 
 def test_crypto_perp_portfolio_uses_mark_prices() -> None:
-    config = asset_class("crypto_perp").portfolio_config(HOURLY)
+    config = crypto_perp().portfolio_config(HOURLY)
 
     assert config.use_mark_prices
     assert config.snapshot_interval_ms == HOURLY
@@ -54,7 +113,7 @@ def test_crypto_perp_portfolio_uses_mark_prices() -> None:
 def test_crypto_perp_venue_defaults_build_a_netting_margin_venue_with_liquidation() -> (
     None
 ):
-    defaults = asset_class("crypto_perp").venue_defaults
+    defaults = crypto_perp().venue_defaults
 
     venue = BacktestVenueConfig(
         name="BYBIT", starting_balances=["10000 USDT"], **defaults
@@ -66,6 +125,6 @@ def test_crypto_perp_venue_defaults_build_a_netting_margin_venue_with_liquidatio
 
 
 def test_crypto_perp_buy_and_hold_pays_no_funding_and_only_the_entry_fee() -> None:
-    assert asset_class("crypto_perp").buy_and_hold == BuyAndHold(
+    assert crypto_perp().buy_and_hold == BuyAndHold(
         pays_carry=False, pays_entry_fee=True, pays_exit_fee=False
     )
