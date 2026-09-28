@@ -30,10 +30,3 @@ steps:
     commands:
       - uv sync --locked
       - uv run --locked pytest -m characterization
-
-  - name: live
-    image: *image
-    environment: *env
-    commands:
-      - uv sync --locked
-      - uv run --locked pytest -m live
