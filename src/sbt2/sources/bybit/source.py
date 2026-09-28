@@ -1,8 +1,8 @@
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import date
 from functools import partial
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from nautilus_trader.model import (
@@ -13,12 +13,19 @@ from nautilus_trader.model import (
 )
 
 from sbt2.sources.base import Gap, RawFile, UnsupportedDataTypeError
+from sbt2.sources.bybit import parse
 from sbt2.sources.bybit.api import BybitApi
 
 _DATA_NAMES: Mapping[str, type] = {
     "trades": TradeTick,
     "funding": FundingRateUpdate,
     "mark_price": MarkPriceUpdate,
+}
+
+_PARSERS: Mapping[type, Callable[[Path, Any], Iterator[Any]]] = {
+    TradeTick: parse.trades,
+    FundingRateUpdate: parse.funding,
+    MarkPriceUpdate: parse.mark_prices,
 }
 
 
@@ -79,6 +86,15 @@ class BybitSource:
             _json_path(symbol, "instrument", taken_on),
             partial(self._api.instrument_snapshot, symbol),
         )
+
+    def parse(self, path: Path, data_type: type, instrument: Any) -> Iterator[Any]:
+        parser = _PARSERS.get(data_type)
+        if parser is None:
+            raise UnsupportedDataTypeError(f"bybit parses no {data_type.__name__}")
+        return parser(path, instrument)
+
+    def parse_instrument(self, path: Path) -> Any:
+        return parse.instrument(path)
 
     def _trades(self, symbol: str, day: date) -> RawFile:
         name = f"{symbol}{day.isoformat()}.csv.gz"
