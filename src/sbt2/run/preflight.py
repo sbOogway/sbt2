@@ -41,7 +41,7 @@ def preflight(
     _check_snapshots(spec)
     uncovered = _uncovered(spec, Catalog(folders.catalog), source.known_gaps)
     if uncovered.missing:
-        described = ", ".join(map(_described, uncovered.missing))
+        described = ", ".join(map(str, uncovered.missing))
         raise MissingDataError(f"the catalog lacks {described}")
     return uncovered.known_gaps
 
@@ -106,7 +106,3 @@ def _selection(spec: ResolvedRunSpec) -> Selection:
         ),
         Window(first["start_time"], first["end_time"]),
     )
-
-
-def _described(gap: Gap) -> str:
-    return f"{gap.instrument_id} {gap.data_type.__name__} {gap.day.isoformat()}"

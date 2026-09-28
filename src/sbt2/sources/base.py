@@ -42,6 +42,9 @@ class Gap:
     data_type: type
     day: date
 
+    def __str__(self) -> str:
+        return f"{self.instrument_id} {self.data_type.__name__} {self.day.isoformat()}"
+
 
 class Source(Protocol):
     @property
