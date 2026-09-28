@@ -2,11 +2,16 @@ from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any
 
-from nautilus_trader.backtest import BacktestEngine, BacktestEngineConfig
+from nautilus_trader.backtest import (
+    BacktestEngine,
+    BacktestEngineConfig,
+    BacktestVenueConfig,
+)
 from nautilus_trader.common import Cache, LoggerConfig, LogLevel
 from nautilus_trader.execution import FixedFeeModel
 from nautilus_trader.model import (
     AccountType,
+    AggressorSide,
     CryptoPerpetual,
     Currency,
     FundingRateUpdate,
@@ -20,6 +25,8 @@ from nautilus_trader.model import (
     Quantity,
     QuoteTick,
     Symbol,
+    TradeId,
+    TradeTick,
     Venue,
 )
 from nautilus_trader.portfolio import PortfolioConfig
@@ -64,6 +71,18 @@ def quote(ts: int, price: str = "50000.0") -> QuoteTick:
     )
 
 
+def trade(ts: int, price: str = "50000.0") -> TradeTick:
+    return TradeTick(
+        INSTRUMENT_ID,
+        Price.from_str(price),
+        Quantity.from_str("1.000"),
+        AggressorSide.BUY,
+        TradeId(str(ts)),
+        ts,
+        ts,
+    )
+
+
 def mark(ts: int, price: str = "50000.0") -> MarkPriceUpdate:
     return MarkPriceUpdate(INSTRUMENT_ID, Price.from_str(price), ts, ts)
 
@@ -87,6 +106,18 @@ def quiet_engine_config(
         logging=LoggerConfig(stdout_level=LogLevel.ERROR),
         portfolio=portfolio,
     )
+
+
+def venues() -> list[BacktestVenueConfig]:
+    venue = BacktestVenueConfig(
+        VENUE.value,
+        "NETTING",
+        "MARGIN",
+        [STARTING_BALANCE],
+        default_leverage=Decimal(10),
+        fee_model=zero_fee_model(),
+    )
+    return [venue]
 
 
 class BuyOneOnFirstQuote(Strategy):
