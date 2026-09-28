@@ -1,4 +1,3 @@
-from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -8,7 +7,6 @@ from kit import (
     HOUR,
     INSTRUMENT_ID,
     START,
-    STARTING_BALANCE,
     VENUE,
     BuyOneOnFirstQuote,
     funding,
@@ -18,7 +16,7 @@ from kit import (
     quiet_engine_config,
     quote,
     usdt,
-    zero_fee_model,
+    venues,
 )
 from nautilus_trader.backtest import (
     BacktestDataConfig,
@@ -26,7 +24,6 @@ from nautilus_trader.backtest import (
     BacktestNode,
     BacktestResult,
     BacktestRunConfig,
-    BacktestVenueConfig,
 )
 from nautilus_trader.common import LoggerConfig, LogLevel
 from nautilus_trader.model import NautilusDataType, QuoteTick
@@ -51,18 +48,6 @@ def build_one_day_catalog(path: Path) -> None:
     )
     fundings = [funding(START + k * FUNDING_INTERVAL) for k in (1, 2)]
     write_funding(path, fundings, (start, end))
-
-
-def venues() -> list[BacktestVenueConfig]:
-    venue = BacktestVenueConfig(
-        VENUE.value,
-        "NETTING",
-        "MARGIN",
-        [STARTING_BALANCE],
-        default_leverage=Decimal(10),
-        fee_model=zero_fee_model(),
-    )
-    return [venue]
 
 
 def catalog_streams(path: Path) -> list[BacktestDataConfig]:

@@ -2,7 +2,11 @@ from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any
 
-from nautilus_trader.backtest import BacktestEngine, BacktestEngineConfig
+from nautilus_trader.backtest import (
+    BacktestEngine,
+    BacktestEngineConfig,
+    BacktestVenueConfig,
+)
 from nautilus_trader.common import Cache, LoggerConfig, LogLevel
 from nautilus_trader.execution import FixedFeeModel
 from nautilus_trader.model import (
@@ -87,6 +91,18 @@ def quiet_engine_config(
         logging=LoggerConfig(stdout_level=LogLevel.ERROR),
         portfolio=portfolio,
     )
+
+
+def venues() -> list[BacktestVenueConfig]:
+    venue = BacktestVenueConfig(
+        VENUE.value,
+        "NETTING",
+        "MARGIN",
+        [STARTING_BALANCE],
+        default_leverage=Decimal(10),
+        fee_model=zero_fee_model(),
+    )
+    return [venue]
 
 
 class BuyOneOnFirstQuote(Strategy):
