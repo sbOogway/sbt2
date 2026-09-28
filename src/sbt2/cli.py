@@ -22,7 +22,7 @@ from rich.progress import (
 
 from sbt2 import data, sources, spec
 from sbt2.results import ParquetResultStore, Provenance
-from sbt2.run import RunSettings, execute
+from sbt2.run import DataFolders, RunSettings, execute, preflight
 
 DATA = Path("data")
 SOURCES = Path("config/sources.toml")
@@ -59,11 +59,13 @@ def main(
 def run(
     context: typer.Context,
     spec_file: Annotated[Path, typer.Argument(help="The run spec, a TOML file.")],
-    data: Annotated[Path, typer.Option(help="Holds catalog/ and results/.")] = DATA,
+    data: Annotated[
+        Path, typer.Option(help="Holds raw/, catalog/ and results/.")
+    ] = DATA,
 ) -> None:
     """Run the backtest a spec file describes and store its result."""
     try:
-        _run(spec_file, data, LogLevel.from_str(context.obj))
+        _run(spec_file, data.resolve(), LogLevel.from_str(context.obj))
     except Exception:
         logger.exception("run of %s failed", spec_file)
         raise typer.Exit(1) from None
@@ -71,8 +73,13 @@ def run(
 
 def _run(spec_file: Path, data: Path, log_level: LogLevel) -> None:
     resolved = spec.load(spec_file)
+    source = sources.source(resolved.source, SOURCES)
+    known_gaps = preflight(
+        resolved, source, DataFolders(data / "raw", data / "catalog")
+    )
+    provenance = replace(Provenance.of_repo(Path.cwd()), known_gaps=known_gaps)
     store = ParquetResultStore(data / "results")
-    sink = store.new_run(resolved, Provenance.of_repo(Path.cwd()))
+    sink = store.new_run(resolved, provenance)
     execute(resolved, sink, RunSettings(data / "catalog", log_level=log_level))
     logger.info("stored run %s in %s", sink.run_id, data / "results")
 
