@@ -22,7 +22,7 @@ CRYPTO_PERP = AssetProfile(
         {
             "oms_type": OmsType.NETTING,
             "account_type": AccountType.MARGIN,
-            "liquidation_enabled": True,
+            "liquidation_enabled": False,
         }
     ),
     reference_prices=(MarkPriceUpdate,),

@@ -55,6 +55,14 @@ asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 fill_model = { path = "nautilus_trader.execution:DefaultFillModel", config = { prob_fill_on_limit = 0.5, prob_slippage = 0.1 } }
 
+[unliquidated_linear]
+name = "BYBIT"
+source = "bybit"
+asset_class = "CRYPTOCURRENCY"
+instrument_class = "SWAP"
+liquidation_enabled = false
+fee_model = { path = "nautilus_trader.execution:MakerTakerFeeModel", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
+
 [other_source]
 name = "BYBIT"
 source = "mirror"
@@ -135,9 +143,27 @@ def test_venue_arguments_start_from_the_asset_defaults(
 
     assert venue["oms_type"] == OmsType.NETTING
     assert venue["account_type"] == AccountType.MARGIN
-    assert venue["liquidation_enabled"] is True
+    assert venue["liquidation_enabled"] is False
     assert venue["default_leverage"] == "10"
     assert venue["starting_balances"] == ["10000 USDT"]
+
+
+def test_liquidation_follows_the_venue_profile_by_default(
+    paths: tuple[Path, Path],
+) -> None:
+    venue = resolved(paths, venue="unliquidated_linear").venue
+
+    assert venue["liquidation_enabled"] is False
+
+
+def test_the_liquidation_key_overrides_the_venue_profile(
+    paths: tuple[Path, Path],
+) -> None:
+    unset = resolved(paths, venue="unliquidated_linear")
+    liquidated = resolved(paths, venue="unliquidated_linear", liquidation=True)
+
+    assert liquidated.venue["liquidation_enabled"] is True
+    assert liquidated.hash != unset.hash
 
 
 def test_data_covers_declared_bars_and_the_asset_streams_from_warmup(

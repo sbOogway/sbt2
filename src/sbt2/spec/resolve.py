@@ -113,7 +113,7 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
         strategy=StrategyRun(spec.strategy, instruments, asdict(params), spec.start),
         asset=asset,
         source=profile.source,
-        venue=_seeded({**venue, "starting_balances": [spec.capital]}, spec.seed),
+        venue=_seeded(_venue_arguments(spec, venue), spec.seed),
         data=_data(
             _data_types(strategy.inputs(params), asset),
             instruments,
@@ -133,6 +133,13 @@ def _instruments(ids: Iterable[str], venue: str) -> list[InstrumentId]:
             f"instruments {', '.join(foreign)} are not on the venue profile's {venue}"
         )
     return instruments
+
+
+def _venue_arguments(spec: RunSpec, profile: Mapping[str, Any]) -> dict[str, Any]:
+    arguments = {**profile, "starting_balances": [spec.capital]}
+    if spec.liquidation is not None:
+        arguments["liquidation_enabled"] = spec.liquidation
+    return arguments
 
 
 def _seeded(venue: dict[str, Any], seed: int) -> dict[str, Any]:

@@ -22,7 +22,7 @@ steps:
     environment: *env
     commands:
       - uv sync --locked
-      - uv run --locked pytest --cov -m "not live and not characterization"
+      - uv run --locked pytest --cov -m "not live and not characterization and not realdata"
 
   - name: characterization
     image: *image

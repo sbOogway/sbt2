@@ -1,10 +1,12 @@
 import json
-from collections.abc import Hashable, Iterator
+from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import pyarrow as pa
+import pyarrow.compute as pc
 from nautilus_trader.model import (
     AggressorSide,
     CryptoPerpetual,
@@ -15,19 +17,24 @@ from nautilus_trader.model import (
     TradeId,
     TradeTick,
 )
+from pyarrow import csv
 
 from sbt2.sources.base import FundingOffGridError
 
 _NANOS_PER_MINUTE = 60_000_000_000
 _NANOS_PER_MILLI = 1_000_000
 _AGGRESSOR_SIDES = {"Buy": AggressorSide.BUY, "Sell": AggressorSide.SELL}
-_TRADE_COLUMNS: dict[Hashable, str] = {
-    "timestamp": "string",
-    "side": "string",
-    "size": "float64",
-    "price": "float64",
-    "trdMatchID": "string",
+# Decimal epoch seconds, so nanoseconds stay exact to the last digit given.
+_TRADE_COLUMNS = {
+    "timestamp": pa.decimal128(20, 9),
+    "side": pa.string(),
+    "size": pa.float64(),
+    "price": pa.float64(),
+    "trdMatchID": pa.string(),
 }
+_TRADE_FIELDS = ("ts", "side", "size", "price", "trdMatchID")
+_NANOS_PER_SECOND = pa.scalar(1_000_000_000, pa.decimal128(10, 0))
+_BATCH_ROWS = 100_000
 
 
 def instrument(path: Path) -> Any:
@@ -37,20 +44,8 @@ def instrument(path: Path) -> Any:
 
 
 def trades(path: Path, instrument: Any) -> Iterator[TradeTick]:
-    rows = _trade_rows(path)
-    columns = ("ts", "side", "size", "price", "trdMatchID")
-    for ts, side, size, price, match_id in zip(
-        *(rows[each].tolist() for each in columns), strict=True
-    ):
-        yield TradeTick(
-            instrument.id,
-            Price(price, instrument.price_precision),
-            Quantity(size, instrument.size_precision),
-            _AGGRESSOR_SIDES[side],
-            TradeId(match_id),
-            ts,
-            ts,
-        )
+    for batch in _trade_rows(path).to_batches(_BATCH_ROWS):
+        yield from _ticks(batch, instrument)
 
 
 def funding(path: Path, instrument: Any) -> Iterator[FundingRateUpdate]:
@@ -85,19 +80,31 @@ def _snapshot_day_nanos(path: Path) -> int:
     return pd.Timestamp(taken_on, tz="UTC").value
 
 
-def _trade_rows(path: Path) -> pd.DataFrame:
+def _ticks(batch: pa.RecordBatch, instrument: Any) -> Iterator[TradeTick]:
+    columns = (batch[each].to_pylist() for each in _TRADE_FIELDS)
+    for ts, side, size, price, match_id in zip(*columns, strict=True):
+        yield TradeTick(
+            instrument.id,
+            Price(price, instrument.price_precision),
+            Quantity(size, instrument.size_precision),
+            _AGGRESSOR_SIDES[side],
+            TradeId(match_id),
+            ts,
+            ts,
+        )
+
+
+def _trade_rows(path: Path) -> pa.Table:
     """The dump's rows in time order; older dumps run newest-first."""
-    rows = pd.read_csv(path, usecols=list(_TRADE_COLUMNS), dtype=_TRADE_COLUMNS)
-    rows["ts"] = _epoch_nanos(rows.pop("timestamp"))
-    return rows.sort_values("ts", kind="stable")
-
-
-def _epoch_nanos(seconds: pd.Series) -> pd.Series:
-    """Decimal epoch seconds as integer nanoseconds, exact to the last digit given."""
-    parts = seconds.str.split(".", n=1, expand=True).reindex(columns=[0, 1])
-    whole = parts[0].astype("int64")
-    fraction = parts[1].fillna("").str.ljust(9, "0").astype("int64")
-    return whole * 1_000_000_000 + fraction
+    table = csv.read_csv(
+        path,
+        convert_options=csv.ConvertOptions(
+            include_columns=list(_TRADE_COLUMNS), column_types=_TRADE_COLUMNS
+        ),
+    )
+    nanos = pc.call_function("multiply", [table["timestamp"], _NANOS_PER_SECOND])
+    rows = table.drop_columns("timestamp").append_column("ts", nanos.cast(pa.int64()))
+    return rows.sort_by("ts")
 
 
 def _on_grid(record: dict[str, Any], interval: int) -> FundingRateUpdate:
