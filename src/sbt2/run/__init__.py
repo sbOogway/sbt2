@@ -1,6 +1,7 @@
 from sbt2.run.execute import BacktestError, NoAccountError, RunSettings, execute
 from sbt2.run.preflight import (
     DataFolders,
+    MissingDataError,
     PreflightError,
     SnapshotBufferError,
     preflight,
@@ -9,6 +10,7 @@ from sbt2.run.preflight import (
 __all__ = [
     "BacktestError",
     "DataFolders",
+    "MissingDataError",
     "NoAccountError",
     "PreflightError",
     "RunSettings",
