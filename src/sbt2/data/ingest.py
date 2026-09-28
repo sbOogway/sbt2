@@ -9,8 +9,8 @@ from typing import Any, Protocol
 
 import pandas as pd
 
-from sbt2.data import _days
-from sbt2.data._catalog_writer import Bounds, CatalogWriter, DayFile
+from sbt2.data.catalog_writer import Bounds, CatalogWriter, DayFile
+from sbt2.data.days import data_types, days, is_known_gap
 from sbt2.sources import Source
 
 _ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -119,28 +119,28 @@ def ingest(
     """
     options.catalog.mkdir(parents=True, exist_ok=True)
     job = _Job(source, request, options, CatalogWriter(options.catalog))
-    data_types = _days.data_types(source, request.data)
-    options.progress.planned(_planned_days(request, data_types))
+    types = data_types(source, request.data)
+    options.progress.planned(_planned_days(request, types))
     results = [
         result
         for symbol in request.symbols
-        for result in _ingest_symbol(job, symbol, data_types)
+        for result in _ingest_symbol(job, symbol, types)
     ]
     return IngestReport(tuple(results))
 
 
-def _planned_days(request: IngestRequest, data_types: Sequence[type]) -> int:
-    days = (request.end - request.start).days + 1
-    return len(request.symbols) * len(data_types) * days
+def _planned_days(request: IngestRequest, types: Sequence[type]) -> int:
+    span = (request.end - request.start).days + 1
+    return len(request.symbols) * len(types) * span
 
 
 def _ingest_symbol(
-    job: _Job, symbol: str, data_types: Sequence[type]
+    job: _Job, symbol: str, types: Sequence[type]
 ) -> Iterator[DayResult]:
     instrument = _pinned_instrument(job, symbol)
-    days = _days.days(job.request.start, job.request.end)
-    for data_type, day in product(data_types, days):
-        if not _days.is_known_gap(job.source, symbol, data_type, day):
+    span = days(job.request.start, job.request.end)
+    for data_type, day in product(types, span):
+        if not is_known_gap(job.source, symbol, data_type, day):
             result = _ingest_day(job, instrument, Day(symbol, data_type.__name__, day))
             job.options.progress.finished(result)
             yield result

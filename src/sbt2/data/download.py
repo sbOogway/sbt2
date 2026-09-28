@@ -11,7 +11,7 @@ from typing import Protocol
 
 import httpx
 
-from sbt2.data import _days
+from sbt2.data.days import data_types, days, is_known_gap
 from sbt2.sources import Fetch, MissingAtSourceError, RawFile, Source
 
 logger = logging.getLogger(__name__)
@@ -130,10 +130,10 @@ def _snapshots(source: Source, request: DownloadRequest) -> Iterator[Item]:
 
 
 def _day_files(source: Source, request: DownloadRequest) -> Iterator[Item]:
-    data_types = _days.data_types(source, request.data)
-    days = _days.days(request.start, request.end)
-    for symbol, data_type, day in product(request.symbols, data_types, days):
-        if not _days.is_known_gap(source, symbol, data_type, day):
+    types = data_types(source, request.data)
+    span = days(request.start, request.end)
+    for symbol, data_type, day in product(request.symbols, types, span):
+        if not is_known_gap(source, symbol, data_type, day):
             raw = source.day_file(symbol, data_type, day)
             yield Item(symbol, data_type.__name__, day, raw)
 
