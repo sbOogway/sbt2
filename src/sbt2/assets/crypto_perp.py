@@ -2,17 +2,20 @@ from types import MappingProxyType
 
 from nautilus_trader.model import (
     AccountType,
+    AssetClass,
     CryptoPerpetual,
     FundingRateUpdate,
+    InstrumentClass,
     MarkPriceUpdate,
     OmsType,
 )
 
-from sbt2.assets.base import AssetClass, BuyAndHold, Carry
+from sbt2.assets.base import AssetProfile, BuyAndHold, Carry
 from sbt2.assets.calendars import AlwaysOpen
 
-CRYPTO_PERP = AssetClass(
-    name="crypto_perp",
+CRYPTO_PERP = AssetProfile(
+    asset_class=AssetClass.CRYPTOCURRENCY,
+    instrument_class=InstrumentClass.SWAP,
     instrument_type=CryptoPerpetual,
     calendar=AlwaysOpen(),
     days_per_year=365,
