@@ -24,3 +24,16 @@ class MinuteLookback(Strategy[LookbackParams]):
     @classmethod
     def inputs(cls, params: LookbackParams) -> Sequence[BarSpecification]:
         return (BarSpecification.from_str("1-MINUTE-LAST"),)
+
+
+@dataclass(frozen=True)
+class BarParams:
+    bar: str = "1-HOUR-LAST"
+
+
+class DeclaredBar(Strategy[BarParams]):
+    Params = BarParams
+
+    @classmethod
+    def inputs(cls, params: BarParams) -> Sequence[BarSpecification]:
+        return (BarSpecification.from_str(params.bar),)

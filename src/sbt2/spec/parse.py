@@ -20,6 +20,8 @@ class RunSpec:
 
     ``capital`` is a nautilus money string such as ``"10000 USDT"``.
     ``liquidation`` overrides the venue profile's ``liquidation_enabled``.
+    ``bars`` says what the declared bars are aggregated from: ``"trades"`` or
+    ``"candles"``.
     """
 
     strategy: str
@@ -31,6 +33,7 @@ class RunSpec:
     seed: int = 42
     equity_interval: str = "1h"
     liquidation: bool | None = None
+    bars: str = "trades"
     params: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:

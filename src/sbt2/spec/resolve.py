@@ -1,6 +1,6 @@
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +11,7 @@ from nautilus_trader.backtest import (
     BacktestVenueConfig,
 )
 from nautilus_trader.model import (
+    Bar,
     BarSpecification,
     InstrumentId,
     NautilusDataType,
@@ -20,10 +21,14 @@ from nautilus_trader.model import (
 )
 
 from sbt2.assets import AssetProfile
+from sbt2.sources import candle_type
 from sbt2.spec.canonical import canonical_hash, canonical_json
 from sbt2.spec.parse import RunSpec
 from sbt2.spec.venues import venue_objects, venue_profile
 from sbt2.strategy import StrategyRun, import_strategy, resolve_params
+
+_BAR_SOURCES = ("trades", "candles")
+_MINUTE = timedelta(minutes=1)
 
 
 @dataclass(frozen=True)
@@ -102,6 +107,14 @@ class InstrumentVenueError(ValueError):
     pass
 
 
+class UnknownBarSourceError(ValueError):
+    pass
+
+
+class CandleBarError(ValueError):
+    """A declared bar that 1-minute candles cannot build."""
+
+
 def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
     profile = venue_profile(venue_profiles, spec.venue)
     asset, venue = profile.asset, profile.arguments
@@ -115,7 +128,7 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
         source=profile.source,
         venue=_seeded(_venue_arguments(spec, venue), spec.seed),
         data=_data(
-            _data_types(strategy.inputs(params), asset),
+            _data_types(_bar_source(spec.bars, strategy.inputs(params)), asset),
             instruments,
             (data_start, spec.end),
         ),
@@ -151,19 +164,41 @@ def _seeded(venue: dict[str, Any], seed: int) -> dict[str, Any]:
     return {**venue, "fill_model": {**model, "config": config}}
 
 
-def _data_types(
-    inputs: Sequence[BarSpecification], asset: AssetProfile
-) -> list[NautilusDataType]:
-    """Trades or quotes for the declared bars, plus the asset class's own streams."""
-    kinds = {_bar_source(spec) for spec in inputs}
-    kinds |= {*asset.carry.data_types, *asset.reference_prices}
+def _data_types(bar_sources: set[type], asset: AssetProfile) -> list[NautilusDataType]:
+    """What the declared bars are built from, plus the asset class's own streams."""
+    kinds = bar_sources | {*asset.carry.data_types, *asset.reference_prices}
     return [
         getattr(NautilusDataType, name) for name in sorted(k.__name__ for k in kinds)
     ]
 
 
-def _bar_source(spec: BarSpecification) -> type:
+def _bar_source(bars: str, inputs: Sequence[BarSpecification]) -> set[type]:
+    if bars == "trades":
+        return {_tick_source(spec) for spec in inputs}
+    if bars == "candles":
+        for spec in inputs:
+            _check_candle_built(spec)
+        return {Bar}
+    raise UnknownBarSourceError(
+        f"bars {bars!r} is not one of {', '.join(_BAR_SOURCES)}"
+    )
+
+
+def _tick_source(spec: BarSpecification) -> type:
     return TradeTick if spec.price_type == PriceType.LAST else QuoteTick
+
+
+def _check_candle_built(spec: BarSpecification) -> None:
+    buildable = (
+        spec.is_time_aggregated()
+        and spec.timedelta % _MINUTE == timedelta(0)
+        and spec.price_type == PriceType.LAST
+    )
+    if not buildable:
+        raise CandleBarError(
+            f"1-minute candles cannot build {spec} bars; they build time bars "
+            "of whole minutes on LAST prices"
+        )
 
 
 def _data(
@@ -176,8 +211,17 @@ def _data(
         {
             "data_type": data_type,
             "instrument_ids": list(instruments),
+            **_bar_types(data_type, instruments),
             "start_time": start,
             "end_time": end,
         }
         for data_type in data_types
     ]
+
+
+def _bar_types(
+    data_type: NautilusDataType, instruments: Sequence[InstrumentId]
+) -> dict[str, list[str]]:
+    if data_type != NautilusDataType.Bar:
+        return {}
+    return {"bar_types": [str(candle_type(each)) for each in instruments]}

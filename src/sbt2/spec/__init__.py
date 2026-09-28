@@ -3,14 +3,22 @@ from pathlib import Path
 from typing import Any
 
 from sbt2.spec.parse import UnknownSpecKeyError, read_spec
-from sbt2.spec.resolve import InstrumentVenueError, ResolvedRunSpec, resolve
+from sbt2.spec.resolve import (
+    CandleBarError,
+    InstrumentVenueError,
+    ResolvedRunSpec,
+    UnknownBarSourceError,
+    resolve,
+)
 from sbt2.spec.venues import InvalidVenueProfileError, UnknownVenueProfileError
 
 __all__ = [
     "VENUE_PROFILES",
+    "CandleBarError",
     "InstrumentVenueError",
     "InvalidVenueProfileError",
     "ResolvedRunSpec",
+    "UnknownBarSourceError",
     "UnknownSpecKeyError",
     "UnknownVenueProfileError",
     "load",
