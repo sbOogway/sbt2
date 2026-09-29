@@ -20,7 +20,6 @@ from sbt2.results.store import MissingTableError, Table, UnknownRunError
 from sbt2.results.tables import carry_table, equity_table, read_table, write_table
 from sbt2.spec import ResolvedRunSpec
 
-RESULTS = Path("data/results")
 SUMMARY = "summary"
 
 _SUMMARIES = f"*/{SUMMARY}.parquet"
@@ -61,7 +60,7 @@ _SUMMARY_SCHEMA = pa.schema(
 class ParquetResultStore:
     """Each run is a folder of parquet tables under ``root/runs/{run_id}``."""
 
-    def __init__(self, root: Path = RESULTS) -> None:
+    def __init__(self, root: Path) -> None:
         self._runs = root / "runs"
 
     def new_run(

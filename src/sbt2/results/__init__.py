@@ -6,7 +6,7 @@ from sbt2.results.metrics import (
     equity_curve,
     headline_metrics,
 )
-from sbt2.results.parquet import RESULTS, ParquetResultStore
+from sbt2.results.parquet import ParquetResultStore
 from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
 from sbt2.results.store import (
     MissingTableError,
@@ -16,7 +16,6 @@ from sbt2.results.store import (
 )
 
 __all__ = [
-    "RESULTS",
     "CurrencyMismatchError",
     "HeadlineMetrics",
     "IncompleteRunError",

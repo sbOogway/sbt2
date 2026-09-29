@@ -26,6 +26,7 @@ from rich.progress import (
 )
 
 from sbt2 import data, spec
+from sbt2.config import ROOT, SOURCES, Root
 from sbt2.data import sources
 from sbt2.results import MissingTableError, ParquetResultStore, ResultStore
 from sbt2.run import (
@@ -37,8 +38,6 @@ from sbt2.run import (
     batch,
 )
 
-DATA = Path("data")
-SOURCES = Path("config/sources.toml")
 DAY = ["%Y-%m-%d"]
 SIZE = re.compile(r"(\d+)([KMGT]?)")
 SIZE_UNITS = {"": 0, "K": 10, "M": 20, "G": 30, "T": 40}
@@ -87,7 +86,7 @@ def run(
     spec_file: Annotated[Path, typer.Argument(help="The run spec, a TOML file.")],
     data: Annotated[
         Path, typer.Option(help="Holds raw/, catalog/ and results/.")
-    ] = DATA,
+    ] = ROOT,
     memory_budget: Annotated[
         int | None,
         typer.Option(
@@ -107,9 +106,9 @@ def run(
 ) -> None:
     """Run the backtests a spec file describes and store their results."""
     try:
-        root = data.resolve()
+        root = Root(data.resolve())
         level = LogLevel.from_str(context.obj)
-        settings = RunSettings(root / "catalog", log_level=level)
+        settings = RunSettings(root.catalog, log_level=level)
         _run(spec_file, _setup(root, settings, _memory(memory_budget, memory_per_run)))
     except Exception:
         logger.exception("run of %s failed", spec_file)
@@ -120,11 +119,11 @@ def _memory(budget: int | None, per_run: int | None) -> Memory:
     return Memory(budget) if per_run is None else Memory(budget, per_run)
 
 
-def _setup(data: Path, settings: RunSettings, memory: Memory) -> BatchSetup:
+def _setup(root: Root, settings: RunSettings, memory: Memory) -> BatchSetup:
     return BatchSetup(
-        store=ParquetResultStore(data / "results"),
+        store=ParquetResultStore(root.results),
         sources=lambda name: sources.source(name, SOURCES),
-        folders=DataFolders(data / "raw", data / "catalog"),
+        folders=DataFolders(root.raw, root.catalog),
         settings=settings,
         launcher=SystemdScope(),
         memory=memory,
@@ -158,12 +157,12 @@ def download(
     ] = None,
     data_root: Annotated[
         Path, typer.Option("--data", help="Raw files go to PATH/raw.")
-    ] = DATA,
+    ] = ROOT,
     concurrency: Annotated[int, typer.Option(min=1)] = 8,
     retries: Annotated[int, typer.Option(min=0, help="Per file.")] = 5,
 ) -> None:
     """Fetch a source's raw files for a range of days, and today's instruments."""
-    options = data.DownloadOptions(data_root / "raw", concurrency, retries)
+    options = data.DownloadOptions(Root(data_root).raw, concurrency, retries)
     try:
         request = data.DownloadRequest(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ())
@@ -217,7 +216,7 @@ def ingest(
     data_root: Annotated[
         Path,
         typer.Option("--data", help="Reads PATH/raw, writes PATH/catalog."),
-    ] = DATA,
+    ] = ROOT,
     reingest: Annotated[
         bool,
         typer.Option(
@@ -227,7 +226,8 @@ def ingest(
     ] = False,
 ) -> None:
     """Write a source's raw files for a range of days into the catalog."""
-    options = data.IngestOptions(data_root / "raw", data_root / "catalog")
+    root = Root(data_root)
+    options = data.IngestOptions(root.raw, root.catalog)
     try:
         request = data.IngestRequest(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ()), reingest
@@ -261,7 +261,7 @@ def _log_ingest_summary(report: data.IngestReport) -> None:
 def status(
     data_root: Annotated[
         Path, typer.Option("--data", help="Reads PATH/catalog.")
-    ] = DATA,
+    ] = ROOT,
     start: Annotated[
         datetime | None,
         typer.Option(formats=DAY, help="Check every day from this UTC day."),
@@ -272,12 +272,13 @@ def status(
     ] = None,
 ) -> None:
     """Show the symbols, data types and days in the catalog, and flag gaps."""
+    folder = Root(data_root).catalog
     try:
         window = _window(start, end)
-        catalog = data.Catalog(data_root / "catalog")
+        catalog = data.Catalog(folder)
         holdings = catalog.status(sources.known_gaps(SOURCES), window)
     except Exception:
-        logger.exception("status of %s failed", data_root / "catalog")
+        logger.exception("status of %s failed", folder)
         raise typer.Exit(1) from None
     typer.echo(_status_table(holdings))
 
@@ -364,7 +365,7 @@ _RUNS_HEADER = (
 def list_runs(
     data_root: Annotated[
         Path, typer.Option("--data", help="Reads PATH/results.")
-    ] = DATA,
+    ] = ROOT,
     strategy: Annotated[
         str | None, typer.Option(help="Only this strategy's import path.")
     ] = None,
@@ -372,11 +373,15 @@ def list_runs(
 ) -> None:
     """Show one row per finished run, oldest first."""
     try:
-        runs = ParquetResultStore(data_root / "results").runs(strategy, part)
+        runs = _store(data_root).runs(strategy, part)
     except Exception:
-        logger.exception("listing the runs in %s failed", data_root / "results")
+        logger.exception("listing the runs in %s failed", Root(data_root).results)
         raise typer.Exit(1) from None
     typer.echo(_runs_table(runs))
+
+
+def _store(data_root: Path) -> ParquetResultStore:
+    return ParquetResultStore(Root(data_root).results)
 
 
 def _runs_table(runs: pd.DataFrame) -> str:
@@ -405,11 +410,11 @@ def show(
     run_id: Annotated[str, typer.Argument(help="The run's id.")],
     data_root: Annotated[
         Path, typer.Option("--data", help="Reads PATH/results.")
-    ] = DATA,
+    ] = ROOT,
 ) -> None:
     """Show a run's summary and its resolved spec."""
     try:
-        text = _shown(ParquetResultStore(data_root / "results"), run_id)
+        text = _shown(_store(data_root), run_id)
     except Exception:
         logger.exception("showing run %s failed", run_id)
         raise typer.Exit(1) from None
@@ -421,14 +426,14 @@ def delete(
     run_id: Annotated[str, typer.Argument(help="The run's id.")],
     data_root: Annotated[
         Path, typer.Option("--data", help="Deletes from PATH/results.")
-    ] = DATA,
+    ] = ROOT,
     yes: Annotated[bool, typer.Option("--yes", help="Don't ask first.")] = False,
 ) -> None:
     """Delete a run's folder, a failed run's partial one included."""
     if not yes:
         typer.confirm(f"delete run {run_id}?", abort=True)
     try:
-        ParquetResultStore(data_root / "results").delete(run_id)
+        _store(data_root).delete(run_id)
     except Exception:
         logger.exception("deleting run %s failed", run_id)
         raise typer.Exit(1) from None
