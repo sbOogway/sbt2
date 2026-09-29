@@ -5,6 +5,7 @@ from datetime import date
 from pathlib import Path
 
 import pandas as pd
+import pyarrow.parquet as pq
 import pytest
 from nautilus_run import (
     END,
@@ -416,3 +417,18 @@ def test_missing_nested_values_stay_missing(
 
     loaded = store.load(sink.run_id, "positions")
     assert list(loaded["linked_order_ids"]) == [None, ["O-1", "O-2"]]
+
+
+@pytest.mark.unit
+def test_runs_stored_before_the_trip_column_are_still_listed(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    older = finished_run(store, output)
+    path = store.folder(older) / "summary.parquet"
+    pq.write_table(pq.read_table(path).drop_columns("drawdown_tripped_at"), path)
+    newer = finished_run(store, output)
+
+    runs = store.runs()
+
+    assert listed(runs) == [older, newer]
+    assert list(runs["drawdown_tripped_at"].isna()) == [True, True]

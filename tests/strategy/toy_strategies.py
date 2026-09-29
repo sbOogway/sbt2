@@ -38,6 +38,27 @@ class BuyEveryBar(Strategy[StepParams]):
         self.submit_order(order)
 
 
+class BuyOnce(Strategy[NoParams]):
+    """Buys 1 on the first bar after warm-up and holds it."""
+
+    @classmethod
+    def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
+        return (MINUTE_BARS,)
+
+    def on_start(self) -> None:
+        super().on_start()
+        self.bought = False
+
+    def on_bar(self, bar: Bar) -> None:
+        if self.warming_up or self.bought:
+            return
+        self.bought = True
+        order = self.order_factory.market(
+            bar.bar_type.instrument_id, OrderSide.BUY, Quantity.from_str("1.000")
+        )
+        self.submit_order(order)
+
+
 class CountWarmupBars(Strategy[NoParams]):
     def on_start(self) -> None:
         super().on_start()

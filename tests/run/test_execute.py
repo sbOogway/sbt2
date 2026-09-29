@@ -180,3 +180,33 @@ def test_a_catalog_without_the_instruments_fails_the_run(tmp_path: Path) -> None
 
     with pytest.raises(BacktestError, match="No instruments found"):
         run(tmp_path, empty)
+
+
+@pytest.mark.integration
+def test_a_tripped_guard_is_recorded_in_the_summary(
+    tmp_path: Path, catalog: Path
+) -> None:
+    store, _ = run(tmp_path, catalog, risk={"drawdown_limit": "0.001"})
+
+    [summary] = store.runs().to_dict("records")
+    assert summary["drawdown_tripped_at"] == pd.Timestamp("2024-01-01T03:00Z")
+
+
+@pytest.mark.integration
+def test_an_untripped_run_has_no_trip_time(tmp_path: Path, catalog: Path) -> None:
+    store, _ = run(tmp_path, catalog, risk={"drawdown_limit": "0.5"})
+
+    [summary] = store.runs().to_dict("records")
+    assert pd.isna(summary["drawdown_tripped_at"])
+
+
+@pytest.mark.integration
+def test_the_risk_engine_denies_orders_over_the_notional_limit(
+    tmp_path: Path, catalog: Path
+) -> None:
+    risk = {"max_notional_per_order": {"BTCUSDT-LINEAR.BYBIT": "1000"}}
+
+    store, run_id = run(tmp_path, catalog, risk=risk)
+
+    assert store.load(run_id, "fills").empty
+    assert set(store.load(run_id, "orders")["status"]) == {"DENIED"}

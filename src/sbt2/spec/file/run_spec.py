@@ -23,6 +23,8 @@ class RunSpec:
     ``"candles"``.
     ``split`` is a splitter, or a spec file's table of its arguments; ``part``
     names the part of the ``period`` it gives that the run covers.
+    ``risk`` holds nautilus's ``RiskEngineConfig`` arguments and the
+    ``drawdown_limit`` the strategy base enforces.
     """
 
     strategy: str
@@ -37,6 +39,7 @@ class RunSpec:
     liquidation: bool | None = None
     bars: str = "trades"
     params: Mapping[str, Any] = field(default_factory=dict)
+    risk: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         start, end = self.period

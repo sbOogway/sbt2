@@ -12,6 +12,7 @@ from sbt2.spec.file import RunSpec
 from sbt2.spec.resolve.data import data_arguments, data_types
 from sbt2.spec.resolve.resolved import ResolvedRunSpec
 from sbt2.spec.resolve.venues import venue_profile
+from sbt2.spec.risk import risk_limits
 from sbt2.spec.split import Splitter, from_table
 from sbt2.strategy import StrategyRun, import_strategy, resolve_params
 
@@ -33,6 +34,7 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
     split, part = _splitter(spec.split), spec.part
     bars = bar_source(spec.bars)
     start, end = _part_dates(split.parts(spec.period), part)
+    risk = risk_limits(spec.risk)
     return ResolvedRunSpec(
         strategy=StrategyRun(
             spec.strategy,
@@ -40,6 +42,7 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
             asdict(params),
             start,
             bars.aggregated_from,
+            risk.drawdown_limit,
         ),
         asset=asset,
         source=profile.source,
@@ -54,6 +57,7 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
         part=part,
         start=start,
         end=end,
+        risk=risk.engine,
     )
 
 

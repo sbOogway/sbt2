@@ -10,7 +10,7 @@ from nautilus_trader.model import PositionAdjusted, PositionAdjustmentType, Venu
 
 from sbt2.results import OutputSink, Reports
 from sbt2.spec import ResolvedRunSpec
-from sbt2.strategy import StrategyRun, build_strategy
+from sbt2.strategy import Strategy, StrategyRun, build_strategy
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +49,9 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
     config = _run_config(spec, settings)
     backtest = _Backtest(BacktestNode([config]), config.id, Venue(spec.venue_name))
     try:
-        _run(backtest, spec.strategy)
+        strategy = _run(backtest, spec.strategy)
         _write_output(backtest, sink)
+        _write_drawdown_trip(strategy, sink)
     finally:
         backtest.node.dispose()
     sink.finalize()
@@ -72,7 +73,7 @@ def _run_config(spec: ResolvedRunSpec, settings: RunSettings) -> BacktestRunConf
     )
 
 
-def _run(backtest: _Backtest, run: StrategyRun) -> None:
+def _run(backtest: _Backtest, run: StrategyRun) -> Strategy[Any]:
     try:
         strategy = build_strategy(run)
         backtest.node.build()
@@ -84,6 +85,7 @@ def _run(backtest: _Backtest, run: StrategyRun) -> None:
         raise BacktestError(
             f"strategy {run.strategy} failed: {strategy.failure!r}"
         ) from strategy.failure
+    return strategy
 
 
 def _write_output(backtest: _Backtest, sink: OutputSink) -> None:
@@ -95,6 +97,11 @@ def _write_output(backtest: _Backtest, sink: OutputSink) -> None:
     sink.write_equity(portfolio.snapshots(account.id))
     sink.write_carry(_funding(cache))
     sink.write_reports(_reports(cache, account))
+
+
+def _write_drawdown_trip(strategy: Strategy[Any], sink: OutputSink) -> None:
+    if strategy.drawdown_tripped_at is not None:
+        sink.write_drawdown_trip(strategy.drawdown_tripped_at)
 
 
 def _reports(cache: Cache, account: Any) -> Reports:

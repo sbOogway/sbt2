@@ -13,6 +13,7 @@ from sbt2.spec.resolve import (
     UnknownPartError,
     UnknownVenueProfileError,
 )
+from sbt2.spec.risk import DrawdownLimitError, UnknownRiskKeyError
 from sbt2.spec.split import (
     DateSplit,
     FractionSplit,
@@ -25,6 +26,7 @@ from sbt2.spec.split import (
 __all__ = [
     "CandleBarError",
     "DateSplit",
+    "DrawdownLimitError",
     "DuplicateRunError",
     "EmptyListError",
     "FractionSplit",
@@ -38,6 +40,7 @@ __all__ = [
     "Splitter",
     "UnknownBarSourceError",
     "UnknownPartError",
+    "UnknownRiskKeyError",
     "UnknownSpecKeyError",
     "UnknownSplitError",
     "UnknownVenueProfileError",

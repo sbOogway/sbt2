@@ -3,7 +3,7 @@ import shutil
 import uuid
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +25,7 @@ SUMMARY = "summary"
 _SUMMARIES = f"*/{SUMMARY}.parquet"
 _SPEC = "spec.json"
 _RUNS = """
-SELECT * FROM read_parquet($1)
+SELECT * FROM read_parquet($1, union_by_name = true)
 WHERE ($2 IS NULL OR strategy = $2) AND ($3 IS NULL OR part = $3)
 ORDER BY run_id
 """
@@ -53,6 +53,7 @@ _SUMMARY_SCHEMA = pa.schema(
         ("trade_count", pa.int64()),
         ("total_fees", pa.float64()),
         ("total_carry", pa.float64()),
+        ("drawdown_tripped_at", _UTC),
     ]
 )
 
@@ -129,6 +130,7 @@ class _ParquetSink:
         self._folder = folder
         self._run = run
         self._tables: dict[str, pd.DataFrame] = {}
+        self._drawdown_tripped_at: datetime | None = None
 
     @property
     def run_id(self) -> str:
@@ -147,9 +149,13 @@ class _ParquetSink:
         if reports.orders is not None:
             self._write("orders", reports.orders)
 
+    def write_drawdown_trip(self, tripped_at: datetime) -> None:
+        self._drawdown_tripped_at = tripped_at
+
     def finalize(self, benchmark: pd.Series | None = None) -> None:
         metrics = headline_metrics(self._run_tables(), self._run.segment, benchmark)
-        summary = pa.Table.from_pylist([_summary(self._run, metrics)], _SUMMARY_SCHEMA)
+        row = _summary(self._run, metrics, self._drawdown_tripped_at)
+        summary = pa.Table.from_pylist([row], _SUMMARY_SCHEMA)
         pq.write_table(summary, self._folder / f"{SUMMARY}.parquet")
 
     def _write(self, name: str, frame: pd.DataFrame) -> None:
@@ -172,7 +178,9 @@ class _ParquetSink:
         )
 
 
-def _summary(run: _Run, metrics: HeadlineMetrics) -> dict[str, object]:
+def _summary(
+    run: _Run, metrics: HeadlineMetrics, drawdown_tripped_at: datetime | None
+) -> dict[str, object]:
     strategy = run.spec.strategy
     return {
         "run_id": run.run_id,
@@ -187,6 +195,7 @@ def _summary(run: _Run, metrics: HeadlineMetrics) -> dict[str, object]:
         "known_gaps": [str(each) for each in run.known_gaps],
         "currency": run.spec.currency,
         **asdict(metrics),
+        "drawdown_tripped_at": drawdown_tripped_at,
     }
 
 
