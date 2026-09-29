@@ -24,6 +24,7 @@ from sbt2.assets import AssetProfile
 from sbt2.data.sources import CANDLES, candle_type
 from sbt2.spec.canonical import canonical_hash, canonical_json
 from sbt2.spec.parse import RunSpec
+from sbt2.spec.split import Split, Splitter
 from sbt2.spec.venues import venue_objects, venue_profile
 from sbt2.strategy import StrategyRun, import_strategy, resolve_params
 
@@ -38,7 +39,7 @@ class ResolvedRunSpec:
     ``venue`` and ``data`` are nautilus's own ``BacktestVenueConfig`` and
     ``BacktestDataConfig`` arguments as plain data, without the catalog path.
     ``source`` names where missing data is fetched from; like the catalog path,
-    it is not hashed.
+    it is not hashed. ``start`` and ``end`` are the dates of ``part``.
     """
 
     strategy: StrategyRun
@@ -47,6 +48,8 @@ class ResolvedRunSpec:
     venue: Mapping[str, Any]
     data: Sequence[Mapping[str, Any]]
     equity_interval_ms: int
+    split: Splitter
+    part: str
     start: datetime
     end: datetime
 
@@ -57,6 +60,10 @@ class ResolvedRunSpec:
     def to_json(self) -> str:
         """The canonical JSON the hash is taken of."""
         return canonical_json(self._document())
+
+    def split_json(self) -> str:
+        """The split's canonical JSON, as it appears in the hashed document."""
+        return canonical_json(self.split.document())
 
     def run_config(
         self,
@@ -98,6 +105,8 @@ class ResolvedRunSpec:
             "venue": dict(self.venue),
             "data": [dict(arguments) for arguments in self.data],
             "equity_interval_ms": self.equity_interval_ms,
+            "split": self.split.document(),
+            "part": self.part,
             "start": self.start,
             "end": self.end,
         }
@@ -111,6 +120,18 @@ class UnknownBarSourceError(ValueError):
     pass
 
 
+class MissingSplitError(ValueError):
+    pass
+
+
+class MissingPartError(ValueError):
+    pass
+
+
+class UnknownPartError(ValueError):
+    pass
+
+
 class CandleBarError(ValueError):
     """A declared bar that 1-minute candles cannot build."""
 
@@ -121,13 +142,14 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
     instruments = _instruments(spec.instruments, venue["name"])
     strategy = import_strategy(spec.strategy)
     params = resolve_params(strategy, spec.params)
-    data_start = spec.start - strategy.warmup(params)
+    split, part = _splitter(spec.split), _part(spec.part)
+    start, end = _part_dates(split.parts(spec.period), part)
     return ResolvedRunSpec(
         strategy=StrategyRun(
             spec.strategy,
             instruments,
             asdict(params),
-            spec.start,
+            start,
             CANDLES if spec.bars == "candles" else None,
         ),
         asset=asset,
@@ -136,12 +158,37 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
         data=_data(
             _data_types(_bar_source(spec.bars, strategy.inputs(params)), asset),
             instruments,
-            (data_start, spec.end),
+            (start - strategy.warmup(params), end),
         ),
         equity_interval_ms=spec.equity_interval_ms,
-        start=spec.start,
-        end=spec.end,
+        split=split,
+        part=part,
+        start=start,
+        end=end,
     )
+
+
+def _splitter(split: Splitter | Mapping[str, Any] | None) -> Splitter:
+    """A spec file's split table as the splitter it names."""
+    if split is None:
+        raise MissingSplitError("a run spec needs a split of its period")
+    if isinstance(split, Mapping):
+        return Split.from_table(split)
+    return split
+
+
+def _part(part: str | None) -> str:
+    if part is None:
+        raise MissingPartError("a run spec needs the part of its split to run")
+    return part
+
+
+def _part_dates(
+    parts: Mapping[str, tuple[datetime, datetime]], part: str
+) -> tuple[datetime, datetime]:
+    if part not in parts:
+        raise UnknownPartError(f"part {part!r} is not one of {', '.join(parts)}")
+    return parts[part]
 
 
 def _instruments(ids: Iterable[str], venue: str) -> list[InstrumentId]:

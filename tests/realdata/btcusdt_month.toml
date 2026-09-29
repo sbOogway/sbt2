@@ -1,7 +1,8 @@
 strategy = "strategies.ma_cross:MovingAverageCross"
 instruments = ["BTCUSDT-LINEAR.BYBIT"]
-start = 2025-01-01
-end = 2025-02-01
+period = [2025-01-01, 2025-03-01]
+split = { validation_start = 2025-02-01, test_start = 2025-02-15 }
+part = "train"
 venue = "bybit_linear"
 capital = "10000 USDT"
 

@@ -33,7 +33,7 @@ from nautilus_trader.trading import Strategy
 
 from sbt2.assets import asset_profile
 from sbt2.results import Reports
-from sbt2.spec import ResolvedRunSpec
+from sbt2.spec import ResolvedRunSpec, Split
 from sbt2.strategy import StrategyRun
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
@@ -59,6 +59,8 @@ def spec(end: datetime = END) -> ResolvedRunSpec:
         venue={"name": "BYBIT", "starting_balances": ["10000 USDT"]},
         data=[],
         equity_interval_ms=3_600_000,
+        split=Split(validation=0.2, test=0.2),
+        part="train",
         start=START,
         end=end,
     )

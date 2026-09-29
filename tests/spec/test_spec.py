@@ -21,9 +21,14 @@ from sbt2.spec import (
     CandleBarError,
     InstrumentVenueError,
     InvalidVenueProfileError,
+    MissingPartError,
+    MissingSplitError,
     ResolvedRunSpec,
+    Split,
     UnknownBarSourceError,
+    UnknownPartError,
     UnknownSpecKeyError,
+    UnknownSplitError,
     UnknownVenueProfileError,
     load,
 )
@@ -33,8 +38,9 @@ BTC = "BTCUSDT-LINEAR.BYBIT"
 SPEC = f"""
 strategy = "spec_strategies:MinuteLookback"
 instruments = ["{BTC}"]
-start = 2024-01-01
-end = 2024-02-01
+period = [2024-01-01, 2024-03-01]
+split = {{ validation_start = 2024-02-01, test_start = 2024-02-15 }}
+part = "train"
 venue = "test_linear"
 capital = "10000 USDT"
 
@@ -83,6 +89,8 @@ DECLARED_BAR = "spec_strategies:DeclaredBar"
 START = datetime(2024, 1, 1, tzinfo=UTC)
 END = datetime(2024, 2, 1, tzinfo=UTC)
 DATA_START = datetime(2023, 12, 31, 23, 30, tzinfo=UTC)
+VALIDATION = (datetime(2024, 2, 1, tzinfo=UTC), datetime(2024, 2, 15, tzinfo=UTC))
+BY_DATE = Split(validation_start="2024-02-01", test_start="2024-02-15")
 
 
 @pytest.fixture
@@ -96,6 +104,14 @@ def paths(tmp_path: Path) -> tuple[Path, Path]:
 def resolved(paths: tuple[Path, Path], **overrides: Any) -> ResolvedRunSpec:
     spec, venues = paths
     return load(spec, overrides, venues)
+
+
+def without(paths: tuple[Path, Path], key: str) -> tuple[Path, Path]:
+    """The spec file with the line setting ``key`` dropped."""
+    spec, venues = paths
+    lines = spec.read_text().splitlines(keepends=True)
+    spec.write_text("".join(each for each in lines if not each.startswith(key)))
+    return spec, venues
 
 
 @pytest.mark.unit
@@ -202,7 +218,7 @@ def test_bars_come_from_trades_by_default(paths: tuple[Path, Path]) -> None:
     assert NautilusDataType.Bar not in streamed
     assert spec.hash == resolved(paths, bars="trades").hash
     assert spec.hash == (
-        "1cc7061e15749201a3beb8417bc803f52f56d4f01192e0f53948add85daa875c"
+        "7488ea117667a2969073e4b9693d12515de950a2690c3a65857aeedbbdfc8d5b"
     )
 
 
@@ -332,7 +348,7 @@ def test_malformed_equity_interval_fails(paths: tuple[Path, Path]) -> None:
 
 @pytest.mark.unit
 def test_overrides_replace_file_values(paths: tuple[Path, Path]) -> None:
-    spec = resolved(paths, start="2024-01-15", params={"lookback": 5})
+    spec = resolved(paths, period=["2024-01-15", "2024-03-01"], params={"lookback": 5})
 
     assert spec.start == datetime(2024, 1, 15, tzinfo=UTC)
     assert spec.strategy.params["lookback"] == 5
@@ -361,7 +377,7 @@ def test_json_is_the_hashed_document(paths: tuple[Path, Path]) -> None:
     "overrides",
     [
         {"params": {"lookback": 31}},
-        {"end": "2024-02-02"},
+        {"period": ["2024-01-02", "2024-03-01"]},
         {"capital": "20000 USDT"},
         {"equity_interval": "30m"},
         {"instruments": ["ETHUSDT-LINEAR.BYBIT"]},
@@ -417,13 +433,126 @@ def test_unknown_spec_key_fails_listing_the_valid_ones(
     paths: tuple[Path, Path],
 ) -> None:
     with pytest.raises(
-        UnknownSpecKeyError, match="symbols .* valid: bars, capital, end"
+        UnknownSpecKeyError, match="symbols .* valid: bars, capital, equity_interval"
     ):
         resolved(paths, symbols=["BTCUSDT"])
 
 
 @pytest.mark.unit
-def test_dates_are_utc(paths: tuple[Path, Path]) -> None:
-    spec = resolved(paths, start=datetime.fromisoformat("2024-01-01T02:00:00+02:00"))
+def test_the_period_is_utc(paths: tuple[Path, Path]) -> None:
+    spec = resolved(
+        paths,
+        period=[datetime.fromisoformat("2024-01-01T02:00:00+02:00"), "2024-03-01"],
+    )
 
     assert spec.start == START
+
+
+@pytest.mark.unit
+def test_the_part_sets_the_run_dates(paths: tuple[Path, Path]) -> None:
+    spec = resolved(paths, part="validation")
+
+    config = spec.run_config("/catalog")
+    assert (spec.start, spec.end) == VALIDATION
+    assert (config.start, config.end) == tuple(map(dt_to_unix_nanos, VALIDATION))
+    assert spec.strategy.trade_start == VALIDATION[0]
+
+
+@pytest.mark.unit
+def test_warmup_reads_data_from_before_the_part(paths: tuple[Path, Path]) -> None:
+    data = resolved(paths, part="validation").data
+
+    assert {each["start_time"] for each in data} == {
+        datetime(2024, 1, 31, 23, 30, tzinfo=UTC)
+    }
+
+
+@pytest.mark.unit
+def test_the_resolved_spec_carries_the_split_and_part(
+    paths: tuple[Path, Path],
+) -> None:
+    spec = resolved(paths)
+
+    assert (spec.split, spec.part) == (BY_DATE, "train")
+
+
+@pytest.mark.unit
+def test_the_split_and_part_are_in_the_hashed_document(
+    paths: tuple[Path, Path],
+) -> None:
+    document = json.loads(resolved(paths).to_json())
+
+    assert document["split"] == {
+        "kind": "Split",
+        "validation_start": "2024-02-01T00:00:00+00:00",
+        "test_start": "2024-02-15T00:00:00+00:00",
+    }
+    assert document["part"] == "train"
+
+
+@pytest.mark.unit
+def test_the_same_dates_under_another_split_change_the_hash(
+    paths: tuple[Path, Path],
+) -> None:
+    by_date = resolved(paths)
+    by_fraction = resolved(paths, split=Split(validation=0.25, test=14 / 60))
+
+    assert (by_fraction.start, by_fraction.end) == (by_date.start, by_date.end)
+    assert by_fraction.hash != by_date.hash
+
+
+@pytest.mark.unit
+def test_a_splitter_can_be_given_as_an_override(paths: tuple[Path, Path]) -> None:
+    split = Split(validation=0.25, test=0.25)
+
+    assert resolved(paths, split=split).split == split
+
+
+@pytest.mark.unit
+def test_start_and_end_are_no_longer_spec_keys(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(
+        UnknownSpecKeyError, match="start .* valid: .*params, part, period, seed, split"
+    ):
+        resolved(paths, start="2024-01-01")
+
+
+@pytest.mark.unit
+def test_a_spec_without_a_split_fails(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(MissingSplitError):
+        resolved(without(paths, "split"))
+
+
+@pytest.mark.unit
+def test_a_spec_without_a_part_fails(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(MissingPartError):
+        resolved(without(paths, "part"))
+
+
+@pytest.mark.unit
+def test_an_unknown_part_fails_listing_the_parts(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(UnknownPartError, match="holdout.* train, validation, test"):
+        resolved(paths, part="holdout")
+
+
+@pytest.mark.unit
+def test_an_unknown_split_table_fails_listing_the_forms(
+    paths: tuple[Path, Path],
+) -> None:
+    with pytest.raises(UnknownSplitError, match="kind .* validation_start"):
+        resolved(paths, split={"kind": "walk_forward"})
+
+
+@pytest.mark.unit
+def test_a_split_table_of_fractions_resolves(paths: tuple[Path, Path]) -> None:
+    spec_file, _ = paths
+    spec_file.write_text(
+        spec_file.read_text().replace(
+            "split = { validation_start = 2024-02-01, test_start = 2024-02-15 }",
+            "split = { validation = 0.25, test = 0.25 }",
+        )
+    )
+
+    spec = resolved(paths)
+
+    assert spec.split == Split(validation=0.25, test=0.25)
+    assert (spec.start, spec.end) == (START, datetime(2024, 1, 31, tzinfo=UTC))

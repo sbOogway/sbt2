@@ -4,7 +4,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from datetime import UTC, date, datetime, time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from sbt2.spec.split import Splitter
 
 _INTERVAL = re.compile(r"(\d+)([smhd])")
 _UNIT_MS = {"s": 1_000, "m": 60_000, "h": 3_600_000, "d": 86_400_000}
@@ -22,14 +25,17 @@ class RunSpec:
     ``liquidation`` overrides the venue profile's ``liquidation_enabled``.
     ``bars`` says what the declared bars are aggregated from: ``"trades"`` or
     ``"candles"``.
+    ``split`` is a splitter, or a spec file's table of its arguments; ``part``
+    names the part of the ``period`` it gives that the run covers.
     """
 
     strategy: str
     instruments: list[str]
-    start: datetime
-    end: datetime
+    period: tuple[datetime, datetime]
     venue: str
     capital: str
+    split: Splitter | Mapping[str, Any] | None = None
+    part: str | None = None
     seed: int = 42
     equity_interval: str = "1h"
     liquidation: bool | None = None
@@ -37,8 +43,8 @@ class RunSpec:
     params: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "start", utc(self.start))
-        object.__setattr__(self, "end", utc(self.end))
+        start, end = self.period
+        object.__setattr__(self, "period", (utc(start), utc(end)))
 
     @property
     def equity_interval_ms(self) -> int:
