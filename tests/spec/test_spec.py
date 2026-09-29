@@ -19,6 +19,7 @@ from nautilus_trader.model import (
 
 from sbt2.spec import (
     CandleBarError,
+    DuplicateRunError,
     InstrumentVenueError,
     InvalidVenueProfileError,
     MissingSplitError,
@@ -623,6 +624,20 @@ def test_one_invalid_combination_fails_the_whole_load(
     assert error.value.__notes__ == [
         "in the train run with bar='1-SECOND-LAST'",
     ]
+
+
+@pytest.mark.unit
+def test_a_repeated_value_fails_as_a_duplicate_run(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(DuplicateRunError, match="lookback=20"):
+        loaded(with_params(paths, "lookback = [20, 20]\n"))
+
+
+@pytest.mark.unit
+def test_values_that_resolve_to_the_same_run_fail_as_duplicates(
+    paths: tuple[Path, Path],
+) -> None:
+    with pytest.raises(DuplicateRunError, match="stop='0.02' .* stop=0.02"):
+        loaded(with_params(paths, 'stop = ["0.02", 0.02]\n'))
 
 
 @pytest.mark.unit
