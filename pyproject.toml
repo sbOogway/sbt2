@@ -1,6 +1,6 @@
 [project]
 name = "sbt2"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Backtesting framework on nautilus_trader"
 requires-python = ">=3.14"
 dependencies = [
@@ -16,11 +16,17 @@ dependencies = [
 sbt2 = "sbt2.cli:app"
 
 [build-system]
-requires = ["uv_build>=0.12.19,<0.13"]
-build-backend = "uv_build"
+requires = ["hatchling>=1.27", "uv-dynamic-versioning>=0.8"]
+build-backend = "hatchling.build"
 
-[tool.uv.build-backend]
-module-name = ["sbt2", "strategies"]
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sbt2", "src/strategies"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src"]
 
 [tool.uv]
 environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
@@ -64,3 +70,23 @@ branch = true
 [tool.coverage.report]
 fail_under = 85
 show_missing = true
+
+[tool.git-cliff.git]
+conventional_commits = true
+filter_unconventional = true
+tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+"
+# Pull requests land as merge commits titled "type(scope): summary (#N)";
+# keeping only those lists each change once instead of once per branch commit.
+commit_parsers = [
+    { message = "^feat.*\\(#[0-9]+\\)(\n|$)", group = "Features" },
+    { message = "^fix.*\\(#[0-9]+\\)(\n|$)", group = "Bug fixes" },
+    { message = "^perf.*\\(#[0-9]+\\)(\n|$)", group = "Performance" },
+    { message = "^refactor.*\\(#[0-9]+\\)(\n|$)", group = "Refactoring" },
+    { message = "^revert.*\\(#[0-9]+\\)(\n|$)", group = "Reverts" },
+    { message = ".*", skip = true },
+]
+
+[tool.git-cliff.bump]
+features_always_bump_minor = false
+breaking_always_bump_major = false
+initial_tag = "v0.1.0"
