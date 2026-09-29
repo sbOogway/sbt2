@@ -192,3 +192,47 @@ def test_a_partially_filled_entry_sizes_its_exits(feed: str) -> None:
         (OrderStatus.ACCEPTED, "1.000"),
         (OrderStatus.ACCEPTED, "1.000"),
     ]
+
+
+# A bar opens at the previous close, so a limit resting at a price the last
+# bar closed through fills again at the open of the next bar.
+@pytest.mark.characterization
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("feed", "entry_fills", "unprotected"),
+    [
+        (
+            "bars",
+            [
+                (minute(1), LIMIT_ENTRY, "0.400"),
+                (minute(2), LIMIT_ENTRY, "0.400"),
+                (minute(3), LIMIT_ENTRY, "0.200"),
+            ],
+            "0.600",
+        ),
+        (
+            "trades",
+            [
+                (minute(1), LIMIT_ENTRY, "0.400"),
+                (minute(3), LIMIT_ENTRY, "0.400"),
+            ],
+            "0.400",
+        ),
+    ],
+    ids=FEEDS,
+)
+def test_the_unfilled_remainder_of_a_bracket_entry(
+    feed: str, entry_fills: list[tuple[int, str, str]], unprotected: str
+) -> None:
+    strategy = LimitEntryBracket()
+    path = PricePath([*PARTIAL_DIP.closes, "51500.0", "49400.0"], "0.400")
+
+    engine = run_on_feed(strategy, feed, path)
+
+    assert fills(order(engine, strategy.take_profit)) == [
+        (minute(2), TAKE_PROFIT, "0.400")
+    ]
+    assert order(engine, strategy.stop_loss).status == OrderStatus.CANCELED
+    assert fills(order(engine, strategy.entry)) == entry_fills
+    [position] = engine.cache.positions()
+    assert str(position.quantity) == unprotected
