@@ -149,3 +149,70 @@ def test_runs_show_of_an_unknown_run_fails(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "UnknownRunError" in log.read_text()
+
+
+@pytest.mark.e2e
+def test_runs_delete_asks_and_removes_the_run_on_yes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = stored(tmp_path, monkeypatch)
+    run_id = store.runs()["run_id"].iloc[0]
+
+    result = runner.invoke(app, ["runs", "delete", run_id], input="y\n")
+
+    assert result.exit_code == 0, result.output
+    assert f"delete run {run_id}?" in result.output
+    assert not store.folder(run_id).exists()
+
+
+@pytest.mark.e2e
+def test_runs_delete_keeps_the_run_on_no(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = stored(tmp_path, monkeypatch)
+    run_id = store.runs()["run_id"].iloc[0]
+
+    result = runner.invoke(app, ["runs", "delete", run_id], input="n\n")
+
+    assert result.exit_code == 1
+    assert store.folder(run_id).exists()
+
+
+@pytest.mark.e2e
+def test_runs_delete_with_yes_does_not_ask(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = stored(tmp_path, monkeypatch)
+    run_id = store.runs()["run_id"].iloc[0]
+
+    result = runner.invoke(app, ["runs", "delete", run_id, "--yes"])
+
+    assert result.exit_code == 0, result.output
+    assert "?" not in result.output
+    assert not store.folder(run_id).exists()
+
+
+@pytest.mark.e2e
+def test_runs_delete_removes_a_failed_runs_partial_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store, run_id = unfinished(tmp_path, monkeypatch)
+
+    result = runner.invoke(app, ["runs", "delete", run_id, "--yes"])
+
+    assert result.exit_code == 0, result.output
+    assert not store.folder(run_id).exists()
+
+
+@pytest.mark.e2e
+def test_runs_delete_of_an_unknown_run_fails(tmp_path: Path) -> None:
+    log = tmp_path / "sbt2.log"
+
+    result = runner.invoke(
+        app,
+        ["--log-file", str(log), "runs", "delete", str(uuid.uuid7()), "--yes"]
+        + ["--data", str(tmp_path)],
+    )
+
+    assert result.exit_code == 1
+    assert "UnknownRunError" in log.read_text()

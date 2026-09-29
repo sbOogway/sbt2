@@ -416,6 +416,24 @@ def show(
     typer.echo(text)
 
 
+@runs_app.command()
+def delete(
+    run_id: Annotated[str, typer.Argument(help="The run's id.")],
+    data_root: Annotated[
+        Path, typer.Option("--data", help="Deletes from PATH/results.")
+    ] = DATA,
+    yes: Annotated[bool, typer.Option("--yes", help="Don't ask first.")] = False,
+) -> None:
+    """Delete a run's folder, a failed run's partial one included."""
+    if not yes:
+        typer.confirm(f"delete run {run_id}?", abort=True)
+    try:
+        ParquetResultStore(data_root / "results").delete(run_id)
+    except Exception:
+        logger.exception("deleting run %s failed", run_id)
+        raise typer.Exit(1) from None
+
+
 def _shown(store: ResultStore, run_id: str) -> str:
     document = json.dumps(store.spec(run_id), indent=2)
     return f"{_summary_lines(store, run_id)}\n\n{document}"
