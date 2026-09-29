@@ -4,13 +4,22 @@ import pytest
 from feed_kit import FEEDS, PricePath, StepStrategy, fills, minute, run_on_feed
 from kit import INSTRUMENT_ID
 from nautilus_trader.backtest import BacktestEngine
-from nautilus_trader.model import ClientOrderId, OrderSide, OrderStatus, Price, Quantity
+from nautilus_trader.model import (
+    ClientOrderId,
+    OrderSide,
+    OrderStatus,
+    OrderType,
+    Price,
+    Quantity,
+)
 
 ENTRY_PRICE = "50000.0"
 TAKE_PROFIT = "51000.0"
 STOP_LOSS = "49000.0"
 MOVED_STOP = "48000.0"
 CHANGED_LIMIT = "49500.0"
+LIMIT_ENTRY = "49500.0"
+PARTIAL_DIP = PricePath([ENTRY_PRICE, "49400.0"], size_per_price="0.400")
 
 
 class LongBracket(StepStrategy):
@@ -34,6 +43,14 @@ class LongBracket(StepStrategy):
 
     def entry_terms(self) -> dict[str, Any]:
         return {}
+
+
+class LimitEntryBracket(LongBracket):
+    def entry_terms(self) -> dict[str, Any]:
+        return {
+            "entry_order_type": OrderType.LIMIT,
+            "entry_price": Price.from_str(LIMIT_ENTRY),
+        }
 
 
 def order(engine: BacktestEngine, client_order_id: ClientOrderId) -> Any:
@@ -157,3 +174,21 @@ def test_modify_order_changes_a_resting_limit(feed: str) -> None:
         Price.from_str(CHANGED_LIMIT),
     )
     assert fills(limit) == [(minute(2), CHANGED_LIMIT, "0.500")]
+
+
+@pytest.mark.characterization
+@pytest.mark.integration
+@pytest.mark.parametrize("feed", FEEDS)
+def test_a_partially_filled_entry_sizes_its_exits(feed: str) -> None:
+    strategy = LimitEntryBracket()
+
+    engine = run_on_feed(strategy, feed, PARTIAL_DIP)
+
+    entry = order(engine, strategy.entry)
+    assert entry.status == OrderStatus.PARTIALLY_FILLED
+    assert fills(entry) == [(minute(1), LIMIT_ENTRY, "0.400")]
+    exits = [order(engine, strategy.stop_loss), order(engine, strategy.take_profit)]
+    assert [(each.status, str(each.quantity)) for each in exits] == [
+        (OrderStatus.ACCEPTED, "1.000"),
+        (OrderStatus.ACCEPTED, "1.000"),
+    ]
