@@ -13,16 +13,17 @@ from sbt2.data import (
     DayRange,
     DownloadOptions,
     DownloadRequest,
+    Gap,
     IngestOptions,
     IngestRequest,
     NoSnapshotError,
     Outcome,
     Selection,
+    Source,
     Window,
     download,
     ingest,
 )
-from sbt2.data.sources import Gap, Source
 from sbt2.spec import ResolvedRunSpec
 
 logger = logging.getLogger(__name__)

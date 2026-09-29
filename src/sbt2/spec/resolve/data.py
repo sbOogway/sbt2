@@ -5,7 +5,7 @@ from typing import Any
 from nautilus_trader.model import BarSpecification, InstrumentId, NautilusDataType
 
 from sbt2.assets import AssetProfile
-from sbt2.data.sources import candle_type
+from sbt2.data import candle_type
 from sbt2.spec.bars import BarSource
 
 

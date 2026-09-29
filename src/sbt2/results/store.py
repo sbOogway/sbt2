@@ -3,7 +3,7 @@ from typing import Any, Literal, Protocol
 
 import pandas as pd
 
-from sbt2.data.sources import Gap
+from sbt2.data import Gap
 from sbt2.results.sink import OutputSink
 from sbt2.spec import ResolvedRunSpec
 

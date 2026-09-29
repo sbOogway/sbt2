@@ -11,7 +11,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Protocol
 
-from sbt2.data.sources import Gap, Source
+from sbt2.data import Gap, Source
 from sbt2.results import ResultStore
 from sbt2.run.child import Order, send
 from sbt2.run.execute import RunSettings

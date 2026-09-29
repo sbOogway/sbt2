@@ -29,9 +29,11 @@ from sbt2.data.ingest import (
     OutsideDayError,
     ingest,
 )
+from sbt2.data.sources import CANDLES, Gap, Source, candle_type
 from sbt2.data.tally import Tally
 
 __all__ = [
+    "CANDLES",
     "INSTRUMENT",
     "Catalog",
     "Coverage",
@@ -41,6 +43,7 @@ __all__ = [
     "DownloadOptions",
     "DownloadRequest",
     "FileResult",
+    "Gap",
     "Holding",
     "IngestOptions",
     "IngestOutcome",
@@ -53,9 +56,11 @@ __all__ = [
     "OutsideDayError",
     "Progress",
     "Selection",
+    "Source",
     "Tally",
     "UnstoredDataTypeError",
     "Window",
+    "candle_type",
     "download",
     "ingest",
 ]
