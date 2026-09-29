@@ -59,3 +59,13 @@ repos:
         always_run: true
         pass_filenames: false
         verbose: true
+
+      # after prune-merged-branches, whose fetch it relies on
+      - id: rebase-open-branches
+        name: rebase open branches
+        entry: scripts/rebase-open-branches.sh
+        language: script
+        stages: [post-merge]
+        always_run: true
+        pass_filenames: false
+        verbose: true
