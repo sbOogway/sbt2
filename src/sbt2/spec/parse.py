@@ -34,8 +34,8 @@ class RunSpec:
     period: tuple[datetime, datetime]
     venue: str
     capital: str
+    part: str
     split: Splitter | Mapping[str, Any] | None = None
-    part: str | None = None
     seed: int = 42
     equity_interval: str = "1h"
     liquidation: bool | None = None
@@ -57,12 +57,13 @@ class RunSpec:
         return int(count) * _UNIT_MS[unit]
 
 
-def read_spec(path: Path, overrides: Mapping[str, Any]) -> RunSpec:
+def read_spec(path: Path, overrides: Mapping[str, Any]) -> dict[str, Any]:
+    """A spec file's table with ``overrides`` applied, before it is expanded."""
     with path.open("rb") as file:
         table = tomllib.load(file)
     values = {**table, **overrides}
     _reject_unknown(path, values)
-    return RunSpec(**values)
+    return values
 
 
 def _reject_unknown(path: Path, values: Mapping[str, Any]) -> None:

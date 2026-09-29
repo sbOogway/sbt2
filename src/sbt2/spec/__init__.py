@@ -2,11 +2,11 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from sbt2.spec.parse import UnknownSpecKeyError, read_spec
+from sbt2.spec.expand import expand
+from sbt2.spec.parse import RunSpec, UnknownSpecKeyError, read_spec
 from sbt2.spec.resolve import (
     CandleBarError,
     InstrumentVenueError,
-    MissingPartError,
     MissingSplitError,
     ResolvedRunSpec,
     UnknownBarSourceError,
@@ -28,7 +28,6 @@ __all__ = [
     "CandleBarError",
     "InstrumentVenueError",
     "InvalidVenueProfileError",
-    "MissingPartError",
     "MissingSplitError",
     "ResolvedRunSpec",
     "Split",
@@ -53,4 +52,5 @@ def load(
     venue_profiles: Path = VENUE_PROFILES,
 ) -> list[ResolvedRunSpec]:
     """Read a spec file, apply top-level ``overrides`` and resolve its runs."""
-    return [resolve(read_spec(path, overrides or {}), venue_profiles)]
+    table = read_spec(path, overrides or {})
+    return [resolve(RunSpec(**each), venue_profiles) for each in expand(table)]

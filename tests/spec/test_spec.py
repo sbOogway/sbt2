@@ -21,7 +21,6 @@ from sbt2.spec import (
     CandleBarError,
     InstrumentVenueError,
     InvalidVenueProfileError,
-    MissingPartError,
     MissingSplitError,
     ResolvedRunSpec,
     Split,
@@ -535,9 +534,25 @@ def test_a_spec_without_a_split_fails(paths: tuple[Path, Path]) -> None:
 
 
 @pytest.mark.unit
-def test_a_spec_without_a_part_fails(paths: tuple[Path, Path]) -> None:
-    with pytest.raises(MissingPartError):
-        resolved(without(paths, "part"))
+def test_without_a_part_a_spec_expands_into_a_train_and_a_validation_run(
+    paths: tuple[Path, Path],
+) -> None:
+    train, validation = loaded(without(paths, "part"))
+
+    assert (train.part, train.start, train.end) == ("train", START, END)
+    assert (validation.part, (validation.start, validation.end)) == (
+        "validation",
+        VALIDATION,
+    )
+
+
+@pytest.mark.unit
+def test_a_list_of_parts_expands_into_one_run_per_part(
+    paths: tuple[Path, Path],
+) -> None:
+    runs = loaded(paths, part=["validation", "test"])
+
+    assert [each.part for each in runs] == ["validation", "test"]
 
 
 @pytest.mark.unit
