@@ -265,15 +265,17 @@ def trades_closing_at(prices: list[int]) -> list[TradeTick]:
     ]
 
 
-def guarded_run(
-    strategy: type[NautilusStrategy],
-    prices: list[int],
-    params: dict[str, Any] | None = None,
-    drawdown_limit: str | None = "0.05",
-) -> tuple[Any, BacktestEngine]:
-    config = RunConfig(
+def guarded(
+    params: dict[str, Any] | None = None, drawdown_limit: str | None = "0.05"
+) -> RunConfig:
+    return RunConfig(
         [str(BTC)], params or {}, TRADE_START.isoformat(), drawdown_limit=drawdown_limit
     )
+
+
+def guarded_run(
+    strategy: type[NautilusStrategy], prices: list[int], config: RunConfig
+) -> tuple[Any, BacktestEngine]:
     instance = strategy(config)
     engine = empty_engine()
     engine.add_data(trades_closing_at(prices))
@@ -284,7 +286,7 @@ def guarded_run(
 
 @pytest.mark.integration
 def test_the_guard_exits_and_drops_orders_once_drawdown_passes_the_limit() -> None:
-    strategy, engine = guarded_run(BuyEveryBar, FALLING, {"step": "0.500"})
+    strategy, engine = guarded_run(BuyEveryBar, FALLING, guarded({"step": "0.500"}))
 
     trip = START + timedelta(minutes=6)
     assert strategy.drawdown_tripped_at == trip
@@ -296,21 +298,21 @@ def test_the_guard_exits_and_drops_orders_once_drawdown_passes_the_limit() -> No
 
 @pytest.mark.integration
 def test_drawdown_is_measured_from_the_running_peak() -> None:
-    strategy, _ = guarded_run(BuyOnce, RISING_THEN_FALLING)
+    strategy, _ = guarded_run(BuyOnce, RISING_THEN_FALLING, guarded())
 
     assert strategy.drawdown_tripped_at == START + timedelta(minutes=6)
 
 
 @pytest.mark.integration
 def test_the_guard_trips_when_drawdown_reaches_the_limit_exactly() -> None:
-    strategy, _ = guarded_run(BuyOnce, AT_THE_LIMIT)
+    strategy, _ = guarded_run(BuyOnce, AT_THE_LIMIT, guarded())
 
     assert strategy.drawdown_tripped_at == START + timedelta(minutes=5)
 
 
 @pytest.mark.integration
 def test_the_guard_stays_quiet_within_the_limit() -> None:
-    strategy, engine = guarded_run(BuyOnce, DIPPING)
+    strategy, engine = guarded_run(BuyOnce, DIPPING, guarded())
 
     assert strategy.drawdown_tripped_at is None
     assert engine.portfolio.net_position(BTC) == 1
@@ -319,7 +321,7 @@ def test_the_guard_stays_quiet_within_the_limit() -> None:
 @pytest.mark.integration
 def test_without_a_limit_the_guard_never_trips() -> None:
     strategy, engine = guarded_run(
-        BuyEveryBar, FALLING, {"step": "0.500"}, drawdown_limit=None
+        BuyEveryBar, FALLING, guarded({"step": "0.500"}, drawdown_limit=None)
     )
 
     assert strategy.drawdown_tripped_at is None
