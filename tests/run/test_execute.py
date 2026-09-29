@@ -8,7 +8,7 @@ import pytest
 from nautilus_trader.model import Money
 from synthetic_catalog import START, build_catalog
 
-from sbt2.results import ParquetResultStore, Provenance
+from sbt2.results import ParquetResultStore
 from sbt2.run import BacktestError, RunSettings, execute
 from sbt2.spec import ResolvedRunSpec, load
 
@@ -54,7 +54,7 @@ def run(
 ) -> tuple[ParquetResultStore, str]:
     spec = resolved(tmp_path, **overrides)
     store = ParquetResultStore(tmp_path / "results")
-    sink = store.new_run(spec, Provenance("abc123", git_dirty=False))
+    sink = store.new_run(spec)
     execute(spec, sink, RunSettings(catalog))
     return store, sink.run_id
 
@@ -133,7 +133,7 @@ def test_chunked_streaming_gives_the_same_result(tmp_path: Path, catalog: Path) 
     spec = resolved(tmp_path)
     store = ParquetResultStore(tmp_path / "results")
     for chunk_size in (100, 1_000_000):
-        sink = store.new_run(spec, Provenance("abc123", git_dirty=False))
+        sink = store.new_run(spec)
         execute(spec, sink, RunSettings(catalog, chunk_size=chunk_size))
 
     summaries = store.runs().drop(columns="run_id")
@@ -157,9 +157,7 @@ def test_a_strategy_error_fails_the_run_without_a_summary(
 def test_invalid_strategy_params_fail_the_run(tmp_path: Path, catalog: Path) -> None:
     spec = resolved(tmp_path)
     broken = replace(spec, strategy=replace(spec.strategy, params={"hold_bars": "x"}))
-    sink = ParquetResultStore(tmp_path / "results").new_run(
-        broken, Provenance("abc123", git_dirty=False)
-    )
+    sink = ParquetResultStore(tmp_path / "results").new_run(broken)
 
     with pytest.raises(BacktestError, match="hold_bars"):
         execute(broken, sink, RunSettings(catalog))

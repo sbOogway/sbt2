@@ -10,7 +10,6 @@ from sbt2.results.parquet import RESULTS, ParquetResultStore
 from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
 from sbt2.results.store import (
     MissingTableError,
-    Provenance,
     ResultStore,
     Table,
     UnknownRunError,
@@ -24,7 +23,6 @@ __all__ = [
     "MissingTableError",
     "OutputSink",
     "ParquetResultStore",
-    "Provenance",
     "Reports",
     "ResultStore",
     "RunTables",

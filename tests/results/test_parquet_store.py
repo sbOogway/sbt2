@@ -1,6 +1,4 @@
-import subprocess
 import uuid
-from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -22,12 +20,9 @@ from sbt2.results import (
     MissingTableError,
     OutputSink,
     ParquetResultStore,
-    Provenance,
     Reports,
     UnknownRunError,
 )
-
-PROVENANCE = Provenance(git_sha="abc123", git_dirty=False)
 
 
 @pytest.fixture(scope="module")
@@ -50,9 +45,9 @@ def finished_run(
     store: ParquetResultStore,
     output: RunOutput,
     benchmark: pd.Series | None = None,
-    provenance: Provenance = PROVENANCE,
+    known_gaps: tuple[Gap, ...] = (),
 ) -> str:
-    sink = store.new_run(spec(), provenance)
+    sink = store.new_run(spec(), known_gaps)
     write(sink, output)
     sink.finalize(benchmark)
     return sink.run_id
@@ -60,8 +55,8 @@ def finished_run(
 
 @pytest.mark.unit
 def test_run_ids_are_time_sortable_uuid7(store: ParquetResultStore) -> None:
-    first = store.new_run(spec(), PROVENANCE).run_id
-    second = store.new_run(spec(), PROVENANCE).run_id
+    first = store.new_run(spec()).run_id
+    second = store.new_run(spec()).run_id
 
     assert uuid.UUID(first).version == 7
     assert first < second
@@ -87,7 +82,7 @@ def test_a_run_writes_its_tables_spec_and_summary_into_its_folder(
 
 
 @pytest.mark.unit
-def test_summary_holds_the_run_provenance_and_headline_metrics(
+def test_summary_holds_the_run_and_its_headline_metrics(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
     run_id = finished_run(store, output)
@@ -99,7 +94,6 @@ def test_summary_holds_the_run_provenance_and_headline_metrics(
     assert summary["params"] == '{"lots": 1}'
     assert list(summary["instruments"]) == ["BTCUSDT-LINEAR.BYBIT"]
     assert (summary["start"], summary["end"]) == (START, END)
-    assert (summary["git_sha"], summary["git_dirty"]) == ("abc123", False)
     assert summary["currency"] == "USDT"
     assert summary["trade_count"] == 2
     assert summary["total_fees"] == pytest.approx(2.0)
@@ -114,7 +108,7 @@ def test_the_summary_lists_the_known_gap_days_the_run_skipped(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
     gap = Gap(INSTRUMENT_ID, FundingRateUpdate, date(2024, 1, 2))
-    finished_run(store, output, provenance=replace(PROVENANCE, known_gaps=(gap,)))
+    finished_run(store, output, known_gaps=(gap,))
 
     [summary] = store.runs().to_dict("records")
     assert list(summary["known_gaps"]) == [
@@ -130,16 +124,6 @@ def test_a_run_without_known_gaps_lists_none(
 
     [summary] = store.runs().to_dict("records")
     assert list(summary["known_gaps"]) == []
-
-
-@pytest.mark.unit
-def test_fields_later_milestones_fill_are_null(
-    store: ParquetResultStore, output: RunOutput
-) -> None:
-    finished_run(store, output)
-
-    [summary] = store.runs().to_dict("records")
-    assert pd.isna(summary["data_fingerprint"])
 
 
 @pytest.mark.unit
@@ -213,7 +197,7 @@ def test_equity_and_carry_come_from_nautilus(
 
 @pytest.mark.unit
 def test_orders_are_optional(store: ParquetResultStore, output: RunOutput) -> None:
-    sink = store.new_run(spec(), PROVENANCE)
+    sink = store.new_run(spec())
     reports = output.reports
     without_orders = Reports(reports.fills, reports.positions, reports.account)
     write(sink, RunOutput(output.snapshots, output.carry, without_orders))
@@ -227,7 +211,7 @@ def test_orders_are_optional(store: ParquetResultStore, output: RunOutput) -> No
 def test_a_run_without_funding_or_fills_finalizes(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
-    sink = store.new_run(spec(), PROVENANCE)
+    sink = store.new_run(spec())
     sink.write_equity(output.snapshots)
     sink.write_carry([])
     sink.write_reports(Reports(pd.DataFrame(), pd.DataFrame(), output.reports.account))
@@ -241,7 +225,7 @@ def test_a_run_without_funding_or_fills_finalizes(
 def test_an_unfinished_run_is_not_listed_but_keeps_its_folder(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
-    sink = store.new_run(spec(), PROVENANCE)
+    sink = store.new_run(spec())
     write(sink, output)
 
     assert store.runs().empty
@@ -262,7 +246,7 @@ def test_empty_store_lists_no_runs_with_summary_columns(
 def test_finalize_before_writing_everything_fails(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
-    sink = store.new_run(spec(), PROVENANCE)
+    sink = store.new_run(spec())
     sink.write_equity(output.snapshots)
 
     with pytest.raises(IncompleteRunError, match="carry, fills"):
@@ -290,28 +274,11 @@ def test_unknown_or_malformed_run_ids_fail(
 
 
 @pytest.mark.unit
-def test_provenance_reads_the_git_revision_and_dirty_tree(tmp_path: Path) -> None:
-    git = ["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@t"]
-    subprocess.run([*git, "init", "-q"], check=True)
-    subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", "c"], check=True)
-    head = subprocess.run(
-        [*git, "rev-parse", "HEAD"], check=True, capture_output=True, text=True
-    ).stdout.strip()
-
-    clean = Provenance.of_repo(tmp_path)
-    (tmp_path / "new").write_text("x")
-    dirty = Provenance.of_repo(tmp_path)
-
-    assert clean == Provenance(git_sha=head, git_dirty=False)
-    assert dirty.git_dirty
-
-
-@pytest.mark.unit
 def test_missing_nested_values_stay_missing(
     store: ParquetResultStore, output: RunOutput
 ) -> None:
     positions = pd.DataFrame({"linked_order_ids": [None, ["O-1", "O-2"]]})
-    sink = store.new_run(spec(), PROVENANCE)
+    sink = store.new_run(spec())
     sink.write_reports(Reports(output.reports.fills, positions, output.reports.account))
 
     loaded = store.load(sink.run_id, "positions")

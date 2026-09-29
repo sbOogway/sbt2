@@ -1,5 +1,3 @@
-import hashlib
-import json
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -142,16 +140,6 @@ class Catalog:
             latest[each.id] = each
         return latest
 
-    def fingerprint(self, selection: Selection) -> str:
-        """A hash of the names and sizes of the selected files in the window,
-        and of the selection's instruments."""
-        digest = hashlib.sha256()
-        for line in self._file_lines(selection):
-            digest.update(f"{line}\n".encode())
-        for instrument in self.instruments(selection.instrument_ids).values():
-            digest.update(_canonical(instrument).encode())
-        return digest.hexdigest()
-
     def trades(self, instrument_id: InstrumentId, window: Window) -> pd.DataFrame:
         return frames.trades(self._records(_Series(instrument_id, TradeTick), window))
 
@@ -232,20 +220,6 @@ class Catalog:
             series.nautilus_type, [series.identifier], first, last
         )
 
-    def _file_lines(self, selection: Selection) -> list[str]:
-        return sorted(
-            f"{name} {(self._path / name).stat().st_size}"
-            for instrument_id in selection.instrument_ids
-            for data_type in selection.data_types
-            for name in self._files(_Series(instrument_id, data_type))
-            if _overlaps(layout.file_bounds(name), selection.window.nanos)
-        )
-
-    def _files(self, series: _Series) -> list[str]:
-        return self._nautilus.list_parquet_files(
-            series.nautilus_type, series.identifier
-        )
-
 
 def _nanos(moment: datetime) -> int:
     return pd.Timestamp(moment).value
@@ -274,7 +248,3 @@ def _days_of(intervals: Iterable[Interval]) -> list[date]:
 
 def _overlaps(one: Interval, other: Interval) -> bool:
     return one[0] <= other[1] and other[0] <= one[1]
-
-
-def _canonical(instrument: Any) -> str:
-    return json.dumps(instrument.to_dict(), sort_keys=True, default=str)
