@@ -4,13 +4,14 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+import nautilus_trader.model
 from nautilus_trader.backtest import (
     BacktestDataConfig,
     BacktestEngineConfig,
     BacktestRunConfig,
     BacktestVenueConfig,
 )
-from nautilus_trader.model import NautilusDataType
+from nautilus_trader.model import InstrumentId, NautilusDataType
 
 from sbt2.assets import AssetProfile
 from sbt2.spec.resolve.canonical import canonical_hash, canonical_json
@@ -48,6 +49,27 @@ class ResolvedRunSpec:
         """The canonical JSON the hash is taken of."""
         return canonical_json(self._document())
 
+    @property
+    def liquidation_enabled(self) -> bool:
+        return bool(self.venue.get("liquidation_enabled"))
+
+    @property
+    def data_types(self) -> tuple[type, ...]:
+        """The nautilus data classes the run streams."""
+        return tuple(
+            getattr(nautilus_trader.model, str(each["data_type"])) for each in self.data
+        )
+
+    @property
+    def instrument_ids(self) -> tuple[InstrumentId, ...]:
+        return tuple(self._first_data["instrument_ids"])
+
+    @property
+    def data_window(self) -> tuple[datetime, datetime]:
+        """The span the data is read over, the strategy's warm-up included."""
+        first = self._first_data
+        return first["start_time"], first["end_time"]
+
     def split_json(self) -> str:
         """The split's canonical JSON, as it appears in the hashed document."""
         return canonical_json(self.split.document())
@@ -78,6 +100,12 @@ class ResolvedRunSpec:
             end=self.end,
             **machine,
         )
+
+    @property
+    def _first_data(self) -> Mapping[str, Any]:
+        """Every data type is read for the same instruments over the same window."""
+        [first, *_] = self.data
+        return first
 
     def _document(self) -> dict[str, Any]:
         return {
