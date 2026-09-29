@@ -1,5 +1,5 @@
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -11,6 +11,7 @@ from nautilus_trader.backtest import (
     BacktestVenueConfig,
 )
 from nautilus_trader.model import InstrumentId, Money
+from nautilus_trader.risk import RiskEngineConfig
 
 from sbt2.assets import AssetProfile
 from sbt2.spec.resolve.canonical import canonical_hash, canonical_json
@@ -27,6 +28,8 @@ class ResolvedRunSpec:
     ``BacktestDataConfig`` arguments as plain data, without the catalog path.
     ``source`` names where missing data is fetched from; like the catalog path,
     it is not hashed. ``start`` and ``end`` are the dates of ``part``.
+    ``risk`` holds nautilus's ``RiskEngineConfig`` arguments; it enters the
+    hashed document only when set, so a run without it keeps its hash.
     """
 
     strategy: StrategyRun
@@ -39,6 +42,7 @@ class ResolvedRunSpec:
     part: str
     start: datetime
     end: datetime
+    risk: Mapping[str, Any] = field(default_factory=dict)
 
     @property
     def hash(self) -> str:
@@ -103,6 +107,7 @@ class ResolvedRunSpec:
             ],
             engine=BacktestEngineConfig(
                 portfolio=self.asset.portfolio_config(self.equity_interval_ms),
+                risk_engine=RiskEngineConfig(**self.risk),
                 **(engine or {}),
             ),
             start=self.start,
@@ -117,6 +122,12 @@ class ResolvedRunSpec:
         return first
 
     def _document(self) -> dict[str, Any]:
+        document = self._core_document()
+        if self.risk:
+            document["risk"] = dict(self.risk)
+        return document
+
+    def _core_document(self) -> dict[str, Any]:
         return {
             "strategy": {
                 "path": self.strategy.strategy,

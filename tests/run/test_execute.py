@@ -180,3 +180,15 @@ def test_a_catalog_without_the_instruments_fails_the_run(tmp_path: Path) -> None
 
     with pytest.raises(BacktestError, match="No instruments found"):
         run(tmp_path, empty)
+
+
+@pytest.mark.integration
+def test_the_risk_engine_denies_orders_over_the_notional_limit(
+    tmp_path: Path, catalog: Path
+) -> None:
+    risk = {"max_notional_per_order": {"BTCUSDT-LINEAR.BYBIT": "1000"}}
+
+    store, run_id = run(tmp_path, catalog, risk=risk)
+
+    assert store.load(run_id, "fills").empty
+    assert set(store.load(run_id, "orders")["status"]) == {"DENIED"}

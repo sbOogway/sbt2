@@ -417,6 +417,35 @@ def test_seed_goes_to_the_fill_model(paths: tuple[Path, Path]) -> None:
     assert venue.fill_model is not None
 
 
+RISK = {
+    "max_notional_per_order": {BTC: "1000"},
+    "max_order_submit_rate": "10/00:00:01",
+    "max_order_modify_rate": "5/00:00:01",
+}
+
+
+@pytest.mark.unit
+def test_the_risk_table_becomes_the_risk_engine_config(
+    paths: tuple[Path, Path],
+) -> None:
+    config = resolved(paths, risk=RISK).run_config("/catalog").engine.risk_engine
+
+    assert config is not None
+    assert config.max_notional_per_order == {BTC: "1000"}
+    assert config.max_order_submit_rate == "10/00:00:01"
+    assert config.max_order_modify_rate == "5/00:00:01"
+
+
+@pytest.mark.unit
+def test_a_spec_without_risk_hashes_as_before(paths: tuple[Path, Path]) -> None:
+    assert "risk" not in json.loads(resolved(paths).to_json())
+
+
+@pytest.mark.unit
+def test_risk_changes_the_hash(paths: tuple[Path, Path]) -> None:
+    assert resolved(paths, risk=RISK).hash != resolved(paths).hash
+
+
 @pytest.mark.unit
 def test_unknown_parameter_fails_listing_the_valid_ones(
     paths: tuple[Path, Path],
@@ -660,7 +689,8 @@ def test_an_empty_list_of_parts_fails(paths: tuple[Path, Path]) -> None:
 @pytest.mark.unit
 def test_start_and_end_are_no_longer_spec_keys(paths: tuple[Path, Path]) -> None:
     with pytest.raises(
-        UnknownSpecKeyError, match="start .* valid: .*params, part, period, seed, split"
+        UnknownSpecKeyError,
+        match="start .* valid: .*params, part, period, risk, seed, split",
     ):
         resolved(paths, start="2024-01-01")
 

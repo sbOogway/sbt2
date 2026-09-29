@@ -54,6 +54,7 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
         part=part,
         start=start,
         end=end,
+        risk=dict(spec.risk),
     )
 
 
