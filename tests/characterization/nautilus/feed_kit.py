@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
@@ -19,8 +20,6 @@ from nautilus_trader.trading import Strategy
 
 MINUTE = 60_000_000_000
 BAR_TYPE = BarType.from_str(f"{INSTRUMENT_ID}-1-MINUTE-LAST-EXTERNAL")
-FEEDS = ("bars", "trades")
-
 # A bar spreads its volume evenly over its open, high, low and close.
 BAR_PRICE_POINTS = 4
 
@@ -33,6 +32,30 @@ class PricePath:
 
 def minute(step: int) -> int:
     return START + step * MINUTE
+
+
+class Feed(ABC):
+    @abstractmethod
+    def data(self, path: PricePath) -> list[Any]: ...
+
+    @abstractmethod
+    def subscribe(self, strategy: Strategy) -> None: ...
+
+
+class BarFeed(Feed):
+    def data(self, path: PricePath) -> list[Any]:
+        return bars(path)
+
+    def subscribe(self, strategy: Strategy) -> None:
+        strategy.subscribe_bars(BAR_TYPE)
+
+
+class TradeFeed(Feed):
+    def data(self, path: PricePath) -> list[Any]:
+        return trades(path)
+
+    def subscribe(self, strategy: Strategy) -> None:
+        strategy.subscribe_trades(INSTRUMENT_ID)
 
 
 def bars(path: PricePath) -> list[Bar]:
@@ -77,21 +100,15 @@ def trades(path: PricePath) -> list[TradeTick]:
     ]
 
 
-def feed_data(feed: str, path: PricePath) -> list[Any]:
-    if feed == "bars":
-        return bars(path)
-    return trades(path)
+FEEDS: dict[str, Feed] = {"bars": BarFeed(), "trades": TradeFeed()}
 
 
 class StepStrategy(Strategy):
-    feed: str
+    feed: Feed
 
     def on_start(self) -> None:
         self.step = 0
-        if self.feed == "bars":
-            self.subscribe_bars(BAR_TYPE)
-        else:
-            self.subscribe_trades(INSTRUMENT_ID)
+        self.feed.subscribe(self)
 
     def on_bar(self, bar: Bar) -> None:
         self.advance()
@@ -108,8 +125,8 @@ class StepStrategy(Strategy):
 
 
 def run_on_feed(strategy: StepStrategy, feed: str, path: PricePath) -> BacktestEngine:
-    strategy.feed = feed
-    return run_engine(feed_data(feed, path), strategy)
+    strategy.feed = FEEDS[feed]
+    return run_engine(strategy.feed.data(path), strategy)
 
 
 def fills(order: Any) -> list[tuple[int, str, str]]:
