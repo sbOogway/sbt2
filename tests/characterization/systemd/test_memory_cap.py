@@ -21,7 +21,11 @@ print("survived")
 def unit() -> Iterator[str]:
     name = f"sbt2-test-{uuid.uuid4().hex}"
     yield name
-    reset = ["systemctl", "--user", "reset-failed", f"{name}.scope"]
+    reset_failed(name)
+
+
+def reset_failed(unit: str) -> None:
+    reset = ["systemctl", "--user", "reset-failed", f"{unit}.scope"]
     subprocess.run(reset, capture_output=True, check=False)
 
 
@@ -69,4 +73,17 @@ def test_a_child_under_the_cap_runs_to_completion(unit: str) -> None:
 
     assert result.returncode == 0
     assert "survived" in result.stdout
+    assert scope_property(unit, "LoadState") == "not-found"
+
+
+@pytest.mark.characterization
+@pytest.mark.systemd
+@pytest.mark.unit
+def test_a_scope_killed_over_the_cap_stays_loaded_until_reset(unit: str) -> None:
+    allocate_in_scope(unit, [MEMORY_MAX, NO_SWAP], OVER_CAP_MB)
+    loaded_after_kill = scope_property(unit, "LoadState")
+
+    reset_failed(unit)
+
+    assert loaded_after_kill == "loaded"
     assert scope_property(unit, "LoadState") == "not-found"
