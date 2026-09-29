@@ -176,26 +176,26 @@ def download(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ())
         )
         request = data.DownloadRequest(days)
-        report = _download(source, request, options)
-    _log_summary(report)
-    if report.having(data.Outcome.FAILED):
+        tally = _download(source, request, options)
+    _log_summary(tally)
+    if tally.having(data.Outcome.FAILED):
         raise typer.Exit(1)
 
 
 def _download(
     name: str, request: data.DownloadRequest, options: data.DownloadOptions
-) -> data.Report[data.FileResult]:
+) -> data.Tally[data.FileResult]:
     adapter = sources.source(name, SOURCES)
     with _download_bar() as bar:
         return data.download(adapter, request, replace(options, progress=bar))
 
 
-def _log_summary(report: data.Report[data.FileResult]) -> None:
-    for each in report.having(data.Outcome.MISSING):
+def _log_summary(tally: data.Tally[data.FileResult]) -> None:
+    for each in tally.having(data.Outcome.MISSING):
         logger.warning("missing at the source: %s", _described(each.item))
-    for each in report.having(data.Outcome.FAILED):
+    for each in tally.having(data.Outcome.FAILED):
         logger.error("failed: %s: %s", _described(each.item), each.reason)
-    counts = (f"{len(report.having(each))} {each}" for each in data.Outcome)
+    counts = (f"{len(tally.having(each))} {each}" for each in data.Outcome)
     logger.info("files: %s", ", ".join(counts))
 
 
@@ -239,25 +239,25 @@ def ingest(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ())
         )
         request = data.IngestRequest(days, reingest)
-        report = _ingest(source, request, options)
-    _log_ingest_summary(report)
+        tally = _ingest(source, request, options)
+    _log_ingest_summary(tally)
 
 
 def _ingest(
     name: str, request: data.IngestRequest, options: data.IngestOptions
-) -> data.Report[data.DayResult]:
+) -> data.Tally[data.DayResult]:
     adapter = sources.source(name, SOURCES)
     with _bar("ingest") as bar:
         return data.ingest(adapter, request, replace(options, progress=bar))
 
 
-def _log_ingest_summary(report: data.Report[data.DayResult]) -> None:
-    for each in report.having(data.IngestOutcome.MISSING):
+def _log_ingest_summary(tally: data.Tally[data.DayResult]) -> None:
+    for each in tally.having(data.IngestOutcome.MISSING):
         day = each.day
         logger.warning(
             "no raw file: %s %s %s", day.symbol, day.data, day.day.isoformat()
         )
-    counts = (f"{len(report.having(each))} {each}" for each in data.IngestOutcome)
+    counts = (f"{len(tally.having(each))} {each}" for each in data.IngestOutcome)
     logger.info("days: %s", ", ".join(counts))
 
 

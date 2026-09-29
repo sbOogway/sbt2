@@ -133,8 +133,8 @@ def _fetch(source: Source, missing: tuple[Gap, ...], folders: DataFolders) -> No
         last,
     )
     days = DayRange(symbols, first, last, types)
-    report = download(source, DownloadRequest(days), DownloadOptions(folders.raw))
-    for each in report.having(Outcome.FAILED):
+    tally = download(source, DownloadRequest(days), DownloadOptions(folders.raw))
+    for each in tally.having(Outcome.FAILED):
         logger.warning("failed to fetch %s: %s", each.item.raw.path, each.reason)
     try:
         ingest(

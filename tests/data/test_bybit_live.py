@@ -23,11 +23,11 @@ HOUR = pd.Timedelta(hours=1).value
 def raw(tmp_path_factory: pytest.TempPathFactory) -> tuple[Source, Path]:
     bybit = source("bybit", REPO_CONFIG)
     root = tmp_path_factory.mktemp("raw")
-    report = download(
+    tally = download(
         bybit, DownloadRequest(DayRange(("BTCUSDT",), DAY, DAY)), DownloadOptions(root)
     )
-    assert report.results
-    assert {each.outcome for each in report.results} == {Outcome.FETCHED}, report
+    assert tally.results
+    assert {each.outcome for each in tally.results} == {Outcome.FETCHED}, tally
     return bybit, root
 
 

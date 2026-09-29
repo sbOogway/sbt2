@@ -27,7 +27,7 @@ from sbt2.data import (
     IngestOutcome,
     IngestRequest,
     OutsideDayError,
-    Report,
+    Tally,
     ingest,
 )
 from sbt2.data.sources import Gap, UnsupportedDataTypeError
@@ -72,7 +72,7 @@ def run(
     catalog: Path,
     ingest_request: IngestRequest,
     source: LocalSource | None = None,
-) -> Report[DayResult]:
+) -> Tally[DayResult]:
     return ingest(source or LocalSource(), ingest_request, IngestOptions(raw, catalog))
 
 
@@ -84,8 +84,8 @@ def bounds(day: date) -> tuple[int, int]:
     return start_of(day), start_of(day) + DAY_NANOS - 1
 
 
-def outcomes(report: Report[DayResult]) -> dict[tuple[str, date], IngestOutcome]:
-    return {(each.day.data, each.day.day): each.outcome for each in report.results}
+def outcomes(tally: Tally[DayResult]) -> dict[tuple[str, date], IngestOutcome]:
+    return {(each.day.data, each.day.day): each.outcome for each in tally.results}
 
 
 def intervals(catalog: Path, data_type: NautilusDataType) -> list[tuple[int, int]]:
@@ -117,9 +117,9 @@ def test_every_served_data_type_is_ingested_by_default(
     write_day(raw, FundingRateUpdate, DAY, [start_of(DAY) + 8 * HOUR])
     write_day(raw, Bar, DAY, hourly(DAY))
 
-    report = run(raw, catalog_path, request())
+    tally = run(raw, catalog_path, request())
 
-    assert set(outcomes(report).values()) == {IngestOutcome.WRITTEN}
+    assert set(outcomes(tally).values()) == {IngestOutcome.WRITTEN}
     for data_type in (TRADES, NautilusDataType.MarkPriceUpdate):
         assert intervals(catalog_path, data_type) == [bounds(DAY)]
     assert ParquetDataCatalog(str(catalog_path)).get_intervals(
@@ -141,9 +141,9 @@ def test_a_raw_file_without_rows_becomes_a_covered_empty_day(
     name = data_type.__name__
     write_day(raw, data_type, DAY, [])
 
-    report = run(raw, catalog_path, request(DAY, name))
+    tally = run(raw, catalog_path, request(DAY, name))
 
-    assert outcomes(report) == {(name, DAY): IngestOutcome.EMPTY}
+    assert outcomes(tally) == {(name, DAY): IngestOutcome.EMPTY}
     stored = getattr(NautilusDataType, name)
     assert intervals(catalog_path, stored) == [bounds(DAY)]
     assert ParquetDataCatalog(str(catalog_path)).query(stored) == []
@@ -175,9 +175,9 @@ def test_a_day_without_candles_is_a_covered_empty_bar_file(
 ) -> None:
     write_day(raw, Bar, DAY, [])
 
-    report = run(raw, catalog_path, request(DAY, "Bar"))
+    tally = run(raw, catalog_path, request(DAY, "Bar"))
 
-    assert outcomes(report) == {("Bar", DAY): IngestOutcome.EMPTY}
+    assert outcomes(tally) == {("Bar", DAY): IngestOutcome.EMPTY}
     catalog = ParquetDataCatalog(str(catalog_path))
     assert catalog.get_intervals(NautilusDataType.Bar, str(CANDLE_TYPE)) == [
         bounds(DAY)
@@ -191,9 +191,9 @@ def test_a_day_without_a_raw_file_is_missing_and_not_written(
 ) -> None:
     write_day(raw, TradeTick, DAY, hourly(DAY))
 
-    report = run(raw, catalog_path, request(NEXT_DAY, "TradeTick"))
+    tally = run(raw, catalog_path, request(NEXT_DAY, "TradeTick"))
 
-    assert outcomes(report)[("TradeTick", NEXT_DAY)] is IngestOutcome.MISSING
+    assert outcomes(tally)[("TradeTick", NEXT_DAY)] is IngestOutcome.MISSING
     assert intervals(catalog_path, TRADES) == [bounds(DAY)]
 
 
@@ -202,9 +202,9 @@ def test_known_gap_days_are_left_out(raw: Path, catalog_path: Path) -> None:
     source = LocalSource(frozenset({Gap(INSTRUMENT_ID, TradeTick, NEXT_DAY)}))
     write_day(raw, TradeTick, DAY, hourly(DAY))
 
-    report = run(raw, catalog_path, request(NEXT_DAY, "TradeTick"), source)
+    tally = run(raw, catalog_path, request(NEXT_DAY, "TradeTick"), source)
 
-    assert list(outcomes(report)) == [("TradeTick", DAY)]
+    assert list(outcomes(tally)) == [("TradeTick", DAY)]
 
 
 @pytest.mark.unit
@@ -216,9 +216,9 @@ def test_a_rerun_skips_the_days_already_in_the_catalog(
     write_day(raw, TradeTick, DAY, hourly(DAY)[:1])
     write_day(raw, TradeTick, NEXT_DAY, hourly(NEXT_DAY))
 
-    report = run(raw, catalog_path, request(NEXT_DAY, "TradeTick"))
+    tally = run(raw, catalog_path, request(NEXT_DAY, "TradeTick"))
 
-    assert outcomes(report) == {
+    assert outcomes(tally) == {
         ("TradeTick", DAY): IngestOutcome.SKIPPED,
         ("TradeTick", NEXT_DAY): IngestOutcome.WRITTEN,
     }
@@ -260,9 +260,9 @@ def test_a_partial_file_left_by_a_crash_is_not_a_covered_day(
     (leftover / (_day_file_name(DAY) + "#sbt2")).write_bytes(b"trunc")
     write_day(raw, FundingRateUpdate, DAY, [start_of(DAY) + 8 * HOUR])
 
-    report = run(raw, catalog_path, request(DAY, "FundingRateUpdate"))
+    tally = run(raw, catalog_path, request(DAY, "FundingRateUpdate"))
 
-    assert outcomes(report) == {("FundingRateUpdate", DAY): IngestOutcome.WRITTEN}
+    assert outcomes(tally) == {("FundingRateUpdate", DAY): IngestOutcome.WRITTEN}
     fundings = ParquetDataCatalog(str(catalog_path)).query(
         NautilusDataType.FundingRateUpdate
     )

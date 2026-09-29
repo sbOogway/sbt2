@@ -22,7 +22,7 @@ from sbt2.data import (
     IngestRequest,
     InstrumentChangedError,
     NoSnapshotError,
-    Report,
+    Tally,
     ingest,
 )
 
@@ -36,9 +36,7 @@ ONE_DAY = IngestRequest(TRADES_OF_DAY)
 REINGEST = IngestRequest(TRADES_OF_DAY, reingest=True)
 
 
-def run(
-    raw: Path, catalog: Path, request: IngestRequest = ONE_DAY
-) -> Report[DayResult]:
+def run(raw: Path, catalog: Path, request: IngestRequest = ONE_DAY) -> Tally[DayResult]:
     return ingest(LocalSource(), request, IngestOptions(raw, catalog))
 
 

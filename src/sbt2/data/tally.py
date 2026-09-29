@@ -9,7 +9,7 @@ class _Result(Protocol):
 
 
 @dataclass(frozen=True)
-class Report[R: _Result]:
+class Tally[R: _Result]:
     """Every result of a download or an ingest, in the order they were planned."""
 
     results: tuple[R, ...]

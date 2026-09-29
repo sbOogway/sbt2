@@ -11,8 +11,8 @@ from typing import Protocol
 import httpx
 
 from sbt2.data.days import DayRange
-from sbt2.data.report import Report
 from sbt2.data.sources import Fetch, MissingAtSourceError, RawFile, Source
+from sbt2.data.tally import Tally
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ class _PermanentError(Exception):
 
 def download(
     source: Source, request: DownloadRequest, options: DownloadOptions
-) -> Report[FileResult]:
+) -> Tally[FileResult]:
     """Fetch the request's raw files from ``source`` into ``options.raw``.
 
     Files already there are skipped, days the source lacks are reported as
@@ -96,7 +96,7 @@ def download(
     """
     items = list(_plan(source, request))
     options.progress.planned(len(items))
-    return Report(tuple(asyncio.run(_download_all(items, options))))
+    return Tally(tuple(asyncio.run(_download_all(items, options))))
 
 
 def _plan(source: Source, request: DownloadRequest) -> Iterator[Item]:

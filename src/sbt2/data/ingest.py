@@ -10,8 +10,8 @@ import pandas as pd
 
 from sbt2.data.catalog import Bounds, CatalogWriter, DayFile
 from sbt2.data.days import DayRange
-from sbt2.data.report import Report
 from sbt2.data.sources import Source
+from sbt2.data.tally import Tally
 
 _ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _DAY_NANOS = 86_400_000_000_000
@@ -95,7 +95,7 @@ class _Job:
 
 def ingest(
     source: Source, request: IngestRequest, options: IngestOptions
-) -> Report[DayResult]:
+) -> Tally[DayResult]:
     """Write the request's raw files from ``options.raw`` into the catalog.
 
     Each symbol's instrument comes from its newest snapshot. Days already in
@@ -109,7 +109,7 @@ def ingest(
         for symbol in request.days.symbols
         for result in _ingest_symbol(job, symbol)
     ]
-    return Report(tuple(results))
+    return Tally(tuple(results))
 
 
 def _planned_days(source: Source, days: DayRange) -> int:

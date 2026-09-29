@@ -29,7 +29,7 @@ from sbt2.data.ingest import (
     OutsideDayError,
     ingest,
 )
-from sbt2.data.report import Report
+from sbt2.data.tally import Tally
 
 __all__ = [
     "INSTRUMENT",
@@ -52,8 +52,8 @@ __all__ = [
     "Outcome",
     "OutsideDayError",
     "Progress",
-    "Report",
     "Selection",
+    "Tally",
     "UnstoredDataTypeError",
     "Window",
     "download",
