@@ -7,6 +7,7 @@ from typing import Any
 from nautilus_trader.model import InstrumentId
 
 from sbt2.data.sources import CANDLES
+from sbt2.spec.errors import SpecError
 from sbt2.spec.file import RunSpec
 from sbt2.spec.resolve.data import data_arguments, data_types
 from sbt2.spec.resolve.resolved import ResolvedRunSpec
@@ -15,11 +16,11 @@ from sbt2.spec.split import Splitter, from_table
 from sbt2.strategy import StrategyRun, import_strategy, resolve_params
 
 
-class InstrumentVenueError(ValueError):
+class InstrumentVenueError(SpecError):
     pass
 
 
-class UnknownPartError(ValueError):
+class UnknownPartError(SpecError):
     pass
 
 

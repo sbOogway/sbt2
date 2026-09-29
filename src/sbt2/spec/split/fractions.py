@@ -2,11 +2,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from itertools import pairwise
 
+from sbt2.spec.errors import SpecError
 from sbt2.spec.moments import nearest_day
 from sbt2.spec.split.splitter import PARTS, Period, Splitter
 
 
-class SplitFractionError(ValueError):
+class SplitFractionError(SpecError):
     pass
 
 

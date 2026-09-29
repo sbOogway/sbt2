@@ -2,6 +2,7 @@ from collections.abc import Mapping
 from dataclasses import fields
 from typing import Any
 
+from sbt2.spec.errors import SpecError
 from sbt2.spec.split.dates import DateSplit, SplitDateError
 from sbt2.spec.split.fractions import FractionSplit, SplitFractionError
 from sbt2.spec.split.splitter import Splitter
@@ -9,7 +10,7 @@ from sbt2.spec.split.splitter import Splitter
 _SPLITTERS: tuple[type[Splitter], ...] = (FractionSplit, DateSplit)
 
 
-class UnknownSplitError(ValueError):
+class UnknownSplitError(SpecError):
     """A split table whose keys fit no splitter."""
 
 

@@ -18,6 +18,7 @@ from nautilus_trader.model import (
     OmsType,
 )
 
+import sbt2.spec
 from sbt2.spec import (
     CandleBarError,
     DateSplit,
@@ -28,6 +29,7 @@ from sbt2.spec import (
     InvalidVenueProfileError,
     MissingSplitError,
     ResolvedRunSpec,
+    SpecError,
     UnknownBarSourceError,
     UnknownPartError,
     UnknownSpecKeyError,
@@ -745,3 +747,16 @@ def test_a_resolved_spec_survives_pickling(paths: tuple[Path, Path], bars: str) 
     config, copied = spec.run_config("/catalog"), copy.run_config("/catalog")
     assert repr(copied.venues) == repr(config.venues)
     assert repr(copied.data) == repr(config.data)
+
+
+@pytest.mark.unit
+def test_every_spec_error_is_a_spec_error() -> None:
+    errors = [
+        each
+        for each in vars(sbt2.spec).values()
+        if isinstance(each, type) and issubclass(each, Exception)
+    ]
+
+    assert len(errors) > 1
+    assert issubclass(SpecError, ValueError)
+    assert [each for each in errors if not issubclass(each, SpecError)] == []

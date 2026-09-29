@@ -3,10 +3,12 @@ from dataclasses import dataclass
 from itertools import product
 from typing import Any
 
+from sbt2.spec.errors import SpecError
+
 _UNNAMED_PARTS = ("train", "validation")
 
 
-class EmptyListError(ValueError):
+class EmptyListError(SpecError):
     """A list in a spec file that would expand into no runs."""
 
 

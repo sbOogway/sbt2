@@ -4,14 +4,15 @@ from dataclasses import fields
 from pathlib import Path
 from typing import Any
 
+from sbt2.spec.errors import SpecError
 from sbt2.spec.file.run_spec import RunSpec
 
 
-class UnknownSpecKeyError(ValueError):
+class UnknownSpecKeyError(SpecError):
     pass
 
 
-class MissingSplitError(ValueError):
+class MissingSplitError(SpecError):
     pass
 
 

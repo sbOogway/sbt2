@@ -14,11 +14,12 @@ from nautilus_trader.model import (
 
 from sbt2.assets import AssetProfile
 from sbt2.data.sources import candle_type
+from sbt2.spec.errors import SpecError
 
 _MINUTE = timedelta(minutes=1)
 
 
-class CandleBarError(ValueError):
+class CandleBarError(SpecError):
     """A declared bar that 1-minute candles cannot build."""
 
 

@@ -3,11 +3,12 @@ from pathlib import Path
 from typing import Any
 
 from sbt2.config import VENUE_PROFILES
+from sbt2.spec.errors import SpecError
 from sbt2.spec.file import Expanded, RunSpec, runs
 from sbt2.spec.resolve import ResolvedRunSpec, resolve
 
 
-class DuplicateRunError(ValueError):
+class DuplicateRunError(SpecError):
     """Two runs of a spec file that resolve to the same backtest."""
 
 

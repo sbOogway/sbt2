@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from sbt2.spec.errors import SpecError
 from sbt2.spec.moments import utc
 from sbt2.spec.split import Splitter
 
@@ -13,7 +14,7 @@ _INTERVAL = re.compile(r"(\d+)([smhd])")
 _UNIT_MS = {"s": 1_000, "m": 60_000, "h": 3_600_000, "d": 86_400_000}
 
 
-class UnknownBarSourceError(ValueError):
+class UnknownBarSourceError(SpecError):
     pass
 
 
@@ -59,6 +60,6 @@ class RunSpec:
 def _interval_ms(interval: str) -> int:
     match = _INTERVAL.fullmatch(interval)
     if match is None:
-        raise ValueError(f"equity interval {interval!r} is not like 30s, 15m, 1h or 1d")
+        raise SpecError(f"equity interval {interval!r} is not like 30s, 15m, 1h or 1d")
     count, unit = match.groups()
     return int(count) * _UNIT_MS[unit]

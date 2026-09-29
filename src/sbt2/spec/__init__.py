@@ -1,3 +1,4 @@
+from sbt2.spec.errors import SpecError
 from sbt2.spec.file import (
     EmptyListError,
     MissingSplitError,
@@ -32,6 +33,7 @@ __all__ = [
     "InvalidVenueProfileError",
     "MissingSplitError",
     "ResolvedRunSpec",
+    "SpecError",
     "SplitDateError",
     "SplitFractionError",
     "Splitter",

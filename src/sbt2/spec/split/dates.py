@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from datetime import datetime
 
+from sbt2.spec.errors import SpecError
 from sbt2.spec.moments import Moment, floor_day, utc
 from sbt2.spec.split.splitter import Period, Splitter
 
 
-class SplitDateError(ValueError):
+class SplitDateError(SpecError):
     pass
 
 
