@@ -70,3 +70,23 @@ branch = true
 [tool.coverage.report]
 fail_under = 85
 show_missing = true
+
+[tool.git-cliff.git]
+conventional_commits = true
+filter_unconventional = true
+tag_pattern = "v[0-9]+\\.[0-9]+\\.[0-9]+"
+# Pull requests land as merge commits titled "type(scope): summary (#N)";
+# keeping only those lists each change once instead of once per branch commit.
+commit_parsers = [
+    { message = "^feat.*\\(#[0-9]+\\)(\n|$)", group = "Features" },
+    { message = "^fix.*\\(#[0-9]+\\)(\n|$)", group = "Bug fixes" },
+    { message = "^perf.*\\(#[0-9]+\\)(\n|$)", group = "Performance" },
+    { message = "^refactor.*\\(#[0-9]+\\)(\n|$)", group = "Refactoring" },
+    { message = "^revert.*\\(#[0-9]+\\)(\n|$)", group = "Reverts" },
+    { message = ".*", skip = true },
+]
+
+[tool.git-cliff.bump]
+features_always_bump_minor = false
+breaking_always_bump_major = false
+initial_tag = "v0.1.0"
