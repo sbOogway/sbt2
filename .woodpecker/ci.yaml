@@ -22,7 +22,16 @@ steps:
     environment: *env
     commands:
       - uv sync --locked
-      - uv run --locked pytest --cov -m "not live and not characterization and not realdata and not systemd"
+      - uv run --locked pytest --cov --cov-report=term --cov-report=xml -m "not live and not characterization and not realdata and not systemd"
+
+  - name: coverage
+    image: *image
+    environment:
+      <<: *env
+      CODECOV_TOKEN:
+        from_secret: codecov_token
+    commands:
+      - uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --file coverage.xml
 
   - name: characterization
     image: *image
