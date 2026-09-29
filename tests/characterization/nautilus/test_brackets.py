@@ -9,6 +9,7 @@ from nautilus_trader.model import ClientOrderId, OrderSide, OrderStatus, Price, 
 ENTRY_PRICE = "50000.0"
 TAKE_PROFIT = "51000.0"
 STOP_LOSS = "49000.0"
+MOVED_STOP = "48000.0"
 
 
 class LongBracket(StepStrategy):
@@ -79,3 +80,40 @@ def test_a_stop_loss_fill_cancels_the_take_profit(
     assert order(engine, strategy.take_profit).status == OrderStatus.CANCELED
     [position] = engine.cache.positions()
     assert position.is_closed
+
+
+class MovedStop(StepStrategy):
+    def on_step(self, step: int) -> None:
+        if step == 0:
+            self.submit_stop()
+        if step == 1:
+            self.modify_order(
+                self.resting_stop, trigger_price=Price.from_str(MOVED_STOP)
+            )
+
+    def submit_stop(self) -> None:
+        stop = self.order_factory.stop_market(
+            INSTRUMENT_ID,
+            OrderSide.SELL,
+            Quantity.from_str("1.000"),
+            Price.from_str(STOP_LOSS),
+        )
+        self.resting_stop = stop.client_order_id
+        self.submit_order(stop)
+
+
+@pytest.mark.characterization
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("feed", "stop_fill_price"),
+    [("bars", MOVED_STOP), ("trades", "47800.0")],
+)
+def test_modify_order_moves_a_resting_stop(feed: str, stop_fill_price: str) -> None:
+    strategy = MovedStop()
+    path = PricePath([ENTRY_PRICE, "49800.0", "48800.0", "47800.0"])
+
+    engine = run_on_feed(strategy, feed, path)
+
+    stop = order(engine, strategy.resting_stop)
+    assert stop.trigger_price == Price.from_str(MOVED_STOP)
+    assert fills(stop) == [(minute(3), stop_fill_price, "1.000")]
