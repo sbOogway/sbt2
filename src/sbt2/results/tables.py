@@ -29,8 +29,12 @@ def equity_table(snapshots: Iterable[PortfolioSnapshot]) -> pd.DataFrame:
 
 
 def carry_table(adjustments: Iterable[PositionAdjusted]) -> pd.DataFrame:
-    """Nautilus's own fields of each adjustment, one row each."""
-    return _with_timestamps(pd.DataFrame([each.to_dict() for each in adjustments]))
+    """Nautilus's own fields of each adjustment, one row each, in time order
+    and by instrument within the same time."""
+    ordered = sorted(
+        adjustments, key=lambda each: (each.ts_event, str(each.instrument_id))
+    )
+    return _with_timestamps(pd.DataFrame([each.to_dict() for each in ordered]))
 
 
 def write_table(frame: pd.DataFrame, path: Path) -> None:

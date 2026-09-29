@@ -30,6 +30,7 @@ def golden_numbers(store: ParquetResultStore) -> dict[str, Any]:
     carry = store.load(run_id, "carry")
     fills = store.load(run_id, "fills")
     return {
+        **_drawdown_trip(summary["drawdown_tripped_at"]),
         "summary": {name: summary[name] for name in METRICS},
         "carry": [
             [ts.isoformat(), pnl]
@@ -44,6 +45,13 @@ def golden_numbers(store: ParquetResultStore) -> dict[str, Any]:
             )
         ),
     }
+
+
+def _drawdown_trip(tripped_at: Any) -> dict[str, str]:
+    """Only a run that trips records it, so the ma_cross goldens stay as they are."""
+    if not isinstance(tripped_at, pd.Timestamp):
+        return {}
+    return {"drawdown_tripped_at": tripped_at.isoformat()}
 
 
 def _rows(frame: pd.DataFrame, columns: list[str]) -> list[list[str]]:
@@ -61,7 +69,9 @@ def data(tmp_path: Path) -> Path:
 
 @pytest.mark.golden
 @pytest.mark.e2e
-@pytest.mark.parametrize("name", ["ma_cross", "ma_cross_candles"])
+@pytest.mark.parametrize(
+    "name", ["ma_cross", "ma_cross_candles", "bracket_risk", "bracket_risk_candles"]
+)
 def test_the_spec_keeps_producing_its_golden_numbers(
     name: str,
     data: Path,
@@ -79,7 +89,32 @@ def test_the_spec_keeps_producing_its_golden_numbers(
         golden.write_text(json.dumps(numbers, indent=2) + "\n")
     expected = json.loads(golden.read_text())
     assert numbers["carry"], "a golden run must settle at least one funding payment"
+    assert numbers.get("drawdown_tripped_at") == expected.get("drawdown_tripped_at")
     assert numbers["carry"] == expected["carry"]
     assert numbers["fills"] == expected["fills"]
     assert numbers["summary"] == pytest.approx(expected["summary"], rel=1e-9)
     assert numbers["equity"] == pytest.approx(expected["equity"], rel=1e-9)
+
+
+@pytest.mark.golden
+@pytest.mark.e2e
+@pytest.mark.parametrize("name", ["bracket_risk", "bracket_risk_candles"])
+def test_the_bracket_golden_run_exercises_brackets_and_the_guard(
+    name: str, data: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(REPO)
+
+    result = CliRunner().invoke(
+        app, ["run", str(HERE / f"{name}.toml"), "--data", str(data)]
+    )
+
+    assert result.exit_code == 0, result.output
+    store = ParquetResultStore(data / "results")
+    [summary] = store.runs().to_dict("records")
+    fills = store.load(summary["run_id"], "fills")
+    assert set(fills["instrument_id"]) == {
+        "BTCUSDT-LINEAR.BYBIT",
+        "ETHUSDT-LINEAR.BYBIT",
+    }
+    assert {"LIMIT", "STOP_MARKET"} <= set(fills["order_type"])
+    assert isinstance(summary["drawdown_tripped_at"], pd.Timestamp)

@@ -118,10 +118,9 @@ def _reports(cache: Cache, account: Any) -> Reports:
 def _funding(cache: Cache) -> list[PositionAdjusted]:
     """Reversing a netting position moves its earlier adjustments to a snapshot."""
     positions = [*cache.position_snapshots(), *cache.positions()]
-    funding = [
+    return [
         adjustment
         for position in positions
         for adjustment in position.adjustments()
         if adjustment.adjustment_type == PositionAdjustmentType.FUNDING
     ]
-    return sorted(funding, key=lambda adjustment: adjustment.ts_event)

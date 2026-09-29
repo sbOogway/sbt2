@@ -1,0 +1,20 @@
+strategy = "strategies.bracket_risk:BracketRisk"
+instruments = ["BTCUSDT-LINEAR.BYBIT", "ETHUSDT-LINEAR.BYBIT"]
+period = [2024-01-02, 2024-01-10]
+split = { validation_start = 2024-01-06, test_start = 2024-01-08 }
+part = "train"
+venue = "bybit_linear"
+capital = "10000 USDT"
+
+[params]
+period = 6
+bar = "1-HOUR-LAST"
+risk = "0.01"
+stop = "0.005"
+reward = "2"
+
+[risk]
+max_notional_per_order = { "BTCUSDT-LINEAR.BYBIT" = "100000", "ETHUSDT-LINEAR.BYBIT" = "100000" }
+max_order_submit_rate = "100/00:00:01"
+max_order_modify_rate = "100/00:00:01"
+drawdown_limit = "0.06"
