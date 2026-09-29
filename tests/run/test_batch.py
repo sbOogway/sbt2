@@ -1,6 +1,8 @@
 import os
+import subprocess
 import sys
 import time
+from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -47,6 +49,7 @@ NEXT_DAY = date(2024, 1, 2)
 GiB = 2**30
 EXIT = [sys.executable, "-c", "pass"]
 FAIL = [sys.executable, "-c", "raise SystemExit(1)"]
+NAP = [sys.executable, "-c", "import time; time.sleep(0.5)"]
 SLEEP = [sys.executable, "-c", "import time; time.sleep(60)"]
 
 
@@ -60,6 +63,18 @@ class RecordedProgress:
 
     def finished(self, run_id: str) -> None:
         self.done.append(run_id)
+
+
+class CountingLauncher(ScriptedLauncher):
+    """Records the most children alive at once, counted as each one starts."""
+
+    most_alive = 0
+
+    def start(self, run_id: str, command: Sequence[str]) -> subprocess.Popen[bytes]:
+        child = super().start(run_id, command)
+        alive = sum(each.poll() is None for each in self.started)
+        self.most_alive = max(self.most_alive, alive)
+        return child
 
 
 def resolved(tmp_path: Path, **overrides: Any) -> ResolvedRunSpec:
@@ -211,3 +226,20 @@ def test_a_failure_stops_the_running_runs_and_starts_no_more(tmp_path: Path) -> 
     failed, sleeper = launcher.started
     assert failed.returncode == 1
     assert sleeper.returncode is not None and sleeper.returncode < 0
+
+
+@pytest.mark.integration
+def test_at_most_budget_over_per_run_runs_go_at_once(tmp_path: Path) -> None:
+    specs = [resolved(tmp_path, params={"hold_bars": each}) for each in (2, 3, 4, 5)]
+    launcher = CountingLauncher([NAP] * 4)
+
+    batch(specs, setup(tmp_path, launcher))
+
+    assert launcher.most_alive == 2
+    assert [each.returncode for each in launcher.started] == [0] * 4
+
+
+@pytest.mark.unit
+def test_a_budget_below_the_per_run_cap_is_refused() -> None:
+    with pytest.raises(ValueError, match="budget"):
+        Memory(budget=GiB, per_run=2 * GiB)

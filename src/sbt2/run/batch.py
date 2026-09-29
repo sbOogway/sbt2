@@ -74,6 +74,13 @@ class Memory:
     budget: int = field(default_factory=_half_the_memory)
     per_run: int = 4 * GiB
 
+    def __post_init__(self) -> None:
+        if self.budget < self.per_run:
+            raise ValueError(
+                f"a memory budget of {self.budget:,} bytes is below the "
+                f"{self.per_run:,} each run gets"
+            )
+
     @property
     def concurrency(self) -> int:
         return self.budget // self.per_run
