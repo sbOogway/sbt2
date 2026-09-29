@@ -22,7 +22,7 @@ from nautilus_trader.model import (
     TradeTick,
 )
 
-from sbt2.data.sources import Gap, RawFile, candle_type
+from sbt2.data.sources import RawFile, Source, candle_type
 
 SYMBOL = "BTCUSDT"
 INSTRUMENT_ID = InstrumentId.from_str(f"{SYMBOL}-PERP.LOCAL")
@@ -32,17 +32,10 @@ FUNDING_RATE = Decimal("0.0001")
 FUNDING_INTERVAL_MINUTES = 480
 
 
-class LocalSource:
-    def __init__(self, known_gaps: frozenset[Gap] = frozenset()) -> None:
-        self._known_gaps = known_gaps
-
+class LocalSource(Source):
     @property
     def data_types(self) -> tuple[type, ...]:
         return (TradeTick, MarkPriceUpdate, FundingRateUpdate, Bar)
-
-    @property
-    def known_gaps(self) -> frozenset[Gap]:
-        return self._known_gaps
 
     def instrument_id(self, symbol: str) -> InstrumentId:
         return InstrumentId.from_str(f"{symbol}-PERP.LOCAL")

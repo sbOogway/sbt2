@@ -11,7 +11,7 @@ import pandas as pd
 
 from sbt2.data.catalog import Bounds, CatalogWriter, DayFile
 from sbt2.data.days import days
-from sbt2.data.sources import Source, data_types, is_known_gap
+from sbt2.data.sources import Source
 
 _ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 _DAY_NANOS = 86_400_000_000_000
@@ -119,7 +119,7 @@ def ingest(
     """
     options.catalog.mkdir(parents=True, exist_ok=True)
     job = _Job(source, request, options, CatalogWriter(options.catalog))
-    types = data_types(source, request.data)
+    types = source.served(request.data)
     options.progress.planned(_planned_days(request, types))
     results = [
         result
@@ -140,7 +140,7 @@ def _ingest_symbol(
     instrument = _pinned_instrument(job, symbol)
     span = days(job.request.start, job.request.end)
     for data_type, day in product(types, span):
-        if not is_known_gap(job.source, symbol, data_type, day):
+        if not job.source.is_known_gap(symbol, data_type, day):
             result = _ingest_day(job, instrument, Day(symbol, data_type.__name__, day))
             job.options.progress.finished(result)
             yield result
@@ -217,7 +217,8 @@ def _ingest_day(job: _Job, instrument: Any, day: Day) -> DayResult:
 
 
 def _data_type(source: Source, name: str) -> type:
-    return next(each for each in source.data_types if each.__name__ == name)
+    (data_type,) = source.served((name,))
+    return data_type
 
 
 def _bounds(day: date) -> Bounds:

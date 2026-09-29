@@ -11,7 +11,7 @@ from typer.testing import CliRunner
 from sbt2.cli import app
 from sbt2.config import SOURCES
 from sbt2.data import sources
-from sbt2.data.sources import Gap, MissingAtSourceError, RawFile
+from sbt2.data.sources import MissingAtSourceError, RawFile, Source
 
 runner = CliRunner()
 
@@ -20,19 +20,16 @@ type Answers = Mapping[str, bytes | Exception]
 DAYS = ["--start", "2025-01-01", "--end", "2025-01-02"]
 
 
-class ApiSource:
+class ApiSource(Source):
     """Serves every raw file from ``answers``, keyed by path; the rest are missing."""
 
     def __init__(self, answers: Answers) -> None:
+        super().__init__()
         self._answers = answers
 
     @property
     def data_types(self) -> tuple[type, ...]:
         return (TradeTick,)
-
-    @property
-    def known_gaps(self) -> frozenset[Gap]:
-        return frozenset()
 
     def instrument_id(self, symbol: str) -> InstrumentId:
         return InstrumentId.from_str(f"{symbol}.FAKE")
