@@ -540,3 +540,19 @@ def test_an_unknown_split_table_fails_listing_the_forms(
 ) -> None:
     with pytest.raises(UnknownSplitError, match="kind .* validation_start"):
         resolved(paths, split={"kind": "walk_forward"})
+
+
+@pytest.mark.unit
+def test_a_split_table_of_fractions_resolves(paths: tuple[Path, Path]) -> None:
+    spec_file, _ = paths
+    spec_file.write_text(
+        spec_file.read_text().replace(
+            "split = { validation_start = 2024-02-01, test_start = 2024-02-15 }",
+            "split = { validation = 0.25, test = 0.25 }",
+        )
+    )
+
+    spec = resolved(paths)
+
+    assert spec.split == Split(validation=0.25, test=0.25)
+    assert (spec.start, spec.end) == (START, datetime(2024, 1, 31, tzinfo=UTC))
