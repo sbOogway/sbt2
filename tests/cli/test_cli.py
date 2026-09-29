@@ -2,6 +2,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+from launchers import PlainLauncher
 from nautilus_trader.model import FundingRateUpdate
 from served_source import INSTRUMENT_ID, ServedSource
 from typer.testing import CliRunner
@@ -33,6 +34,21 @@ asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 fee_model = { path = "nautilus_trader.execution:MakerTakerFeeModel", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
 """
+FAILING = """
+from nautilus_trader.model import Bar, BarSpecification
+
+from sbt2.strategy import NoParams, Strategy
+
+
+class FailOnBar(Strategy[NoParams]):
+    @classmethod
+    def inputs(cls, params):
+        return (BarSpecification.from_str("1-HOUR-LAST"),)
+
+    def on_bar(self, bar: Bar) -> None:
+        raise RuntimeError("strategy blew up")
+"""
+GiB = 2**30
 DAY = date(2024, 1, 1)
 NEXT_DAY = date(2024, 1, 2)
 VALIDATION_DAY = date(2024, 1, 3)
@@ -119,6 +135,17 @@ def test_a_run_stores_the_known_gap_days_it_skipped(
     assert list(summary["known_gaps"]) == [str(gap)]
 
 
+def failing(spec: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The spec, with a strategy that raises on its first bar."""
+    (spec.parent / "failing.py").write_text(FAILING)
+    monkeypatch.syspath_prepend(spec.parent)
+    text = spec.read_text().split("[params]")[0]
+    spec.write_text(
+        text.replace("strategies.ma_cross:MovingAverageCross", "failing:FailOnBar")
+    )
+    return spec
+
+
 def without_a_part(spec: Path) -> Path:
     spec.write_text(spec.read_text().replace('part = "train"\n', ""))
     return spec
@@ -152,4 +179,82 @@ def test_every_run_is_preflighted_before_any_executes(
 
     assert result.exit_code == 1
     assert "MissingDataError" in log.read_text()
+    assert not (tmp_path / "data" / "results").exists()
+
+
+@pytest.mark.e2e
+def test_a_failed_run_logs_its_run_id_and_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+    spec = failing(served(tmp_path, monkeypatch, source), monkeypatch)
+    log = tmp_path / "sbt2.log"
+
+    result = runner.invoke(app, ["--log-file", str(log), "run", str(spec)])
+
+    assert result.exit_code == 1
+    [folder] = (tmp_path / "data" / "results" / "runs").iterdir()
+    assert f"run {folder.name} failed" in log.read_text()
+    assert f"its folder is {folder}" in log.read_text()
+    assert "strategy blew up" in log.read_text()
+
+
+@pytest.mark.e2e
+def test_the_memory_options_set_each_runs_cap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, launcher: PlainLauncher
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+    spec = served(tmp_path, monkeypatch, source)
+
+    result = runner.invoke(
+        app, ["run", str(spec), "--memory-budget", "6G", "--memory-per-run", "3G"]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert launcher.caps == [3 * GiB]
+
+
+@pytest.mark.e2e
+def test_without_memory_options_each_run_is_capped_at_4g(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, launcher: PlainLauncher
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+    spec = served(tmp_path, monkeypatch, source)
+
+    result = runner.invoke(app, ["run", str(spec)])
+
+    assert result.exit_code == 0, result.output
+    assert launcher.caps == [4 * GiB]
+
+
+@pytest.mark.e2e
+def test_an_unreadable_memory_size_is_refused(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app, ["run", str(tmp_path / "spec.toml"), "--memory-per-run", "lots"]
+    )
+
+    assert result.exit_code == 2
+    assert "lots" in result.output
+
+
+@pytest.mark.e2e
+def test_a_budget_below_the_per_run_cap_fails_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+    spec = served(tmp_path, monkeypatch, source)
+    log = tmp_path / "sbt2.log"
+
+    result = runner.invoke(
+        app,
+        ["--log-file", str(log), "run", str(spec)]
+        + ["--memory-budget", "1G", "--memory-per-run", "2G"],
+    )
+
+    assert result.exit_code == 1
+    assert "memory budget" in log.read_text()
     assert not (tmp_path / "data" / "results").exists()

@@ -76,21 +76,25 @@ def _half_the_memory() -> int:
 
 @dataclass(frozen=True)
 class Memory:
-    """Bytes for a whole batch, and the cap of each of its runs."""
+    """Bytes for a whole batch, and the cap of each of its runs.
 
-    budget: int = field(default_factory=_half_the_memory)
+    Without a budget, a batch takes half the machine's memory, and at least a run's.
+    """
+
+    budget: int | None = None
     per_run: int = 4 * GiB
 
     def __post_init__(self) -> None:
-        if self.budget < self.per_run:
+        if self.budget is not None and self.budget < self.per_run:
             raise ValueError(
-                f"a memory budget of {self.budget:,} bytes is below the "
-                f"{self.per_run:,} each run gets"
+                f"a memory budget of {_size(self.budget)} is below the "
+                f"{_size(self.per_run)} each run gets"
             )
 
     @property
     def concurrency(self) -> int:
-        return self.budget // self.per_run
+        budget = self.budget or max(_half_the_memory(), self.per_run)
+        return budget // self.per_run
 
 
 @dataclass(frozen=True)

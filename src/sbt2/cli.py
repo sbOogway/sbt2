@@ -1,4 +1,5 @@
 import logging
+import re
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -23,11 +24,20 @@ from rich.progress import (
 from sbt2 import data, spec
 from sbt2.data import sources
 from sbt2.results import ParquetResultStore
-from sbt2.run import DataFolders, RunSettings, execute, preflight
+from sbt2.run import (
+    BatchSetup,
+    DataFolders,
+    Memory,
+    RunSettings,
+    SystemdScope,
+    batch,
+)
 
 DATA = Path("data")
 SOURCES = Path("config/sources.toml")
 DAY = ["%Y-%m-%d"]
+SIZE = re.compile(r"(\d+)([KMGT]?)")
+SIZE_UNITS = {"": 0, "K": 10, "M": 20, "G": 30, "T": 40}
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
@@ -56,6 +66,15 @@ def main(
     context.obj = log_level
 
 
+def _size(text: str) -> int:
+    """Bytes, from a size in systemd's syntax such as ``512M`` or ``4G``."""
+    match = SIZE.fullmatch(text)
+    if match is None:
+        raise ValueError(f"{text} is not a size such as 512M or 4G")
+    number, unit = match.groups()
+    return int(number) * 2 ** SIZE_UNITS[unit]
+
+
 @app.command()
 def run(
     context: typer.Context,
@@ -63,30 +82,56 @@ def run(
     data: Annotated[
         Path, typer.Option(help="Holds raw/, catalog/ and results/.")
     ] = DATA,
+    memory_budget: Annotated[
+        int | None,
+        typer.Option(
+            parser=_size,
+            metavar="SIZE",
+            help="Memory for all the runs at once. Default: half the machine's.",
+        ),
+    ] = None,
+    memory_per_run: Annotated[
+        int | None,
+        typer.Option(
+            parser=_size,
+            metavar="SIZE",
+            help="The memory cap of each run, e.g. 4G. Default: 4G.",
+        ),
+    ] = None,
 ) -> None:
-    """Run the backtest a spec file describes and store its result."""
+    """Run the backtests a spec file describes and store their results."""
     try:
-        _run(spec_file, data.resolve(), LogLevel.from_str(context.obj))
+        root = data.resolve()
+        level = LogLevel.from_str(context.obj)
+        settings = RunSettings(root / "catalog", log_level=level)
+        _run(spec_file, _setup(root, settings, _memory(memory_budget, memory_per_run)))
     except Exception:
         logger.exception("run of %s failed", spec_file)
         raise typer.Exit(1) from None
 
 
-def _run(spec_file: Path, data: Path, log_level: LogLevel) -> None:
-    """Pre-flight every run of the spec file, then execute them one by one."""
+def _memory(budget: int | None, per_run: int | None) -> Memory:
+    return Memory(budget) if per_run is None else Memory(budget, per_run)
+
+
+def _setup(data: Path, settings: RunSettings, memory: Memory) -> BatchSetup:
+    return BatchSetup(
+        store=ParquetResultStore(data / "results"),
+        sources=lambda name: sources.source(name, SOURCES),
+        folders=DataFolders(data / "raw", data / "catalog"),
+        settings=settings,
+        launcher=SystemdScope(),
+        memory=memory,
+    )
+
+
+def _run(spec_file: Path, setup: BatchSetup) -> None:
+    """Pre-flight every run of the spec file, then execute them in a batch."""
     runs = spec.load(spec_file)
-    known_gaps = [_preflight(each, data) for each in runs]
-    store = ParquetResultStore(data / "results")
-    settings = RunSettings(data / "catalog", log_level=log_level)
-    for resolved, gaps in zip(runs, known_gaps, strict=True):
-        sink = store.new_run(resolved, gaps)
-        execute(resolved, sink, settings)
-        logger.info("stored run %s in %s", sink.run_id, data / "results")
-
-
-def _preflight(resolved: spec.ResolvedRunSpec, data: Path) -> tuple[sources.Gap, ...]:
-    source = sources.source(resolved.source, SOURCES)
-    return preflight(resolved, source, DataFolders(data / "raw", data / "catalog"))
+    with _batch_bar() as bar:
+        run_ids = batch(runs, setup, bar)
+    for run_id in run_ids:
+        logger.info("stored run %s in %s", run_id, setup.store.folder(run_id))
 
 
 @app.command()
@@ -336,6 +381,26 @@ class _IngestBar:
 def _ingest_bar() -> Iterator[_IngestBar]:
     with _progress() as progress:
         yield _IngestBar(progress)
+
+
+class _BatchBar:
+    """Runs done out of those planned."""
+
+    def __init__(self, progress: Progress) -> None:
+        self._progress = progress
+        self._task = progress.add_task("runs", total=None)
+
+    def planned(self, runs: int) -> None:
+        self._progress.update(self._task, total=runs)
+
+    def finished(self, run_id: str) -> None:
+        self._progress.advance(self._task)
+
+
+@contextmanager
+def _batch_bar() -> Iterator[_BatchBar]:
+    with _progress() as progress:
+        yield _BatchBar(progress)
 
 
 @contextmanager

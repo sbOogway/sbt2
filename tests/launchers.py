@@ -3,6 +3,10 @@
 import subprocess
 from collections.abc import Sequence
 
+import pytest
+
+from sbt2 import cli
+
 
 class PlainLauncher:
     def __init__(self) -> None:
@@ -36,3 +40,10 @@ class ScriptedLauncher(PlainLauncher):
 
     def _command(self, command: Sequence[str]) -> Sequence[str]:
         return self._commands[len(self.started)]
+
+
+def uncapped(monkeypatch: pytest.MonkeyPatch) -> PlainLauncher:
+    """Has ``sbt2 run`` start its children with a ``PlainLauncher``."""
+    launcher = PlainLauncher()
+    monkeypatch.setattr(cli, "SystemdScope", lambda: launcher)
+    return launcher
