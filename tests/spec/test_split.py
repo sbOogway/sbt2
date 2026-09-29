@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -41,3 +41,28 @@ def test_the_period_ends_are_not_rounded() -> None:
 
     assert parts["train"][0] == day(1, 1, 2)
     assert parts["test"] == (day(1, 9), day(1, 11, 2))
+
+
+@pytest.mark.unit
+def test_dates_set_the_part_boundaries() -> None:
+    split = Split(validation_start="2020-03-01", test_start=date(2020, 4, 1))
+
+    parts = split.parts((day(1, 1), day(5, 1)))
+
+    assert parts == {
+        "train": (day(1, 1), day(3, 1)),
+        "validation": (day(3, 1), day(4, 1)),
+        "test": (day(4, 1), day(5, 1)),
+    }
+
+
+@pytest.mark.unit
+def test_date_boundaries_are_floored_to_their_utc_day() -> None:
+    split = Split(
+        validation_start=datetime.fromisoformat("2020-03-01T13:00:00+02:00"),
+        test_start="2020-04-01",
+    )
+
+    parts = split.parts((day(1, 1), day(5, 1)))
+
+    assert parts["validation"][0] == day(3, 1)
