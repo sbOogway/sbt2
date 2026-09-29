@@ -50,6 +50,10 @@ class ResolvedRunSpec:
         return canonical_json(self._document())
 
     @property
+    def venue_name(self) -> str:
+        return self.venue["name"]
+
+    @property
     def liquidation_enabled(self) -> bool:
         return bool(self.venue.get("liquidation_enabled"))
 

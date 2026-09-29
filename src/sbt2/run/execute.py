@@ -57,7 +57,7 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
     """Run one backtest in this process and hand its output to ``sink``."""
     logger.info("run %s: %s from %s", sink.run_id, spec.strategy.strategy, spec.start)
     config = _run_config(spec, settings)
-    backtest = _Backtest(BacktestNode([config]), config.id, Venue(spec.venue["name"]))
+    backtest = _Backtest(BacktestNode([config]), config.id, Venue(spec.venue_name))
     try:
         _run(backtest, spec.strategy)
         _write_output(backtest, sink)
