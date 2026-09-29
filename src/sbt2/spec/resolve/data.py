@@ -1,33 +1,19 @@
-from collections.abc import Callable, Iterable, Mapping, Sequence
-from datetime import datetime, timedelta
+from collections.abc import Iterable, Mapping, Sequence
+from datetime import datetime
 from typing import Any
 
-from nautilus_trader.model import (
-    Bar,
-    BarSpecification,
-    InstrumentId,
-    NautilusDataType,
-    PriceType,
-    QuoteTick,
-    TradeTick,
-)
+from nautilus_trader.model import BarSpecification, InstrumentId, NautilusDataType
 
 from sbt2.assets import AssetProfile
 from sbt2.data.sources import candle_type
-from sbt2.spec.errors import SpecError
-
-_MINUTE = timedelta(minutes=1)
-
-
-class CandleBarError(SpecError):
-    """A declared bar that 1-minute candles cannot build."""
+from sbt2.spec.bars import BarSource
 
 
 def data_types(
-    bars: str, inputs: Sequence[BarSpecification], asset: AssetProfile
+    bars: BarSource, inputs: Sequence[BarSpecification], asset: AssetProfile
 ) -> list[NautilusDataType]:
     """What the declared bars are built from, plus the asset class's own streams."""
-    kinds = _BAR_SOURCES[bars](inputs) | {
+    kinds = bars.data_types(inputs) | {
         *asset.carry.data_types,
         *asset.reference_prices,
     }
@@ -53,37 +39,6 @@ def data_arguments(
         }
         for data_type in types
     ]
-
-
-def _from_trades(inputs: Sequence[BarSpecification]) -> set[type]:
-    return {
-        TradeTick if spec.price_type == PriceType.LAST else QuoteTick for spec in inputs
-    }
-
-
-def _from_candles(inputs: Sequence[BarSpecification]) -> set[type]:
-    for spec in inputs:
-        _check_candle_built(spec)
-    return {Bar}
-
-
-_BAR_SOURCES: Mapping[str, Callable[[Sequence[BarSpecification]], set[type]]] = {
-    "trades": _from_trades,
-    "candles": _from_candles,
-}
-
-
-def _check_candle_built(spec: BarSpecification) -> None:
-    buildable = (
-        spec.is_time_aggregated()
-        and spec.timedelta % _MINUTE == timedelta(0)
-        and spec.price_type == PriceType.LAST
-    )
-    if not buildable:
-        raise CandleBarError(
-            f"1-minute candles cannot build {spec} bars; they build time bars "
-            "of whole minutes on LAST prices"
-        )
 
 
 def _bar_types(

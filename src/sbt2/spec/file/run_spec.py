@@ -4,18 +4,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from sbt2.spec.bars import bar_source
 from sbt2.spec.errors import SpecError
 from sbt2.spec.moments import utc
 from sbt2.spec.split import Splitter
 
-_BAR_SOURCES = ("trades", "candles")
-
 _INTERVAL = re.compile(r"(\d+)([smhd])")
 _UNIT_MS = {"s": 1_000, "m": 60_000, "h": 3_600_000, "d": 86_400_000}
-
-
-class UnknownBarSourceError(SpecError):
-    pass
 
 
 @dataclass(frozen=True)
@@ -46,10 +41,7 @@ class RunSpec:
     def __post_init__(self) -> None:
         start, end = self.period
         object.__setattr__(self, "period", (utc(start), utc(end)))
-        if self.bars not in _BAR_SOURCES:
-            raise UnknownBarSourceError(
-                f"bars {self.bars!r} is not one of {', '.join(_BAR_SOURCES)}"
-            )
+        bar_source(self.bars)
         _interval_ms(self.equity_interval)
 
     @property

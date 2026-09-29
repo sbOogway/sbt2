@@ -1,13 +1,12 @@
+from sbt2.spec.bars import CandleBarError, UnknownBarSourceError
 from sbt2.spec.errors import SpecError
 from sbt2.spec.file import (
     EmptyListError,
     MissingSplitError,
-    UnknownBarSourceError,
     UnknownSpecKeyError,
 )
 from sbt2.spec.load import DuplicateRunError, load
 from sbt2.spec.resolve import (
-    CandleBarError,
     InstrumentVenueError,
     InvalidVenueProfileError,
     ResolvedRunSpec,
