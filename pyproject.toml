@@ -1,6 +1,6 @@
 [project]
 name = "sbt2"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Backtesting framework on nautilus_trader"
 requires-python = ">=3.14"
 dependencies = [
@@ -16,11 +16,17 @@ dependencies = [
 sbt2 = "sbt2.cli:app"
 
 [build-system]
-requires = ["uv_build>=0.12.19,<0.13"]
-build-backend = "uv_build"
+requires = ["hatchling>=1.27", "uv-dynamic-versioning>=0.8"]
+build-backend = "hatchling.build"
 
-[tool.uv.build-backend]
-module-name = ["sbt2", "strategies"]
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sbt2", "src/strategies"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src"]
 
 [tool.uv]
 environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
