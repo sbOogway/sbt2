@@ -43,3 +43,7 @@ quantity = "0.100"
 ```
 
 Results are stored under `data/results`; list them with `uv run sbt2 runs list`.
+
+## License
+
+sbt2 is licensed under the [GNU Lesser General Public License v3.0 or later](COPYING.LESSER), which builds on the [GNU General Public License v3.0](COPYING).
