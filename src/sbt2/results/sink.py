@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 import pandas as pd
@@ -27,6 +28,13 @@ class OutputSink(Protocol):
     def write_carry(self, adjustments: Sequence[PositionAdjusted]) -> None: ...
 
     def write_reports(self, reports: Reports) -> None: ...
+
+    def write_drawdown_trip(self, tripped_at: datetime) -> None:
+        """Record when the drawdown guard stopped the run's trading.
+
+        A run whose guard never trips does not call it.
+        """
+        ...
 
     def finalize(self, benchmark: pd.Series | None = None) -> None:
         """Compute the headline metrics and write the run's summary, last.
