@@ -6,5 +6,6 @@ __pycache__/
 .coverage
 .coverage.*
 htmlcov/
-.claude/worktrees.release/
+.claude/worktrees/
+.release/
 coverage.xml
