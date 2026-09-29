@@ -46,7 +46,8 @@ repos:
 
       - id: import-linter
         name: import-linter
-        entry: uv run --locked lint-imports
+        # its cache keeps resolving an unchanged file's imports to modules that were renamed away
+        entry: uv run --locked lint-imports --no-cache
         language: system
         files: (\.py|^pyproject\.toml)$
         pass_filenames: false
