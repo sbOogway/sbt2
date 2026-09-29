@@ -16,7 +16,7 @@ if git rev-parse --quiet --verify "refs/tags/$next" >/dev/null; then
 fi
 
 git tag "$next"
-"${cliff[@]}" --unreleased --tag "$next" --strip all --output "$out/notes.md" 2>/dev/null
+"${cliff[@]}" --latest --strip all --output "$out/notes.md" 2>/dev/null
 uv build --out-dir "$out/dist"
 echo "$next" >"$out/tag"
 echo "prepare-release: prepared $next"
