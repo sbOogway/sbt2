@@ -11,7 +11,7 @@ import duckdb
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from nautilus_trader.model import Money, PortfolioSnapshot, PositionAdjusted
+from nautilus_trader.model import PortfolioSnapshot, PositionAdjusted
 
 from sbt2.data.sources import Gap
 from sbt2.results.metrics import HeadlineMetrics, RunTables, Segment, headline_metrics
@@ -115,11 +115,6 @@ class _Run:
     known_gaps: tuple[Gap, ...]
 
     @property
-    def currency(self) -> str:
-        [balance] = self.spec.venue["starting_balances"]
-        return Money.from_str(balance).currency.code
-
-    @property
     def segment(self) -> Segment:
         return Segment(
             self.spec.start,
@@ -173,7 +168,7 @@ class _ParquetSink:
             equity=self._tables["equity"],
             fills=self._tables["fills"],
             carry=self._tables["carry"],
-            currency=self._run.currency,
+            currency=self._run.spec.currency,
         )
 
 
@@ -190,7 +185,7 @@ def _summary(run: _Run, metrics: HeadlineMetrics) -> dict[str, object]:
         "split": run.spec.split_json(),
         "part": run.spec.part,
         "known_gaps": [str(each) for each in run.known_gaps],
-        "currency": run.currency,
+        "currency": run.spec.currency,
         **asdict(metrics),
     }
 

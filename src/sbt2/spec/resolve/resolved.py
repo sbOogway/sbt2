@@ -11,7 +11,7 @@ from nautilus_trader.backtest import (
     BacktestRunConfig,
     BacktestVenueConfig,
 )
-from nautilus_trader.model import InstrumentId, NautilusDataType
+from nautilus_trader.model import InstrumentId, Money, NautilusDataType
 
 from sbt2.assets import AssetProfile
 from sbt2.spec.resolve.canonical import canonical_hash, canonical_json
@@ -52,6 +52,12 @@ class ResolvedRunSpec:
     @property
     def venue_name(self) -> str:
         return self.venue["name"]
+
+    @property
+    def currency(self) -> str:
+        """The settlement currency of the starting balance."""
+        [balance] = self.venue["starting_balances"]
+        return Money.from_str(balance).currency.code
 
     @property
     def liquidation_enabled(self) -> bool:
