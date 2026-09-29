@@ -1,8 +1,9 @@
+from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path, PurePosixPath
-from typing import Any, Protocol
+from typing import Any
 
 from nautilus_trader.model import BarType, InstrumentId
 
@@ -55,48 +56,55 @@ class Gap:
         return f"{self.instrument_id} {self.data_type.__name__} {self.day.isoformat()}"
 
 
-class Source(Protocol):
+class Source(ABC):
+    """Where raw market data comes from, one raw file per symbol and UTC day."""
+
+    def __init__(self, known_gaps: frozenset[Gap] = frozenset()) -> None:
+        self._known_gaps = known_gaps
+
     @property
+    def known_gaps(self) -> frozenset[Gap]:
+        """Days confirmed as unavailable at the source, never requested."""
+        return self._known_gaps
+
+    def served(self, names: tuple[str, ...]) -> tuple[type, ...]:
+        """The data types called ``names``; all of them when ``names`` is empty."""
+        served = {each.__name__: each for each in self.data_types}
+        unknown = [each for each in names if each not in served]
+        if unknown:
+            raise UnsupportedDataTypeError(
+                f"the source serves no {', '.join(unknown)}; "
+                f"it serves {', '.join(served)}"
+            )
+        return tuple(served[each] for each in names) or self.data_types
+
+    def is_known_gap(self, symbol: str, data_type: type, day: date) -> bool:
+        return Gap(self.instrument_id(symbol), data_type, day) in self.known_gaps
+
+    @property
+    @abstractmethod
     def data_types(self) -> tuple[type, ...]:
         """Nautilus data types the source serves as one raw file per UTC day."""
-        ...
 
-    @property
-    def known_gaps(self) -> frozenset[Gap]: ...
-
+    @abstractmethod
     def instrument_id(self, symbol: str) -> InstrumentId: ...
 
+    @abstractmethod
     def symbol(self, instrument_id: InstrumentId) -> str:
         """The inverse of ``instrument_id``."""
-        ...
 
+    @abstractmethod
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         """The raw file holding ``data_type`` for one UTC day."""
-        ...
 
+    @abstractmethod
     def instrument_snapshot(self, symbol: str, taken_on: date) -> RawFile:
         """Today's instrument spec, saved under the date it is taken on."""
-        ...
 
+    @abstractmethod
     def parse(self, path: Path, data_type: type, instrument: Any) -> Iterator[Any]:
         """The ``data_type`` records of one raw day file, in time order."""
-        ...
 
+    @abstractmethod
     def parse_instrument(self, path: Path) -> Any:
         """The instrument of a snapshot, initialised at the start of its day."""
-        ...
-
-
-def data_types(source: Source, names: tuple[str, ...]) -> tuple[type, ...]:
-    """The source's data types called ``names``; all of them when ``names`` is empty."""
-    served = {each.__name__: each for each in source.data_types}
-    unknown = [each for each in names if each not in served]
-    if unknown:
-        raise UnsupportedDataTypeError(
-            f"the source serves no {', '.join(unknown)}; it serves {', '.join(served)}"
-        )
-    return tuple(served[each] for each in names) or source.data_types
-
-
-def is_known_gap(source: Source, symbol: str, data_type: type, day: date) -> bool:
-    return Gap(source.instrument_id(symbol), data_type, day) in source.known_gaps

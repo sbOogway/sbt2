@@ -27,7 +27,13 @@ from nautilus_trader.model import (
     TradeTick,
 )
 
-from sbt2.data.sources import Gap, MissingAtSourceError, RawFile, candle_type
+from sbt2.data.sources import (
+    Gap,
+    MissingAtSourceError,
+    RawFile,
+    Source,
+    candle_type,
+)
 
 SYMBOL = "BTCUSDT"
 INSTRUMENT_ID = InstrumentId.from_str(f"{SYMBOL}-LINEAR.BYBIT")
@@ -37,9 +43,9 @@ DATA_TYPES: tuple[type, ...] = (TradeTick, MarkPriceUpdate, FundingRateUpdate, B
 _HOUR = 3_600_000_000_000
 
 
-class ServedSource:
+class ServedSource(Source):
     def __init__(self, known_gaps: frozenset[Gap] = frozenset()) -> None:
-        self.known_gaps = known_gaps
+        super().__init__(known_gaps)
         self.fetched: list[PurePosixPath] = []
         self._files: dict[PurePosixPath, bytes] = {}
 

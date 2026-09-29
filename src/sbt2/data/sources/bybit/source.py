@@ -7,7 +7,7 @@ from typing import Any
 
 from nautilus_trader.model import InstrumentId
 
-from sbt2.data.sources.base import Gap, RawFile
+from sbt2.data.sources.base import Gap, RawFile, Source
 from sbt2.data.sources.bybit import parse
 from sbt2.data.sources.bybit.api import BybitApi
 from sbt2.data.sources.bybit.channels import (
@@ -30,13 +30,13 @@ _PUBLIC = Endpoints()
 _LINEAR_SUFFIX = "-LINEAR"
 
 
-class BybitSource:
+class BybitSource(Source):
     """Bybit linear perpetuals."""
 
     def __init__(
         self, known_gaps: frozenset[Gap], endpoints: Endpoints = _PUBLIC
     ) -> None:
-        self._known_gaps = known_gaps
+        super().__init__(known_gaps)
         self._remote = Remote(BybitApi(endpoints.api), endpoints.dumps)
 
     @classmethod
@@ -46,10 +46,6 @@ class BybitSource:
     @property
     def data_types(self) -> tuple[type, ...]:
         return tuple(each.data_type for each in CHANNELS)
-
-    @property
-    def known_gaps(self) -> frozenset[Gap]:
-        return self._known_gaps
 
     def instrument_id(self, symbol: str) -> InstrumentId:
         return _instrument_id(symbol)

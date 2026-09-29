@@ -13,8 +13,6 @@ from sbt2.data.sources.base import (
     Source,
     UnsupportedDataTypeError,
     candle_type,
-    data_types,
-    is_known_gap,
 )
 from sbt2.data.sources.bybit import BybitSource
 
@@ -29,8 +27,6 @@ __all__ = [
     "UnknownSourceError",
     "UnsupportedDataTypeError",
     "candle_type",
-    "data_types",
-    "is_known_gap",
     "known_gaps",
     "source",
 ]

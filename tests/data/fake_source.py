@@ -10,7 +10,7 @@ from typing import Any
 from file_server import FileServer
 from nautilus_trader.model import FundingRateUpdate, InstrumentId, TradeTick
 
-from sbt2.data.sources import Gap, MissingAtSourceError, RawFile
+from sbt2.data.sources import Gap, MissingAtSourceError, RawFile, Source
 
 
 class FakeApi:
@@ -48,21 +48,17 @@ class FakeApi:
         return self._content[key]
 
 
-class FakeSource:
+class FakeSource(Source):
     def __init__(
         self, files: FileServer, api: FakeApi, known_gaps: frozenset[Gap] = frozenset()
     ) -> None:
+        super().__init__(known_gaps)
         self._files = files
         self._api = api
-        self._known_gaps = known_gaps
 
     @property
     def data_types(self) -> tuple[type, ...]:
         return (TradeTick, FundingRateUpdate)
-
-    @property
-    def known_gaps(self) -> frozenset[Gap]:
-        return self._known_gaps
 
     def instrument_id(self, symbol: str) -> InstrumentId:
         return instrument_id(symbol)
