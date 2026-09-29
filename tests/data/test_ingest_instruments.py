@@ -16,11 +16,13 @@ from nautilus_trader.model import Bar, MarkPriceUpdate, NautilusDataType, TradeT
 from nautilus_trader.persistence import ParquetDataCatalog
 
 from sbt2.data import (
+    DayRange,
+    DayResult,
     IngestOptions,
-    IngestReport,
     IngestRequest,
     InstrumentChangedError,
     NoSnapshotError,
+    Tally,
     ingest,
 )
 
@@ -29,11 +31,12 @@ LATER = DAY + timedelta(days=30)
 HOUR = 3_600_000_000_000
 
 
-ONE_DAY = IngestRequest((SYMBOL,), DAY, DAY, ("TradeTick",))
-REINGEST = IngestRequest((SYMBOL,), DAY, DAY, ("TradeTick",), reingest=True)
+TRADES_OF_DAY = DayRange((SYMBOL,), DAY, DAY, ("TradeTick",))
+ONE_DAY = IngestRequest(TRADES_OF_DAY)
+REINGEST = IngestRequest(TRADES_OF_DAY, reingest=True)
 
 
-def run(raw: Path, catalog: Path, request: IngestRequest = ONE_DAY) -> IngestReport:
+def run(raw: Path, catalog: Path, request: IngestRequest = ONE_DAY) -> Tally[DayResult]:
     return ingest(LocalSource(), request, IngestOptions(raw, catalog))
 
 
@@ -129,7 +132,9 @@ def test_reingest_removes_days_outside_the_requested_range(
 ) -> None:
     other_day = DAY + timedelta(days=1)
     write_day(raw, TradeTick, other_day, [start_of(other_day)])
-    run(raw, catalog, IngestRequest((SYMBOL,), DAY, other_day, ("TradeTick",)))
+    run(
+        raw, catalog, IngestRequest(DayRange((SYMBOL,), DAY, other_day, ("TradeTick",)))
+    )
     write_snapshot(raw, LATER, margin_init="0.02")
 
     run(raw, catalog, REINGEST)
@@ -154,7 +159,7 @@ def test_reingest_removes_every_data_type_of_the_instrument(
 ) -> None:
     name = data_type.__name__
     write_day(raw, data_type, DAY, [start_of(DAY)])
-    run(raw, catalog, IngestRequest((SYMBOL,), DAY, DAY, (name,)))
+    run(raw, catalog, IngestRequest(DayRange((SYMBOL,), DAY, DAY, (name,))))
     write_snapshot(raw, LATER, margin_init="0.02")
 
     run(raw, catalog, REINGEST)

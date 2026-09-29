@@ -16,11 +16,12 @@ from nautilus_trader.model import TradeTick
 
 from sbt2.data import (
     INSTRUMENT,
+    DayRange,
     DownloadOptions,
-    DownloadReport,
     DownloadRequest,
     FileResult,
     Outcome,
+    Tally,
     download,
 )
 from sbt2.data.sources import Gap, UnsupportedDataTypeError
@@ -48,7 +49,7 @@ class Recorder:
 
 
 def request(end: date = DAY, *data: str) -> DownloadRequest:
-    return DownloadRequest(("BTCUSDT",), DAY, end, data, taken_on=TODAY)
+    return DownloadRequest(DayRange(("BTCUSDT",), DAY, end, data), taken_on=TODAY)
 
 
 def options(raw: Path) -> DownloadOptions:
@@ -61,8 +62,8 @@ def serve_day(files: FileServer, api: FakeApi, day: date = DAY) -> None:
     api.serve(instrument_key("BTCUSDT", TODAY), b"{}")
 
 
-def outcomes(report: DownloadReport) -> dict[tuple[str, date], Outcome]:
-    return {(each.item.data, each.item.day): each.outcome for each in report.results}
+def outcomes(tally: Tally[FileResult]) -> dict[tuple[str, date], Outcome]:
+    return {(each.item.data, each.item.day): each.outcome for each in tally.results}
 
 
 @pytest.mark.unit
@@ -71,9 +72,9 @@ def test_fetches_each_days_files_and_todays_instrument_snapshot(
 ) -> None:
     serve_day(files, api)
 
-    report = download(FakeSource(files, api), request(), options(tmp_path))
+    tally = download(FakeSource(files, api), request(), options(tmp_path))
 
-    assert outcomes(report) == {
+    assert outcomes(tally) == {
         (INSTRUMENT, TODAY): Outcome.FETCHED,
         ("TradeTick", DAY): Outcome.FETCHED,
         ("FundingRateUpdate", DAY): Outcome.FETCHED,
@@ -90,10 +91,10 @@ def test_the_end_day_is_included(
     serve_day(files, api)
     serve_day(files, api, NEXT_DAY)
 
-    report = download(FakeSource(files, api), request(NEXT_DAY), options(tmp_path))
+    tally = download(FakeSource(files, api), request(NEXT_DAY), options(tmp_path))
 
-    assert ("TradeTick", NEXT_DAY) in outcomes(report)
-    assert len(report.having(Outcome.FETCHED)) == 5
+    assert ("TradeTick", NEXT_DAY) in outcomes(tally)
+    assert len(tally.having(Outcome.FETCHED)) == 5
 
 
 @pytest.mark.unit
@@ -104,9 +105,9 @@ def test_a_rerun_skips_complete_files_without_asking_the_source(
     source = FakeSource(files, api)
     download(source, request(), options(tmp_path))
 
-    report = download(source, request(), options(tmp_path))
+    tally = download(source, request(), options(tmp_path))
 
-    assert len(report.having(Outcome.SKIPPED)) == 3
+    assert len(tally.having(Outcome.SKIPPED)) == 3
     assert files.requests[trades_path("BTCUSDT", DAY)] == 1
     assert api.calls[funding_key("BTCUSDT", DAY)] == 1
 
@@ -133,9 +134,9 @@ def test_a_truncated_body_is_retried(
     serve_day(files, api)
     files.fail(trades_path("BTCUSDT", DAY), "truncate")
 
-    report = download(FakeSource(files, api), request(), options(tmp_path))
+    tally = download(FakeSource(files, api), request(), options(tmp_path))
 
-    assert outcomes(report)[("TradeTick", DAY)] is Outcome.FETCHED
+    assert outcomes(tally)[("TradeTick", DAY)] is Outcome.FETCHED
     assert (tmp_path / "fake/trades/BTCUSDT/2025-01-01.csv").read_bytes() == TRADES
 
 
@@ -146,13 +147,13 @@ def test_a_body_still_truncated_after_the_retries_leaves_no_file(
     serve_day(files, api)
     files.fail(trades_path("BTCUSDT", DAY), "truncate", "truncate", "truncate")
 
-    report = download(
+    tally = download(
         FakeSource(files, api),
         request(),
         DownloadOptions(tmp_path, retries=2, backoff=0.0),
     )
 
-    assert outcomes(report)[("TradeTick", DAY)] is Outcome.FAILED
+    assert outcomes(tally)[("TradeTick", DAY)] is Outcome.FAILED
     assert not (tmp_path / "fake/trades/BTCUSDT/2025-01-01.csv").exists()
 
 
@@ -163,12 +164,12 @@ def test_a_404_is_missing_and_the_other_files_still_come(
     serve_day(files, api)
     api.serve(funding_key("BTCUSDT", NEXT_DAY), b"[]")
 
-    report = download(FakeSource(files, api), request(NEXT_DAY), options(tmp_path))
+    tally = download(FakeSource(files, api), request(NEXT_DAY), options(tmp_path))
 
-    (missing,) = report.having(Outcome.MISSING)
+    (missing,) = tally.having(Outcome.MISSING)
     assert (missing.item.data, missing.item.day) == ("TradeTick", NEXT_DAY)
     assert "404" in missing.reason
-    assert len(report.having(Outcome.FETCHED)) == 4
+    assert len(tally.having(Outcome.FETCHED)) == 4
     assert files.requests[trades_path("BTCUSDT", NEXT_DAY)] == 1
 
 
@@ -178,13 +179,15 @@ def test_a_source_error_saying_missing_is_missing(
 ) -> None:
     serve_day(files, api)
 
-    report = download(
+    tally = download(
         FakeSource(files, api),
-        DownloadRequest(("NOPEUSDT",), DAY, DAY, ("FundingRateUpdate",), TODAY),
+        DownloadRequest(
+            DayRange(("NOPEUSDT",), DAY, DAY, ("FundingRateUpdate",)), TODAY
+        ),
         options(tmp_path),
     )
 
-    assert {each.outcome for each in report.results} == {Outcome.MISSING}
+    assert {each.outcome for each in tally.results} == {Outcome.MISSING}
     assert api.calls[instrument_key("NOPEUSDT", TODAY)] == 1
 
 
@@ -196,9 +199,9 @@ def test_transient_http_errors_are_retried(
     serve_day(files, api)
     files.fail(trades_path("BTCUSDT", DAY), status, status)
 
-    report = download(FakeSource(files, api), request(), options(tmp_path))
+    tally = download(FakeSource(files, api), request(), options(tmp_path))
 
-    assert outcomes(report)[("TradeTick", DAY)] is Outcome.FETCHED
+    assert outcomes(tally)[("TradeTick", DAY)] is Outcome.FETCHED
     assert files.requests[trades_path("BTCUSDT", DAY)] == 3
 
 
@@ -209,9 +212,9 @@ def test_other_http_errors_fail_without_a_retry(
     serve_day(files, api)
     files.fail(trades_path("BTCUSDT", DAY), 403)
 
-    report = download(FakeSource(files, api), request(), options(tmp_path))
+    tally = download(FakeSource(files, api), request(), options(tmp_path))
 
-    (failed,) = report.having(Outcome.FAILED)
+    (failed,) = tally.having(Outcome.FAILED)
     assert "HTTP 403" in failed.reason
     assert files.requests[trades_path("BTCUSDT", DAY)] == 1
 
@@ -223,9 +226,9 @@ def test_source_errors_are_retried(
     serve_day(files, api)
     api.fail(funding_key("BTCUSDT", DAY), httpx.ConnectError("reset"))
 
-    report = download(FakeSource(files, api), request(), options(tmp_path))
+    tally = download(FakeSource(files, api), request(), options(tmp_path))
 
-    assert outcomes(report)[("FundingRateUpdate", DAY)] is Outcome.FETCHED
+    assert outcomes(tally)[("FundingRateUpdate", DAY)] is Outcome.FETCHED
     assert api.calls[funding_key("BTCUSDT", DAY)] == 2
 
 
@@ -236,13 +239,13 @@ def test_a_file_failing_every_retry_is_failed_with_the_last_error(
     serve_day(files, api)
     api.fail(funding_key("BTCUSDT", DAY), *[RuntimeError("rate limited")] * 3)
 
-    report = download(
+    tally = download(
         FakeSource(files, api),
         request(),
         DownloadOptions(tmp_path, retries=2, backoff=0.0),
     )
 
-    (failed,) = report.having(Outcome.FAILED)
+    (failed,) = tally.having(Outcome.FAILED)
     assert "rate limited" in failed.reason
     assert api.calls[funding_key("BTCUSDT", DAY)] == 3
 
@@ -254,11 +257,11 @@ def test_known_gaps_are_not_requested(
     serve_day(files, api)
     gap = Gap(instrument_id("BTCUSDT"), TradeTick, DAY)
 
-    report = download(
+    tally = download(
         FakeSource(files, api, frozenset({gap})), request(), options(tmp_path)
     )
 
-    assert ("TradeTick", DAY) not in outcomes(report)
+    assert ("TradeTick", DAY) not in outcomes(tally)
     assert files.requests[trades_path("BTCUSDT", DAY)] == 0
 
 
@@ -268,11 +271,11 @@ def test_only_the_requested_data_types_are_fetched(
 ) -> None:
     serve_day(files, api)
 
-    report = download(
+    tally = download(
         FakeSource(files, api), request(DAY, "TradeTick"), options(tmp_path)
     )
 
-    assert set(outcomes(report)) == {(INSTRUMENT, TODAY), ("TradeTick", DAY)}
+    assert set(outcomes(tally)) == {(INSTRUMENT, TODAY), ("TradeTick", DAY)}
 
 
 @pytest.mark.unit
@@ -308,7 +311,7 @@ def test_progress_hears_of_every_file_and_byte(
     serve_day(files, api)
     progress = Recorder()
 
-    report = download(
+    tally = download(
         FakeSource(files, api),
         request(),
         DownloadOptions(tmp_path, backoff=0.0, progress=progress),
@@ -316,10 +319,10 @@ def test_progress_hears_of_every_file_and_byte(
 
     assert progress.files == 3
     assert progress.size == len(TRADES) + len(b"[]") + len(b"{}")
-    assert set(progress.results) == set(report.results)
+    assert set(progress.results) == set(tally.results)
 
 
 @pytest.mark.unit
 def test_a_range_ending_before_it_starts_is_refused() -> None:
     with pytest.raises(ValueError, match="before 2025-01-02"):
-        DownloadRequest(("BTCUSDT",), NEXT_DAY, DAY)
+        DayRange(("BTCUSDT",), NEXT_DAY, DAY)

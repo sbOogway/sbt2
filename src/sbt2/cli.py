@@ -172,29 +172,30 @@ def download(
     """Fetch a source's raw files for a range of days, and today's instruments."""
     options = data.DownloadOptions(Root(data_root).raw, concurrency, retries)
     with _failing("download from %s", source):
-        request = data.DownloadRequest(
+        days = data.DayRange(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ())
         )
-        report = _download(source, request, options)
-    _log_summary(report)
-    if report.having(data.Outcome.FAILED):
+        request = data.DownloadRequest(days)
+        tally = _download(source, request, options)
+    _log_summary(tally)
+    if tally.having(data.Outcome.FAILED):
         raise typer.Exit(1)
 
 
 def _download(
     name: str, request: data.DownloadRequest, options: data.DownloadOptions
-) -> data.DownloadReport:
+) -> data.Tally[data.FileResult]:
     adapter = sources.source(name, SOURCES)
     with _download_bar() as bar:
         return data.download(adapter, request, replace(options, progress=bar))
 
 
-def _log_summary(report: data.DownloadReport) -> None:
-    for each in report.having(data.Outcome.MISSING):
+def _log_summary(tally: data.Tally[data.FileResult]) -> None:
+    for each in tally.having(data.Outcome.MISSING):
         logger.warning("missing at the source: %s", _described(each.item))
-    for each in report.having(data.Outcome.FAILED):
+    for each in tally.having(data.Outcome.FAILED):
         logger.error("failed: %s: %s", _described(each.item), each.reason)
-    counts = (f"{len(report.having(each))} {each}" for each in data.Outcome)
+    counts = (f"{len(tally.having(each))} {each}" for each in data.Outcome)
     logger.info("files: %s", ", ".join(counts))
 
 
@@ -234,28 +235,29 @@ def ingest(
     root = Root(data_root)
     options = data.IngestOptions(root.raw, root.catalog)
     with _failing("ingest from %s", source):
-        request = data.IngestRequest(
-            tuple(symbol), start.date(), end.date(), tuple(data_type or ()), reingest
+        days = data.DayRange(
+            tuple(symbol), start.date(), end.date(), tuple(data_type or ())
         )
-        report = _ingest(source, request, options)
-    _log_ingest_summary(report)
+        request = data.IngestRequest(days, reingest)
+        tally = _ingest(source, request, options)
+    _log_ingest_summary(tally)
 
 
 def _ingest(
     name: str, request: data.IngestRequest, options: data.IngestOptions
-) -> data.IngestReport:
+) -> data.Tally[data.DayResult]:
     adapter = sources.source(name, SOURCES)
     with _bar("ingest") as bar:
         return data.ingest(adapter, request, replace(options, progress=bar))
 
 
-def _log_ingest_summary(report: data.IngestReport) -> None:
-    for each in report.having(data.IngestOutcome.MISSING):
+def _log_ingest_summary(tally: data.Tally[data.DayResult]) -> None:
+    for each in tally.having(data.IngestOutcome.MISSING):
         day = each.day
         logger.warning(
             "no raw file: %s %s %s", day.symbol, day.data, day.day.isoformat()
         )
-    counts = (f"{len(report.having(each))} {each}" for each in data.IngestOutcome)
+    counts = (f"{len(tally.having(each))} {each}" for each in data.IngestOutcome)
     logger.info("days: %s", ", ".join(counts))
 
 

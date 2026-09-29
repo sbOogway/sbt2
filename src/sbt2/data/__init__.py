@@ -6,10 +6,10 @@ from sbt2.data.catalog import (
     UnstoredDataTypeError,
     Window,
 )
+from sbt2.data.days import DayRange
 from sbt2.data.download import (
     INSTRUMENT,
     DownloadOptions,
-    DownloadReport,
     DownloadRequest,
     FileResult,
     Item,
@@ -23,29 +23,28 @@ from sbt2.data.ingest import (
     IngestOptions,
     IngestOutcome,
     IngestProgress,
-    IngestReport,
     IngestRequest,
     InstrumentChangedError,
     NoSnapshotError,
     OutsideDayError,
     ingest,
 )
+from sbt2.data.tally import Tally
 
 __all__ = [
     "INSTRUMENT",
     "Catalog",
     "Coverage",
     "Day",
+    "DayRange",
     "DayResult",
     "DownloadOptions",
-    "DownloadReport",
     "DownloadRequest",
     "FileResult",
     "Holding",
     "IngestOptions",
     "IngestOutcome",
     "IngestProgress",
-    "IngestReport",
     "IngestRequest",
     "InstrumentChangedError",
     "Item",
@@ -54,6 +53,7 @@ __all__ = [
     "OutsideDayError",
     "Progress",
     "Selection",
+    "Tally",
     "UnstoredDataTypeError",
     "Window",
     "download",

@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 from nautilus_trader.model import Bar, FundingRateUpdate, MarkPriceUpdate, TradeTick
 
-from sbt2.data import DownloadOptions, DownloadRequest, Outcome, download
+from sbt2.data import DayRange, DownloadOptions, DownloadRequest, Outcome, download
 from sbt2.data.sources import Source, source
 
 REPO_CONFIG = Path(__file__).parents[2] / "config" / "sources.toml"
@@ -23,11 +23,11 @@ HOUR = pd.Timedelta(hours=1).value
 def raw(tmp_path_factory: pytest.TempPathFactory) -> tuple[Source, Path]:
     bybit = source("bybit", REPO_CONFIG)
     root = tmp_path_factory.mktemp("raw")
-    report = download(
-        bybit, DownloadRequest(("BTCUSDT",), DAY, DAY), DownloadOptions(root)
+    tally = download(
+        bybit, DownloadRequest(DayRange(("BTCUSDT",), DAY, DAY)), DownloadOptions(root)
     )
-    assert report.results
-    assert {each.outcome for each in report.results} == {Outcome.FETCHED}, report
+    assert tally.results
+    assert {each.outcome for each in tally.results} == {Outcome.FETCHED}, tally
     return bybit, root
 
 

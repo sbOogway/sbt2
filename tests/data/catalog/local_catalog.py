@@ -14,7 +14,7 @@ from local_source import (
 from local_source import write_snapshot as write_raw_snapshot
 from nautilus_trader.model import Bar, FundingRateUpdate, MarkPriceUpdate, TradeTick
 
-from sbt2.data import IngestOptions, IngestRequest, Window, ingest
+from sbt2.data import DayRange, IngestOptions, IngestRequest, Window, ingest
 from sbt2.data.sources import Gap
 
 HOUR = 3_600_000_000_000
@@ -39,7 +39,9 @@ class LocalCatalog:
 
     def write(self, data_type: type, day: date, timestamps: list[int]) -> None:
         write_day(self.raw, data_type, day, timestamps)
-        self._ingest(IngestRequest((SYMBOL,), day, day, (data_type.__name__,)))
+        self._ingest(
+            IngestRequest(DayRange((SYMBOL,), day, day, (data_type.__name__,)))
+        )
 
     def rewrite(self, data_type: type, day: date, rows: int) -> None:
         for each in self._day_files(data_type, day):
@@ -50,7 +52,7 @@ class LocalCatalog:
         write_raw_snapshot(self.raw, max(days) + timedelta(days=1), margin_init)
         for each in days:
             request = IngestRequest(
-                (SYMBOL,), each, each, (data_type.__name__,), reingest=True
+                DayRange((SYMBOL,), each, each, (data_type.__name__,)), reingest=True
             )
             self._ingest(request)
 

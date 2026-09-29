@@ -32,7 +32,7 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.trading import Strategy
 
-from sbt2.data import IngestOptions, IngestRequest, ingest
+from sbt2.data import DayRange, IngestOptions, IngestRequest, ingest
 
 DAY = date(2024, 1, 1)
 HOUR = 3_600_000_000_000
@@ -65,7 +65,7 @@ def ingest_one_day(tmp_path: Path) -> Path:
     write_day(raw, TradeTick, DAY, hours)
     write_day(raw, MarkPriceUpdate, DAY, hours)
     write_day(raw, FundingRateUpdate, DAY, [hours[8], hours[16]])
-    request = IngestRequest((SYMBOL,), DAY, DAY)
+    request = IngestRequest(DayRange((SYMBOL,), DAY, DAY))
     ingest(LocalSource(), request, IngestOptions(raw, catalog))
     return catalog
 
