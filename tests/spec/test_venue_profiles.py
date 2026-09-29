@@ -26,7 +26,8 @@ def test_bybit_linear_builds_a_nautilus_venue(
     spec.write_text(SPEC)
     monkeypatch.chdir(REPO)
 
-    [venue] = load(spec).run_config("/catalog").venues
+    [resolved] = load(spec)
+    [venue] = resolved.run_config("/catalog").venues
 
     assert venue.name == "BYBIT"
     assert venue.oms_type == OmsType.NETTING

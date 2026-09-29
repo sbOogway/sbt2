@@ -73,7 +73,7 @@ def run(
 
 
 def _run(spec_file: Path, data: Path, log_level: LogLevel) -> None:
-    resolved = spec.load(spec_file)
+    [resolved] = spec.load(spec_file)
     source = sources.source(resolved.source, SOURCES)
     known_gaps = preflight(
         resolved, source, DataFolders(data / "raw", data / "catalog")

@@ -51,6 +51,6 @@ def load(
     path: Path,
     overrides: Mapping[str, Any] | None = None,
     venue_profiles: Path = VENUE_PROFILES,
-) -> ResolvedRunSpec:
-    """Read a spec file, apply top-level ``overrides`` and resolve it."""
-    return resolve(read_spec(path, overrides or {}), venue_profiles)
+) -> list[ResolvedRunSpec]:
+    """Read a spec file, apply top-level ``overrides`` and resolve its runs."""
+    return [resolve(read_spec(path, overrides or {}), venue_profiles)]

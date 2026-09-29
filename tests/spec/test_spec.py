@@ -102,6 +102,11 @@ def paths(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def resolved(paths: tuple[Path, Path], **overrides: Any) -> ResolvedRunSpec:
+    [spec] = loaded(paths, **overrides)
+    return spec
+
+
+def loaded(paths: tuple[Path, Path], **overrides: Any) -> list[ResolvedRunSpec]:
     spec, venues = paths
     return load(spec, overrides, venues)
 
@@ -506,6 +511,13 @@ def test_a_splitter_can_be_given_as_an_override(paths: tuple[Path, Path]) -> Non
     split = Split(validation=0.25, test=0.25)
 
     assert resolved(paths, split=split).split == split
+
+
+@pytest.mark.unit
+def test_a_spec_with_a_part_loads_as_one_run(paths: tuple[Path, Path]) -> None:
+    [spec] = loaded(paths)
+
+    assert spec.part == "train"
 
 
 @pytest.mark.unit
