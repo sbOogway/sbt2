@@ -11,7 +11,12 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from nautilus_trader.model import InstrumentId, Money
+from nautilus_trader.model import (
+    FundingRateUpdate,
+    InstrumentId,
+    MarkPriceUpdate,
+    Money,
+)
 from typer.testing import CliRunner
 
 from sbt2.cli import app
@@ -66,8 +71,8 @@ def _month_run(data: Path) -> MonthRun:
         runs=runs,
         fills=store.load(run_id, "fills").sort_values("ts_event"),
         carry=store.load(run_id, "carry"),
-        funding=catalog.funding(INSTRUMENT_ID, window),
-        marks=catalog.mark_prices(INSTRUMENT_ID, window),
+        funding=catalog.frame(INSTRUMENT_ID, FundingRateUpdate, window),
+        marks=catalog.frame(INSTRUMENT_ID, MarkPriceUpdate, window),
     )
 
 

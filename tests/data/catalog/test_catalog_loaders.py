@@ -58,7 +58,7 @@ def test_trades_load_as_a_frame_indexed_by_event_time(tmp_path: Path) -> None:
     sell = trade(1, START + MINUTE, AggressorSide.SELL)
     catalog = trades_catalog(tmp_path, [trade(0, START), sell])
 
-    frame = catalog.trades(INSTRUMENT_ID, DAY_WINDOW)
+    frame = catalog.frame(INSTRUMENT_ID, TradeTick, DAY_WINDOW)
 
     assert frame.index.name == "ts_event"
     assert list(frame.index) == [utc(START), utc(START + MINUTE)]
@@ -77,7 +77,7 @@ def test_loaders_keep_to_the_window(tmp_path: Path) -> None:
         midnight(DAY) + timedelta(seconds=30), midnight(DAY) + timedelta(minutes=2)
     )
 
-    frame = catalog.trades(INSTRUMENT_ID, window)
+    frame = catalog.frame(INSTRUMENT_ID, TradeTick, window)
 
     assert list(frame["trade_id"]) == ["1", "2", "3"]
 
@@ -92,7 +92,7 @@ def test_mark_prices_load_as_a_frame(tmp_path: Path) -> None:
     ]
     catalog.write_mark_price_updates(marks, *BOUNDS)
 
-    frame = Catalog(tmp_path).mark_prices(INSTRUMENT_ID, DAY_WINDOW)
+    frame = Catalog(tmp_path).frame(INSTRUMENT_ID, MarkPriceUpdate, DAY_WINDOW)
 
     assert frame.index.name == "ts_event"
     assert list(frame.index) == [utc(START), utc(START + MINUTE)]
@@ -105,7 +105,7 @@ def test_funding_loads_as_a_frame(tmp_path: Path) -> None:
     local = LocalCatalog(tmp_path)
     local.write(FundingRateUpdate, DAY, [START + k * eight_hours for k in range(3)])
 
-    frame = Catalog(local.path).funding(INSTRUMENT_ID, DAY_WINDOW)
+    frame = Catalog(local.path).frame(INSTRUMENT_ID, FundingRateUpdate, DAY_WINDOW)
 
     assert frame.index.name == "ts_event"
     assert list(frame.index) == [utc(START + k * eight_hours) for k in range(3)]
@@ -128,7 +128,7 @@ def test_candles_load_as_a_frame_of_ohlcv(tmp_path: Path) -> None:
     ]
     catalog.write_bars(candles, *BOUNDS)
 
-    frame = Catalog(tmp_path).candles(INSTRUMENT_ID, DAY_WINDOW)
+    frame = Catalog(tmp_path).frame(INSTRUMENT_ID, Bar, DAY_WINDOW)
 
     assert frame.index.name == "ts_event"
     assert [each.value for each in frame.index] == [
@@ -150,7 +150,9 @@ def test_an_empty_window_loads_an_empty_frame_with_the_columns(
     catalog = trades_catalog(tmp_path, trades_every_half_minute(2))
     evening = midnight(DAY) + timedelta(hours=20)
 
-    frame = catalog.trades(INSTRUMENT_ID, Window(evening, evening + timedelta(hours=1)))
+    frame = catalog.frame(
+        INSTRUMENT_ID, TradeTick, Window(evening, evening + timedelta(hours=1))
+    )
 
     assert frame.empty
     assert list(frame.columns) == ["price", "size", "side", "trade_id"]
