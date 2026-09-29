@@ -8,15 +8,16 @@ from typing import Any
 from nautilus_trader.model import AssetClass, InstrumentClass
 
 from sbt2.assets import AssetProfile, asset_profile
+from sbt2.spec.errors import SpecError
 
 _MODEL_ARGUMENTS = ("fee_model", "fill_model", "latency_model", "margin_model")
 
 
-class UnknownVenueProfileError(LookupError):
+class UnknownVenueProfileError(SpecError, LookupError):
     pass
 
 
-class InvalidVenueProfileError(ValueError):
+class InvalidVenueProfileError(SpecError):
     pass
 
 
