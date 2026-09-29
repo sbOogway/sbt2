@@ -24,6 +24,7 @@ from sbt2.assets import AssetProfile
 from sbt2.data.sources import CANDLES, candle_type
 from sbt2.spec.canonical import canonical_hash, canonical_json
 from sbt2.spec.parse import RunSpec
+from sbt2.spec.split import Split, Splitter
 from sbt2.spec.venues import venue_objects, venue_profile
 from sbt2.strategy import StrategyRun, import_strategy, resolve_params
 
@@ -38,7 +39,7 @@ class ResolvedRunSpec:
     ``venue`` and ``data`` are nautilus's own ``BacktestVenueConfig`` and
     ``BacktestDataConfig`` arguments as plain data, without the catalog path.
     ``source`` names where missing data is fetched from; like the catalog path,
-    it is not hashed.
+    it is not hashed. ``start`` and ``end`` are the dates of ``part``.
     """
 
     strategy: StrategyRun
@@ -47,6 +48,8 @@ class ResolvedRunSpec:
     venue: Mapping[str, Any]
     data: Sequence[Mapping[str, Any]]
     equity_interval_ms: int
+    split: Splitter
+    part: str
     start: datetime
     end: datetime
 
@@ -98,6 +101,8 @@ class ResolvedRunSpec:
             "venue": dict(self.venue),
             "data": [dict(arguments) for arguments in self.data],
             "equity_interval_ms": self.equity_interval_ms,
+            "split": self.split.document(),
+            "part": self.part,
             "start": self.start,
             "end": self.end,
         }
@@ -121,13 +126,14 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
     instruments = _instruments(spec.instruments, venue["name"])
     strategy = import_strategy(spec.strategy)
     params = resolve_params(strategy, spec.params)
-    data_start = spec.start - strategy.warmup(params)
+    split = _splitter(spec.split)
+    start, end = split.parts(spec.period)[spec.part]
     return ResolvedRunSpec(
         strategy=StrategyRun(
             spec.strategy,
             instruments,
             asdict(params),
-            spec.start,
+            start,
             CANDLES if spec.bars == "candles" else None,
         ),
         asset=asset,
@@ -136,12 +142,21 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
         data=_data(
             _data_types(_bar_source(spec.bars, strategy.inputs(params)), asset),
             instruments,
-            (data_start, spec.end),
+            (start - strategy.warmup(params), end),
         ),
         equity_interval_ms=spec.equity_interval_ms,
-        start=spec.start,
-        end=spec.end,
+        split=split,
+        part=spec.part,
+        start=start,
+        end=end,
     )
+
+
+def _splitter(split: Splitter | Mapping[str, Any]) -> Splitter:
+    """A spec file's split table as the splitter it names."""
+    if isinstance(split, Mapping):
+        return Split(**split)
+    return split
 
 
 def _instruments(ids: Iterable[str], venue: str) -> list[InstrumentId]:

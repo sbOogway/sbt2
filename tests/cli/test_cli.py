@@ -15,8 +15,9 @@ runner = CliRunner()
 SPEC = """
 strategy = "strategies.ma_cross:MovingAverageCross"
 instruments = ["BTCUSDT-LINEAR.BYBIT"]
-start = 2024-01-01T02:00:00
-end = 2024-01-03
+period = [2024-01-01T02:00:00, 2024-01-05]
+split = { validation_start = 2024-01-03, test_start = 2024-01-04 }
+part = "train"
 venue = "served_linear"
 capital = "10000 USDT"
 

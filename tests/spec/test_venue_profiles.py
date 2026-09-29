@@ -10,8 +10,9 @@ REPO = Path(__file__).parents[2]
 SPEC = """
 strategy = "spec_strategies:MinuteLookback"
 instruments = ["BTCUSDT-LINEAR.BYBIT"]
-start = 2024-01-01
-end = 2024-02-01
+period = [2024-01-01, 2024-03-01]
+split = { validation_start = 2024-02-01, test_start = 2024-02-15 }
+part = "train"
 venue = "bybit_linear"
 capital = "10000 USDT"
 """

@@ -15,8 +15,9 @@ from sbt2.spec import ResolvedRunSpec, load
 SPEC = """
 strategy = "run_strategies:BuyThenSell"
 instruments = ["BTCUSDT-LINEAR.BYBIT"]
-start = 2024-01-01T02:00:00
-end = 2024-01-03
+period = [2024-01-01T02:00:00, 2024-01-05]
+split = { validation_start = 2024-01-03, test_start = 2024-01-04 }
+part = "train"
 venue = "test_linear"
 capital = "10000 USDT"
 """

@@ -38,16 +38,19 @@ instrument_class = "SWAP"
 """
 DAY = date(2024, 1, 1)
 NEXT_DAY = date(2024, 1, 2)
-# 1,000,000 seconds after the start, the most 1s snapshots nautilus keeps.
-LAST_SNAPSHOT = "2024-01-12T15:46:40"
+# 1,000,000 seconds after the test part's start, the most 1s snapshots
+# nautilus keeps.
+LAST_SNAPSHOT = "2024-01-12T13:46:40"
+TEST_FROM_DAY = "{ validation_start = 2023-12-31, test_start = 2024-01-01 }"
 
 
 def spec(tmp_path: Path, **values: Any) -> ResolvedRunSpec:
     lines = {
         "strategy": '"run_strategies:BuyThenSell"',
         "instruments": '["BTCUSDT-LINEAR.BYBIT"]',
-        "start": "2024-01-01T02:00:00",
-        "end": "2024-01-03",
+        "period": "[2024-01-01T02:00:00, 2024-01-05]",
+        "split": "{ validation_start = 2024-01-03, test_start = 2024-01-04 }",
+        "part": '"train"',
         "venue": '"test_linear"',
         "capital": '"10000 USDT"',
         **values,
@@ -161,7 +164,11 @@ def test_the_warmup_days_are_checked_too(tmp_path: Path, folders: DataFolders) -
     source.serve(DAY, date(2024, 1, 3))
     source.withdraw(TradeTick, DAY)
     stock(source, folders, DAY, date(2024, 1, 3))
-    run = spec(tmp_path, start="2024-01-02T01:00:00", end="2024-01-04")
+    run = spec(
+        tmp_path,
+        period="[2024-01-02T01:00:00, 2024-01-06]",
+        split="{ validation_start = 2024-01-04, test_start = 2024-01-05 }",
+    )
 
     with pytest.raises(MissingDataError, match="TradeTick 2024-01-01"):
         preflight(run, source, folders)
@@ -189,7 +196,11 @@ def test_days_the_calendar_closes_are_not_required(
     source = ServedSource()
     source.serve(friday, friday)
     stock(source, folders, friday, friday)
-    run = spec(tmp_path, start="2024-01-05T02:00:00", end="2024-01-08")
+    run = spec(
+        tmp_path,
+        period="[2024-01-05T02:00:00, 2024-01-10]",
+        split="{ validation_start = 2024-01-08, test_start = 2024-01-09 }",
+    )
     weekdays = replace(run.asset, calendar=Weekdays(run.asset.calendar))
 
     assert preflight(replace(run, asset=weekdays), source, folders) == ()
@@ -226,7 +237,13 @@ def test_a_segment_over_the_snapshot_buffer_fails_before_fetching(
 ) -> None:
     source = ServedSource()
     source.serve(DAY, date(2024, 1, 12))
-    run = spec(tmp_path, end="2024-01-12T15:46:41", equity_interval='"1s"')
+    run = spec(
+        tmp_path,
+        period="[2023-12-30, 2024-01-12T13:46:41]",
+        split=TEST_FROM_DAY,
+        part='"test"',
+        equity_interval='"1s"',
+    )
 
     with pytest.raises(SnapshotBufferError, match="1,000,001"):
         preflight(run, source, folders)
@@ -238,9 +255,15 @@ def test_a_segment_filling_the_snapshot_buffer_exactly_passes(
     tmp_path: Path, folders: DataFolders
 ) -> None:
     source = ServedSource()
-    source.serve(DAY, date(2024, 1, 12))
-    stock(source, folders, DAY, date(2024, 1, 12))
-    run = spec(tmp_path, end=LAST_SNAPSHOT, equity_interval='"1s"')
+    source.serve(date(2023, 12, 31), date(2024, 1, 12))
+    stock(source, folders, date(2023, 12, 31), date(2024, 1, 12))
+    run = spec(
+        tmp_path,
+        period=f"[2023-12-30, {LAST_SNAPSHOT}]",
+        split=TEST_FROM_DAY,
+        part='"test"',
+        equity_interval='"1s"',
+    )
 
     assert preflight(run, source, folders) == ()
 
