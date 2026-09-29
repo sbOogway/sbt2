@@ -77,8 +77,6 @@ name = "Only sbt2.data imports its own internals"
 type = "protected"
 protected_modules = ["sbt2.data.*"]
 allowed_importers = ["sbt2.data"]
-# a public function shares its submodule's name, and import-linter reads the import as the submodule
-ignore_imports = ["sbt2.run.preflight -> sbt2.data.download", "sbt2.run.preflight -> sbt2.data.ingest"]
 
 [[tool.importlinter.contracts]]
 name = "Only sbt2.results imports its own internals"
@@ -91,8 +89,6 @@ name = "Only sbt2.run imports its own internals"
 type = "protected"
 protected_modules = ["sbt2.run.*"]
 allowed_importers = ["sbt2.run"]
-# a public function shares its submodule's name, and import-linter reads the import as the submodule
-ignore_imports = ["sbt2.cli -> sbt2.run.batch"]
 
 [[tool.importlinter.contracts]]
 name = "Only sbt2.spec imports its own internals"

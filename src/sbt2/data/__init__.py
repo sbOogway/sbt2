@@ -7,7 +7,7 @@ from sbt2.data.catalog import (
     Window,
 )
 from sbt2.data.days import DayRange
-from sbt2.data.download import (
+from sbt2.data.downloading import (
     INSTRUMENT,
     DownloadOptions,
     DownloadRequest,
@@ -17,7 +17,7 @@ from sbt2.data.download import (
     Progress,
     download,
 )
-from sbt2.data.ingest import (
+from sbt2.data.ingesting import (
     Day,
     DayResult,
     IngestOptions,

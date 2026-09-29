@@ -1,4 +1,4 @@
-from sbt2.run.batch import (
+from sbt2.run.batching import (
     BatchProgress,
     BatchSetup,
     Launcher,
