@@ -1,3 +1,5 @@
+import json
+import uuid
 from pathlib import Path
 
 import pytest
@@ -5,6 +7,7 @@ from served_source import ServedSource
 from served_spec import DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
 
+from sbt2 import spec
 from sbt2.cli import app
 from sbt2.results import ParquetResultStore
 
@@ -31,6 +34,21 @@ def stored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ParquetResultStor
     result = runner.invoke(app, ["run", str(spec)])
     assert result.exit_code == 0, result.output
     return ParquetResultStore(tmp_path / "data" / "results")
+
+
+def unfinished(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> tuple[ParquetResultStore, str]:
+    """A store holding the folder of a run that started but never finished."""
+    spec_file = served(tmp_path, monkeypatch, ServedSource())
+    store = ParquetResultStore(tmp_path / "data" / "results")
+    [run_spec] = spec.load(spec_file)
+    return store, store.new_run(run_spec).run_id
+
+
+def spec_document(output: str) -> object:
+    lines = output.splitlines()
+    return json.loads("\n".join(lines[lines.index("{") :]))
 
 
 def rows(output: str) -> list[list[str]]:
@@ -86,3 +104,48 @@ def test_runs_list_of_an_empty_store_says_so(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert result.output.strip() == "no runs"
+
+
+@pytest.mark.e2e
+def test_runs_show_prints_the_summary_and_the_resolved_spec(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = stored(tmp_path, monkeypatch)
+    run_id = store.runs()["run_id"].iloc[0]
+
+    result = runner.invoke(app, ["runs", "show", run_id])
+
+    assert result.exit_code == 0, result.output
+    summary = result.output.split("\n\n")[0].splitlines()
+    fields = dict(line.split(maxsplit=1) for line in summary)
+    assert fields["run_id"] == run_id
+    assert fields["spec_hash"] == store.runs()["spec_hash"].iloc[0]
+    assert "net_return" in fields
+    assert spec_document(result.output) == store.spec(run_id)
+
+
+@pytest.mark.e2e
+def test_runs_show_of_a_failed_run_says_it_has_no_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store, run_id = unfinished(tmp_path, monkeypatch)
+
+    result = runner.invoke(app, ["runs", "show", run_id])
+
+    assert result.exit_code == 0, result.output
+    assert f"run {run_id} has no summary: it did not finish" in result.output
+    assert spec_document(result.output) == store.spec(run_id)
+
+
+@pytest.mark.e2e
+def test_runs_show_of_an_unknown_run_fails(tmp_path: Path) -> None:
+    log = tmp_path / "sbt2.log"
+
+    result = runner.invoke(
+        app,
+        ["--log-file", str(log), "runs", "show", str(uuid.uuid7())]
+        + ["--data", str(tmp_path)],
+    )
+
+    assert result.exit_code == 1
+    assert "UnknownRunError" in log.read_text()

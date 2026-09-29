@@ -1,3 +1,4 @@
+import json
 import logging
 import math
 import re
@@ -10,6 +11,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
+import numpy as np
 import pandas as pd
 import typer
 from nautilus_trader.common import LogLevel
@@ -25,7 +27,7 @@ from rich.progress import (
 
 from sbt2 import data, spec
 from sbt2.data import sources
-from sbt2.results import ParquetResultStore
+from sbt2.results import MissingTableError, ParquetResultStore, ResultStore
 from sbt2.run import (
     BatchSetup,
     DataFolders,
@@ -389,10 +391,57 @@ def _runs_row(record: Mapping[Hashable, object]) -> tuple[str, ...]:
 
 
 def _cell(value: object) -> str:
-    if value is None or (isinstance(value, float) and math.isnan(value)):
+    if _missing(value):
         return "-"
     if isinstance(value, float):
         return f"{value:.4f}"
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
+
+
+@runs_app.command()
+def show(
+    run_id: Annotated[str, typer.Argument(help="The run's id.")],
+    data_root: Annotated[
+        Path, typer.Option("--data", help="Reads PATH/results.")
+    ] = DATA,
+) -> None:
+    """Show a run's summary and its resolved spec."""
+    try:
+        text = _shown(ParquetResultStore(data_root / "results"), run_id)
+    except Exception:
+        logger.exception("showing run %s failed", run_id)
+        raise typer.Exit(1) from None
+    typer.echo(text)
+
+
+def _shown(store: ResultStore, run_id: str) -> str:
+    document = json.dumps(store.spec(run_id), indent=2)
+    return f"{_summary_lines(store, run_id)}\n\n{document}"
+
+
+def _summary_lines(store: ResultStore, run_id: str) -> str:
+    try:
+        [record] = store.load(run_id, "summary").to_dict("records")
+    except MissingTableError:
+        return f"run {run_id} has no summary: it did not finish"
+    width = max(len(str(column)) for column in record)
+    return "\n".join(
+        f"{str(column).ljust(width)}  {_detail(value)}"
+        for column, value in record.items()
+    )
+
+
+def _missing(value: object) -> bool:
+    return value is None or (isinstance(value, float) and math.isnan(value))
+
+
+def _detail(value: object) -> str:
+    if isinstance(value, np.ndarray):
+        return ", ".join(str(each) for each in value) or "-"
+    if _missing(value):
+        return "-"
     if isinstance(value, datetime):
         return value.isoformat()
     return str(value)
