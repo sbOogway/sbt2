@@ -21,6 +21,7 @@ from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
     Progress,
+    TaskID,
     TextColumn,
     TimeElapsedColumn,
 )
@@ -71,6 +72,16 @@ def main(
     context.obj = log_level
 
 
+@contextmanager
+def _failing(action: str, *args: object) -> Iterator[None]:
+    """Logs an exception as the action failing, and exits with code 1."""
+    try:
+        yield
+    except Exception:
+        logger.exception(f"{action} failed", *args)
+        raise typer.Exit(1) from None
+
+
 def _size(text: str) -> int:
     """Bytes, from a size in systemd's syntax such as ``512M`` or ``4G``."""
     match = SIZE.fullmatch(text)
@@ -105,14 +116,11 @@ def run(
     ] = None,
 ) -> None:
     """Run the backtests a spec file describes and store their results."""
-    try:
+    with _failing("run of %s", spec_file):
         root = Root(data.resolve())
         level = LogLevel.from_str(context.obj)
         settings = RunSettings(root.catalog, log_level=level)
         _run(spec_file, _setup(root, settings, _memory(memory_budget, memory_per_run)))
-    except Exception:
-        logger.exception("run of %s failed", spec_file)
-        raise typer.Exit(1) from None
 
 
 def _memory(budget: int | None, per_run: int | None) -> Memory:
@@ -133,7 +141,7 @@ def _setup(root: Root, settings: RunSettings, memory: Memory) -> BatchSetup:
 def _run(spec_file: Path, setup: BatchSetup) -> None:
     """Pre-flight every run of the spec file, then execute them in a batch."""
     runs = spec.load(spec_file)
-    with _batch_bar() as bar:
+    with _bar("runs") as bar:
         run_ids = batch(runs, setup, bar)
     for run_id in run_ids:
         logger.info("stored run %s in %s", run_id, setup.store.folder(run_id))
@@ -163,14 +171,11 @@ def download(
 ) -> None:
     """Fetch a source's raw files for a range of days, and today's instruments."""
     options = data.DownloadOptions(Root(data_root).raw, concurrency, retries)
-    try:
+    with _failing("download from %s", source):
         request = data.DownloadRequest(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ())
         )
         report = _download(source, request, options)
-    except Exception:
-        logger.exception("download from %s failed", source)
-        raise typer.Exit(1) from None
     _log_summary(report)
     if report.having(data.Outcome.FAILED):
         raise typer.Exit(1)
@@ -228,14 +233,11 @@ def ingest(
     """Write a source's raw files for a range of days into the catalog."""
     root = Root(data_root)
     options = data.IngestOptions(root.raw, root.catalog)
-    try:
+    with _failing("ingest from %s", source):
         request = data.IngestRequest(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ()), reingest
         )
         report = _ingest(source, request, options)
-    except Exception:
-        logger.exception("ingest from %s failed", source)
-        raise typer.Exit(1) from None
     _log_ingest_summary(report)
 
 
@@ -243,7 +245,7 @@ def _ingest(
     name: str, request: data.IngestRequest, options: data.IngestOptions
 ) -> data.IngestReport:
     adapter = sources.source(name, SOURCES)
-    with _ingest_bar() as bar:
+    with _bar("ingest") as bar:
         return data.ingest(adapter, request, replace(options, progress=bar))
 
 
@@ -273,13 +275,10 @@ def status(
 ) -> None:
     """Show the symbols, data types and days in the catalog, and flag gaps."""
     folder = Root(data_root).catalog
-    try:
+    with _failing("status of %s", folder):
         window = _window(start, end)
         catalog = data.Catalog(folder)
         holdings = catalog.status(sources.known_gaps(SOURCES), window)
-    except Exception:
-        logger.exception("status of %s failed", folder)
-        raise typer.Exit(1) from None
     typer.echo(_status_table(holdings))
 
 
@@ -372,11 +371,8 @@ def list_runs(
     part: Annotated[str | None, typer.Option(help="Only this part.")] = None,
 ) -> None:
     """Show one row per finished run, oldest first."""
-    try:
+    with _failing("listing the runs in %s", Root(data_root).results):
         runs = _store(data_root).runs(strategy, part)
-    except Exception:
-        logger.exception("listing the runs in %s failed", Root(data_root).results)
-        raise typer.Exit(1) from None
     typer.echo(_runs_table(runs))
 
 
@@ -396,13 +392,9 @@ def _runs_row(record: Mapping[Hashable, object]) -> tuple[str, ...]:
 
 
 def _cell(value: object) -> str:
-    if _missing(value):
-        return "-"
-    if isinstance(value, float):
+    if isinstance(value, float) and not math.isnan(value):
         return f"{value:.4f}"
-    if isinstance(value, datetime):
-        return value.isoformat()
-    return str(value)
+    return _text(value)
 
 
 @runs_app.command()
@@ -413,11 +405,8 @@ def show(
     ] = ROOT,
 ) -> None:
     """Show a run's summary and its resolved spec."""
-    try:
+    with _failing("showing run %s", run_id):
         text = _shown(_store(data_root), run_id)
-    except Exception:
-        logger.exception("showing run %s failed", run_id)
-        raise typer.Exit(1) from None
     typer.echo(text)
 
 
@@ -432,11 +421,8 @@ def delete(
     """Delete a run's folder, a failed run's partial one included."""
     if not yes:
         typer.confirm(f"delete run {run_id}?", abort=True)
-    try:
+    with _failing("deleting run %s", run_id):
         _store(data_root).delete(run_id)
-    except Exception:
-        logger.exception("deleting run %s failed", run_id)
-        raise typer.Exit(1) from None
 
 
 def _shown(store: ResultStore, run_id: str) -> str:
@@ -456,13 +442,14 @@ def _summary_lines(store: ResultStore, run_id: str) -> str:
     )
 
 
-def _missing(value: object) -> bool:
-    return value is None or (isinstance(value, float) and math.isnan(value))
-
-
 def _detail(value: object) -> str:
     if isinstance(value, np.ndarray):
         return ", ".join(str(each) for each in value) or "-"
+    return _text(value)
+
+
+def _text(value: object) -> str:
+    """A stored value as ``runs list`` and ``runs show`` print it."""
     if _missing(value):
         return "-"
     if isinstance(value, datetime):
@@ -470,69 +457,47 @@ def _detail(value: object) -> str:
     return str(value)
 
 
-class _DownloadBar:
+def _missing(value: object) -> bool:
+    return value is None or (isinstance(value, float) and math.isnan(value))
+
+
+class _Bar:
+    """Items done out of those planned."""
+
+    def __init__(self, progress: Progress, task: TaskID) -> None:
+        self._progress = progress
+        self._task = task
+
+    def planned(self, count: int) -> None:
+        self._progress.update(self._task, total=count)
+
+    def finished(self, result: object) -> None:
+        self._progress.advance(self._task)
+
+
+class _DownloadBar(_Bar):
     """Files done out of those planned, and the bytes received so far."""
 
-    def __init__(self, progress: Progress) -> None:
-        self._progress = progress
-        self._task = progress.add_task("download", total=None, size="")
+    def __init__(self, progress: Progress, task: TaskID) -> None:
+        super().__init__(progress, task)
         self._size = 0
-
-    def planned(self, files: int) -> None:
-        self._progress.update(self._task, total=files)
 
     def received(self, size: int) -> None:
         self._size += size
         self._progress.update(self._task, size=decimal(self._size))
 
-    def finished(self, result: data.FileResult) -> None:
-        self._progress.advance(self._task)
+
+@contextmanager
+def _bar(description: str) -> Iterator[_Bar]:
+    with _progress() as progress:
+        yield _Bar(progress, progress.add_task(description, total=None))
 
 
 @contextmanager
 def _download_bar() -> Iterator[_DownloadBar]:
     with _progress(TextColumn("{task.fields[size]}")) as progress:
-        yield _DownloadBar(progress)
-
-
-class _IngestBar:
-    """Days done out of those planned."""
-
-    def __init__(self, progress: Progress) -> None:
-        self._progress = progress
-        self._task = progress.add_task("ingest", total=None)
-
-    def planned(self, days: int) -> None:
-        self._progress.update(self._task, total=days)
-
-    def finished(self, result: data.DayResult) -> None:
-        self._progress.advance(self._task)
-
-
-@contextmanager
-def _ingest_bar() -> Iterator[_IngestBar]:
-    with _progress() as progress:
-        yield _IngestBar(progress)
-
-
-class _BatchBar:
-    """Runs done out of those planned."""
-
-    def __init__(self, progress: Progress) -> None:
-        self._progress = progress
-        self._task = progress.add_task("runs", total=None)
-
-    def planned(self, runs: int) -> None:
-        self._progress.update(self._task, total=runs)
-
-    def finished(self, run_id: str) -> None:
-        self._progress.advance(self._task)
-
-
-@contextmanager
-def _batch_bar() -> Iterator[_BatchBar]:
-    with _progress() as progress:
-        yield _BatchBar(progress)
+        task = progress.add_task("download", total=None, size="")
+        yield _DownloadBar(progress, task)
 
 
 @contextmanager
