@@ -8,9 +8,9 @@ import pytest
 from nautilus_trader.model import InstrumentId, TradeTick
 from typer.testing import CliRunner
 
+from sbt2 import data
 from sbt2.cli import app
 from sbt2.config import SOURCES
-from sbt2.data import sources
 from sbt2.data.sources import MissingAtSourceError, RawFile, Source
 
 runner = CliRunner()
@@ -68,7 +68,7 @@ def answers(monkeypatch: pytest.MonkeyPatch) -> dict[str, bytes | Exception]:
         assert (name, config) == ("fake", SOURCES)
         return ApiSource(served)
 
-    monkeypatch.setattr(sources, "source", source)
+    monkeypatch.setattr(data, "source", source)
     return served
 
 

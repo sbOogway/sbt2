@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from served_source import ServedSource
 
-from sbt2.data import sources
+from sbt2 import data
 
 SPEC = """
 strategy = "strategies.ma_cross:MovingAverageCross"
@@ -41,7 +41,7 @@ def served(
     spec = tmp_path / "spec.toml"
     spec.write_text(SPEC)
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(sources, "source", lambda name, config: source)
+    monkeypatch.setattr(data, "source", lambda name, config: source)
     return spec
 
 
