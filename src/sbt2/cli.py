@@ -21,6 +21,7 @@ from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
     Progress,
+    TaskID,
     TextColumn,
     TimeElapsedColumn,
 )
@@ -140,7 +141,7 @@ def _setup(root: Root, settings: RunSettings, memory: Memory) -> BatchSetup:
 def _run(spec_file: Path, setup: BatchSetup) -> None:
     """Pre-flight every run of the spec file, then execute them in a batch."""
     runs = spec.load(spec_file)
-    with _batch_bar() as bar:
+    with _bar("runs") as bar:
         run_ids = batch(runs, setup, bar)
     for run_id in run_ids:
         logger.info("stored run %s in %s", run_id, setup.store.folder(run_id))
@@ -244,7 +245,7 @@ def _ingest(
     name: str, request: data.IngestRequest, options: data.IngestOptions
 ) -> data.IngestReport:
     adapter = sources.source(name, SOURCES)
-    with _ingest_bar() as bar:
+    with _bar("ingest") as bar:
         return data.ingest(adapter, request, replace(options, progress=bar))
 
 
@@ -459,69 +460,43 @@ def _detail(value: object) -> str:
     return str(value)
 
 
-class _DownloadBar:
+class _Bar:
+    """Items done out of those planned."""
+
+    def __init__(self, progress: Progress, task: TaskID) -> None:
+        self._progress = progress
+        self._task = task
+
+    def planned(self, count: int) -> None:
+        self._progress.update(self._task, total=count)
+
+    def finished(self, result: object) -> None:
+        self._progress.advance(self._task)
+
+
+class _DownloadBar(_Bar):
     """Files done out of those planned, and the bytes received so far."""
 
-    def __init__(self, progress: Progress) -> None:
-        self._progress = progress
-        self._task = progress.add_task("download", total=None, size="")
+    def __init__(self, progress: Progress, task: TaskID) -> None:
+        super().__init__(progress, task)
         self._size = 0
-
-    def planned(self, files: int) -> None:
-        self._progress.update(self._task, total=files)
 
     def received(self, size: int) -> None:
         self._size += size
         self._progress.update(self._task, size=decimal(self._size))
 
-    def finished(self, result: data.FileResult) -> None:
-        self._progress.advance(self._task)
+
+@contextmanager
+def _bar(description: str) -> Iterator[_Bar]:
+    with _progress() as progress:
+        yield _Bar(progress, progress.add_task(description, total=None))
 
 
 @contextmanager
 def _download_bar() -> Iterator[_DownloadBar]:
     with _progress(TextColumn("{task.fields[size]}")) as progress:
-        yield _DownloadBar(progress)
-
-
-class _IngestBar:
-    """Days done out of those planned."""
-
-    def __init__(self, progress: Progress) -> None:
-        self._progress = progress
-        self._task = progress.add_task("ingest", total=None)
-
-    def planned(self, days: int) -> None:
-        self._progress.update(self._task, total=days)
-
-    def finished(self, result: data.DayResult) -> None:
-        self._progress.advance(self._task)
-
-
-@contextmanager
-def _ingest_bar() -> Iterator[_IngestBar]:
-    with _progress() as progress:
-        yield _IngestBar(progress)
-
-
-class _BatchBar:
-    """Runs done out of those planned."""
-
-    def __init__(self, progress: Progress) -> None:
-        self._progress = progress
-        self._task = progress.add_task("runs", total=None)
-
-    def planned(self, runs: int) -> None:
-        self._progress.update(self._task, total=runs)
-
-    def finished(self, run_id: str) -> None:
-        self._progress.advance(self._task)
-
-
-@contextmanager
-def _batch_bar() -> Iterator[_BatchBar]:
-    with _progress() as progress:
-        yield _BatchBar(progress)
+        task = progress.add_task("download", total=None, size="")
+        yield _DownloadBar(progress, task)
 
 
 @contextmanager
