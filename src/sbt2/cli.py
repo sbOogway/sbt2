@@ -295,10 +295,13 @@ _STATUS_HEADER = ("instrument", "type", "first", "last", "days", "gaps", "known 
 def _status_table(holdings: tuple[data.Holding, ...]) -> str:
     if not holdings:
         return "the catalog is empty"
-    rows = [_STATUS_HEADER, *(_status_row(each) for each in holdings)]
-    widths = [
-        max(len(row[column]) for row in rows) for column in range(len(_STATUS_HEADER))
-    ]
+    return _table(_STATUS_HEADER, [_status_row(each) for each in holdings])
+
+
+def _table(header: tuple[str, ...], body: list[tuple[str, ...]]) -> str:
+    """Rows of left-aligned columns, as wide as their widest cell."""
+    rows = [header, *body]
+    widths = [max(len(row[column]) for row in rows) for column in range(len(header))]
     return "\n".join(
         "  ".join(
             cell.ljust(width) for cell, width in zip(row, widths, strict=True)
