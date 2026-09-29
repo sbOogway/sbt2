@@ -236,3 +236,30 @@ def test_the_unfilled_remainder_of_a_bracket_entry(
     assert fills(order(engine, strategy.entry)) == entry_fills
     [position] = engine.cache.positions()
     assert str(position.quantity) == unprotected
+
+
+class TrailedBracket(LongBracket):
+    def on_step(self, step: int) -> None:
+        super().on_step(step)
+        if step == 1:
+            self.modify_order(self.stop_loss, trigger_price=Price.from_str(MOVED_STOP))
+
+
+@pytest.mark.characterization
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("feed", "stop_fill_price"),
+    [("bars", MOVED_STOP), ("trades", "47800.0")],
+)
+def test_modify_order_moves_a_bracket_stop_loss(
+    feed: str, stop_fill_price: str
+) -> None:
+    strategy = TrailedBracket()
+    path = PricePath([ENTRY_PRICE, "49800.0", "48800.0", "47800.0"])
+
+    engine = run_on_feed(strategy, feed, path)
+
+    assert fills(order(engine, strategy.stop_loss)) == [
+        (minute(3), stop_fill_price, "1.000")
+    ]
+    assert order(engine, strategy.take_profit).status == OrderStatus.CANCELED
