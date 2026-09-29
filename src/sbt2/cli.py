@@ -71,6 +71,16 @@ def main(
     context.obj = log_level
 
 
+@contextmanager
+def _failing(action: str, *args: object) -> Iterator[None]:
+    """Logs an exception as the action failing, and exits with code 1."""
+    try:
+        yield
+    except Exception:
+        logger.exception(f"{action} failed", *args)
+        raise typer.Exit(1) from None
+
+
 def _size(text: str) -> int:
     """Bytes, from a size in systemd's syntax such as ``512M`` or ``4G``."""
     match = SIZE.fullmatch(text)
@@ -105,14 +115,11 @@ def run(
     ] = None,
 ) -> None:
     """Run the backtests a spec file describes and store their results."""
-    try:
+    with _failing("run of %s", spec_file):
         root = Root(data.resolve())
         level = LogLevel.from_str(context.obj)
         settings = RunSettings(root.catalog, log_level=level)
         _run(spec_file, _setup(root, settings, _memory(memory_budget, memory_per_run)))
-    except Exception:
-        logger.exception("run of %s failed", spec_file)
-        raise typer.Exit(1) from None
 
 
 def _memory(budget: int | None, per_run: int | None) -> Memory:
@@ -163,14 +170,11 @@ def download(
 ) -> None:
     """Fetch a source's raw files for a range of days, and today's instruments."""
     options = data.DownloadOptions(Root(data_root).raw, concurrency, retries)
-    try:
+    with _failing("download from %s", source):
         request = data.DownloadRequest(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ())
         )
         report = _download(source, request, options)
-    except Exception:
-        logger.exception("download from %s failed", source)
-        raise typer.Exit(1) from None
     _log_summary(report)
     if report.having(data.Outcome.FAILED):
         raise typer.Exit(1)
@@ -228,14 +232,11 @@ def ingest(
     """Write a source's raw files for a range of days into the catalog."""
     root = Root(data_root)
     options = data.IngestOptions(root.raw, root.catalog)
-    try:
+    with _failing("ingest from %s", source):
         request = data.IngestRequest(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ()), reingest
         )
         report = _ingest(source, request, options)
-    except Exception:
-        logger.exception("ingest from %s failed", source)
-        raise typer.Exit(1) from None
     _log_ingest_summary(report)
 
 
@@ -273,13 +274,10 @@ def status(
 ) -> None:
     """Show the symbols, data types and days in the catalog, and flag gaps."""
     folder = Root(data_root).catalog
-    try:
+    with _failing("status of %s", folder):
         window = _window(start, end)
         catalog = data.Catalog(folder)
         holdings = catalog.status(sources.known_gaps(SOURCES), window)
-    except Exception:
-        logger.exception("status of %s failed", folder)
-        raise typer.Exit(1) from None
     typer.echo(_status_table(holdings))
 
 
@@ -372,11 +370,8 @@ def list_runs(
     part: Annotated[str | None, typer.Option(help="Only this part.")] = None,
 ) -> None:
     """Show one row per finished run, oldest first."""
-    try:
+    with _failing("listing the runs in %s", Root(data_root).results):
         runs = _store(data_root).runs(strategy, part)
-    except Exception:
-        logger.exception("listing the runs in %s failed", Root(data_root).results)
-        raise typer.Exit(1) from None
     typer.echo(_runs_table(runs))
 
 
@@ -413,11 +408,8 @@ def show(
     ] = ROOT,
 ) -> None:
     """Show a run's summary and its resolved spec."""
-    try:
+    with _failing("showing run %s", run_id):
         text = _shown(_store(data_root), run_id)
-    except Exception:
-        logger.exception("showing run %s failed", run_id)
-        raise typer.Exit(1) from None
     typer.echo(text)
 
 
@@ -432,11 +424,8 @@ def delete(
     """Delete a run's folder, a failed run's partial one included."""
     if not yes:
         typer.confirm(f"delete run {run_id}?", abort=True)
-    try:
+    with _failing("deleting run %s", run_id):
         _store(data_root).delete(run_id)
-    except Exception:
-        logger.exception("deleting run %s failed", run_id)
-        raise typer.Exit(1) from None
 
 
 def _shown(store: ResultStore, run_id: str) -> str:
