@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -34,6 +34,7 @@ from sbt2.spec import (
 from sbt2.strategy import UnknownParameterError
 
 BTC = "BTCUSDT-LINEAR.BYBIT"
+ETH = "ETHUSDT-LINEAR.BYBIT"
 SPEC = f"""
 strategy = "spec_strategies:MinuteLookback"
 instruments = ["{BTC}"]
@@ -512,11 +513,102 @@ def test_a_splitter_can_be_given_as_an_override(paths: tuple[Path, Path]) -> Non
     assert resolved(paths, split=split).split == split
 
 
+def with_params(paths: tuple[Path, Path], lines: str) -> tuple[Path, Path]:
+    """The spec file with its ``[params]`` table holding ``lines``."""
+    spec, venues = paths
+    spec.write_text(spec.read_text().replace("lookback = 30\n", lines))
+    return spec, venues
+
+
+def params(runs: list[ResolvedRunSpec]) -> list[dict[str, Any]]:
+    return [dict(each.strategy.params) for each in runs]
+
+
 @pytest.mark.unit
 def test_a_spec_with_a_part_loads_as_one_run(paths: tuple[Path, Path]) -> None:
     [spec] = loaded(paths)
 
     assert spec.part == "train"
+
+
+@pytest.mark.unit
+def test_a_parameter_list_expands_into_one_run_per_value(
+    paths: tuple[Path, Path],
+) -> None:
+    short, long = loaded(with_params(paths, "lookback = [20, 50]\n"))
+
+    assert (short.strategy.params["lookback"], long.strategy.params["lookback"]) == (
+        20,
+        50,
+    )
+    assert short.data[0]["start_time"] == START - timedelta(minutes=20)
+    assert long.data[0]["start_time"] == START - timedelta(minutes=50)
+
+
+@pytest.mark.unit
+def test_parameter_lists_expand_into_their_cartesian_product(
+    paths: tuple[Path, Path],
+) -> None:
+    runs = loaded(with_params(paths, 'lookback = [20, 50]\nstop = ["0.01", "0.02"]\n'))
+
+    assert params(runs) == [
+        {"lookback": 20, "stop": Decimal("0.01")},
+        {"lookback": 20, "stop": Decimal("0.02")},
+        {"lookback": 50, "stop": Decimal("0.01")},
+        {"lookback": 50, "stop": Decimal("0.02")},
+    ]
+
+
+@pytest.mark.unit
+def test_parameter_lists_expand_with_every_part(paths: tuple[Path, Path]) -> None:
+    runs = loaded(with_params(without(paths, "part"), "lookback = [20, 50]\n"))
+
+    assert [(each.part, each.strategy.params["lookback"]) for each in runs] == [
+        ("train", 20),
+        ("train", 50),
+        ("validation", 20),
+        ("validation", 50),
+    ]
+
+
+@pytest.mark.unit
+def test_the_runs_come_in_part_then_parameter_order(
+    paths: tuple[Path, Path],
+) -> None:
+    lines = 'stop = ["0.02", "0.01"]\nlookback = [50, 20]\n'
+    expanded = with_params(without(paths, "part"), lines)
+    runs = loaded(expanded)
+
+    order = [
+        (each.part, str(each.strategy.params["stop"]), each.strategy.params["lookback"])
+        for each in runs
+    ]
+    assert order == [
+        (part, stop, lookback)
+        for part in ("train", "validation")
+        for stop in ("0.02", "0.01")
+        for lookback in (50, 20)
+    ]
+    assert [each.hash for each in loaded(expanded)] == [each.hash for each in runs]
+
+
+@pytest.mark.unit
+def test_instruments_stay_one_universe(paths: tuple[Path, Path]) -> None:
+    [spec] = loaded(paths, instruments=[BTC, ETH])
+
+    assert spec.strategy.instruments == [
+        InstrumentId.from_str(BTC),
+        InstrumentId.from_str(ETH),
+    ]
+
+
+@pytest.mark.unit
+def test_a_parameter_list_given_as_an_override_expands(
+    paths: tuple[Path, Path],
+) -> None:
+    runs = loaded(paths, params={"lookback": [20, 50]})
+
+    assert [each["lookback"] for each in params(runs)] == [20, 50]
 
 
 @pytest.mark.unit
