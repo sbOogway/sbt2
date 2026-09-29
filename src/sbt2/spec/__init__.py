@@ -10,6 +10,7 @@ from sbt2.spec.resolve import (
     UnknownBarSourceError,
     resolve,
 )
+from sbt2.spec.split import Split, Splitter
 from sbt2.spec.venues import InvalidVenueProfileError, UnknownVenueProfileError
 
 __all__ = [
@@ -18,6 +19,8 @@ __all__ = [
     "InstrumentVenueError",
     "InvalidVenueProfileError",
     "ResolvedRunSpec",
+    "Split",
+    "Splitter",
     "UnknownBarSourceError",
     "UnknownSpecKeyError",
     "UnknownVenueProfileError",
