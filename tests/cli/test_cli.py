@@ -1,39 +1,17 @@
-from datetime import date
 from pathlib import Path
 
 import pytest
 from launchers import PlainLauncher
 from nautilus_trader.model import FundingRateUpdate
 from served_source import INSTRUMENT_ID, ServedSource
+from served_spec import DAY, NEXT_DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
 
 from sbt2.cli import app
-from sbt2.data import sources
 from sbt2.data.sources import Gap
 from sbt2.results import ParquetResultStore
 
 runner = CliRunner()
-SPEC = """
-strategy = "strategies.ma_cross:MovingAverageCross"
-instruments = ["BTCUSDT-LINEAR.BYBIT"]
-period = [2024-01-01T02:00:00, 2024-01-05]
-split = { validation_start = 2024-01-03, test_start = 2024-01-04 }
-part = "train"
-venue = "served_linear"
-capital = "10000 USDT"
-
-[params]
-fast = 1
-slow = 2
-"""
-VENUES = """
-[served_linear]
-name = "BYBIT"
-source = "served"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
-fee_model = { path = "nautilus_trader.execution:MakerTakerFeeModel", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
-"""
 FAILING = """
 from nautilus_trader.model import Bar, BarSpecification
 
@@ -49,22 +27,6 @@ class FailOnBar(Strategy[NoParams]):
         raise RuntimeError("strategy blew up")
 """
 GiB = 2**30
-DAY = date(2024, 1, 1)
-NEXT_DAY = date(2024, 1, 2)
-VALIDATION_DAY = date(2024, 1, 3)
-
-
-def served(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: ServedSource
-) -> Path:
-    """A spec run from ``tmp_path``, whose venue's data comes from ``source``."""
-    (tmp_path / "config").mkdir()
-    (tmp_path / "config" / "venues.toml").write_text(VENUES)
-    spec = tmp_path / "spec.toml"
-    spec.write_text(SPEC)
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(sources, "source", lambda name, config: source)
-    return spec
 
 
 @pytest.mark.e2e
@@ -143,11 +105,6 @@ def failing(spec: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     spec.write_text(
         text.replace("strategies.ma_cross:MovingAverageCross", "failing:FailOnBar")
     )
-    return spec
-
-
-def without_a_part(spec: Path) -> Path:
-    spec.write_text(spec.read_text().replace('part = "train"\n', ""))
     return spec
 
 
