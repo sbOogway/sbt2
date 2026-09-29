@@ -55,3 +55,27 @@ def test_a_take_profit_fill_cancels_the_stop_loss(feed: str) -> None:
     assert order(engine, strategy.stop_loss).status == OrderStatus.CANCELED
     [position] = engine.cache.positions()
     assert position.is_closed
+
+
+@pytest.mark.characterization
+@pytest.mark.integration
+# A bar that crosses the trigger fills the stop at the trigger; a trade that
+# gaps through it fills the stop at the trade's price.
+@pytest.mark.parametrize(
+    ("feed", "stop_fill_price"),
+    [("bars", STOP_LOSS), ("trades", "48800.0")],
+)
+def test_a_stop_loss_fill_cancels_the_take_profit(
+    feed: str, stop_fill_price: str
+) -> None:
+    strategy = LongBracket()
+    path = PricePath([ENTRY_PRICE, "49500.0", "48800.0", "48500.0"])
+
+    engine = run_on_feed(strategy, feed, path)
+
+    assert fills(order(engine, strategy.stop_loss)) == [
+        (minute(2), stop_fill_price, "1.000")
+    ]
+    assert order(engine, strategy.take_profit).status == OrderStatus.CANCELED
+    [position] = engine.cache.positions()
+    assert position.is_closed
