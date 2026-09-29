@@ -243,6 +243,7 @@ FLAT = [10_000] * 5
 FALLING = [*FLAT, 9_600, 9_000, 8_800, 8_600, 8_400]
 RISING_THEN_FALLING = [*FLAT, 11_000, 9_600, 9_600, 9_600, 9_600]
 DIPPING = [*FLAT, 9_600, 9_600, 9_600, 9_600, 9_600]
+AT_THE_LIMIT = [*FLAT, 9_500, 9_500, 9_500, 9_500, 9_500]
 
 
 def trades_closing_at(prices: list[int]) -> list[TradeTick]:
@@ -298,6 +299,13 @@ def test_drawdown_is_measured_from_the_running_peak() -> None:
     strategy, _ = guarded_run(BuyOnce, RISING_THEN_FALLING)
 
     assert strategy.drawdown_tripped_at == START + timedelta(minutes=6)
+
+
+@pytest.mark.integration
+def test_the_guard_trips_when_drawdown_reaches_the_limit_exactly() -> None:
+    strategy, _ = guarded_run(BuyOnce, AT_THE_LIMIT)
+
+    assert strategy.drawdown_tripped_at == START + timedelta(minutes=5)
 
 
 @pytest.mark.integration

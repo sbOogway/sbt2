@@ -87,7 +87,7 @@ class Strategy[P](NautilusStrategy, ABC):
     ``on_*`` handler is kept in ``failure``.
 
     With a drawdown limit, each bar after warm-up first checks total equity
-    against its peak; once it falls more than the limit below, the strategy
+    against its peak; once it falls the limit or more below, the strategy
     exits the market, records the bar's time in ``drawdown_tripped_at`` and
     drops every order after.
     """
