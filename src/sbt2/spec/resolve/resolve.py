@@ -6,7 +6,7 @@ from typing import Any
 
 from nautilus_trader.model import InstrumentId
 
-from sbt2.data.sources import CANDLES
+from sbt2.spec.bars import bar_source
 from sbt2.spec.errors import SpecError
 from sbt2.spec.file import RunSpec
 from sbt2.spec.resolve.data import data_arguments, data_types
@@ -31,6 +31,7 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
     strategy = import_strategy(spec.strategy)
     params = resolve_params(strategy, spec.params)
     split, part = _splitter(spec.split), spec.part
+    bars = bar_source(spec.bars)
     start, end = _part_dates(split.parts(spec.period), part)
     return ResolvedRunSpec(
         strategy=StrategyRun(
@@ -38,13 +39,13 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
             instruments,
             asdict(params),
             start,
-            CANDLES if spec.bars == "candles" else None,
+            bars.aggregated_from,
         ),
         asset=asset,
         source=profile.source,
         venue=_seeded(_venue_arguments(spec, venue), spec.seed),
         data=data_arguments(
-            data_types(spec.bars, strategy.inputs(params), asset),
+            data_types(bars, strategy.inputs(params), asset),
             instruments,
             (start - strategy.warmup(params), end),
         ),
