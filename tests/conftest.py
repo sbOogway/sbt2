@@ -1,5 +1,7 @@
 import pytest
 
+from sbt2 import pickling
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
@@ -19,3 +21,8 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             raise pytest.UsageError(
                 f"{item.nodeid} must be marked with exactly one of {sorted(LEVELS)}"
             )
+
+
+@pytest.fixture(autouse=True, scope="session")
+def pickle_reducers() -> None:
+    pickling.register()

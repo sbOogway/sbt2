@@ -1,5 +1,4 @@
-import copyreg
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -11,7 +10,7 @@ from nautilus_trader.backtest import (
     BacktestRunConfig,
     BacktestVenueConfig,
 )
-from nautilus_trader.model import InstrumentId, Money, NautilusDataType
+from nautilus_trader.model import InstrumentId, Money
 
 from sbt2.assets import AssetProfile
 from sbt2.spec.resolve.canonical import canonical_hash, canonical_json
@@ -135,13 +134,3 @@ class ResolvedRunSpec:
             "start": self.start,
             "end": self.end,
         }
-
-
-def _data_type_by_name(
-    data_type: NautilusDataType,
-) -> tuple[Callable[..., NautilusDataType], tuple[type, str]]:
-    """Nautilus's enums don't pickle; they come back by their name."""
-    return getattr, (NautilusDataType, str(data_type))
-
-
-copyreg.pickle(NautilusDataType, _data_type_by_name)
