@@ -1,4 +1,11 @@
-from sbt2.data.catalog import Catalog, Coverage, Holding, Selection, Window
+from sbt2.data.catalog import (
+    Catalog,
+    Coverage,
+    Holding,
+    Selection,
+    UnstoredDataTypeError,
+    Window,
+)
 from sbt2.data.download import (
     INSTRUMENT,
     DownloadOptions,
@@ -47,6 +54,7 @@ __all__ = [
     "OutsideDayError",
     "Progress",
     "Selection",
+    "UnstoredDataTypeError",
     "Window",
     "download",
     "ingest",

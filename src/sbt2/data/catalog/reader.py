@@ -6,24 +6,20 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from nautilus_trader.model import (
-    Bar,
-    FundingRateUpdate,
-    InstrumentId,
-    MarkPriceUpdate,
-    NautilusDataType,
-    TradeTick,
-)
+from nautilus_trader.model import InstrumentId, NautilusDataType
 from nautilus_trader.persistence import ParquetDataCatalog
 
-from sbt2.data.catalog import frames, layout
+from sbt2.data.catalog.stored import (
+    STORED,
+    StoredType,
+    UnstoredDataTypeError,
+    nautilus_type,
+    stored_type,
+)
 from sbt2.data.days import days
 from sbt2.data.sources import Gap
 
 type Interval = tuple[int, int]
-
-# The data types sbt2 writes, which status reports on.
-_STORED: tuple[type, ...] = (TradeTick, MarkPriceUpdate, FundingRateUpdate, Bar)
 
 
 @dataclass(frozen=True)
@@ -87,16 +83,22 @@ class Holding:
 
 @dataclass(frozen=True)
 class _Series:
+    """An instrument's data of one type; the type need not be one sbt2 stores."""
+
     instrument_id: InstrumentId
     data_type: type
 
     @property
     def nautilus_type(self) -> NautilusDataType:
-        return layout.nautilus_type(self.data_type)
+        return nautilus_type(self.data_type)
 
     @property
     def identifier(self) -> str:
-        return layout.identifier(self.data_type, self.instrument_id)
+        try:
+            stored = stored_type(self.data_type)
+        except UnstoredDataTypeError:
+            return str(self.instrument_id)
+        return stored.identifier(self.instrument_id)
 
     def split(
         self, uncovered: Iterable[date], known_gaps: frozenset[Gap]
@@ -140,20 +142,12 @@ class Catalog:
             latest[each.id] = each
         return latest
 
-    def trades(self, instrument_id: InstrumentId, window: Window) -> pd.DataFrame:
-        return frames.trades(self._records(_Series(instrument_id, TradeTick), window))
-
-    def mark_prices(self, instrument_id: InstrumentId, window: Window) -> pd.DataFrame:
-        series = _Series(instrument_id, MarkPriceUpdate)
-        return frames.mark_prices(self._records(series, window))
-
-    def funding(self, instrument_id: InstrumentId, window: Window) -> pd.DataFrame:
-        series = _Series(instrument_id, FundingRateUpdate)
-        return frames.funding(self._records(series, window))
-
-    def candles(self, instrument_id: InstrumentId, window: Window) -> pd.DataFrame:
-        """The 1-minute candles, each stamped 1 ns before its close."""
-        return frames.candles(self._records(_Series(instrument_id, Bar), window))
+    def frame(
+        self, instrument_id: InstrumentId, data_type: type, window: Window
+    ) -> pd.DataFrame:
+        """The instrument's ``data_type`` records in the window, indexed by event time."""
+        records = self._records(_Series(instrument_id, data_type), window)
+        return stored_type(data_type).frame(records)
 
     def status(
         self, known_gaps: frozenset[Gap], window: Window | None = None
@@ -162,9 +156,9 @@ class Catalog:
         if not self._path.is_dir():
             return ()
         return tuple(
-            self._holding(_Series(instrument_id, data_type), known_gaps, window)
-            for data_type in _STORED
-            for instrument_id in self._instrument_ids(data_type)
+            self._holding(_Series(instrument_id, stored.data_type), known_gaps, window)
+            for stored in STORED
+            for instrument_id in self._instrument_ids(stored)
         )
 
     @cached_property
@@ -207,12 +201,12 @@ class Catalog:
         )
         return _days_of(intervals)
 
-    def _instrument_ids(self, data_type: type) -> list[InstrumentId]:
-        folder = self._path / "data" / layout.directory(data_type)
+    def _instrument_ids(self, stored: StoredType) -> list[InstrumentId]:
+        folder = self._path / "data" / stored.directory
         if not folder.is_dir():
             return []
-        names = self._nautilus.list_instruments(layout.nautilus_type(data_type))
-        return [layout.instrument_id(data_type, each) for each in sorted(names)]
+        names = self._nautilus.list_instruments(stored.nautilus_type)
+        return [stored.instrument_id(each) for each in sorted(names)]
 
     def _records(self, series: _Series, window: Window) -> list[Any]:
         first, last = window.nanos

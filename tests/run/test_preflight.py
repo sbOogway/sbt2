@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from nautilus_trader.model import FundingRateUpdate, TradeTick
+from nautilus_trader.model import Bar, FundingRateUpdate, TradeTick
 from served_source import INSTRUMENT_ID, SYMBOL, ServedSource, spot_pair
 
 from sbt2.assets import Calendar
@@ -116,7 +116,7 @@ def test_missing_days_are_fetched_and_ingested_before_the_check(
 
     assert preflight(spec(tmp_path), source, folders) == ()
     next_day = Window(midnight(NEXT_DAY), midnight(date(2024, 1, 3)))
-    assert len(Catalog(folders.catalog).trades(INSTRUMENT_ID, next_day)) == 24
+    assert len(Catalog(folders.catalog).frame(INSTRUMENT_ID, TradeTick, next_day)) == 24
 
 
 @pytest.mark.integration
@@ -140,7 +140,7 @@ def test_a_candle_run_fetches_its_missing_candle_days(
     days = {each.parent.name for each in source.fetched if each.suffix == ".json"}
     assert days == {"Bar", "MarkPriceUpdate", "FundingRateUpdate"}
     window = Window(midnight(DAY), midnight(date(2024, 1, 3)))
-    assert len(Catalog(folders.catalog).candles(INSTRUMENT_ID, window)) == 48
+    assert len(Catalog(folders.catalog).frame(INSTRUMENT_ID, Bar, window)) == 48
 
 
 @pytest.mark.integration
