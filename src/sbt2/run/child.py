@@ -1,4 +1,4 @@
-"""The entry point of a batch's child process: runs one backtest.
+"""A batch's child process, which runs one backtest.
 
 The parent writes two pickles to stdin: its ``sys.path``, which must be in place
 before the second can load the strategy's own classes, then the child's order.
@@ -35,6 +35,11 @@ def send(order: Order, stream: IO[bytes]) -> None:
     pickle.dump(order, stream)
 
 
+def run_child(stream: IO[bytes]) -> None:
+    """Run the order sent on ``stream``."""
+    _run(_receive(stream))
+
+
 def _receive(stream: IO[bytes]) -> Order:
     sys.path[:] = pickle.load(stream)
     return pickle.load(stream)
@@ -52,7 +57,3 @@ def _run(order: Order) -> None:
 
 def _described(error: BaseException) -> str:
     return "".join(traceback.format_exception_only(error)).strip()
-
-
-if __name__ == "__main__":
-    _run(_receive(sys.stdin.buffer))

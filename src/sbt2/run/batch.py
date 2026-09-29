@@ -21,7 +21,7 @@ from sbt2.spec import ResolvedRunSpec
 logger = logging.getLogger(__name__)
 
 GiB = 2**30
-_CHILD = ("-m", "sbt2.run.child")
+_CHILD = ("-m", "sbt2.run")
 _POLL_SECONDS = 0.05
 _GRACE_SECONDS = 5
 
