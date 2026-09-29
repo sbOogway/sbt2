@@ -184,13 +184,13 @@ def download(
 
 def _download(
     name: str, request: data.DownloadRequest, options: data.DownloadOptions
-) -> data.DownloadReport:
+) -> data.Report[data.FileResult]:
     adapter = sources.source(name, SOURCES)
     with _download_bar() as bar:
         return data.download(adapter, request, replace(options, progress=bar))
 
 
-def _log_summary(report: data.DownloadReport) -> None:
+def _log_summary(report: data.Report[data.FileResult]) -> None:
     for each in report.having(data.Outcome.MISSING):
         logger.warning("missing at the source: %s", _described(each.item))
     for each in report.having(data.Outcome.FAILED):
@@ -245,13 +245,13 @@ def ingest(
 
 def _ingest(
     name: str, request: data.IngestRequest, options: data.IngestOptions
-) -> data.IngestReport:
+) -> data.Report[data.DayResult]:
     adapter = sources.source(name, SOURCES)
     with _bar("ingest") as bar:
         return data.ingest(adapter, request, replace(options, progress=bar))
 
 
-def _log_ingest_summary(report: data.IngestReport) -> None:
+def _log_ingest_summary(report: data.Report[data.DayResult]) -> None:
     for each in report.having(data.IngestOutcome.MISSING):
         day = each.day
         logger.warning(

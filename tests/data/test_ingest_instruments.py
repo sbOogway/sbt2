@@ -17,11 +17,12 @@ from nautilus_trader.persistence import ParquetDataCatalog
 
 from sbt2.data import (
     DayRange,
+    DayResult,
     IngestOptions,
-    IngestReport,
     IngestRequest,
     InstrumentChangedError,
     NoSnapshotError,
+    Report,
     ingest,
 )
 
@@ -35,7 +36,9 @@ ONE_DAY = IngestRequest(TRADES_OF_DAY)
 REINGEST = IngestRequest(TRADES_OF_DAY, reingest=True)
 
 
-def run(raw: Path, catalog: Path, request: IngestRequest = ONE_DAY) -> IngestReport:
+def run(
+    raw: Path, catalog: Path, request: IngestRequest = ONE_DAY
+) -> Report[DayResult]:
     return ingest(LocalSource(), request, IngestOptions(raw, catalog))
 
 

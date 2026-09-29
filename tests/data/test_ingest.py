@@ -25,9 +25,9 @@ from sbt2.data import (
     DayResult,
     IngestOptions,
     IngestOutcome,
-    IngestReport,
     IngestRequest,
     OutsideDayError,
+    Report,
     ingest,
 )
 from sbt2.data.sources import Gap, UnsupportedDataTypeError
@@ -72,7 +72,7 @@ def run(
     catalog: Path,
     ingest_request: IngestRequest,
     source: LocalSource | None = None,
-) -> IngestReport:
+) -> Report[DayResult]:
     return ingest(source or LocalSource(), ingest_request, IngestOptions(raw, catalog))
 
 
@@ -84,7 +84,7 @@ def bounds(day: date) -> tuple[int, int]:
     return start_of(day), start_of(day) + DAY_NANOS - 1
 
 
-def outcomes(report: IngestReport) -> dict[tuple[str, date], IngestOutcome]:
+def outcomes(report: Report[DayResult]) -> dict[tuple[str, date], IngestOutcome]:
     return {(each.day.data, each.day.day): each.outcome for each in report.results}
 
 

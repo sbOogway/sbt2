@@ -18,10 +18,10 @@ from sbt2.data import (
     INSTRUMENT,
     DayRange,
     DownloadOptions,
-    DownloadReport,
     DownloadRequest,
     FileResult,
     Outcome,
+    Report,
     download,
 )
 from sbt2.data.sources import Gap, UnsupportedDataTypeError
@@ -62,7 +62,7 @@ def serve_day(files: FileServer, api: FakeApi, day: date = DAY) -> None:
     api.serve(instrument_key("BTCUSDT", TODAY), b"{}")
 
 
-def outcomes(report: DownloadReport) -> dict[tuple[str, date], Outcome]:
+def outcomes(report: Report[FileResult]) -> dict[tuple[str, date], Outcome]:
     return {(each.item.data, each.item.day): each.outcome for each in report.results}
 
 

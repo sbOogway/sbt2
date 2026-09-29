@@ -10,6 +10,7 @@ import pandas as pd
 
 from sbt2.data.catalog import Bounds, CatalogWriter, DayFile
 from sbt2.data.days import DayRange
+from sbt2.data.report import Report
 from sbt2.data.sources import Source
 
 _ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -63,14 +64,6 @@ class DayResult:
     outcome: IngestOutcome
 
 
-@dataclass(frozen=True)
-class IngestReport:
-    results: tuple[DayResult, ...]
-
-    def having(self, outcome: IngestOutcome) -> tuple[DayResult, ...]:
-        return tuple(each for each in self.results if each.outcome is outcome)
-
-
 class IngestProgress(Protocol):
     def planned(self, days: int, /) -> None: ...
 
@@ -102,7 +95,7 @@ class _Job:
 
 def ingest(
     source: Source, request: IngestRequest, options: IngestOptions
-) -> IngestReport:
+) -> Report[DayResult]:
     """Write the request's raw files from ``options.raw`` into the catalog.
 
     Each symbol's instrument comes from its newest snapshot. Days already in
@@ -116,7 +109,7 @@ def ingest(
         for symbol in request.days.symbols
         for result in _ingest_symbol(job, symbol)
     ]
-    return IngestReport(tuple(results))
+    return Report(tuple(results))
 
 
 def _planned_days(source: Source, days: DayRange) -> int:

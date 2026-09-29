@@ -11,6 +11,7 @@ from typing import Protocol
 import httpx
 
 from sbt2.data.days import DayRange
+from sbt2.data.report import Report
 from sbt2.data.sources import Fetch, MissingAtSourceError, RawFile, Source
 
 logger = logging.getLogger(__name__)
@@ -51,14 +52,6 @@ class FileResult:
     reason: str = ""
 
 
-@dataclass(frozen=True)
-class DownloadReport:
-    results: tuple[FileResult, ...]
-
-    def having(self, outcome: Outcome) -> tuple[FileResult, ...]:
-        return tuple(each for each in self.results if each.outcome is outcome)
-
-
 class Progress(Protocol):
     def planned(self, files: int, /) -> None: ...
 
@@ -95,7 +88,7 @@ class _PermanentError(Exception):
 
 def download(
     source: Source, request: DownloadRequest, options: DownloadOptions
-) -> DownloadReport:
+) -> Report[FileResult]:
     """Fetch the request's raw files from ``source`` into ``options.raw``.
 
     Files already there are skipped, days the source lacks are reported as
@@ -103,7 +96,7 @@ def download(
     """
     items = list(_plan(source, request))
     options.progress.planned(len(items))
-    return DownloadReport(tuple(asyncio.run(_download_all(items, options))))
+    return Report(tuple(asyncio.run(_download_all(items, options))))
 
 
 def _plan(source: Source, request: DownloadRequest) -> Iterator[Item]:

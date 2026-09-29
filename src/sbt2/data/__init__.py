@@ -10,7 +10,6 @@ from sbt2.data.days import DayRange
 from sbt2.data.download import (
     INSTRUMENT,
     DownloadOptions,
-    DownloadReport,
     DownloadRequest,
     FileResult,
     Item,
@@ -24,13 +23,13 @@ from sbt2.data.ingest import (
     IngestOptions,
     IngestOutcome,
     IngestProgress,
-    IngestReport,
     IngestRequest,
     InstrumentChangedError,
     NoSnapshotError,
     OutsideDayError,
     ingest,
 )
+from sbt2.data.report import Report
 
 __all__ = [
     "INSTRUMENT",
@@ -40,14 +39,12 @@ __all__ = [
     "DayRange",
     "DayResult",
     "DownloadOptions",
-    "DownloadReport",
     "DownloadRequest",
     "FileResult",
     "Holding",
     "IngestOptions",
     "IngestOutcome",
     "IngestProgress",
-    "IngestReport",
     "IngestRequest",
     "InstrumentChangedError",
     "Item",
@@ -55,6 +52,7 @@ __all__ = [
     "Outcome",
     "OutsideDayError",
     "Progress",
+    "Report",
     "Selection",
     "UnstoredDataTypeError",
     "Window",
