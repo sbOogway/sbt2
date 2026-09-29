@@ -1,7 +1,7 @@
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta
 from itertools import pairwise
-from typing import Protocol
+from typing import Any, Protocol
 
 from sbt2.spec.parse import utc
 
@@ -12,14 +12,26 @@ type Period = tuple[datetime, datetime]
 type Moment = date | datetime | str
 
 
+class SplitFractionError(ValueError):
+    pass
+
+
+class SplitFormError(ValueError):
+    """A split given neither all its fractions nor all its dates."""
+
+
+class SplitDateError(ValueError):
+    pass
+
+
 class Splitter(Protocol):
     """Divides a period into train, validation and test parts."""
 
     def parts(self, period: Period) -> dict[str, Period]: ...
 
-
-class _Boundaries(Protocol):
-    def boundaries(self, period: Period) -> tuple[datetime, datetime]: ...
+    def document(self) -> dict[str, Any]:
+        """The splitter as plain data: its ``kind`` and its arguments."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -27,13 +39,27 @@ class _Fractions:
     validation: float
     test: float
 
+    def __post_init__(self) -> None:
+        if self.validation <= 0 or self.test <= 0:
+            raise SplitFractionError(
+                f"fractions must be positive, got validation={self.validation} "
+                f"and test={self.test}"
+            )
+        if self.validation + self.test >= 1:
+            raise SplitFractionError(
+                f"validation={self.validation} and test={self.test} must add up "
+                "to less than 1, leaving a train part"
+            )
+
     def boundaries(self, period: Period) -> tuple[datetime, datetime]:
         start, end = period
         length = end - start
-        return (
+        boundaries = (
             _nearest_day(end - length * (self.validation + self.test)),
             _nearest_day(end - length * self.test),
         )
+        _check_parts_have_length((start, *boundaries, end))
+        return boundaries
 
 
 @dataclass(frozen=True)
@@ -41,7 +67,20 @@ class _Dates:
     validation_start: datetime
     test_start: datetime
 
+    def __post_init__(self) -> None:
+        if self.validation_start >= self.test_start:
+            raise SplitDateError(
+                f"validation_start {self.validation_start} must be before "
+                f"test_start {self.test_start}"
+            )
+
     def boundaries(self, period: Period) -> tuple[datetime, datetime]:
+        start, end = period
+        if not start < self.validation_start or not self.test_start < end:
+            raise SplitDateError(
+                f"validation_start {self.validation_start} and test_start "
+                f"{self.test_start} must be inside the period {start} to {end}"
+            )
         return self.validation_start, self.test_start
 
 
@@ -58,21 +97,53 @@ class Split:
     test: float | None = None
     validation_start: Moment | None = None
     test_start: Moment | None = None
-    _form: _Boundaries = field(init=False, repr=False, compare=False)
+    _form: _Fractions | _Dates = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        if self.validation_start is not None and self.test_start is not None:
-            dates = _Dates(_day(self.validation_start), _day(self.test_start))
-            object.__setattr__(self, "validation_start", dates.validation_start)
-            object.__setattr__(self, "test_start", dates.test_start)
-            object.__setattr__(self, "_form", dates)
-        elif self.validation is not None and self.test is not None:
-            object.__setattr__(self, "_form", _Fractions(self.validation, self.test))
+        form = self._chosen_form()
+        object.__setattr__(self, "_form", form)
+        if isinstance(form, _Dates):
+            object.__setattr__(self, "validation_start", form.validation_start)
+            object.__setattr__(self, "test_start", form.test_start)
 
     def parts(self, period: Period) -> dict[str, Period]:
         start, end = period
         edges = (start, *self._form.boundaries(period), end)
         return dict(zip(PARTS, pairwise(edges), strict=True))
+
+    def document(self) -> dict[str, Any]:
+        return {"kind": "Split", **asdict(self._form)}
+
+    def _chosen_form(self) -> _Fractions | _Dates:
+        validation, test = self.validation, self.test
+        validation_start, test_start = self.validation_start, self.test_start
+        if (
+            validation is not None
+            and test is not None
+            and validation_start is None
+            and test_start is None
+        ):
+            return _Fractions(validation, test)
+        if (
+            validation_start is not None
+            and test_start is not None
+            and validation is None
+            and test is None
+        ):
+            return _Dates(_day(validation_start), _day(test_start))
+        raise SplitFormError(
+            "a split takes the validation and test fractions, or the "
+            f"validation_start and test_start dates; got {self}"
+        )
+
+
+def _check_parts_have_length(edges: tuple[datetime, ...]) -> None:
+    for part, (start, end) in zip(PARTS, pairwise(edges), strict=True):
+        if start >= end:
+            raise SplitFractionError(
+                f"the {part} part is empty once its boundaries are rounded "
+                "to whole days"
+            )
 
 
 def _day(moment: Moment) -> datetime:

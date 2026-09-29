@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from sbt2.spec import Split
+from sbt2.spec import Split, SplitDateError, SplitFormError, SplitFractionError
 
 
 def day(month: int, day: int, hour: int = 0) -> datetime:
@@ -66,3 +66,81 @@ def test_date_boundaries_are_floored_to_their_utc_day() -> None:
     parts = split.parts((day(1, 1), day(5, 1)))
 
     assert parts["validation"][0] == day(3, 1)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("validation", [0, -0.1])
+def test_fractions_that_are_not_positive_are_refused(validation: float) -> None:
+    with pytest.raises(SplitFractionError, match="positive"):
+        Split(validation=validation, test=0.2)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(("validation", "test"), [(0.5, 0.5), (0.6, 0.5)])
+def test_fractions_adding_up_to_one_or_more_are_refused(
+    validation: float, test: float
+) -> None:
+    with pytest.raises(SplitFractionError, match="less than 1"):
+        Split(validation=validation, test=test)
+
+
+@pytest.mark.unit
+def test_a_part_that_rounds_to_nothing_is_refused() -> None:
+    split = Split(validation=0.01, test=0.2)
+
+    with pytest.raises(SplitFractionError, match="validation"):
+        split.parts((day(1, 1), day(1, 11)))
+
+
+@pytest.mark.unit
+def test_fractions_mixed_with_dates_are_refused() -> None:
+    with pytest.raises(SplitFormError):
+        Split(validation=0.2, test_start="2020-04-01")
+
+
+@pytest.mark.unit
+def test_half_a_form_is_refused() -> None:
+    with pytest.raises(SplitFormError):
+        Split(validation=0.2)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("test_start", ["2020-03-01", "2020-02-01"])
+def test_dates_out_of_order_are_refused(test_start: str) -> None:
+    with pytest.raises(SplitDateError, match="before"):
+        Split(validation_start="2020-03-01", test_start=test_start)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("validation_start", "test_start"),
+    [
+        ("2019-12-01", "2020-03-01"),
+        ("2020-01-01", "2020-03-01"),
+        ("2020-02-01", "2020-05-01"),
+        ("2020-02-01", "2020-06-01"),
+    ],
+)
+def test_dates_outside_the_period_are_refused(
+    validation_start: str, test_start: str
+) -> None:
+    split = Split(validation_start=validation_start, test_start=test_start)
+
+    with pytest.raises(SplitDateError, match="inside the period"):
+        split.parts((day(1, 1), day(5, 1)))
+
+
+@pytest.mark.unit
+def test_the_document_names_the_kind_and_its_arguments() -> None:
+    by_date = Split(validation_start="2020-03-01", test_start="2020-04-01")
+
+    assert Split(validation=0.2, test=0.1).document() == {
+        "kind": "Split",
+        "validation": 0.2,
+        "test": 0.1,
+    }
+    assert by_date.document() == {
+        "kind": "Split",
+        "validation_start": day(3, 1),
+        "test_start": day(4, 1),
+    }
