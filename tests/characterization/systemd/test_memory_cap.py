@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import uuid
@@ -105,3 +106,30 @@ def test_without_a_swap_limit_a_child_over_the_cap_survives_by_swapping(
 
     assert result.returncode == 0
     assert "survived" in result.stdout
+
+
+def touch_in_scope_without_session_bus(
+    unit: str, marker: Path
+) -> subprocess.CompletedProcess[str]:
+    session = {"DBUS_SESSION_BUS_ADDRESS", "XDG_RUNTIME_DIR"}
+    env = {key: value for key, value in os.environ.items() if key not in session}
+    command = ["systemd-run", "--user", "--scope", "--quiet", f"--unit={unit}"]
+    child = ["touch", str(marker)]
+    return subprocess.run(
+        command + child, capture_output=True, text=True, env=env, check=False
+    )
+
+
+@pytest.mark.characterization
+@pytest.mark.systemd
+@pytest.mark.unit
+def test_without_a_user_session_bus_the_command_never_starts(
+    unit: str, tmp_path: Path
+) -> None:
+    marker = tmp_path / "started"
+
+    result = touch_in_scope_without_session_bus(unit, marker)
+
+    assert result.returncode == 1
+    assert "user scope bus" in result.stderr
+    assert not marker.exists()
