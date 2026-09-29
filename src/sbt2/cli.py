@@ -73,16 +73,21 @@ def run(
 
 
 def _run(spec_file: Path, data: Path, log_level: LogLevel) -> None:
-    [resolved] = spec.load(spec_file)
-    source = sources.source(resolved.source, SOURCES)
-    known_gaps = preflight(
-        resolved, source, DataFolders(data / "raw", data / "catalog")
-    )
-    provenance = replace(Provenance.of_repo(Path.cwd()), known_gaps=known_gaps)
+    """Pre-flight every run of the spec file, then execute them one by one."""
+    runs = spec.load(spec_file)
+    repo = Provenance.of_repo(Path.cwd())
+    provenances = [replace(repo, known_gaps=_preflight(each, data)) for each in runs]
     store = ParquetResultStore(data / "results")
-    sink = store.new_run(resolved, provenance)
-    execute(resolved, sink, RunSettings(data / "catalog", log_level=log_level))
-    logger.info("stored run %s in %s", sink.run_id, data / "results")
+    settings = RunSettings(data / "catalog", log_level=log_level)
+    for resolved, provenance in zip(runs, provenances, strict=True):
+        sink = store.new_run(resolved, provenance)
+        execute(resolved, sink, settings)
+        logger.info("stored run %s in %s", sink.run_id, data / "results")
+
+
+def _preflight(resolved: spec.ResolvedRunSpec, data: Path) -> tuple[sources.Gap, ...]:
+    source = sources.source(resolved.source, SOURCES)
+    return preflight(resolved, source, DataFolders(data / "raw", data / "catalog"))
 
 
 @app.command()
