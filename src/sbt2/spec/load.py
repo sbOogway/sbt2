@@ -3,8 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from sbt2.config import VENUE_PROFILES
-from sbt2.spec.expand import Expanded, expand
-from sbt2.spec.parse import RunSpec, read_spec
+from sbt2.spec.file import Expanded, RunSpec, runs
 from sbt2.spec.resolve import ResolvedRunSpec, resolve
 
 
@@ -19,9 +18,9 @@ def load(
 ) -> list[ResolvedRunSpec]:
     """Read a spec file, apply top-level ``overrides`` and resolve every run it
     expands into; one run that fails to resolve fails them all."""
-    runs = expand(read_spec(path, overrides or {}))
-    resolved = [_resolved(each, venue_profiles) for each in runs]
-    _check_unique(runs, resolved)
+    expanded = runs(path, overrides or {})
+    resolved = [_resolved(each, venue_profiles) for each in expanded]
+    _check_unique(expanded, resolved)
     return resolved
 
 

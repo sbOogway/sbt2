@@ -1,16 +1,15 @@
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, fields
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from itertools import pairwise
 from typing import Any, Protocol
 
-from sbt2.spec.parse import utc
+from sbt2.spec.moments import Moment, utc
 
 PARTS = ("train", "validation", "test")
 _DAY = timedelta(days=1)
 
 type Period = tuple[datetime, datetime]
-type Moment = date | datetime | str
 
 
 class UnknownSplitError(ValueError):
