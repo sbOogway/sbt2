@@ -1,4 +1,4 @@
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date
 from functools import partial
@@ -33,15 +33,13 @@ _LINEAR_SUFFIX = "-LINEAR"
 class BybitSource(Source):
     """Bybit linear perpetuals."""
 
+    name = "bybit"
+
     def __init__(
-        self, known_gaps: frozenset[Gap], endpoints: Endpoints = _PUBLIC
+        self, known_gaps: frozenset[Gap] = frozenset(), endpoints: Endpoints = _PUBLIC
     ) -> None:
         super().__init__(known_gaps)
         self._remote = Remote(BybitApi(endpoints.api), endpoints.dumps)
-
-    @classmethod
-    def from_config(cls, table: Mapping[str, Any]) -> BybitSource:
-        return cls(frozenset(_gap(each) for each in table.get("known_gaps", ())))
 
     @property
     def data_types(self) -> tuple[type, ...]:
@@ -71,14 +69,9 @@ class BybitSource(Source):
     def parse_instrument(self, path: Path) -> Any:
         return parse.instrument(path)
 
+    def _config_data_type(self, name: str) -> type:
+        return named(name).data_type
+
 
 def _instrument_id(symbol: str) -> InstrumentId:
     return InstrumentId.from_str(f"{symbol}{_LINEAR_SUFFIX}.BYBIT")
-
-
-def _gap(entry: Mapping[str, Any]) -> Gap:
-    return Gap(
-        _instrument_id(entry["symbol"]),
-        named(entry["data"]).data_type,
-        entry["day"],
-    )

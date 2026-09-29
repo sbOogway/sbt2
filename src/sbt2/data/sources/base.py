@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable, Callable, Iterator
+from collections.abc import Awaitable, Callable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, ClassVar, Self
 
 from nautilus_trader.model import BarType, InstrumentId
 
@@ -57,10 +57,24 @@ class Gap:
 
 
 class Source(ABC):
-    """Where raw market data comes from, one raw file per symbol and UTC day."""
+    """Where raw market data comes from, one raw file per symbol and UTC day.
+
+    ``name`` is the source's table in ``config/sources.toml``. ``from_config``
+    builds the source from that table, so a subclass must be constructible from
+    its known gaps alone.
+    """
+
+    name: ClassVar[str]
 
     def __init__(self, known_gaps: frozenset[Gap] = frozenset()) -> None:
         self._known_gaps = known_gaps
+
+    @classmethod
+    def from_config(cls, table: Mapping[str, Any]) -> Self:
+        """The source with the known gaps its config table lists."""
+        entries = table.get("known_gaps", ())
+        unconfigured = cls()
+        return cls(frozenset(unconfigured._gap(each) for each in entries))
 
     @property
     def known_gaps(self) -> frozenset[Gap]:
@@ -80,6 +94,16 @@ class Source(ABC):
 
     def is_known_gap(self, symbol: str, data_type: type, day: date) -> bool:
         return Gap(self.instrument_id(symbol), data_type, day) in self.known_gaps
+
+    def _gap(self, entry: Mapping[str, Any]) -> Gap:
+        data_type = self._config_data_type(entry["data"])
+        return Gap(self.instrument_id(entry["symbol"]), data_type, entry["day"])
+
+    def _config_data_type(self, name: str) -> type:
+        """The data type called ``name`` in the config table, by default by its
+        nautilus name."""
+        (data_type,) = self.served((name,))
+        return data_type
 
     @property
     @abstractmethod
