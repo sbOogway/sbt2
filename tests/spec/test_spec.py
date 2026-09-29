@@ -22,6 +22,7 @@ import sbt2.spec
 from sbt2.spec import (
     CandleBarError,
     DateSplit,
+    DrawdownLimitError,
     DuplicateRunError,
     EmptyListError,
     FractionSplit,
@@ -32,6 +33,7 @@ from sbt2.spec import (
     SpecError,
     UnknownBarSourceError,
     UnknownPartError,
+    UnknownRiskKeyError,
     UnknownSpecKeyError,
     UnknownSplitError,
     UnknownVenueProfileError,
@@ -444,6 +446,39 @@ def test_a_spec_without_risk_hashes_as_before(paths: tuple[Path, Path]) -> None:
 @pytest.mark.unit
 def test_risk_changes_the_hash(paths: tuple[Path, Path]) -> None:
     assert resolved(paths, risk=RISK).hash != resolved(paths).hash
+
+
+@pytest.mark.unit
+def test_the_drawdown_limit_goes_to_the_strategy_not_the_risk_engine(
+    paths: tuple[Path, Path],
+) -> None:
+    spec = resolved(paths, risk={**RISK, "drawdown_limit": 0.2})
+
+    config = spec.run_config("/catalog").engine.risk_engine
+    assert spec.strategy.drawdown_limit == Decimal("0.2")
+    assert config is not None
+    assert not hasattr(config, "drawdown_limit")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("limit", [0, 1, -0.1, 1.5])
+def test_a_drawdown_limit_outside_zero_and_one_fails(
+    paths: tuple[Path, Path], limit: float
+) -> None:
+    with pytest.raises(DrawdownLimitError, match="between 0 and 1"):
+        resolved(paths, risk={"drawdown_limit": limit})
+
+
+@pytest.mark.unit
+def test_an_unknown_risk_key_fails_listing_the_valid_ones(
+    paths: tuple[Path, Path],
+) -> None:
+    with pytest.raises(
+        UnknownRiskKeyError,
+        match="max_position .* valid: drawdown_limit, max_notional_per_order, "
+        "max_order_modify_rate, max_order_submit_rate",
+    ):
+        resolved(paths, risk={"max_position": 1})
 
 
 @pytest.mark.unit

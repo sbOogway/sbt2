@@ -28,8 +28,9 @@ class ResolvedRunSpec:
     ``BacktestDataConfig`` arguments as plain data, without the catalog path.
     ``source`` names where missing data is fetched from; like the catalog path,
     it is not hashed. ``start`` and ``end`` are the dates of ``part``.
-    ``risk`` holds nautilus's ``RiskEngineConfig`` arguments; it enters the
-    hashed document only when set, so a run without it keeps its hash.
+    ``risk`` holds nautilus's ``RiskEngineConfig`` arguments. With the
+    strategy's drawdown limit it enters the hashed document only when set, so
+    a run without either keeps its hash.
     """
 
     strategy: StrategyRun
@@ -123,9 +124,15 @@ class ResolvedRunSpec:
 
     def _document(self) -> dict[str, Any]:
         document = self._core_document()
-        if self.risk:
-            document["risk"] = dict(self.risk)
+        risk = self._risk_document()
+        if risk:
+            document["risk"] = risk
         return document
+
+    def _risk_document(self) -> dict[str, Any]:
+        limit = self.strategy.drawdown_limit
+        drawdown = {} if limit is None else {"drawdown_limit": limit}
+        return {**self.risk, **drawdown}
 
     def _core_document(self) -> dict[str, Any]:
         return {

@@ -23,7 +23,8 @@ class RunSpec:
     ``"candles"``.
     ``split`` is a splitter, or a spec file's table of its arguments; ``part``
     names the part of the ``period`` it gives that the run covers.
-    ``risk`` holds nautilus's ``RiskEngineConfig`` arguments.
+    ``risk`` holds nautilus's ``RiskEngineConfig`` arguments and the
+    ``drawdown_limit`` the strategy base enforces.
     """
 
     strategy: str

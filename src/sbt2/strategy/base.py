@@ -30,6 +30,7 @@ class StrategyRun:
     ``trade_start`` is the segment start; before it the strategy only warms up.
     ``aggregated_from`` names the external bars the declared bars are built
     from, such as ``"1-MINUTE-EXTERNAL"``; ``None`` builds them from trades.
+    ``drawdown_limit`` is the fraction of peak equity the run may lose.
     """
 
     strategy: str
@@ -37,6 +38,7 @@ class StrategyRun:
     params: Mapping[str, Any]
     trade_start: datetime
     aggregated_from: str | None = None
+    drawdown_limit: Decimal | None = None
 
 
 @dataclass(frozen=True)
