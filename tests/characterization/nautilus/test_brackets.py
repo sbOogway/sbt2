@@ -10,6 +10,7 @@ ENTRY_PRICE = "50000.0"
 TAKE_PROFIT = "51000.0"
 STOP_LOSS = "49000.0"
 MOVED_STOP = "48000.0"
+CHANGED_LIMIT = "49500.0"
 
 
 class LongBracket(StepStrategy):
@@ -117,3 +118,42 @@ def test_modify_order_moves_a_resting_stop(feed: str, stop_fill_price: str) -> N
     stop = order(engine, strategy.resting_stop)
     assert stop.trigger_price == Price.from_str(MOVED_STOP)
     assert fills(stop) == [(minute(3), stop_fill_price, "1.000")]
+
+
+class ChangedLimit(StepStrategy):
+    def on_step(self, step: int) -> None:
+        if step == 0:
+            self.submit_limit()
+        if step == 1:
+            self.modify_order(
+                self.resting_limit,
+                quantity=Quantity.from_str("0.500"),
+                price=Price.from_str(CHANGED_LIMIT),
+            )
+
+    def submit_limit(self) -> None:
+        limit = self.order_factory.limit(
+            INSTRUMENT_ID,
+            OrderSide.BUY,
+            Quantity.from_str("1.000"),
+            Price.from_str("49000.0"),
+        )
+        self.resting_limit = limit.client_order_id
+        self.submit_order(limit)
+
+
+@pytest.mark.characterization
+@pytest.mark.integration
+@pytest.mark.parametrize("feed", FEEDS)
+def test_modify_order_changes_a_resting_limit(feed: str) -> None:
+    strategy = ChangedLimit()
+    path = PricePath([ENTRY_PRICE, "49800.0", "49400.0", "49400.0"])
+
+    engine = run_on_feed(strategy, feed, path)
+
+    limit = order(engine, strategy.resting_limit)
+    assert (limit.quantity, limit.price) == (
+        Quantity.from_str("0.500"),
+        Price.from_str(CHANGED_LIMIT),
+    )
+    assert fills(limit) == [(minute(2), CHANGED_LIMIT, "0.500")]
