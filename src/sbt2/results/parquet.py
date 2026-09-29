@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 import duckdb
 import pandas as pd
@@ -23,6 +24,7 @@ RESULTS = Path("data/results")
 SUMMARY = "summary"
 
 _SUMMARIES = f"*/{SUMMARY}.parquet"
+_SPEC = "spec.json"
 _RUNS = """
 SELECT * FROM read_parquet($1)
 WHERE ($2 IS NULL OR strategy = $2) AND ($3 IS NULL OR part = $3)
@@ -71,7 +73,7 @@ class ParquetResultStore:
         run = _Run(run_id or str(uuid.uuid7()), spec, known_gaps)
         folder = self.folder(run.run_id)
         folder.mkdir(parents=True)
-        (folder / "spec.json").write_text(spec.to_json())
+        (folder / _SPEC).write_text(spec.to_json())
         return _ParquetSink(folder, run)
 
     def runs(
@@ -90,6 +92,9 @@ class ParquetResultStore:
         if not path.exists():
             raise MissingTableError(f"run {run_id} has no {table} table")
         return read_table(path)
+
+    def spec(self, run_id: str) -> dict[str, Any]:
+        return json.loads((self._folder(run_id) / _SPEC).read_text())
 
     def delete(self, run_id: str) -> None:
         shutil.rmtree(self._folder(run_id))

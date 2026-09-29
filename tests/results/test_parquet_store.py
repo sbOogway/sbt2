@@ -1,3 +1,4 @@
+import json
 import uuid
 from dataclasses import replace
 from datetime import date
@@ -360,6 +361,40 @@ def test_delete_removes_the_run(store: ParquetResultStore, output: RunOutput) ->
     assert store.runs().empty
     with pytest.raises(UnknownRunError):
         store.load(run_id, "summary")
+
+
+@pytest.mark.unit
+def test_spec_is_the_resolved_spec_document(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    run_id = finished_run(store, output)
+
+    assert store.spec(run_id) == json.loads(spec().to_json())
+
+
+@pytest.mark.unit
+def test_an_unfinished_runs_spec_is_readable(store: ParquetResultStore) -> None:
+    sink = store.new_run(spec())
+
+    assert store.spec(sink.run_id) == json.loads(spec().to_json())
+
+
+@pytest.mark.unit
+def test_spec_of_an_unknown_run_fails(store: ParquetResultStore) -> None:
+    with pytest.raises(UnknownRunError):
+        store.spec(str(uuid.uuid7()))
+
+
+@pytest.mark.unit
+def test_delete_removes_an_unfinished_runs_partial_folder(
+    store: ParquetResultStore, output: RunOutput, tmp_path: Path
+) -> None:
+    sink = store.new_run(spec())
+    write(sink, output)
+
+    store.delete(sink.run_id)
+
+    assert not (tmp_path / "runs" / sink.run_id).exists()
 
 
 @pytest.mark.unit

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 import pandas as pd
 
@@ -34,7 +34,13 @@ class ResultStore(Protocol):
 
     def load(self, run_id: str, table: Table) -> pd.DataFrame: ...
 
-    def delete(self, run_id: str) -> None: ...
+    def spec(self, run_id: str) -> dict[str, Any]:
+        """The resolved spec document of a run, finished or not."""
+        ...
+
+    def delete(self, run_id: str) -> None:
+        """Remove the run, a failed run's partial folder included."""
+        ...
 
     def folder(self, run_id: str) -> Path:
         """Where the run is written, whether or not it has started."""
