@@ -1,7 +1,8 @@
 import logging
+import math
 import re
 import sys
-from collections.abc import Iterator
+from collections.abc import Hashable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
@@ -9,6 +10,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
+import pandas as pd
 import typer
 from nautilus_trader.common import LogLevel
 from rich.console import Console
@@ -43,6 +45,8 @@ LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 data_app = typer.Typer(no_args_is_help=True, help="Inspect the catalog.")
 app.add_typer(data_app, name="data")
+runs_app = typer.Typer(no_args_is_help=True, help="Query and manage stored runs.")
+app.add_typer(runs_app, name="runs")
 logger = logging.getLogger("sbt2")
 
 
@@ -339,6 +343,59 @@ def _day_run(days: list[date]) -> str:
     if len(days) == 1:
         return days[0].isoformat()
     return f"{days[0].isoformat()}..{days[-1].isoformat()}"
+
+
+_RUNS_HEADER = (
+    "run_id",
+    "strategy",
+    "part",
+    "start",
+    "end",
+    "net_return",
+    "sharpe",
+    "max_drawdown",
+    "trade_count",
+)
+
+
+@runs_app.command("list")
+def list_runs(
+    data_root: Annotated[
+        Path, typer.Option("--data", help="Reads PATH/results.")
+    ] = DATA,
+    strategy: Annotated[
+        str | None, typer.Option(help="Only this strategy's import path.")
+    ] = None,
+    part: Annotated[str | None, typer.Option(help="Only this part.")] = None,
+) -> None:
+    """Show one row per finished run, oldest first."""
+    try:
+        runs = ParquetResultStore(data_root / "results").runs(strategy, part)
+    except Exception:
+        logger.exception("listing the runs in %s failed", data_root / "results")
+        raise typer.Exit(1) from None
+    typer.echo(_runs_table(runs))
+
+
+def _runs_table(runs: pd.DataFrame) -> str:
+    if runs.empty:
+        return "no runs"
+    records = runs.to_dict("records")
+    return _table(_RUNS_HEADER, [_runs_row(each) for each in records])
+
+
+def _runs_row(record: Mapping[Hashable, object]) -> tuple[str, ...]:
+    return tuple(_cell(record[column]) for column in _RUNS_HEADER)
+
+
+def _cell(value: object) -> str:
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return "-"
+    if isinstance(value, float):
+        return f"{value:.4f}"
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
 
 
 class _DownloadBar:
