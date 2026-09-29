@@ -23,6 +23,13 @@ repos:
         types: [python]
         pass_filenames: false
 
+      - id: import-linter
+        name: import-linter
+        entry: uv run --locked lint-imports
+        language: system
+        types: [python]
+        pass_filenames: false
+
       - id: prune-merged-branches
         name: prune merged branches
         entry: scripts/prune-merged-branches.sh
