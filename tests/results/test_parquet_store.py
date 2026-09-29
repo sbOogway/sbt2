@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -23,6 +24,7 @@ from sbt2.results import (
     Reports,
     UnknownRunError,
 )
+from sbt2.spec import ResolvedRunSpec
 
 
 @pytest.fixture(scope="module")
@@ -51,6 +53,26 @@ def finished_run(
     write(sink, output)
     sink.finalize(benchmark)
     return sink.run_id
+
+
+def finished(
+    store: ParquetResultStore, output: RunOutput, run_spec: ResolvedRunSpec
+) -> str:
+    sink = store.new_run(run_spec)
+    write(sink, output)
+    sink.finalize()
+    return sink.run_id
+
+
+def other(strategy: str, part: str) -> ResolvedRunSpec:
+    run_spec = spec()
+    return replace(
+        run_spec, strategy=replace(run_spec.strategy, strategy=strategy), part=part
+    )
+
+
+def listed(runs: pd.DataFrame) -> list[str]:
+    return list(runs["run_id"])
 
 
 @pytest.mark.unit
@@ -262,6 +284,60 @@ def test_empty_store_lists_no_runs_with_summary_columns(
 
     assert runs.empty
     assert {"run_id", "spec_hash", "net_return"} <= set(runs.columns)
+
+
+@pytest.mark.unit
+def test_runs_are_listed_oldest_first(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    older = store.new_run(spec())
+    newer = store.new_run(spec())
+    for sink in (newer, older):
+        write(sink, output)
+        sink.finalize()
+
+    assert listed(store.runs()) == [older.run_id, newer.run_id]
+
+
+@pytest.mark.unit
+def test_runs_filter_by_strategy(store: ParquetResultStore, output: RunOutput) -> None:
+    finished(store, output, spec())
+    run_id = finished(store, output, other("toy:Other", "train"))
+
+    assert listed(store.runs(strategy="toy:Other")) == [run_id]
+
+
+@pytest.mark.unit
+def test_runs_filter_by_part(store: ParquetResultStore, output: RunOutput) -> None:
+    finished(store, output, spec())
+    run_id = finished(store, output, other("toy:RoundTrip", "validation"))
+
+    assert listed(store.runs(part="validation")) == [run_id]
+
+
+@pytest.mark.unit
+def test_runs_filters_combine(store: ParquetResultStore, output: RunOutput) -> None:
+    finished(store, output, spec())
+    finished(store, output, other("toy:Other", "validation"))
+    run_id = finished(store, output, other("toy:Other", "train"))
+
+    assert listed(store.runs(strategy="toy:Other", part="train")) == [run_id]
+
+
+@pytest.mark.unit
+def test_listing_runs_writes_nothing_to_the_store(
+    store: ParquetResultStore, output: RunOutput, tmp_path: Path
+) -> None:
+    finished_run(store, output)
+    before = snapshot(tmp_path)
+
+    store.runs()
+
+    assert snapshot(tmp_path) == before
+
+
+def snapshot(root: Path) -> dict[Path, int]:
+    return {path: path.stat().st_mtime_ns for path in root.rglob("*")}
 
 
 @pytest.mark.unit

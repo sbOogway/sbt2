@@ -23,8 +23,13 @@ class ResultStore(Protocol):
         """
         ...
 
-    def runs(self) -> pd.DataFrame:
-        """The summaries of every finished run, oldest first."""
+    def runs(
+        self, strategy: str | None = None, part: str | None = None
+    ) -> pd.DataFrame:
+        """The summaries of every finished run, oldest first.
+
+        ``strategy`` and ``part``, when given, keep only the runs that match them.
+        """
         ...
 
     def load(self, run_id: str, table: Table) -> pd.DataFrame: ...

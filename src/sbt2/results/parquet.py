@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass
 from datetime import timedelta
 from pathlib import Path
 
+import duckdb
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -20,6 +21,13 @@ from sbt2.spec import ResolvedRunSpec
 
 RESULTS = Path("data/results")
 SUMMARY = "summary"
+
+_SUMMARIES = f"*/{SUMMARY}.parquet"
+_RUNS = """
+SELECT * FROM read_parquet($1)
+WHERE ($2 IS NULL OR strategy = $2) AND ($3 IS NULL OR part = $3)
+ORDER BY run_id
+"""
 
 _UTC = pa.timestamp("ns", tz="UTC")
 _SUMMARY_SCHEMA = pa.schema(
@@ -66,11 +74,16 @@ class ParquetResultStore:
         (folder / "spec.json").write_text(spec.to_json())
         return _ParquetSink(folder, run)
 
-    def runs(self) -> pd.DataFrame:
-        paths = sorted(self._runs.glob(f"*/{SUMMARY}.parquet"))
-        if not paths:
+    def runs(
+        self, strategy: str | None = None, part: str | None = None
+    ) -> pd.DataFrame:
+        if not any(self._runs.glob(_SUMMARIES)):
             return _SUMMARY_SCHEMA.empty_table().to_pandas()
-        return pd.concat([read_table(path) for path in paths], ignore_index=True)
+        summaries = str(self._runs / _SUMMARIES)
+        with duckdb.connect() as db:
+            db.execute("SET TimeZone = 'UTC'")
+            found = db.execute(_RUNS, [summaries, strategy, part])
+            return found.arrow().read_all().to_pandas()
 
     def load(self, run_id: str, table: Table) -> pd.DataFrame:
         path = self._folder(run_id) / f"{table}.parquet"
