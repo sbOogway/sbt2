@@ -119,6 +119,7 @@ markers = [
 [tool.coverage.run]
 source = ["sbt2", "strategies"]
 branch = true
+patch = ["subprocess"]
 
 [tool.coverage.report]
 fail_under = 85
