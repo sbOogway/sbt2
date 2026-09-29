@@ -1,3 +1,12 @@
+from sbt2.run.batch import (
+    BatchProgress,
+    BatchSetup,
+    Launcher,
+    Memory,
+    OutOfMemoryError,
+    RunFailedError,
+    batch,
+)
 from sbt2.run.execute import BacktestError, NoAccountError, RunSettings, execute
 from sbt2.run.preflight import (
     DataFolders,
@@ -8,17 +17,27 @@ from sbt2.run.preflight import (
     SnapshotBufferError,
     preflight,
 )
+from sbt2.run.systemd import NoUserSessionError, SystemdScope
 
 __all__ = [
     "BacktestError",
+    "BatchProgress",
+    "BatchSetup",
     "DataFolders",
     "InstrumentAssetClassError",
+    "Launcher",
     "LiquidationWithoutQuotesError",
+    "Memory",
     "MissingDataError",
     "NoAccountError",
+    "NoUserSessionError",
+    "OutOfMemoryError",
     "PreflightError",
+    "RunFailedError",
     "RunSettings",
     "SnapshotBufferError",
+    "SystemdScope",
+    "batch",
     "execute",
     "preflight",
 ]

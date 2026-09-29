@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Literal, Protocol
 
 import pandas as pd
@@ -11,9 +12,12 @@ Table = Literal["equity", "carry", "fills", "positions", "account", "orders", "s
 
 class ResultStore(Protocol):
     def new_run(
-        self, spec: ResolvedRunSpec, known_gaps: tuple[Gap, ...] = ()
+        self,
+        spec: ResolvedRunSpec,
+        known_gaps: tuple[Gap, ...] = (),
+        run_id: str | None = None,
     ) -> OutputSink:
-        """A sink writing a new run, with a fresh run_id.
+        """A sink writing a new run under ``run_id``, or a fresh one.
 
         ``known_gaps`` are the days of the run's data the source confirmed it lacks.
         """
@@ -26,6 +30,10 @@ class ResultStore(Protocol):
     def load(self, run_id: str, table: Table) -> pd.DataFrame: ...
 
     def delete(self, run_id: str) -> None: ...
+
+    def folder(self, run_id: str) -> Path:
+        """Where the run is written, whether or not it has started."""
+        ...
 
 
 class UnknownRunError(LookupError):

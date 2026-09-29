@@ -1,4 +1,5 @@
-from collections.abc import Iterable, Mapping, Sequence
+import copyreg
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -268,3 +269,13 @@ def _bar_types(
     if data_type != NautilusDataType.Bar:
         return {}
     return {"bar_types": [str(candle_type(each)) for each in instruments]}
+
+
+def _data_type_by_name(
+    data_type: NautilusDataType,
+) -> tuple[Callable[..., NautilusDataType], tuple[type, str]]:
+    """Nautilus's enums don't pickle; they come back by their name."""
+    return getattr, (NautilusDataType, str(data_type))
+
+
+copyreg.pickle(NautilusDataType, _data_type_by_name)

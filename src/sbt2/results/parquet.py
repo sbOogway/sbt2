@@ -55,10 +55,13 @@ class ParquetResultStore:
         self._runs = root / "runs"
 
     def new_run(
-        self, spec: ResolvedRunSpec, known_gaps: tuple[Gap, ...] = ()
+        self,
+        spec: ResolvedRunSpec,
+        known_gaps: tuple[Gap, ...] = (),
+        run_id: str | None = None,
     ) -> OutputSink:
-        run = _Run(str(uuid.uuid7()), spec, known_gaps)
-        folder = self._runs / run.run_id
+        run = _Run(run_id or str(uuid.uuid7()), spec, known_gaps)
+        folder = self.folder(run.run_id)
         folder.mkdir(parents=True)
         (folder / "spec.json").write_text(spec.to_json())
         return _ParquetSink(folder, run)
@@ -77,6 +80,9 @@ class ParquetResultStore:
 
     def delete(self, run_id: str) -> None:
         shutil.rmtree(self._folder(run_id))
+
+    def folder(self, run_id: str) -> Path:
+        return self._runs / run_id
 
     def _folder(self, run_id: str) -> Path:
         folder = self._runs / _canonical_uuid(run_id)
