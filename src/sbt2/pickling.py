@@ -1,4 +1,4 @@
-"""The pickle reducers a batch needs to send an order to its child.
+"""Every pickle reducer sbt2 needs, registered when the package is imported.
 
 Nautilus's enums don't pickle, so each comes back by its name, and an asset
 profile comes back as the registered one for its classes.
