@@ -20,6 +20,7 @@ from nautilus_trader.model import (
 from sbt2.spec import (
     CandleBarError,
     DuplicateRunError,
+    EmptyListError,
     InstrumentVenueError,
     InvalidVenueProfileError,
     MissingSplitError,
@@ -638,6 +639,18 @@ def test_values_that_resolve_to_the_same_run_fail_as_duplicates(
 ) -> None:
     with pytest.raises(DuplicateRunError, match="stop='0.02' .* stop=0.02"):
         loaded(with_params(paths, 'stop = ["0.02", 0.02]\n'))
+
+
+@pytest.mark.unit
+def test_an_empty_list_fails_naming_its_key(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(EmptyListError, match="lookback"):
+        loaded(with_params(paths, "lookback = []\n"))
+
+
+@pytest.mark.unit
+def test_an_empty_list_of_parts_fails(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(EmptyListError, match="part"):
+        loaded(paths, part=[])
 
 
 @pytest.mark.unit

@@ -6,6 +6,10 @@ from typing import Any
 _UNNAMED_PARTS = ("train", "validation")
 
 
+class EmptyListError(ValueError):
+    """A list in a spec file that would expand into no runs."""
+
+
 @dataclass(frozen=True)
 class Expanded:
     """One run's table, and a name for it that shows which values it took."""
@@ -34,16 +38,22 @@ def _parts(part: str | list[str] | None) -> list[str]:
         return list(_UNNAMED_PARTS)
     if isinstance(part, str):
         return [part]
-    return part
+    return _nonempty("part", part)
 
 
 def _combinations(params: Mapping[str, Any]) -> list[dict[str, Any]]:
-    choices = [_values(value) for value in params.values()]
+    choices = [_values(key, value) for key, value in params.items()]
     return [dict(zip(params, values, strict=True)) for values in product(*choices)]
 
 
-def _values(value: Any) -> list[Any]:
-    return value if isinstance(value, list) else [value]
+def _values(key: str, value: Any) -> list[Any]:
+    return _nonempty(key, value) if isinstance(value, list) else [value]
+
+
+def _nonempty[T](key: str, values: list[T]) -> list[T]:
+    if not values:
+        raise EmptyListError(f"{key} is an empty list, which expands into no runs")
+    return values
 
 
 def _name(part: str, params: Mapping[str, Any], chosen: Mapping[str, Any]) -> str:
