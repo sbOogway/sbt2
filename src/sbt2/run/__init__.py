@@ -3,6 +3,7 @@ from sbt2.run.batch import (
     BatchSetup,
     Launcher,
     Memory,
+    OutOfMemoryError,
     RunFailedError,
     batch,
 )
@@ -16,6 +17,7 @@ from sbt2.run.preflight import (
     SnapshotBufferError,
     preflight,
 )
+from sbt2.run.systemd import NoUserSessionError, SystemdScope
 
 __all__ = [
     "BacktestError",
@@ -28,10 +30,13 @@ __all__ = [
     "Memory",
     "MissingDataError",
     "NoAccountError",
+    "NoUserSessionError",
+    "OutOfMemoryError",
     "PreflightError",
     "RunFailedError",
     "RunSettings",
     "SnapshotBufferError",
+    "SystemdScope",
     "batch",
     "execute",
     "preflight",

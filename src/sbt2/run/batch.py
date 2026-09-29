@@ -33,6 +33,10 @@ class RunFailedError(RuntimeError):
         self.folder = folder
 
 
+class OutOfMemoryError(RunFailedError):
+    pass
+
+
 class Launcher(Protocol):
     """Starts each child of a batch."""
 
@@ -188,6 +192,10 @@ class _Children:
 
     def _failure(self, order: Order, code: int) -> RunFailedError:
         folder = self._store.folder(order.run_id)
+        if self._launcher.out_of_memory(order.run_id):
+            cap = _size(self._memory.per_run)
+            reason = f"it ran out of memory over its {cap} cap"
+            return OutOfMemoryError(order.run_id, folder, reason)
         if order.error_file.exists():
             reason = order.error_file.read_text()
         else:
@@ -205,3 +213,11 @@ class _Children:
                 child.kill()
                 child.wait()
         self._running.clear()
+
+
+def _size(size: int) -> str:
+    """Bytes in the largest binary unit that divides them, as systemd writes it."""
+    for unit, power in (("T", 40), ("G", 30), ("M", 20), ("K", 10)):
+        if size % 2**power == 0:
+            return f"{size // 2**power}{unit}"
+    return f"{size} bytes"
