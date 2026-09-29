@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
 
+from sbt2 import pickling
 from sbt2.data.sources import Gap
 from sbt2.results import ResultStore
 from sbt2.run.execute import RunSettings, execute
@@ -31,6 +32,7 @@ class Order:
 
 
 def send(order: Order, stream: IO[bytes]) -> None:
+    pickling.register()
     pickle.dump(sys.path, stream)
     pickle.dump(order, stream)
 
@@ -41,6 +43,7 @@ def run_child(stream: IO[bytes]) -> None:
 
 
 def _receive(stream: IO[bytes]) -> Order:
+    pickling.register()
     sys.path[:] = pickle.load(stream)
     return pickle.load(stream)
 
