@@ -392,13 +392,9 @@ def _runs_row(record: Mapping[Hashable, object]) -> tuple[str, ...]:
 
 
 def _cell(value: object) -> str:
-    if _missing(value):
-        return "-"
-    if isinstance(value, float):
+    if isinstance(value, float) and not math.isnan(value):
         return f"{value:.4f}"
-    if isinstance(value, datetime):
-        return value.isoformat()
-    return str(value)
+    return _text(value)
 
 
 @runs_app.command()
@@ -446,18 +442,23 @@ def _summary_lines(store: ResultStore, run_id: str) -> str:
     )
 
 
-def _missing(value: object) -> bool:
-    return value is None or (isinstance(value, float) and math.isnan(value))
-
-
 def _detail(value: object) -> str:
     if isinstance(value, np.ndarray):
         return ", ".join(str(each) for each in value) or "-"
+    return _text(value)
+
+
+def _text(value: object) -> str:
+    """A stored value as ``runs list`` and ``runs show`` print it."""
     if _missing(value):
         return "-"
     if isinstance(value, datetime):
         return value.isoformat()
     return str(value)
+
+
+def _missing(value: object) -> bool:
+    return value is None or (isinstance(value, float) and math.isnan(value))
 
 
 class _Bar:
