@@ -44,7 +44,7 @@ include = ["src", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["-m", "not live and not realdata"]
+addopts = ["-m", "not live and not realdata and not systemd"]
 markers = [
     "unit: exercises one module on its own, with test doubles or fixture data for the rest",
     "integration: exercises modules working together, or strategies and data inside a running Nautilus engine",
@@ -53,6 +53,7 @@ markers = [
     "golden: a fixed spec that must keep producing the same numbers",
     "live: reaches a real data source over the network; run with -m live",
     "realdata: runs on a month of real data in data/, fetching what it lacks; run with -m realdata",
+    "systemd: needs systemd-run and a systemd user session; run with -m systemd",
 ]
 
 [tool.coverage.run]

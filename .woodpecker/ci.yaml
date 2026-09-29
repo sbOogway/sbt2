@@ -22,11 +22,11 @@ steps:
     environment: *env
     commands:
       - uv sync --locked
-      - uv run --locked pytest --cov -m "not live and not characterization and not realdata"
+      - uv run --locked pytest --cov -m "not live and not characterization and not realdata and not systemd"
 
   - name: characterization
     image: *image
     environment: *env
     commands:
       - uv sync --locked
-      - uv run --locked pytest -m characterization
+      - uv run --locked pytest -m "characterization and not systemd"
