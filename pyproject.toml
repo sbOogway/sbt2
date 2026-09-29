@@ -66,6 +66,57 @@ layers = [
     "sbt2.data | sbt2.strategy | sbt2.assets | sbt2.config",
 ]
 
+[[tool.importlinter.contracts]]
+name = "Other packages import sbt2.assets only through its public interface"
+type = "forbidden"
+source_modules = ["sbt2.cli", "sbt2.config", "sbt2.pickling", "sbt2.data", "sbt2.results", "sbt2.run", "sbt2.spec", "sbt2.strategy"]
+forbidden_modules = ["sbt2.assets.*"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Other packages import sbt2.data only through its public interface"
+type = "forbidden"
+source_modules = ["sbt2.cli", "sbt2.config", "sbt2.pickling", "sbt2.assets", "sbt2.results", "sbt2.run", "sbt2.spec", "sbt2.strategy"]
+forbidden_modules = ["sbt2.data.*"]
+# these import a function that shares its submodule's name, which import-linter reads as the submodule
+ignore_imports = [
+    "sbt2.run.preflight -> sbt2.data.download",
+    "sbt2.run.preflight -> sbt2.data.ingest",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Other packages import sbt2.results only through its public interface"
+type = "forbidden"
+source_modules = ["sbt2.cli", "sbt2.config", "sbt2.pickling", "sbt2.assets", "sbt2.data", "sbt2.run", "sbt2.spec", "sbt2.strategy"]
+forbidden_modules = ["sbt2.results.*"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Other packages import sbt2.run only through its public interface"
+type = "forbidden"
+source_modules = ["sbt2.cli", "sbt2.config", "sbt2.pickling", "sbt2.assets", "sbt2.data", "sbt2.results", "sbt2.spec", "sbt2.strategy"]
+forbidden_modules = ["sbt2.run.*"]
+# it imports a function that shares its submodule's name, which import-linter reads as the submodule
+ignore_imports = [
+    "sbt2.cli -> sbt2.run.batch",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Other packages import sbt2.spec only through its public interface"
+type = "forbidden"
+source_modules = ["sbt2.cli", "sbt2.config", "sbt2.pickling", "sbt2.assets", "sbt2.data", "sbt2.results", "sbt2.run", "sbt2.strategy"]
+forbidden_modules = ["sbt2.spec.*"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Other packages import sbt2.strategy only through its public interface"
+type = "forbidden"
+source_modules = ["sbt2.cli", "sbt2.config", "sbt2.pickling", "sbt2.assets", "sbt2.data", "sbt2.results", "sbt2.run", "sbt2.spec"]
+forbidden_modules = ["sbt2.strategy.*"]
+allow_indirect_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["-m", "not live and not realdata and not systemd"]
