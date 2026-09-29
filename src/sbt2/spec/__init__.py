@@ -6,8 +6,11 @@ from sbt2.spec.parse import UnknownSpecKeyError, read_spec
 from sbt2.spec.resolve import (
     CandleBarError,
     InstrumentVenueError,
+    MissingPartError,
+    MissingSplitError,
     ResolvedRunSpec,
     UnknownBarSourceError,
+    UnknownPartError,
     resolve,
 )
 from sbt2.spec.split import (
@@ -16,6 +19,7 @@ from sbt2.spec.split import (
     SplitFormError,
     SplitFractionError,
     Splitter,
+    UnknownSplitError,
 )
 from sbt2.spec.venues import InvalidVenueProfileError, UnknownVenueProfileError
 
@@ -24,6 +28,8 @@ __all__ = [
     "CandleBarError",
     "InstrumentVenueError",
     "InvalidVenueProfileError",
+    "MissingPartError",
+    "MissingSplitError",
     "ResolvedRunSpec",
     "Split",
     "SplitDateError",
@@ -31,7 +37,9 @@ __all__ = [
     "SplitFractionError",
     "Splitter",
     "UnknownBarSourceError",
+    "UnknownPartError",
     "UnknownSpecKeyError",
+    "UnknownSplitError",
     "UnknownVenueProfileError",
     "load",
 ]

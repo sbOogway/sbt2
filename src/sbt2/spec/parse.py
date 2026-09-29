@@ -32,10 +32,10 @@ class RunSpec:
     strategy: str
     instruments: list[str]
     period: tuple[datetime, datetime]
-    split: Splitter | Mapping[str, Any]
-    part: str
     venue: str
     capital: str
+    split: Splitter | Mapping[str, Any] | None = None
+    part: str | None = None
     seed: int = 42
     equity_interval: str = "1h"
     liquidation: bool | None = None

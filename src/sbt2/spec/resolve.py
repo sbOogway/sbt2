@@ -116,6 +116,18 @@ class UnknownBarSourceError(ValueError):
     pass
 
 
+class MissingSplitError(ValueError):
+    pass
+
+
+class MissingPartError(ValueError):
+    pass
+
+
+class UnknownPartError(ValueError):
+    pass
+
+
 class CandleBarError(ValueError):
     """A declared bar that 1-minute candles cannot build."""
 
@@ -126,8 +138,8 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
     instruments = _instruments(spec.instruments, venue["name"])
     strategy = import_strategy(spec.strategy)
     params = resolve_params(strategy, spec.params)
-    split = _splitter(spec.split)
-    start, end = split.parts(spec.period)[spec.part]
+    split, part = _splitter(spec.split), _part(spec.part)
+    start, end = _part_dates(split.parts(spec.period), part)
     return ResolvedRunSpec(
         strategy=StrategyRun(
             spec.strategy,
@@ -146,17 +158,33 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
         ),
         equity_interval_ms=spec.equity_interval_ms,
         split=split,
-        part=spec.part,
+        part=part,
         start=start,
         end=end,
     )
 
 
-def _splitter(split: Splitter | Mapping[str, Any]) -> Splitter:
+def _splitter(split: Splitter | Mapping[str, Any] | None) -> Splitter:
     """A spec file's split table as the splitter it names."""
+    if split is None:
+        raise MissingSplitError("a run spec needs a split of its period")
     if isinstance(split, Mapping):
-        return Split(**split)
+        return Split.from_table(split)
     return split
+
+
+def _part(part: str | None) -> str:
+    if part is None:
+        raise MissingPartError("a run spec needs the part of its split to run")
+    return part
+
+
+def _part_dates(
+    parts: Mapping[str, tuple[datetime, datetime]], part: str
+) -> tuple[datetime, datetime]:
+    if part not in parts:
+        raise UnknownPartError(f"part {part!r} is not one of {', '.join(parts)}")
+    return parts[part]
 
 
 def _instruments(ids: Iterable[str], venue: str) -> list[InstrumentId]:

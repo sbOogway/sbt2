@@ -21,10 +21,14 @@ from sbt2.spec import (
     CandleBarError,
     InstrumentVenueError,
     InvalidVenueProfileError,
+    MissingPartError,
+    MissingSplitError,
     ResolvedRunSpec,
     Split,
     UnknownBarSourceError,
+    UnknownPartError,
     UnknownSpecKeyError,
+    UnknownSplitError,
     UnknownVenueProfileError,
     load,
 )
@@ -100,6 +104,14 @@ def paths(tmp_path: Path) -> tuple[Path, Path]:
 def resolved(paths: tuple[Path, Path], **overrides: Any) -> ResolvedRunSpec:
     spec, venues = paths
     return load(spec, overrides, venues)
+
+
+def without(paths: tuple[Path, Path], key: str) -> tuple[Path, Path]:
+    """The spec file with the line setting ``key`` dropped."""
+    spec, venues = paths
+    lines = spec.read_text().splitlines(keepends=True)
+    spec.write_text("".join(each for each in lines if not each.startswith(key)))
+    return spec, venues
 
 
 @pytest.mark.unit
@@ -502,3 +514,29 @@ def test_start_and_end_are_no_longer_spec_keys(paths: tuple[Path, Path]) -> None
         UnknownSpecKeyError, match="start .* valid: .*params, part, period, seed, split"
     ):
         resolved(paths, start="2024-01-01")
+
+
+@pytest.mark.unit
+def test_a_spec_without_a_split_fails(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(MissingSplitError):
+        resolved(without(paths, "split"))
+
+
+@pytest.mark.unit
+def test_a_spec_without_a_part_fails(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(MissingPartError):
+        resolved(without(paths, "part"))
+
+
+@pytest.mark.unit
+def test_an_unknown_part_fails_listing_the_parts(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(UnknownPartError, match="holdout.* train, validation, test"):
+        resolved(paths, part="holdout")
+
+
+@pytest.mark.unit
+def test_an_unknown_split_table_fails_listing_the_forms(
+    paths: tuple[Path, Path],
+) -> None:
+    with pytest.raises(UnknownSplitError, match="kind .* validation_start"):
+        resolved(paths, split={"kind": "walk_forward"})

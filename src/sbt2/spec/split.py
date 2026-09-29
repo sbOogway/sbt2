@@ -1,4 +1,5 @@
-from dataclasses import asdict, dataclass, field
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass, field, fields
 from datetime import date, datetime, timedelta
 from itertools import pairwise
 from typing import Any, Protocol
@@ -10,6 +11,10 @@ _DAY = timedelta(days=1)
 
 type Period = tuple[datetime, datetime]
 type Moment = date | datetime | str
+
+
+class UnknownSplitError(ValueError):
+    """A split table whose keys fit no splitter."""
 
 
 class SplitFractionError(ValueError):
@@ -105,6 +110,17 @@ class Split:
         if isinstance(form, _Dates):
             object.__setattr__(self, "validation_start", form.validation_start)
             object.__setattr__(self, "test_start", form.test_start)
+
+    @classmethod
+    def from_table(cls, table: Mapping[str, Any]) -> Split:
+        """The split a spec file's table of arguments describes."""
+        unknown = sorted(set(table) - {each.name for each in fields(cls) if each.init})
+        if unknown:
+            raise UnknownSplitError(
+                f"split keys {', '.join(unknown)} fit no split; a split takes "
+                "validation and test, or validation_start and test_start"
+            )
+        return cls(**table)
 
     def parts(self, period: Period) -> dict[str, Period]:
         start, end = period
