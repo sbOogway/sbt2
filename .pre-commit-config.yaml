@@ -48,7 +48,7 @@ repos:
         name: import-linter
         entry: uv run --locked lint-imports
         language: system
-        types: [python]
+        files: (\.py|^pyproject\.toml)$
         pass_filenames: false
 
       - id: prune-merged-branches
