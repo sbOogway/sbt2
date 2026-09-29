@@ -22,7 +22,7 @@ from rich.progress import (
 
 from sbt2 import data, spec
 from sbt2.data import sources
-from sbt2.results import ParquetResultStore, Provenance
+from sbt2.results import ParquetResultStore
 from sbt2.run import DataFolders, RunSettings, execute, preflight
 
 DATA = Path("data")
@@ -75,12 +75,11 @@ def run(
 def _run(spec_file: Path, data: Path, log_level: LogLevel) -> None:
     """Pre-flight every run of the spec file, then execute them one by one."""
     runs = spec.load(spec_file)
-    repo = Provenance.of_repo(Path.cwd())
-    provenances = [replace(repo, known_gaps=_preflight(each, data)) for each in runs]
+    known_gaps = [_preflight(each, data) for each in runs]
     store = ParquetResultStore(data / "results")
     settings = RunSettings(data / "catalog", log_level=log_level)
-    for resolved, provenance in zip(runs, provenances, strict=True):
-        sink = store.new_run(resolved, provenance)
+    for resolved, gaps in zip(runs, known_gaps, strict=True):
+        sink = store.new_run(resolved, gaps)
         execute(resolved, sink, settings)
         logger.info("stored run %s in %s", sink.run_id, data / "results")
 

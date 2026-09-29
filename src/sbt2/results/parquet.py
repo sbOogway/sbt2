@@ -11,9 +11,10 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from nautilus_trader.model import Money, PortfolioSnapshot, PositionAdjusted
 
+from sbt2.data.sources import Gap
 from sbt2.results.metrics import HeadlineMetrics, RunTables, Segment, headline_metrics
 from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
-from sbt2.results.store import MissingTableError, Provenance, Table, UnknownRunError
+from sbt2.results.store import MissingTableError, Table, UnknownRunError
 from sbt2.results.tables import carry_table, equity_table, read_table, write_table
 from sbt2.spec import ResolvedRunSpec
 
@@ -32,9 +33,6 @@ _SUMMARY_SCHEMA = pa.schema(
         ("end", _UTC),
         ("split", pa.string()),
         ("part", pa.string()),
-        ("git_sha", pa.string()),
-        ("git_dirty", pa.bool_()),
-        ("data_fingerprint", pa.string()),
         ("known_gaps", pa.list_(pa.string())),
         ("currency", pa.string()),
         ("net_return", pa.float64()),
@@ -56,8 +54,10 @@ class ParquetResultStore:
     def __init__(self, root: Path = RESULTS) -> None:
         self._runs = root / "runs"
 
-    def new_run(self, spec: ResolvedRunSpec, provenance: Provenance) -> OutputSink:
-        run = _Run(str(uuid.uuid7()), spec, provenance)
+    def new_run(
+        self, spec: ResolvedRunSpec, known_gaps: tuple[Gap, ...] = ()
+    ) -> OutputSink:
+        run = _Run(str(uuid.uuid7()), spec, known_gaps)
         folder = self._runs / run.run_id
         folder.mkdir(parents=True)
         (folder / "spec.json").write_text(spec.to_json())
@@ -89,7 +89,7 @@ class ParquetResultStore:
 class _Run:
     run_id: str
     spec: ResolvedRunSpec
-    provenance: Provenance
+    known_gaps: tuple[Gap, ...]
 
     @property
     def currency(self) -> str:
@@ -166,18 +166,9 @@ def _summary(run: _Run, metrics: HeadlineMetrics) -> dict[str, object]:
         "end": run.spec.end,
         "split": run.spec.split_json(),
         "part": run.spec.part,
-        **_provenance(run.provenance),
+        "known_gaps": [str(each) for each in run.known_gaps],
         "currency": run.currency,
         **asdict(metrics),
-    }
-
-
-def _provenance(provenance: Provenance) -> dict[str, object]:
-    return {
-        "git_sha": provenance.git_sha,
-        "git_dirty": provenance.git_dirty,
-        "data_fingerprint": provenance.data_fingerprint,
-        "known_gaps": [str(each) for each in provenance.known_gaps],
     }
 
 
