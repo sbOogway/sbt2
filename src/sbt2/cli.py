@@ -1,7 +1,9 @@
+import json
 import logging
+import math
 import re
 import sys
-from collections.abc import Iterator
+from collections.abc import Hashable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
@@ -9,6 +11,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
 
+import numpy as np
+import pandas as pd
 import typer
 from nautilus_trader.common import LogLevel
 from rich.console import Console
@@ -22,8 +26,9 @@ from rich.progress import (
 )
 
 from sbt2 import data, spec
+from sbt2.config import ROOT, SOURCES, Root
 from sbt2.data import sources
-from sbt2.results import ParquetResultStore
+from sbt2.results import MissingTableError, ParquetResultStore, ResultStore
 from sbt2.run import (
     BatchSetup,
     DataFolders,
@@ -33,8 +38,6 @@ from sbt2.run import (
     batch,
 )
 
-DATA = Path("data")
-SOURCES = Path("config/sources.toml")
 DAY = ["%Y-%m-%d"]
 SIZE = re.compile(r"(\d+)([KMGT]?)")
 SIZE_UNITS = {"": 0, "K": 10, "M": 20, "G": 30, "T": 40}
@@ -43,6 +46,8 @@ LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 data_app = typer.Typer(no_args_is_help=True, help="Inspect the catalog.")
 app.add_typer(data_app, name="data")
+runs_app = typer.Typer(no_args_is_help=True, help="Query and manage stored runs.")
+app.add_typer(runs_app, name="runs")
 logger = logging.getLogger("sbt2")
 
 
@@ -81,7 +86,7 @@ def run(
     spec_file: Annotated[Path, typer.Argument(help="The run spec, a TOML file.")],
     data: Annotated[
         Path, typer.Option(help="Holds raw/, catalog/ and results/.")
-    ] = DATA,
+    ] = ROOT,
     memory_budget: Annotated[
         int | None,
         typer.Option(
@@ -101,9 +106,9 @@ def run(
 ) -> None:
     """Run the backtests a spec file describes and store their results."""
     try:
-        root = data.resolve()
+        root = Root(data.resolve())
         level = LogLevel.from_str(context.obj)
-        settings = RunSettings(root / "catalog", log_level=level)
+        settings = RunSettings(root.catalog, log_level=level)
         _run(spec_file, _setup(root, settings, _memory(memory_budget, memory_per_run)))
     except Exception:
         logger.exception("run of %s failed", spec_file)
@@ -114,11 +119,11 @@ def _memory(budget: int | None, per_run: int | None) -> Memory:
     return Memory(budget) if per_run is None else Memory(budget, per_run)
 
 
-def _setup(data: Path, settings: RunSettings, memory: Memory) -> BatchSetup:
+def _setup(root: Root, settings: RunSettings, memory: Memory) -> BatchSetup:
     return BatchSetup(
-        store=ParquetResultStore(data / "results"),
+        store=ParquetResultStore(root.results),
         sources=lambda name: sources.source(name, SOURCES),
-        folders=DataFolders(data / "raw", data / "catalog"),
+        folders=DataFolders(root.raw, root.catalog),
         settings=settings,
         launcher=SystemdScope(),
         memory=memory,
@@ -152,12 +157,12 @@ def download(
     ] = None,
     data_root: Annotated[
         Path, typer.Option("--data", help="Raw files go to PATH/raw.")
-    ] = DATA,
+    ] = ROOT,
     concurrency: Annotated[int, typer.Option(min=1)] = 8,
     retries: Annotated[int, typer.Option(min=0, help="Per file.")] = 5,
 ) -> None:
     """Fetch a source's raw files for a range of days, and today's instruments."""
-    options = data.DownloadOptions(data_root / "raw", concurrency, retries)
+    options = data.DownloadOptions(Root(data_root).raw, concurrency, retries)
     try:
         request = data.DownloadRequest(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ())
@@ -211,7 +216,7 @@ def ingest(
     data_root: Annotated[
         Path,
         typer.Option("--data", help="Reads PATH/raw, writes PATH/catalog."),
-    ] = DATA,
+    ] = ROOT,
     reingest: Annotated[
         bool,
         typer.Option(
@@ -221,7 +226,8 @@ def ingest(
     ] = False,
 ) -> None:
     """Write a source's raw files for a range of days into the catalog."""
-    options = data.IngestOptions(data_root / "raw", data_root / "catalog")
+    root = Root(data_root)
+    options = data.IngestOptions(root.raw, root.catalog)
     try:
         request = data.IngestRequest(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ()), reingest
@@ -255,7 +261,7 @@ def _log_ingest_summary(report: data.IngestReport) -> None:
 def status(
     data_root: Annotated[
         Path, typer.Option("--data", help="Reads PATH/catalog.")
-    ] = DATA,
+    ] = ROOT,
     start: Annotated[
         datetime | None,
         typer.Option(formats=DAY, help="Check every day from this UTC day."),
@@ -266,12 +272,13 @@ def status(
     ] = None,
 ) -> None:
     """Show the symbols, data types and days in the catalog, and flag gaps."""
+    folder = Root(data_root).catalog
     try:
         window = _window(start, end)
-        catalog = data.Catalog(data_root / "catalog")
+        catalog = data.Catalog(folder)
         holdings = catalog.status(sources.known_gaps(SOURCES), window)
     except Exception:
-        logger.exception("status of %s failed", data_root / "catalog")
+        logger.exception("status of %s failed", folder)
         raise typer.Exit(1) from None
     typer.echo(_status_table(holdings))
 
@@ -295,10 +302,13 @@ _STATUS_HEADER = ("instrument", "type", "first", "last", "days", "gaps", "known 
 def _status_table(holdings: tuple[data.Holding, ...]) -> str:
     if not holdings:
         return "the catalog is empty"
-    rows = [_STATUS_HEADER, *(_status_row(each) for each in holdings)]
-    widths = [
-        max(len(row[column]) for row in rows) for column in range(len(_STATUS_HEADER))
-    ]
+    return _table(_STATUS_HEADER, [_status_row(each) for each in holdings])
+
+
+def _table(header: tuple[str, ...], body: list[tuple[str, ...]]) -> str:
+    """Rows of left-aligned columns, as wide as their widest cell."""
+    rows = [header, *body]
+    widths = [max(len(row[column]) for row in rows) for column in range(len(header))]
     return "\n".join(
         "  ".join(
             cell.ljust(width) for cell, width in zip(row, widths, strict=True)
@@ -336,6 +346,128 @@ def _day_run(days: list[date]) -> str:
     if len(days) == 1:
         return days[0].isoformat()
     return f"{days[0].isoformat()}..{days[-1].isoformat()}"
+
+
+_RUNS_HEADER = (
+    "run_id",
+    "strategy",
+    "part",
+    "start",
+    "end",
+    "net_return",
+    "sharpe",
+    "max_drawdown",
+    "trade_count",
+)
+
+
+@runs_app.command("list")
+def list_runs(
+    data_root: Annotated[
+        Path, typer.Option("--data", help="Reads PATH/results.")
+    ] = ROOT,
+    strategy: Annotated[
+        str | None, typer.Option(help="Only this strategy's import path.")
+    ] = None,
+    part: Annotated[str | None, typer.Option(help="Only this part.")] = None,
+) -> None:
+    """Show one row per finished run, oldest first."""
+    try:
+        runs = _store(data_root).runs(strategy, part)
+    except Exception:
+        logger.exception("listing the runs in %s failed", Root(data_root).results)
+        raise typer.Exit(1) from None
+    typer.echo(_runs_table(runs))
+
+
+def _store(data_root: Path) -> ParquetResultStore:
+    return ParquetResultStore(Root(data_root).results)
+
+
+def _runs_table(runs: pd.DataFrame) -> str:
+    if runs.empty:
+        return "no runs"
+    records = runs.to_dict("records")
+    return _table(_RUNS_HEADER, [_runs_row(each) for each in records])
+
+
+def _runs_row(record: Mapping[Hashable, object]) -> tuple[str, ...]:
+    return tuple(_cell(record[column]) for column in _RUNS_HEADER)
+
+
+def _cell(value: object) -> str:
+    if _missing(value):
+        return "-"
+    if isinstance(value, float):
+        return f"{value:.4f}"
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
+
+
+@runs_app.command()
+def show(
+    run_id: Annotated[str, typer.Argument(help="The run's id.")],
+    data_root: Annotated[
+        Path, typer.Option("--data", help="Reads PATH/results.")
+    ] = ROOT,
+) -> None:
+    """Show a run's summary and its resolved spec."""
+    try:
+        text = _shown(_store(data_root), run_id)
+    except Exception:
+        logger.exception("showing run %s failed", run_id)
+        raise typer.Exit(1) from None
+    typer.echo(text)
+
+
+@runs_app.command()
+def delete(
+    run_id: Annotated[str, typer.Argument(help="The run's id.")],
+    data_root: Annotated[
+        Path, typer.Option("--data", help="Deletes from PATH/results.")
+    ] = ROOT,
+    yes: Annotated[bool, typer.Option("--yes", help="Don't ask first.")] = False,
+) -> None:
+    """Delete a run's folder, a failed run's partial one included."""
+    if not yes:
+        typer.confirm(f"delete run {run_id}?", abort=True)
+    try:
+        _store(data_root).delete(run_id)
+    except Exception:
+        logger.exception("deleting run %s failed", run_id)
+        raise typer.Exit(1) from None
+
+
+def _shown(store: ResultStore, run_id: str) -> str:
+    document = json.dumps(store.spec(run_id), indent=2)
+    return f"{_summary_lines(store, run_id)}\n\n{document}"
+
+
+def _summary_lines(store: ResultStore, run_id: str) -> str:
+    try:
+        [record] = store.load(run_id, "summary").to_dict("records")
+    except MissingTableError:
+        return f"run {run_id} has no summary: it did not finish"
+    width = max(len(str(column)) for column in record)
+    return "\n".join(
+        f"{str(column).ljust(width)}  {_detail(value)}"
+        for column, value in record.items()
+    )
+
+
+def _missing(value: object) -> bool:
+    return value is None or (isinstance(value, float) and math.isnan(value))
+
+
+def _detail(value: object) -> str:
+    if isinstance(value, np.ndarray):
+        return ", ".join(str(each) for each in value) or "-"
+    if _missing(value):
+        return "-"
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
 
 
 class _DownloadBar:

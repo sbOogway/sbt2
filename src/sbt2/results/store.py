@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 import pandas as pd
 
@@ -23,13 +23,24 @@ class ResultStore(Protocol):
         """
         ...
 
-    def runs(self) -> pd.DataFrame:
-        """The summaries of every finished run, oldest first."""
+    def runs(
+        self, strategy: str | None = None, part: str | None = None
+    ) -> pd.DataFrame:
+        """The summaries of every finished run, oldest first.
+
+        ``strategy`` and ``part``, when given, keep only the runs that match them.
+        """
         ...
 
     def load(self, run_id: str, table: Table) -> pd.DataFrame: ...
 
-    def delete(self, run_id: str) -> None: ...
+    def spec(self, run_id: str) -> dict[str, Any]:
+        """The resolved spec document of a run, finished or not."""
+        ...
+
+    def delete(self, run_id: str) -> None:
+        """Remove the run, a failed run's partial folder included."""
+        ...
 
     def folder(self, run_id: str) -> Path:
         """Where the run is written, whether or not it has started."""

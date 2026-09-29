@@ -2,11 +2,10 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from sbt2.config import VENUE_PROFILES
 from sbt2.spec.expand import Expanded, expand
 from sbt2.spec.parse import RunSpec, read_spec
 from sbt2.spec.resolve import ResolvedRunSpec, resolve
-
-VENUE_PROFILES = Path("config/venues.toml")
 
 
 class DuplicateRunError(ValueError):

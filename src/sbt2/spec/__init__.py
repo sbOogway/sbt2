@@ -1,5 +1,5 @@
 from sbt2.spec.expand import EmptyListError
-from sbt2.spec.load import VENUE_PROFILES, DuplicateRunError, load
+from sbt2.spec.load import DuplicateRunError, load
 from sbt2.spec.parse import UnknownSpecKeyError
 from sbt2.spec.resolve import (
     CandleBarError,
@@ -20,7 +20,6 @@ from sbt2.spec.split import (
 from sbt2.spec.venues import InvalidVenueProfileError, UnknownVenueProfileError
 
 __all__ = [
-    "VENUE_PROFILES",
     "CandleBarError",
     "DuplicateRunError",
     "EmptyListError",
