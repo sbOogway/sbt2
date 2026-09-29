@@ -20,13 +20,14 @@ from nautilus_trader.model import (
 
 from sbt2.spec import (
     CandleBarError,
+    DateSplit,
     DuplicateRunError,
     EmptyListError,
+    FractionSplit,
     InstrumentVenueError,
     InvalidVenueProfileError,
     MissingSplitError,
     ResolvedRunSpec,
-    Split,
     UnknownBarSourceError,
     UnknownPartError,
     UnknownSpecKeyError,
@@ -93,7 +94,7 @@ START = datetime(2024, 1, 1, tzinfo=UTC)
 END = datetime(2024, 2, 1, tzinfo=UTC)
 DATA_START = datetime(2023, 12, 31, 23, 30, tzinfo=UTC)
 VALIDATION = (datetime(2024, 2, 1, tzinfo=UTC), datetime(2024, 2, 15, tzinfo=UTC))
-BY_DATE = Split(validation_start="2024-02-01", test_start="2024-02-15")
+BY_DATE = DateSplit(validation_start="2024-02-01", test_start="2024-02-15")
 
 
 @pytest.fixture
@@ -503,7 +504,7 @@ def test_the_same_dates_under_another_split_change_the_hash(
     paths: tuple[Path, Path],
 ) -> None:
     by_date = resolved(paths)
-    by_fraction = resolved(paths, split=Split(validation=0.25, test=14 / 60))
+    by_fraction = resolved(paths, split=FractionSplit(validation=0.25, test=14 / 60))
 
     assert (by_fraction.start, by_fraction.end) == (by_date.start, by_date.end)
     assert by_fraction.hash != by_date.hash
@@ -511,7 +512,7 @@ def test_the_same_dates_under_another_split_change_the_hash(
 
 @pytest.mark.unit
 def test_a_splitter_can_be_given_as_an_override(paths: tuple[Path, Path]) -> None:
-    split = Split(validation=0.25, test=0.25)
+    split = FractionSplit(validation=0.25, test=0.25)
 
     assert resolved(paths, split=split).split == split
 
@@ -697,11 +698,23 @@ def test_an_unknown_part_fails_listing_the_parts(paths: tuple[Path, Path]) -> No
 
 
 @pytest.mark.unit
-def test_an_unknown_split_table_fails_listing_the_forms(
-    paths: tuple[Path, Path],
+@pytest.mark.parametrize(
+    ("table", "keys"),
+    [
+        ({"kind": "walk_forward"}, "kind"),
+        ({"validation": 0.2, "test_start": "2024-02-15"}, "test_start, validation"),
+        ({"validation": 0.2}, "validation"),
+    ],
+)
+def test_a_split_table_that_fits_no_splitter_fails_listing_the_forms(
+    paths: tuple[Path, Path], table: dict[str, Any], keys: str
 ) -> None:
-    with pytest.raises(UnknownSplitError, match="kind .* validation_start"):
-        resolved(paths, split={"kind": "walk_forward"})
+    with pytest.raises(
+        UnknownSplitError,
+        match=f"keys {keys} fit no split.*test and validation.*"
+        "test_start and validation_start",
+    ):
+        resolved(paths, split=table)
 
 
 @pytest.mark.unit
@@ -716,7 +729,7 @@ def test_a_split_table_of_fractions_resolves(paths: tuple[Path, Path]) -> None:
 
     spec = resolved(paths)
 
-    assert spec.split == Split(validation=0.25, test=0.25)
+    assert spec.split == FractionSplit(validation=0.25, test=0.25)
     assert (spec.start, spec.end) == (START, datetime(2024, 1, 31, tzinfo=UTC))
 
 

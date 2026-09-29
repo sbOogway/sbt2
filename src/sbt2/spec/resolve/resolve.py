@@ -11,7 +11,7 @@ from sbt2.spec.file import RunSpec
 from sbt2.spec.resolve.data import data_arguments, data_types
 from sbt2.spec.resolve.resolved import ResolvedRunSpec
 from sbt2.spec.resolve.venues import venue_profile
-from sbt2.spec.split import Split, Splitter
+from sbt2.spec.split import Splitter, from_table
 from sbt2.strategy import StrategyRun, import_strategy, resolve_params
 
 
@@ -57,9 +57,9 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
 
 def _splitter(split: Splitter | Mapping[str, Any]) -> Splitter:
     """A spec file's split table as the splitter it names."""
-    if isinstance(split, Mapping):
-        return Split.from_table(split)
-    return split
+    if isinstance(split, Splitter):
+        return split
+    return from_table(split)
 
 
 def _part_dates(

@@ -14,9 +14,9 @@ from sbt2.spec.resolve import (
     UnknownVenueProfileError,
 )
 from sbt2.spec.split import (
-    Split,
+    DateSplit,
+    FractionSplit,
     SplitDateError,
-    SplitFormError,
     SplitFractionError,
     Splitter,
     UnknownSplitError,
@@ -24,15 +24,15 @@ from sbt2.spec.split import (
 
 __all__ = [
     "CandleBarError",
+    "DateSplit",
     "DuplicateRunError",
     "EmptyListError",
+    "FractionSplit",
     "InstrumentVenueError",
     "InvalidVenueProfileError",
     "MissingSplitError",
     "ResolvedRunSpec",
-    "Split",
     "SplitDateError",
-    "SplitFormError",
     "SplitFractionError",
     "Splitter",
     "UnknownBarSourceError",
