@@ -6,6 +6,7 @@ from sbt2.data.catalog import (
     UnstoredDataTypeError,
     Window,
 )
+from sbt2.data.days import DayRange
 from sbt2.data.download import (
     INSTRUMENT,
     DownloadOptions,
@@ -36,6 +37,7 @@ __all__ = [
     "Catalog",
     "Coverage",
     "Day",
+    "DayRange",
     "DayResult",
     "DownloadOptions",
     "DownloadReport",

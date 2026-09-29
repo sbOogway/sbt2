@@ -16,6 +16,7 @@ from nautilus_trader.model import TradeTick
 
 from sbt2.data import (
     INSTRUMENT,
+    DayRange,
     DownloadOptions,
     DownloadReport,
     DownloadRequest,
@@ -48,7 +49,7 @@ class Recorder:
 
 
 def request(end: date = DAY, *data: str) -> DownloadRequest:
-    return DownloadRequest(("BTCUSDT",), DAY, end, data, taken_on=TODAY)
+    return DownloadRequest(DayRange(("BTCUSDT",), DAY, end, data), taken_on=TODAY)
 
 
 def options(raw: Path) -> DownloadOptions:
@@ -180,7 +181,9 @@ def test_a_source_error_saying_missing_is_missing(
 
     report = download(
         FakeSource(files, api),
-        DownloadRequest(("NOPEUSDT",), DAY, DAY, ("FundingRateUpdate",), TODAY),
+        DownloadRequest(
+            DayRange(("NOPEUSDT",), DAY, DAY, ("FundingRateUpdate",)), TODAY
+        ),
         options(tmp_path),
     )
 
@@ -322,4 +325,4 @@ def test_progress_hears_of_every_file_and_byte(
 @pytest.mark.unit
 def test_a_range_ending_before_it_starts_is_refused() -> None:
     with pytest.raises(ValueError, match="before 2025-01-02"):
-        DownloadRequest(("BTCUSDT",), NEXT_DAY, DAY)
+        DayRange(("BTCUSDT",), NEXT_DAY, DAY)

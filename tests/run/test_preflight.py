@@ -10,6 +10,7 @@ from served_source import INSTRUMENT_ID, SYMBOL, ServedSource, spot_pair
 from sbt2.assets import Calendar
 from sbt2.data import (
     Catalog,
+    DayRange,
     DownloadOptions,
     DownloadRequest,
     IngestOptions,
@@ -82,13 +83,11 @@ def folders(tmp_path: Path) -> DataFolders:
 
 def stock(source: ServedSource, folders: DataFolders, first: date, last: date) -> None:
     """Ingest the source's days into the catalog, then forget what it fetched."""
-    symbols = (SYMBOL,)
-    download(
-        source, DownloadRequest(symbols, first, last), DownloadOptions(folders.raw)
-    )
+    days = DayRange((SYMBOL,), first, last)
+    download(source, DownloadRequest(days), DownloadOptions(folders.raw))
     ingest(
         source,
-        IngestRequest(symbols, first, last),
+        IngestRequest(days),
         IngestOptions(folders.raw, folders.catalog),
     )
     source.fetched.clear()

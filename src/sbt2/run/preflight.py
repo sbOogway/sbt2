@@ -10,6 +10,7 @@ from nautilus_trader.model import QuoteTick
 from sbt2.data import (
     Catalog,
     Coverage,
+    DayRange,
     DownloadOptions,
     DownloadRequest,
     IngestOptions,
@@ -131,17 +132,14 @@ def _fetch(source: Source, missing: tuple[Gap, ...], folders: DataFolders) -> No
         first,
         last,
     )
-    report = download(
-        source,
-        DownloadRequest(symbols, first, last, types),
-        DownloadOptions(folders.raw),
-    )
+    days = DayRange(symbols, first, last, types)
+    report = download(source, DownloadRequest(days), DownloadOptions(folders.raw))
     for each in report.having(Outcome.FAILED):
         logger.warning("failed to fetch %s: %s", each.item.raw.path, each.reason)
     try:
         ingest(
             source,
-            IngestRequest(symbols, first, last, types),
+            IngestRequest(days),
             IngestOptions(folders.raw, folders.catalog),
         )
     except NoSnapshotError as error:

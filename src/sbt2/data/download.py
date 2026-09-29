@@ -5,13 +5,12 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from enum import StrEnum
-from itertools import product
 from pathlib import Path
 from typing import Protocol
 
 import httpx
 
-from sbt2.data.days import days
+from sbt2.data.days import DayRange
 from sbt2.data.sources import Fetch, MissingAtSourceError, RawFile, Source
 
 logger = logging.getLogger(__name__)
@@ -29,21 +28,10 @@ class Outcome(StrEnum):
 
 @dataclass(frozen=True)
 class DownloadRequest:
-    """Symbols over an inclusive range of UTC days, plus each one's instrument snapshot.
+    """The range's day files, plus each symbol's instrument snapshot of ``taken_on``."""
 
-    ``data`` names the data types to fetch by their nautilus type name; empty
-    means every type the source serves.
-    """
-
-    symbols: tuple[str, ...]
-    start: date
-    end: date
-    data: tuple[str, ...] = ()
+    days: DayRange
     taken_on: date = field(default_factory=lambda: datetime.now(UTC).date())
-
-    def __post_init__(self) -> None:
-        if self.end < self.start:
-            raise ValueError(f"the range ends on {self.end}, before {self.start}")
 
 
 @dataclass(frozen=True)
@@ -124,18 +112,15 @@ def _plan(source: Source, request: DownloadRequest) -> Iterator[Item]:
 
 
 def _snapshots(source: Source, request: DownloadRequest) -> Iterator[Item]:
-    for symbol in request.symbols:
+    for symbol in request.days.symbols:
         raw = source.instrument_snapshot(symbol, request.taken_on)
         yield Item(symbol, INSTRUMENT, request.taken_on, raw)
 
 
 def _day_files(source: Source, request: DownloadRequest) -> Iterator[Item]:
-    types = source.served(request.data)
-    span = days(request.start, request.end)
-    for symbol, data_type, day in product(request.symbols, types, span):
-        if not source.is_known_gap(symbol, data_type, day):
-            raw = source.day_file(symbol, data_type, day)
-            yield Item(symbol, data_type.__name__, day, raw)
+    for symbol, data_type, day in request.days.plan(source):
+        raw = source.day_file(symbol, data_type, day)
+        yield Item(symbol, data_type.__name__, day, raw)
 
 
 async def _download_all(

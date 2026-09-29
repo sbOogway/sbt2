@@ -21,6 +21,7 @@ from nautilus_trader.model import (
 from nautilus_trader.persistence import ParquetDataCatalog
 
 from sbt2.data import (
+    DayRange,
     DayResult,
     IngestOptions,
     IngestOutcome,
@@ -63,7 +64,7 @@ def catalog_path(tmp_path: Path) -> Path:
 
 
 def request(end: date = DAY, *data: str) -> IngestRequest:
-    return IngestRequest((SYMBOL,), DAY, end, data)
+    return IngestRequest(DayRange((SYMBOL,), DAY, end, data))
 
 
 def run(
@@ -299,4 +300,4 @@ def test_an_unserved_data_type_is_refused(raw: Path, catalog_path: Path) -> None
 @pytest.mark.unit
 def test_a_reversed_range_is_refused() -> None:
     with pytest.raises(ValueError, match="before"):
-        IngestRequest((SYMBOL,), NEXT_DAY, DAY)
+        DayRange((SYMBOL,), NEXT_DAY, DAY)

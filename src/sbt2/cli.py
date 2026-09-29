@@ -172,9 +172,10 @@ def download(
     """Fetch a source's raw files for a range of days, and today's instruments."""
     options = data.DownloadOptions(Root(data_root).raw, concurrency, retries)
     with _failing("download from %s", source):
-        request = data.DownloadRequest(
+        days = data.DayRange(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ())
         )
+        request = data.DownloadRequest(days)
         report = _download(source, request, options)
     _log_summary(report)
     if report.having(data.Outcome.FAILED):
@@ -234,9 +235,10 @@ def ingest(
     root = Root(data_root)
     options = data.IngestOptions(root.raw, root.catalog)
     with _failing("ingest from %s", source):
-        request = data.IngestRequest(
-            tuple(symbol), start.date(), end.date(), tuple(data_type or ()), reingest
+        days = data.DayRange(
+            tuple(symbol), start.date(), end.date(), tuple(data_type or ())
         )
+        request = data.IngestRequest(days, reingest)
         report = _ingest(source, request, options)
     _log_ingest_summary(report)
 
