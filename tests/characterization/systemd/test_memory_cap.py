@@ -2,6 +2,7 @@ import subprocess
 import sys
 import uuid
 from collections.abc import Iterator, Sequence
+from pathlib import Path
 
 import pytest
 
@@ -87,3 +88,20 @@ def test_a_scope_killed_over_the_cap_stays_loaded_until_reset(unit: str) -> None
 
     assert loaded_after_kill == "loaded"
     assert scope_property(unit, "LoadState") == "not-found"
+
+
+def host_has_swap() -> bool:
+    return len(Path("/proc/swaps").read_text().splitlines()) > 1
+
+
+@pytest.mark.characterization
+@pytest.mark.systemd
+@pytest.mark.unit
+@pytest.mark.skipif(not host_has_swap(), reason="the host has no swap to spill into")
+def test_without_a_swap_limit_a_child_over_the_cap_survives_by_swapping(
+    unit: str,
+) -> None:
+    result = allocate_in_scope(unit, [MEMORY_MAX], OVER_CAP_MB)
+
+    assert result.returncode == 0
+    assert "survived" in result.stdout
