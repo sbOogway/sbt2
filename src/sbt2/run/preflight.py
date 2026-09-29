@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from operator import attrgetter
 from pathlib import Path
 
-import nautilus_trader.model
+from nautilus_trader.model import QuoteTick
 
 from sbt2.data import (
     Catalog,
@@ -81,8 +81,7 @@ def _check_snapshots(spec: ResolvedRunSpec) -> None:
 
 
 def _check_liquidation(spec: ResolvedRunSpec) -> None:
-    streamed = {str(each["data_type"]) for each in spec.data}
-    if spec.venue.get("liquidation_enabled") and "QuoteTick" not in streamed:
+    if spec.liquidation_enabled and QuoteTick not in spec.data_types:
         raise LiquidationWithoutQuotesError(
             "the run has liquidation on but streams no quotes; nautilus liquidates "
             "only on quotes, so it never would. Set liquidation = false"
@@ -184,11 +183,4 @@ def _gaps(
 
 def _selection(spec: ResolvedRunSpec) -> Selection:
     """The instruments, data types and window the run streams."""
-    [first, *_] = spec.data
-    return Selection(
-        tuple(first["instrument_ids"]),
-        tuple(
-            getattr(nautilus_trader.model, str(each["data_type"])) for each in spec.data
-        ),
-        Window(first["start_time"], first["end_time"]),
-    )
+    return Selection(spec.instrument_ids, spec.data_types, Window(*spec.data_window))
