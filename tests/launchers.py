@@ -1,4 +1,4 @@
-"""Launchers that start a child as a plain subprocess, without a memory cap."""
+"""Launchers that start a child as a plain subprocess, ignoring its memory cap."""
 
 import subprocess
 from collections.abc import Sequence
@@ -7,13 +7,17 @@ from collections.abc import Sequence
 class PlainLauncher:
     def __init__(self) -> None:
         self.started: list[subprocess.Popen[bytes]] = []
+        self.caps: list[int] = []
 
     def check(self) -> None:
         pass
 
-    def start(self, run_id: str, command: Sequence[str]) -> subprocess.Popen[bytes]:
+    def start(
+        self, run_id: str, command: Sequence[str], memory_max: int
+    ) -> subprocess.Popen[bytes]:
         child = subprocess.Popen(self._command(command), stdin=subprocess.PIPE)
         self.started.append(child)
+        self.caps.append(memory_max)
         return child
 
     def out_of_memory(self, run_id: str) -> bool:

@@ -40,8 +40,11 @@ class Launcher(Protocol):
         """Raise if no child can be started here."""
         ...
 
-    def start(self, run_id: str, command: Sequence[str]) -> subprocess.Popen[bytes]:
-        """Start ``command`` as the child running ``run_id``, its stdin a pipe."""
+    def start(
+        self, run_id: str, command: Sequence[str], memory_max: int
+    ) -> subprocess.Popen[bytes]:
+        """Start ``command`` as the child running ``run_id``, its stdin a pipe,
+        capped at ``memory_max`` bytes."""
         ...
 
     def out_of_memory(self, run_id: str) -> bool:
@@ -141,7 +144,7 @@ class _Children:
     def __init__(self, setup: BatchSetup, progress: BatchProgress) -> None:
         self._launcher = setup.launcher
         self._store = setup.store
-        self._concurrency = setup.memory.concurrency
+        self._memory = setup.memory
         self._progress = progress
         self._running: dict[str, tuple[subprocess.Popen[bytes], Order]] = {}
 
@@ -153,13 +156,14 @@ class _Children:
 
     def _run(self, pending: deque[Order]) -> None:
         while pending or self._running:
-            while pending and len(self._running) < self._concurrency:
+            while pending and len(self._running) < self._memory.concurrency:
                 self._start(pending.popleft())
             if not self._reap():
                 time.sleep(_POLL_SECONDS)
 
     def _start(self, order: Order) -> None:
-        child = self._launcher.start(order.run_id, [sys.executable, *_CHILD])
+        command = [sys.executable, *_CHILD]
+        child = self._launcher.start(order.run_id, command, self._memory.per_run)
         self._running[order.run_id] = (child, order)
         logger.info("started run %s", order.run_id)
         assert child.stdin is not None

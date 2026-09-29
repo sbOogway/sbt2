@@ -3,50 +3,18 @@ import subprocess
 import sys
 import time
 from collections.abc import Sequence
-from datetime import date
 from pathlib import Path
-from typing import Any
 
 import pytest
+from batch_kit import NEXT_DAY, GiB, resolved, served, setup, summaries
 from launchers import PlainLauncher, ScriptedLauncher
 from nautilus_trader.model import FundingRateUpdate
-from served_source import INSTRUMENT_ID, ServedSource
+from served_source import INSTRUMENT_ID
 
 from sbt2.data.sources import Gap
 from sbt2.results import ParquetResultStore
-from sbt2.run import (
-    BatchSetup,
-    DataFolders,
-    Launcher,
-    Memory,
-    MissingDataError,
-    RunFailedError,
-    RunSettings,
-    batch,
-)
-from sbt2.spec import ResolvedRunSpec, load
+from sbt2.run import Memory, MissingDataError, RunFailedError, batch
 
-SPEC = """
-strategy = "run_strategies:BuyThenSell"
-instruments = ["BTCUSDT-LINEAR.BYBIT"]
-period = [2024-01-01T02:00:00, 2024-01-05]
-split = { validation_start = 2024-01-03, test_start = 2024-01-04 }
-part = "train"
-venue = "served_linear"
-capital = "10000 USDT"
-"""
-VENUES = """
-[served_linear]
-name = "BYBIT"
-source = "served"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
-default_leverage = "10"
-fee_model = { path = "nautilus_trader.execution:MakerTakerFeeModel", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
-"""
-DAY = date(2024, 1, 1)
-NEXT_DAY = date(2024, 1, 2)
-GiB = 2**30
 EXIT = [sys.executable, "-c", "pass"]
 FAIL = [sys.executable, "-c", "raise SystemExit(1)"]
 NAP = [sys.executable, "-c", "import time; time.sleep(0.5)"]
@@ -70,44 +38,13 @@ class CountingLauncher(ScriptedLauncher):
 
     most_alive = 0
 
-    def start(self, run_id: str, command: Sequence[str]) -> subprocess.Popen[bytes]:
-        child = super().start(run_id, command)
+    def start(
+        self, run_id: str, command: Sequence[str], memory_max: int
+    ) -> subprocess.Popen[bytes]:
+        child = super().start(run_id, command, memory_max)
         alive = sum(each.poll() is None for each in self.started)
         self.most_alive = max(self.most_alive, alive)
         return child
-
-
-def resolved(tmp_path: Path, **overrides: Any) -> ResolvedRunSpec:
-    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
-    spec.write_text(SPEC)
-    venues.write_text(VENUES)
-    [resolved] = load(spec, overrides, venues)
-    return resolved
-
-
-def served(known_gaps: frozenset[Gap] = frozenset()) -> ServedSource:
-    source = ServedSource(known_gaps)
-    source.serve(DAY, NEXT_DAY)
-    return source
-
-
-def setup(
-    tmp_path: Path, launcher: Launcher, source: ServedSource | None = None
-) -> BatchSetup:
-    data = DataFolders(tmp_path / "raw", tmp_path / "catalog")
-    return BatchSetup(
-        store=ParquetResultStore(tmp_path / "results"),
-        sources=lambda name: source or served(),
-        folders=data,
-        settings=RunSettings(data.catalog),
-        launcher=launcher,
-        memory=Memory(budget=2 * GiB, per_run=GiB),
-    )
-
-
-def summaries(tmp_path: Path) -> dict[str, dict[str, Any]]:
-    runs = ParquetResultStore(tmp_path / "results").runs()
-    return {each["run_id"]: each for each in runs.to_dict("records")}
 
 
 @pytest.mark.integration
