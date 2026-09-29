@@ -1,21 +1,31 @@
 from collections.abc import Mapping
+from dataclasses import dataclass
 from itertools import product
 from typing import Any
 
 _UNNAMED_PARTS = ("train", "validation")
 
 
-def expand(table: Mapping[str, Any]) -> list[dict[str, Any]]:
+@dataclass(frozen=True)
+class Expanded:
+    """One run's table, and a name for it that shows which values it took."""
+
+    table: dict[str, Any]
+    name: str
+
+
+def expand(table: Mapping[str, Any]) -> list[Expanded]:
     """One table per run a spec file's table describes.
 
     Without ``part``, a spec runs its train and validation parts; test must be
     asked for. Lists in ``params`` expand into their Cartesian product, in the
     order the file gives them.
     """
+    params = table.get("params", {})
     return [
-        {**table, "part": part, "params": params}
+        Expanded({**table, "part": part, "params": chosen}, _name(part, params, chosen))
         for part in _parts(table.get("part"))
-        for params in _combinations(table.get("params", {}))
+        for chosen in _combinations(params)
     ]
 
 
@@ -34,3 +44,13 @@ def _combinations(params: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 def _values(value: Any) -> list[Any]:
     return value if isinstance(value, list) else [value]
+
+
+def _name(part: str, params: Mapping[str, Any], chosen: Mapping[str, Any]) -> str:
+    run = f"the {part} run"
+    listed = ", ".join(
+        f"{key}={chosen[key]!r}"
+        for key, value in params.items()
+        if isinstance(value, list)
+    )
+    return f"{run} with {listed}" if listed else run

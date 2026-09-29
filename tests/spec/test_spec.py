@@ -612,6 +612,20 @@ def test_a_parameter_list_given_as_an_override_expands(
 
 
 @pytest.mark.unit
+def test_one_invalid_combination_fails_the_whole_load(
+    paths: tuple[Path, Path],
+) -> None:
+    bars = {"bar": ["1-HOUR-LAST", "1-SECOND-LAST"]}
+
+    with pytest.raises(CandleBarError) as error:
+        loaded(paths, strategy=DECLARED_BAR, params=bars, bars="candles")
+
+    assert error.value.__notes__ == [
+        "in the train run with bar='1-SECOND-LAST'",
+    ]
+
+
+@pytest.mark.unit
 def test_start_and_end_are_no_longer_spec_keys(paths: tuple[Path, Path]) -> None:
     with pytest.raises(
         UnknownSpecKeyError, match="start .* valid: .*params, part, period, seed, split"

@@ -2,7 +2,7 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from sbt2.spec.expand import expand
+from sbt2.spec.expand import Expanded, expand
 from sbt2.spec.parse import RunSpec, UnknownSpecKeyError, read_spec
 from sbt2.spec.resolve import (
     CandleBarError,
@@ -53,4 +53,12 @@ def load(
 ) -> list[ResolvedRunSpec]:
     """Read a spec file, apply top-level ``overrides`` and resolve its runs."""
     table = read_spec(path, overrides or {})
-    return [resolve(RunSpec(**each), venue_profiles) for each in expand(table)]
+    return [_resolved(each, venue_profiles) for each in expand(table)]
+
+
+def _resolved(run: Expanded, venue_profiles: Path) -> ResolvedRunSpec:
+    try:
+        return resolve(RunSpec(**run.table), venue_profiles)
+    except Exception as error:
+        error.add_note(f"in {run.name}")
+        raise
