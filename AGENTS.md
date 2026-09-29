@@ -67,7 +67,8 @@
 - Mark breaking changes with `!` after the type or a `BREAKING CHANGE:` footer.
 - Make every commit atomic: one logical change per commit, which builds and passes the tests on its own.
 - Do not mix unrelated changes, such as a refactor and a feature, in one commit. Split them.
-- Do not rewrite history on a branch under review; add commits instead.
+- Do not rewrite the commits of a branch under review; answer review comments with new commits.
+- Rebasing a branch onto `main` is allowed. The post-merge hook does it for every open branch after `main` is pulled.
 
 ## Pre-commit
 

@@ -7,7 +7,7 @@ from sbt2.data.catalog import (
     Window,
 )
 from sbt2.data.days import DayRange
-from sbt2.data.download import (
+from sbt2.data.downloading import (
     INSTRUMENT,
     DownloadOptions,
     DownloadRequest,
@@ -17,7 +17,7 @@ from sbt2.data.download import (
     Progress,
     download,
 )
-from sbt2.data.ingest import (
+from sbt2.data.ingesting import (
     Day,
     DayResult,
     IngestOptions,
@@ -29,9 +29,18 @@ from sbt2.data.ingest import (
     OutsideDayError,
     ingest,
 )
+from sbt2.data.sources import (
+    CANDLES,
+    Gap,
+    Source,
+    candle_type,
+    known_gaps,
+    source,
+)
 from sbt2.data.tally import Tally
 
 __all__ = [
+    "CANDLES",
     "INSTRUMENT",
     "Catalog",
     "Coverage",
@@ -41,6 +50,7 @@ __all__ = [
     "DownloadOptions",
     "DownloadRequest",
     "FileResult",
+    "Gap",
     "Holding",
     "IngestOptions",
     "IngestOutcome",
@@ -53,9 +63,13 @@ __all__ = [
     "OutsideDayError",
     "Progress",
     "Selection",
+    "Source",
     "Tally",
     "UnstoredDataTypeError",
     "Window",
+    "candle_type",
     "download",
     "ingest",
+    "known_gaps",
+    "source",
 ]

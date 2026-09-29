@@ -28,7 +28,6 @@ from rich.progress import (
 
 from sbt2 import data, spec
 from sbt2.config import ROOT, SOURCES, Root
-from sbt2.data import sources
 from sbt2.results import MissingTableError, ParquetResultStore, ResultStore
 from sbt2.run import (
     BatchSetup,
@@ -130,7 +129,7 @@ def _memory(budget: int | None, per_run: int | None) -> Memory:
 def _setup(root: Root, settings: RunSettings, memory: Memory) -> BatchSetup:
     return BatchSetup(
         store=ParquetResultStore(root.results),
-        sources=lambda name: sources.source(name, SOURCES),
+        sources=lambda name: data.source(name, SOURCES),
         folders=DataFolders(root.raw, root.catalog),
         settings=settings,
         launcher=SystemdScope(),
@@ -185,7 +184,7 @@ def download(
 def _download(
     name: str, request: data.DownloadRequest, options: data.DownloadOptions
 ) -> data.Tally[data.FileResult]:
-    adapter = sources.source(name, SOURCES)
+    adapter = data.source(name, SOURCES)
     with _download_bar() as bar:
         return data.download(adapter, request, replace(options, progress=bar))
 
@@ -246,7 +245,7 @@ def ingest(
 def _ingest(
     name: str, request: data.IngestRequest, options: data.IngestOptions
 ) -> data.Tally[data.DayResult]:
-    adapter = sources.source(name, SOURCES)
+    adapter = data.source(name, SOURCES)
     with _bar("ingest") as bar:
         return data.ingest(adapter, request, replace(options, progress=bar))
 
@@ -280,7 +279,7 @@ def status(
     with _failing("status of %s", folder):
         window = _window(start, end)
         catalog = data.Catalog(folder)
-        holdings = catalog.status(sources.known_gaps(SOURCES), window)
+        holdings = catalog.status(data.known_gaps(SOURCES), window)
     typer.echo(_status_table(holdings))
 
 

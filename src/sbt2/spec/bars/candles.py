@@ -3,7 +3,7 @@ from datetime import timedelta
 
 from nautilus_trader.model import Bar, BarSpecification, PriceType
 
-from sbt2.data.sources import CANDLES
+from sbt2.data import CANDLES
 from sbt2.spec.bars.source import BarSource
 from sbt2.spec.errors import SpecError
 

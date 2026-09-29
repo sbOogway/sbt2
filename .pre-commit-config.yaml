@@ -2,6 +2,16 @@ default_install_hook_types: [pre-commit, commit-msg, post-merge]
 default_stages: [pre-commit]
 
 repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+
   - repo: https://github.com/jorisroovers/gitlint
     rev: v0.19.1
     hooks:
@@ -14,6 +24,17 @@ repos:
         args: [--fix]
       - id: ruff-format
 
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1-1
+    hooks:
+      - id: shellcheck
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.14.1-1
+    hooks:
+      - id: shfmt
+        args: [-w, -i, "4"]
+
   - repo: local
     hooks:
       - id: pyright
@@ -23,9 +44,27 @@ repos:
         types: [python]
         pass_filenames: false
 
+      - id: import-linter
+        name: import-linter
+        # its cache keeps resolving an unchanged file's imports to modules that were renamed away
+        entry: uv run --locked lint-imports --no-cache
+        language: system
+        files: (\.py|^pyproject\.toml)$
+        pass_filenames: false
+
       - id: prune-merged-branches
         name: prune merged branches
         entry: scripts/prune-merged-branches.sh
+        language: script
+        stages: [post-merge]
+        always_run: true
+        pass_filenames: false
+        verbose: true
+
+      # after prune-merged-branches, whose fetch it relies on
+      - id: rebase-open-branches
+        name: rebase open branches
+        entry: scripts/rebase-open-branches.sh
         language: script
         stages: [post-merge]
         always_run: true

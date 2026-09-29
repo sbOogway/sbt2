@@ -13,7 +13,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from nautilus_trader.model import PortfolioSnapshot, PositionAdjusted
 
-from sbt2.data.sources import Gap
+from sbt2.data import Gap
 from sbt2.results.metrics import HeadlineMetrics, RunTables, Segment, headline_metrics
 from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
 from sbt2.results.store import MissingTableError, Table, UnknownRunError

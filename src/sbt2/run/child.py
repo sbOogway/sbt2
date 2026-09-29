@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO
 
-from sbt2.data.sources import Gap
+from sbt2.data import Gap
 from sbt2.results import ResultStore
 from sbt2.run.execute import RunSettings, execute
 from sbt2.spec import ResolvedRunSpec
