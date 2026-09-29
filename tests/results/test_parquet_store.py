@@ -63,6 +63,28 @@ def test_run_ids_are_time_sortable_uuid7(store: ParquetResultStore) -> None:
 
 
 @pytest.mark.unit
+def test_a_new_run_takes_the_run_id_it_is_given(
+    store: ParquetResultStore, tmp_path: Path
+) -> None:
+    run_id = str(uuid.uuid7())
+
+    sink = store.new_run(spec(), run_id=run_id)
+
+    assert sink.run_id == run_id
+    assert (tmp_path / "runs" / run_id / "spec.json").exists()
+
+
+@pytest.mark.unit
+def test_the_folder_of_a_run_is_known_before_it_exists(
+    store: ParquetResultStore, tmp_path: Path
+) -> None:
+    run_id = str(uuid.uuid7())
+
+    assert store.folder(run_id) == tmp_path / "runs" / run_id
+    assert not (tmp_path / "runs").exists()
+
+
+@pytest.mark.unit
 def test_a_run_writes_its_tables_spec_and_summary_into_its_folder(
     store: ParquetResultStore, output: RunOutput, tmp_path: Path
 ) -> None:
