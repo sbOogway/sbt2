@@ -23,7 +23,7 @@ steps:
     image: alpine:3.22
     environment:
       GH_TOKEN:
-        from_secret: github_release_token
+        from_secret: github_token
     commands:
       - '[ -f .release/tag ] || exit 0'
       - apk add --no-cache github-cli
