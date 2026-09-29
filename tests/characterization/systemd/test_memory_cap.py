@@ -8,6 +8,7 @@ import pytest
 MEMORY_MAX = "MemoryMax=100M"
 NO_SWAP = "MemorySwapMax=0"
 OVER_CAP_MB = 300
+UNDER_CAP_MB = 20
 # Writing the bytes, rather than bytearray(n), makes sure every page is resident.
 ALLOCATE = """
 import sys
@@ -35,10 +36,10 @@ def allocate_in_scope(
     )
 
 
-def scope_result(unit: str) -> str:
-    show = ["systemctl", "--user", "show", f"{unit}.scope", "--property=Result"]
+def scope_property(unit: str, name: str) -> str:
+    show = ["systemctl", "--user", "show", f"{unit}.scope", f"--property={name}"]
     output = subprocess.run(show, capture_output=True, text=True, check=True).stdout
-    return output.strip().removeprefix("Result=")
+    return output.strip().removeprefix(f"{name}=")
 
 
 @pytest.mark.characterization
@@ -57,4 +58,15 @@ def test_a_child_over_the_cap_is_killed_with_sigkill(unit: str) -> None:
 def test_a_killed_scope_reports_oom_kill_as_its_result(unit: str) -> None:
     allocate_in_scope(unit, [MEMORY_MAX, NO_SWAP], OVER_CAP_MB)
 
-    assert scope_result(unit) == "oom-kill"
+    assert scope_property(unit, "Result") == "oom-kill"
+
+
+@pytest.mark.characterization
+@pytest.mark.systemd
+@pytest.mark.unit
+def test_a_child_under_the_cap_runs_to_completion(unit: str) -> None:
+    result = allocate_in_scope(unit, [MEMORY_MAX, NO_SWAP], UNDER_CAP_MB)
+
+    assert result.returncode == 0
+    assert "survived" in result.stdout
+    assert scope_property(unit, "LoadState") == "not-found"
