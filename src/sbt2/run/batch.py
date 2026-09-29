@@ -23,6 +23,14 @@ logger = logging.getLogger(__name__)
 GiB = 2**30
 _CHILD = ("-m", "sbt2.run.child")
 _POLL_SECONDS = 0.05
+_GRACE_SECONDS = 5
+
+
+class RunFailedError(RuntimeError):
+    def __init__(self, run_id: str, folder: Path, reason: str) -> None:
+        super().__init__(f"run {run_id} failed: {reason}; its folder is {folder}")
+        self.run_id = run_id
+        self.folder = folder
 
 
 class Launcher(Protocol):
@@ -125,12 +133,18 @@ class _Children:
 
     def __init__(self, setup: BatchSetup, progress: BatchProgress) -> None:
         self._launcher = setup.launcher
+        self._store = setup.store
         self._concurrency = setup.memory.concurrency
         self._progress = progress
         self._running: dict[str, tuple[subprocess.Popen[bytes], Order]] = {}
 
     def run(self, orders: Sequence[Order]) -> None:
-        pending = deque(orders)
+        try:
+            self._run(deque(orders))
+        finally:
+            self._stop()
+
+    def _run(self, pending: deque[Order]) -> None:
         while pending or self._running:
             while pending and len(self._running) < self._concurrency:
                 self._start(pending.popleft())
@@ -155,8 +169,28 @@ class _Children:
             if child.poll() is not None
         ]
         for run_id, code in exited:
-            del self._running[run_id]
+            _, order = self._running.pop(run_id)
             if code != 0:
-                raise RuntimeError(f"run {run_id} failed with exit code {code}")
+                raise self._failure(order, code)
             self._progress.finished(run_id)
         return bool(exited)
+
+    def _failure(self, order: Order, code: int) -> RunFailedError:
+        folder = self._store.folder(order.run_id)
+        if order.error_file.exists():
+            reason = order.error_file.read_text()
+        else:
+            reason = f"its process exited with code {code}"
+        return RunFailedError(order.run_id, folder, reason)
+
+    def _stop(self) -> None:
+        """Terminate the children still running, killing any that linger."""
+        for child, _ in self._running.values():
+            child.terminate()
+        for child, _ in self._running.values():
+            try:
+                child.wait(_GRACE_SECONDS)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait()
+        self._running.clear()

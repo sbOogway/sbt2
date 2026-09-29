@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,7 @@ from sbt2.run import (
     Launcher,
     Memory,
     MissingDataError,
+    RunFailedError,
     RunSettings,
     batch,
 )
@@ -44,6 +46,8 @@ DAY = date(2024, 1, 1)
 NEXT_DAY = date(2024, 1, 2)
 GiB = 2**30
 EXIT = [sys.executable, "-c", "pass"]
+FAIL = [sys.executable, "-c", "raise SystemExit(1)"]
+SLEEP = [sys.executable, "-c", "import time; time.sleep(60)"]
 
 
 class RecordedProgress:
@@ -173,3 +177,37 @@ def test_progress_counts_the_runs_planned_and_finished(tmp_path: Path) -> None:
 
     assert progress.runs == [2]
     assert sorted(progress.done) == sorted(run_ids)
+
+
+@pytest.mark.integration
+def test_a_failed_run_raises_naming_its_run_its_folder_and_its_error(
+    tmp_path: Path,
+) -> None:
+    spec = resolved(tmp_path, strategy="run_strategies:FailOnBar")
+    store = ParquetResultStore(tmp_path / "results")
+
+    with pytest.raises(RunFailedError) as failure:
+        batch([spec], setup(tmp_path, PlainLauncher()))
+
+    error = failure.value
+    assert error.folder == store.folder(error.run_id)
+    assert error.run_id in str(error)
+    assert str(error.folder) in str(error)
+    assert "strategy blew up" in str(error)
+    assert (error.folder / "spec.json").exists()
+    assert store.runs().empty
+
+
+@pytest.mark.integration
+def test_a_failure_stops_the_running_runs_and_starts_no_more(tmp_path: Path) -> None:
+    specs = [resolved(tmp_path, params={"hold_bars": each}) for each in (2, 3, 4)]
+    launcher = ScriptedLauncher([FAIL, SLEEP, EXIT])
+    started = time.monotonic()
+
+    with pytest.raises(RunFailedError):
+        batch(specs, setup(tmp_path, launcher))
+
+    assert time.monotonic() - started < 30
+    failed, sleeper = launcher.started
+    assert failed.returncode == 1
+    assert sleeper.returncode is not None and sleeper.returncode < 0
