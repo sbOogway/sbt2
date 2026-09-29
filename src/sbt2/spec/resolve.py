@@ -61,6 +61,10 @@ class ResolvedRunSpec:
         """The canonical JSON the hash is taken of."""
         return canonical_json(self._document())
 
+    def split_json(self) -> str:
+        """The split's canonical JSON, as it appears in the hashed document."""
+        return canonical_json(self.split.document())
+
     def run_config(
         self,
         catalog_path: str,

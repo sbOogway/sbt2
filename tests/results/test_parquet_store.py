@@ -139,9 +139,19 @@ def test_fields_later_milestones_fill_are_null(
     finished_run(store, output)
 
     [summary] = store.runs().to_dict("records")
-    assert all(
-        pd.isna(summary[field]) for field in ("data_fingerprint", "split", "segment")
-    )
+    assert pd.isna(summary["data_fingerprint"])
+
+
+@pytest.mark.unit
+def test_the_summary_holds_the_split_as_json_and_the_part(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    finished_run(store, output)
+
+    [summary] = store.runs().to_dict("records")
+    assert summary["split"] == '{"kind":"Split","test":0.2,"validation":0.2}'
+    assert summary["part"] == "train"
+    assert "segment" not in summary
 
 
 @pytest.mark.unit
