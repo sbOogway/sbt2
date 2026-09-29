@@ -1,3 +1,4 @@
+import pickle
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -124,3 +125,10 @@ def test_crypto_perp_venue_defaults_build_a_netting_margin_venue_without_liquida
     assert venue.oms_type == OmsType.NETTING
     assert venue.account_type == AccountType.MARGIN
     assert venue.liquidation_enabled is False
+
+
+@pytest.mark.unit
+def test_a_pickled_asset_profile_loads_as_the_registered_one() -> None:
+    profile = crypto_perp()
+
+    assert pickle.loads(pickle.dumps(profile)) is profile
