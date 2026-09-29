@@ -52,7 +52,7 @@ class StoredType(ABC):
 
     @property
     def nautilus_type(self) -> NautilusDataType:
-        return getattr(NautilusDataType, self.data_type.__name__)
+        return nautilus_type(self.data_type)
 
     def identifier(self, instrument_id: InstrumentId) -> str:
         """The name nautilus files an instrument's data under."""
@@ -110,6 +110,10 @@ class StoredType(ABC):
             [each.ts_event for each in records], unit="ns", utc=True
         )
         return pd.DataFrame(columns, index=pd.DatetimeIndex(events, name="ts_event"))
+
+
+def nautilus_type(data_type: type) -> NautilusDataType:
+    return getattr(NautilusDataType, data_type.__name__)
 
 
 def _file_name(bounds: Bounds) -> str:

@@ -9,7 +9,13 @@ import pandas as pd
 from nautilus_trader.model import InstrumentId, NautilusDataType
 from nautilus_trader.persistence import ParquetDataCatalog
 
-from sbt2.data.catalog.stored import STORED, StoredType, stored_type
+from sbt2.data.catalog.stored import (
+    STORED,
+    StoredType,
+    UnstoredDataTypeError,
+    nautilus_type,
+    stored_type,
+)
 from sbt2.data.days import days
 from sbt2.data.sources import Gap
 
@@ -77,20 +83,22 @@ class Holding:
 
 @dataclass(frozen=True)
 class _Series:
-    instrument_id: InstrumentId
-    stored: StoredType
+    """An instrument's data of one type; the type need not be one sbt2 stores."""
 
-    @property
-    def data_type(self) -> type:
-        return self.stored.data_type
+    instrument_id: InstrumentId
+    data_type: type
 
     @property
     def nautilus_type(self) -> NautilusDataType:
-        return self.stored.nautilus_type
+        return nautilus_type(self.data_type)
 
     @property
     def identifier(self) -> str:
-        return self.stored.identifier(self.instrument_id)
+        try:
+            stored = stored_type(self.data_type)
+        except UnstoredDataTypeError:
+            return str(self.instrument_id)
+        return stored.identifier(self.instrument_id)
 
     def split(
         self, uncovered: Iterable[date], known_gaps: frozenset[Gap]
@@ -116,9 +124,7 @@ class Catalog:
         """One coverage per instrument and data type, in the selection's order."""
         return tuple(
             self._coverage(
-                _Series(instrument_id, stored_type(data_type)),
-                selection.window,
-                known_gaps,
+                _Series(instrument_id, data_type), selection.window, known_gaps
             )
             for instrument_id in selection.instrument_ids
             for data_type in selection.data_types
@@ -140,8 +146,8 @@ class Catalog:
         self, instrument_id: InstrumentId, data_type: type, window: Window
     ) -> pd.DataFrame:
         """The instrument's ``data_type`` records in the window, indexed by event time."""
-        stored = stored_type(data_type)
-        return stored.frame(self._records(_Series(instrument_id, stored), window))
+        records = self._records(_Series(instrument_id, data_type), window)
+        return stored_type(data_type).frame(records)
 
     def status(
         self, known_gaps: frozenset[Gap], window: Window | None = None
@@ -150,7 +156,7 @@ class Catalog:
         if not self._path.is_dir():
             return ()
         return tuple(
-            self._holding(_Series(instrument_id, stored), known_gaps, window)
+            self._holding(_Series(instrument_id, stored.data_type), known_gaps, window)
             for stored in STORED
             for instrument_id in self._instrument_ids(stored)
         )

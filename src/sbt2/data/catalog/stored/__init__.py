@@ -6,11 +6,15 @@ from sbt2.data.catalog.stored.stored_type import (
     CatalogRoot,
     DayFile,
     StoredType,
+    nautilus_type,
 )
 from sbt2.data.catalog.stored.trades import Trades
-from sbt2.data.sources import UnsupportedDataTypeError
 
 STORED: tuple[StoredType, ...] = (Trades(), MarkPrices(), Funding(), Candles())
+
+
+class UnstoredDataTypeError(LookupError):
+    """A data type sbt2 does not store in a catalog."""
 
 
 def stored_type(data_type: type) -> StoredType:
@@ -18,7 +22,7 @@ def stored_type(data_type: type) -> StoredType:
         if each.data_type is data_type:
             return each
     stored = ", ".join(each.data_type.__name__ for each in STORED)
-    raise UnsupportedDataTypeError(
+    raise UnstoredDataTypeError(
         f"sbt2 stores no {data_type.__name__}; it stores {stored}"
     )
 
@@ -29,5 +33,7 @@ __all__ = [
     "CatalogRoot",
     "DayFile",
     "StoredType",
+    "UnstoredDataTypeError",
+    "nautilus_type",
     "stored_type",
 ]
