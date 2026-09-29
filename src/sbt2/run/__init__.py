@@ -1,3 +1,4 @@
+from sbt2.run.batch import BatchProgress, BatchSetup, Launcher, Memory, batch
 from sbt2.run.execute import BacktestError, NoAccountError, RunSettings, execute
 from sbt2.run.preflight import (
     DataFolders,
@@ -11,14 +12,19 @@ from sbt2.run.preflight import (
 
 __all__ = [
     "BacktestError",
+    "BatchProgress",
+    "BatchSetup",
     "DataFolders",
     "InstrumentAssetClassError",
+    "Launcher",
     "LiquidationWithoutQuotesError",
+    "Memory",
     "MissingDataError",
     "NoAccountError",
     "PreflightError",
     "RunSettings",
     "SnapshotBufferError",
+    "batch",
     "execute",
     "preflight",
 ]

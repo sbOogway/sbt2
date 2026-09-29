@@ -1,4 +1,6 @@
+import copyreg
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -26,6 +28,14 @@ class RunSettings:
     catalog: Path
     chunk_size: int = 100_000
     log_level: LogLevel = LogLevel.INFO
+
+
+def _level_by_name(level: LogLevel) -> tuple[Callable[..., LogLevel], tuple[str]]:
+    """Nautilus's enums don't pickle; a level comes back by its name."""
+    return LogLevel.from_str, (level.name,)
+
+
+copyreg.pickle(LogLevel, _level_by_name)
 
 
 class BacktestError(RuntimeError):
