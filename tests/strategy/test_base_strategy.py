@@ -16,6 +16,7 @@ from nautilus_trader.model import (
     InstrumentId,
     Money,
     OmsType,
+    OrderSide,
     Price,
     Quantity,
     Symbol,
@@ -24,7 +25,13 @@ from nautilus_trader.model import (
     Venue,
 )
 from nautilus_trader.trading import Strategy as NautilusStrategy
-from toy_strategies import BuyEveryBar, CountWarmupBars, FailOnSecondBar, RecordBars
+from toy_strategies import (
+    BuyEveryBar,
+    BuyOnce,
+    CountWarmupBars,
+    FailOnSecondBar,
+    RecordBars,
+)
 
 from sbt2.strategy import RunConfig, StrategyRun, build_strategy, importable_config
 
@@ -230,3 +237,82 @@ def test_a_clean_run_has_no_failure() -> None:
     run_instance(strategy)
 
     assert strategy.failure is None
+
+
+FLAT = [10_000] * 5
+FALLING = [*FLAT, 9_600, 9_000, 8_800, 8_600, 8_400]
+RISING_THEN_FALLING = [*FLAT, 11_000, 9_600, 9_600, 9_600, 9_600]
+DIPPING = [*FLAT, 9_600, 9_600, 9_600, 9_600, 9_600]
+
+
+def trades_closing_at(prices: list[int]) -> list[TradeTick]:
+    """Trades every 30 seconds; the bar closing at minute ``k`` trades at ``prices[k]``."""
+    size = Quantity.from_str("10.000")
+    return [
+        TradeTick(
+            BTC,
+            Price.from_str(f"{price}.0"),
+            size,
+            AggressorSide.BUY,
+            TradeId(str(n)),
+            ts,
+            ts,
+        )
+        for n in range(2 * LAST_BAR_MINUTE + 1)
+        for price in [prices[(n + 1) // 2]]
+        for ts in [nanos(START + n * timedelta(seconds=30))]
+    ]
+
+
+def guarded_run(
+    strategy: type[NautilusStrategy],
+    prices: list[int],
+    params: dict[str, Any] | None = None,
+    drawdown_limit: str | None = "0.05",
+) -> tuple[Any, BacktestEngine]:
+    config = RunConfig(
+        [str(BTC)], params or {}, TRADE_START.isoformat(), drawdown_limit=drawdown_limit
+    )
+    instance = strategy(config)
+    engine = empty_engine()
+    engine.add_data(trades_closing_at(prices))
+    engine.add_strategy(instance)
+    engine.run()
+    return instance, engine
+
+
+@pytest.mark.integration
+def test_the_guard_exits_and_drops_orders_once_drawdown_passes_the_limit() -> None:
+    strategy, engine = guarded_run(BuyEveryBar, FALLING, {"step": "0.500"})
+
+    trip = START + timedelta(minutes=6)
+    assert strategy.drawdown_tripped_at == trip
+    assert engine.portfolio.net_position(BTC) == 0
+    orders = sorted(engine.cache.orders(), key=lambda order: order.ts_init)
+    assert orders[-1].ts_init == nanos(trip)
+    assert orders[-1].side == OrderSide.SELL
+
+
+@pytest.mark.integration
+def test_drawdown_is_measured_from_the_running_peak() -> None:
+    strategy, _ = guarded_run(BuyOnce, RISING_THEN_FALLING)
+
+    assert strategy.drawdown_tripped_at == START + timedelta(minutes=6)
+
+
+@pytest.mark.integration
+def test_the_guard_stays_quiet_within_the_limit() -> None:
+    strategy, engine = guarded_run(BuyOnce, DIPPING)
+
+    assert strategy.drawdown_tripped_at is None
+    assert engine.portfolio.net_position(BTC) == 1
+
+
+@pytest.mark.integration
+def test_without_a_limit_the_guard_never_trips() -> None:
+    strategy, engine = guarded_run(
+        BuyEveryBar, FALLING, {"step": "0.500"}, drawdown_limit=None
+    )
+
+    assert strategy.drawdown_tripped_at is None
+    assert engine.portfolio.net_position(BTC) == BARS_FROM_TRADE_START * Decimal("0.5")
