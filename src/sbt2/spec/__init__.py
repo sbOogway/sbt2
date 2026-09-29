@@ -1,17 +1,13 @@
-from collections.abc import Mapping
-from pathlib import Path
-from typing import Any
-
-from sbt2.spec.parse import UnknownSpecKeyError, read_spec
+from sbt2.spec.expand import EmptyListError
+from sbt2.spec.load import VENUE_PROFILES, DuplicateRunError, load
+from sbt2.spec.parse import UnknownSpecKeyError
 from sbt2.spec.resolve import (
     CandleBarError,
     InstrumentVenueError,
-    MissingPartError,
     MissingSplitError,
     ResolvedRunSpec,
     UnknownBarSourceError,
     UnknownPartError,
-    resolve,
 )
 from sbt2.spec.split import (
     Split,
@@ -26,9 +22,10 @@ from sbt2.spec.venues import InvalidVenueProfileError, UnknownVenueProfileError
 __all__ = [
     "VENUE_PROFILES",
     "CandleBarError",
+    "DuplicateRunError",
+    "EmptyListError",
     "InstrumentVenueError",
     "InvalidVenueProfileError",
-    "MissingPartError",
     "MissingSplitError",
     "ResolvedRunSpec",
     "Split",
@@ -43,14 +40,3 @@ __all__ = [
     "UnknownVenueProfileError",
     "load",
 ]
-
-VENUE_PROFILES = Path("config/venues.toml")
-
-
-def load(
-    path: Path,
-    overrides: Mapping[str, Any] | None = None,
-    venue_profiles: Path = VENUE_PROFILES,
-) -> ResolvedRunSpec:
-    """Read a spec file, apply top-level ``overrides`` and resolve it."""
-    return resolve(read_spec(path, overrides or {}), venue_profiles)

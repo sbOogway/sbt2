@@ -124,10 +124,6 @@ class MissingSplitError(ValueError):
     pass
 
 
-class MissingPartError(ValueError):
-    pass
-
-
 class UnknownPartError(ValueError):
     pass
 
@@ -142,7 +138,7 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
     instruments = _instruments(spec.instruments, venue["name"])
     strategy = import_strategy(spec.strategy)
     params = resolve_params(strategy, spec.params)
-    split, part = _splitter(spec.split), _part(spec.part)
+    split, part = _splitter(spec.split), spec.part
     start, end = _part_dates(split.parts(spec.period), part)
     return ResolvedRunSpec(
         strategy=StrategyRun(
@@ -175,12 +171,6 @@ def _splitter(split: Splitter | Mapping[str, Any] | None) -> Splitter:
     if isinstance(split, Mapping):
         return Split.from_table(split)
     return split
-
-
-def _part(part: str | None) -> str:
-    if part is None:
-        raise MissingPartError("a run spec needs the part of its split to run")
-    return part
 
 
 def _part_dates(

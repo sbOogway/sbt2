@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -19,9 +19,10 @@ from nautilus_trader.model import (
 
 from sbt2.spec import (
     CandleBarError,
+    DuplicateRunError,
+    EmptyListError,
     InstrumentVenueError,
     InvalidVenueProfileError,
-    MissingPartError,
     MissingSplitError,
     ResolvedRunSpec,
     Split,
@@ -35,6 +36,7 @@ from sbt2.spec import (
 from sbt2.strategy import UnknownParameterError
 
 BTC = "BTCUSDT-LINEAR.BYBIT"
+ETH = "ETHUSDT-LINEAR.BYBIT"
 SPEC = f"""
 strategy = "spec_strategies:MinuteLookback"
 instruments = ["{BTC}"]
@@ -102,6 +104,11 @@ def paths(tmp_path: Path) -> tuple[Path, Path]:
 
 
 def resolved(paths: tuple[Path, Path], **overrides: Any) -> ResolvedRunSpec:
+    [spec] = loaded(paths, **overrides)
+    return spec
+
+
+def loaded(paths: tuple[Path, Path], **overrides: Any) -> list[ResolvedRunSpec]:
     spec, venues = paths
     return load(spec, overrides, venues)
 
@@ -508,6 +515,144 @@ def test_a_splitter_can_be_given_as_an_override(paths: tuple[Path, Path]) -> Non
     assert resolved(paths, split=split).split == split
 
 
+def with_params(paths: tuple[Path, Path], lines: str) -> tuple[Path, Path]:
+    """The spec file with its ``[params]`` table holding ``lines``."""
+    spec, venues = paths
+    spec.write_text(spec.read_text().replace("lookback = 30\n", lines))
+    return spec, venues
+
+
+def params(runs: list[ResolvedRunSpec]) -> list[dict[str, Any]]:
+    return [dict(each.strategy.params) for each in runs]
+
+
+@pytest.mark.unit
+def test_a_spec_with_a_part_loads_as_one_run(paths: tuple[Path, Path]) -> None:
+    [spec] = loaded(paths)
+
+    assert spec.part == "train"
+
+
+@pytest.mark.unit
+def test_a_parameter_list_expands_into_one_run_per_value(
+    paths: tuple[Path, Path],
+) -> None:
+    short, long = loaded(with_params(paths, "lookback = [20, 50]\n"))
+
+    assert (short.strategy.params["lookback"], long.strategy.params["lookback"]) == (
+        20,
+        50,
+    )
+    assert short.data[0]["start_time"] == START - timedelta(minutes=20)
+    assert long.data[0]["start_time"] == START - timedelta(minutes=50)
+
+
+@pytest.mark.unit
+def test_parameter_lists_expand_into_their_cartesian_product(
+    paths: tuple[Path, Path],
+) -> None:
+    runs = loaded(with_params(paths, 'lookback = [20, 50]\nstop = ["0.01", "0.02"]\n'))
+
+    assert params(runs) == [
+        {"lookback": 20, "stop": Decimal("0.01")},
+        {"lookback": 20, "stop": Decimal("0.02")},
+        {"lookback": 50, "stop": Decimal("0.01")},
+        {"lookback": 50, "stop": Decimal("0.02")},
+    ]
+
+
+@pytest.mark.unit
+def test_parameter_lists_expand_with_every_part(paths: tuple[Path, Path]) -> None:
+    runs = loaded(with_params(without(paths, "part"), "lookback = [20, 50]\n"))
+
+    assert [(each.part, each.strategy.params["lookback"]) for each in runs] == [
+        ("train", 20),
+        ("train", 50),
+        ("validation", 20),
+        ("validation", 50),
+    ]
+
+
+@pytest.mark.unit
+def test_the_runs_come_in_part_then_parameter_order(
+    paths: tuple[Path, Path],
+) -> None:
+    lines = 'stop = ["0.02", "0.01"]\nlookback = [50, 20]\n'
+    expanded = with_params(without(paths, "part"), lines)
+    runs = loaded(expanded)
+
+    order = [
+        (each.part, str(each.strategy.params["stop"]), each.strategy.params["lookback"])
+        for each in runs
+    ]
+    assert order == [
+        (part, stop, lookback)
+        for part in ("train", "validation")
+        for stop in ("0.02", "0.01")
+        for lookback in (50, 20)
+    ]
+    assert [each.hash for each in loaded(expanded)] == [each.hash for each in runs]
+
+
+@pytest.mark.unit
+def test_instruments_stay_one_universe(paths: tuple[Path, Path]) -> None:
+    [spec] = loaded(paths, instruments=[BTC, ETH])
+
+    assert spec.strategy.instruments == [
+        InstrumentId.from_str(BTC),
+        InstrumentId.from_str(ETH),
+    ]
+
+
+@pytest.mark.unit
+def test_a_parameter_list_given_as_an_override_expands(
+    paths: tuple[Path, Path],
+) -> None:
+    runs = loaded(paths, params={"lookback": [20, 50]})
+
+    assert [each["lookback"] for each in params(runs)] == [20, 50]
+
+
+@pytest.mark.unit
+def test_one_invalid_combination_fails_the_whole_load(
+    paths: tuple[Path, Path],
+) -> None:
+    bars = {"bar": ["1-HOUR-LAST", "1-SECOND-LAST"]}
+
+    with pytest.raises(CandleBarError) as error:
+        loaded(paths, strategy=DECLARED_BAR, params=bars, bars="candles")
+
+    assert error.value.__notes__ == [
+        "in the train run with bar='1-SECOND-LAST'",
+    ]
+
+
+@pytest.mark.unit
+def test_a_repeated_value_fails_as_a_duplicate_run(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(DuplicateRunError, match="lookback=20"):
+        loaded(with_params(paths, "lookback = [20, 20]\n"))
+
+
+@pytest.mark.unit
+def test_values_that_resolve_to_the_same_run_fail_as_duplicates(
+    paths: tuple[Path, Path],
+) -> None:
+    with pytest.raises(DuplicateRunError, match="stop='0.02' .* stop=0.02"):
+        loaded(with_params(paths, 'stop = ["0.02", 0.02]\n'))
+
+
+@pytest.mark.unit
+def test_an_empty_list_fails_naming_its_key(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(EmptyListError, match="lookback"):
+        loaded(with_params(paths, "lookback = []\n"))
+
+
+@pytest.mark.unit
+def test_an_empty_list_of_parts_fails(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(EmptyListError, match="part"):
+        loaded(paths, part=[])
+
+
 @pytest.mark.unit
 def test_start_and_end_are_no_longer_spec_keys(paths: tuple[Path, Path]) -> None:
     with pytest.raises(
@@ -523,9 +668,25 @@ def test_a_spec_without_a_split_fails(paths: tuple[Path, Path]) -> None:
 
 
 @pytest.mark.unit
-def test_a_spec_without_a_part_fails(paths: tuple[Path, Path]) -> None:
-    with pytest.raises(MissingPartError):
-        resolved(without(paths, "part"))
+def test_without_a_part_a_spec_expands_into_a_train_and_a_validation_run(
+    paths: tuple[Path, Path],
+) -> None:
+    train, validation = loaded(without(paths, "part"))
+
+    assert (train.part, train.start, train.end) == ("train", START, END)
+    assert (validation.part, (validation.start, validation.end)) == (
+        "validation",
+        VALIDATION,
+    )
+
+
+@pytest.mark.unit
+def test_a_list_of_parts_expands_into_one_run_per_part(
+    paths: tuple[Path, Path],
+) -> None:
+    runs = loaded(paths, part=["validation", "test"])
+
+    assert [each.part for each in runs] == ["validation", "test"]
 
 
 @pytest.mark.unit

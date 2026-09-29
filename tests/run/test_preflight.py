@@ -58,7 +58,8 @@ def spec(tmp_path: Path, **values: Any) -> ResolvedRunSpec:
     path, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
     path.write_text("".join(f"{key} = {value}\n" for key, value in lines.items()))
     venues.write_text(VENUES)
-    return load(path, venue_profiles=venues)
+    [spec] = load(path, venue_profiles=venues)
+    return spec
 
 
 @dataclass(frozen=True)

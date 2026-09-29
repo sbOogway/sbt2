@@ -45,7 +45,8 @@ def resolved(tmp_path: Path, **overrides: Any) -> ResolvedRunSpec:
     spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
     spec.write_text(SPEC)
     venues.write_text(VENUES)
-    return load(spec, overrides, venues)
+    [resolved] = load(spec, overrides, venues)
+    return resolved
 
 
 def run(

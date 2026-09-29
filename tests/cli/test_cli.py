@@ -35,6 +35,7 @@ fee_model = { path = "nautilus_trader.execution:MakerTakerFeeModel", config = { 
 """
 DAY = date(2024, 1, 1)
 NEXT_DAY = date(2024, 1, 2)
+VALIDATION_DAY = date(2024, 1, 3)
 
 
 def served(
@@ -119,3 +120,39 @@ def test_a_run_stores_the_known_gap_days_it_skipped(
         ParquetResultStore(tmp_path / "data" / "results").runs().to_dict("records")
     )
     assert list(summary["known_gaps"]) == [str(gap)]
+
+
+def without_a_part(spec: Path) -> Path:
+    spec.write_text(spec.read_text().replace('part = "train"\n', ""))
+    return spec
+
+
+@pytest.mark.e2e
+def test_a_spec_without_a_part_stores_a_train_and_a_validation_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, VALIDATION_DAY)
+    spec = without_a_part(served(tmp_path, monkeypatch, source))
+
+    result = runner.invoke(app, ["run", str(spec)])
+
+    assert result.exit_code == 0, result.output
+    runs = ParquetResultStore(tmp_path / "data" / "results").runs()
+    assert sorted(runs["part"]) == ["train", "validation"]
+
+
+@pytest.mark.e2e
+def test_every_run_is_preflighted_before_any_executes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+    spec = without_a_part(served(tmp_path, monkeypatch, source))
+    log = tmp_path / "sbt2.log"
+
+    result = runner.invoke(app, ["--log-file", str(log), "run", str(spec)])
+
+    assert result.exit_code == 1
+    assert "MissingDataError" in log.read_text()
+    assert not (tmp_path / "data" / "results").exists()

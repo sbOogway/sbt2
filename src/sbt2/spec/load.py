@@ -1,0 +1,44 @@
+from collections.abc import Mapping
+from pathlib import Path
+from typing import Any
+
+from sbt2.spec.expand import Expanded, expand
+from sbt2.spec.parse import RunSpec, read_spec
+from sbt2.spec.resolve import ResolvedRunSpec, resolve
+
+VENUE_PROFILES = Path("config/venues.toml")
+
+
+class DuplicateRunError(ValueError):
+    """Two runs of a spec file that resolve to the same backtest."""
+
+
+def load(
+    path: Path,
+    overrides: Mapping[str, Any] | None = None,
+    venue_profiles: Path = VENUE_PROFILES,
+) -> list[ResolvedRunSpec]:
+    """Read a spec file, apply top-level ``overrides`` and resolve every run it
+    expands into; one run that fails to resolve fails them all."""
+    runs = expand(read_spec(path, overrides or {}))
+    resolved = [_resolved(each, venue_profiles) for each in runs]
+    _check_unique(runs, resolved)
+    return resolved
+
+
+def _resolved(run: Expanded, venue_profiles: Path) -> ResolvedRunSpec:
+    try:
+        return resolve(RunSpec(**run.table), venue_profiles)
+    except Exception as error:
+        error.add_note(f"in {run.name}")
+        raise
+
+
+def _check_unique(runs: list[Expanded], resolved: list[ResolvedRunSpec]) -> None:
+    seen: dict[str, Expanded] = {}
+    for run, spec in zip(runs, resolved, strict=True):
+        if spec.hash in seen:
+            raise DuplicateRunError(
+                f"{seen[spec.hash].name} and {run.name} are the same run"
+            )
+        seen[spec.hash] = run
