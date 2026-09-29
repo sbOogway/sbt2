@@ -15,7 +15,8 @@ from nautilus_run import (
     round_trip_with_funding,
     spec,
 )
-from nautilus_trader.model import FundingRateUpdate
+from nautilus_trader.core import UUID4
+from nautilus_trader.model import FundingRateUpdate, InstrumentId, PositionAdjusted
 
 from sbt2.data.sources import Gap
 from sbt2.results import (
@@ -239,6 +240,42 @@ def test_equity_and_carry_come_from_nautilus(
     assert funding["adjustment_type"] == "FUNDING"
     assert funding["pnl_change"] == "-5.00000000 USDT"
     assert funding["ts_event"] == START + pd.Timedelta(hours=8)
+
+
+def funding_on(instrument: str, like: PositionAdjusted) -> PositionAdjusted:
+    return PositionAdjusted(
+        like.trader_id,
+        like.strategy_id,
+        InstrumentId.from_str(instrument),
+        like.position_id,
+        like.account_id,
+        like.adjustment_type,
+        like.quantity_change,
+        like.pnl_change,
+        like.reason,
+        UUID4(),
+        like.ts_event,
+        like.ts_init,
+    )
+
+
+@pytest.mark.unit
+def test_simultaneous_funding_payments_are_stored_in_instrument_order(
+    tmp_path: Path, output: RunOutput
+) -> None:
+    store = ParquetResultStore(tmp_path)
+    sink = store.new_run(spec())
+    [payment] = output.carry
+    eth = funding_on("ETHUSDT-LINEAR.BYBIT", payment)
+    btc = funding_on("BTCUSDT-LINEAR.BYBIT", payment)
+    write(sink, RunOutput(output.snapshots, [eth, btc], output.reports))
+    sink.finalize()
+
+    carry = store.load(sink.run_id, "carry")
+    assert list(carry["instrument_id"]) == [
+        "BTCUSDT-LINEAR.BYBIT",
+        "ETHUSDT-LINEAR.BYBIT",
+    ]
 
 
 @pytest.mark.unit
