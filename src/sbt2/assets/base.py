@@ -1,6 +1,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Any, Protocol
 
 from nautilus_trader.model import AssetClass, InstrumentClass, MarkPriceUpdate
@@ -20,6 +21,34 @@ class Carry:
     data_types: tuple[type, ...]
 
 
+class NoTakerRateError(LookupError):
+    pass
+
+
+@dataclass(frozen=True)
+class BuyAndHoldConvention:
+    """How a benchmark holds an instrument: bought once, then valued at ``price``.
+
+    ``carry`` is what the holding accrues on top of the price.
+    """
+
+    price: type
+    carry: Carry
+
+    def entry_fee(self, venue: Mapping[str, Any]) -> Decimal:
+        """The taker rate of the venue's fee model, paid once on entry.
+
+        ``venue`` holds the run's venue arguments, the fee model as its
+        ``{path, config}`` table.
+        """
+        fee_model = venue.get("fee_model") or {}
+        rate = fee_model.get("config", {}).get("taker_rate")
+        if rate is None:
+            name = fee_model.get("path", "the venue's missing fee model")
+            raise NoTakerRateError(f"{name} has no taker rate for a benchmark entry")
+        return Decimal(str(rate))
+
+
 @dataclass(frozen=True)
 class AssetProfile:
     """What sbt2 needs to know about one nautilus asset class and instrument class."""
@@ -32,6 +61,7 @@ class AssetProfile:
     venue_defaults: Mapping[str, Any]
     reference_prices: tuple[type, ...]
     valuation_price: type
+    buy_and_hold: BuyAndHoldConvention
 
     def covers(self, instrument: Any) -> bool:
         return (

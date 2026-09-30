@@ -19,7 +19,12 @@ from nautilus_trader.model import (
     Symbol,
 )
 
-from sbt2.assets import AssetProfile, UnknownAssetClassError, asset_profile
+from sbt2.assets import (
+    AssetProfile,
+    NoTakerRateError,
+    UnknownAssetClassError,
+    asset_profile,
+)
 
 HOURLY = 3_600_000
 
@@ -110,6 +115,27 @@ def test_crypto_perp_portfolio_uses_mark_prices() -> None:
 
     assert config.use_mark_prices
     assert config.snapshot_interval_ms == HOURLY
+
+
+@pytest.mark.unit
+def test_crypto_perp_buy_and_hold_uses_the_mark_price_and_the_entry_fee_only() -> None:
+    convention = crypto_perp().buy_and_hold
+    fee_model = {
+        "path": "nautilus_trader.execution:MakerTakerFeeModel",
+        "config": {"maker_rate": "0.0002", "taker_rate": "0.00055"},
+    }
+
+    assert convention.price is MarkPriceUpdate
+    assert convention.carry.data_types == ()
+    assert convention.entry_fee({"fee_model": fee_model}) == Decimal("0.00055")
+
+
+@pytest.mark.unit
+def test_an_entry_fee_needs_a_fee_model_with_a_taker_rate() -> None:
+    fixed = {"path": "nautilus_trader.execution:FixedFeeModel", "config": {}}
+
+    with pytest.raises(NoTakerRateError, match="FixedFeeModel has no taker rate"):
+        crypto_perp().buy_and_hold.entry_fee({"fee_model": fixed})
 
 
 @pytest.mark.unit
