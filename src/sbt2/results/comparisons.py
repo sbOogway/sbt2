@@ -1,3 +1,4 @@
+import json
 from dataclasses import fields
 from itertools import pairwise
 from typing import Any
@@ -43,6 +44,40 @@ def _with_change(table: pd.DataFrame, before: str, after: str) -> pd.DataFrame:
     base = table[before].where(table[before] > 0)
     label = f"{before} → {after}"
     return table.assign(**{label: change, f"{label} %": change / base * 100})
+
+
+class UnknownBatchError(LookupError):
+    pass
+
+
+def batch_table(store: ResultStore, batch_id: str) -> pd.DataFrame:
+    """One row per run of the batch, by run_id: the strategy, parameter and
+    instrument columns whose values vary across it, then the headline metrics."""
+    runs = store.runs(batch=batch_id)
+    if runs.empty:
+        raise UnknownBatchError(f"no batch {batch_id} in the store")
+    described = _described(runs)
+    table = pd.concat([_varying(described), runs[_HEADLINE]], axis=1)
+    return table.set_index(runs["run_id"])
+
+
+def _described(runs: pd.DataFrame) -> pd.DataFrame:
+    params = pd.DataFrame([json.loads(each) for each in runs["params"]], runs.index)
+    instruments = runs["instruments"].map(", ".join)
+    return pd.concat([runs["strategy"], params, instruments], axis=1)
+
+
+def _varying(described: pd.DataFrame) -> pd.DataFrame:
+    varies = [
+        column
+        for column in described.columns
+        if described[column].map(_comparable).nunique() > 1
+    ]
+    return described.loc[:, varies]
+
+
+def _comparable(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, default=str)
 
 
 def _summary(store: ResultStore, run_id: str) -> dict[str, Any]:

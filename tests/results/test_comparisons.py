@@ -6,10 +6,14 @@ from typing import Any
 import pandas as pd
 import pytest
 from nautilus_run import RunOutput, round_trip_with_funding, spec
+from nautilus_trader.model import InstrumentId
 
 from sbt2.results import (
     ParquetResultStore,
+    RunIds,
+    UnknownBatchError,
     UnknownRunError,
+    batch_table,
     compare_parts,
     degradation,
 )
@@ -27,9 +31,12 @@ def store(tmp_path: Path) -> ParquetResultStore:
 
 
 def finished(
-    store: ParquetResultStore, output: RunOutput, run_spec: ResolvedRunSpec
+    store: ParquetResultStore,
+    output: RunOutput,
+    run_spec: ResolvedRunSpec,
+    ids: RunIds | None = None,
 ) -> str:
-    sink = store.new_run(run_spec)
+    sink = store.new_run(run_spec, ids=ids)
     sink.write_equity(output.snapshots)
     sink.write_carry(output.carry)
     sink.write_reports(output.reports)
@@ -153,3 +160,52 @@ def test_degradation_skips_the_changes_of_a_missing_part() -> None:
     table = degradation(parts)
 
     assert list(table.columns) == ["train", "test"]
+
+
+@pytest.mark.unit
+def test_a_batch_table_shows_what_varies_and_the_headline_metrics(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    batch_id = str(uuid.uuid7())
+    run_ids = [
+        finished(
+            store, output, run_spec("train", {"lots": lots}), RunIds(batch_id=batch_id)
+        )
+        for lots in (1, 2, 3)
+    ]
+    finished(store, output, run_spec("train", {"lots": 4}))
+
+    table = batch_table(store, batch_id)
+
+    assert list(table.index) == run_ids
+    assert list(table.columns) == ["lots", *HEADLINE]
+    assert list(table["lots"]) == [1, 2, 3]
+
+
+@pytest.mark.unit
+def test_an_unknown_batch_fails(store: ParquetResultStore, output: RunOutput) -> None:
+    finished(store, output, run_spec("train"))
+    batch_id = str(uuid.uuid7())
+
+    with pytest.raises(UnknownBatchError, match=batch_id):
+        batch_table(store, batch_id)
+
+
+@pytest.mark.unit
+def test_a_batch_table_shows_the_strategies_and_instruments_that_vary(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    ids = RunIds(batch_id=str(uuid.uuid7()))
+    base = run_spec("train")
+    eth = InstrumentId.from_str("ETHUSDT-LINEAR.BYBIT")
+    other = replace(base.strategy, strategy="toy:Other", instruments=[eth])
+    finished(store, output, base, ids)
+    finished(store, output, replace(base, strategy=other), ids)
+
+    table = batch_table(store, str(ids.batch_id))
+
+    assert list(table.columns) == ["strategy", "instruments", *HEADLINE]
+    assert list(table["instruments"]) == [
+        "BTCUSDT-LINEAR.BYBIT",
+        "ETHUSDT-LINEAR.BYBIT",
+    ]

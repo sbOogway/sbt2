@@ -8,7 +8,12 @@ from sbt2.results.benchmarks import (
     UnknownBenchmarkError,
     build_benchmark,
 )
-from sbt2.results.comparisons import compare_parts, degradation
+from sbt2.results.comparisons import (
+    UnknownBatchError,
+    batch_table,
+    compare_parts,
+    degradation,
+)
 from sbt2.results.costs import (
     Activity,
     CostsAndExposure,
@@ -69,8 +74,10 @@ __all__ = [
     "RunTables",
     "Segment",
     "Table",
+    "UnknownBatchError",
     "UnknownBenchmarkError",
     "UnknownRunError",
+    "batch_table",
     "benchmark_statistics",
     "build_benchmark",
     "compare_parts",
