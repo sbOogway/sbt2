@@ -1,5 +1,5 @@
 import math
-from dataclasses import replace
+from dataclasses import astuple, replace
 from datetime import UTC, datetime, timedelta
 from itertools import pairwise
 from pathlib import Path
@@ -12,7 +12,13 @@ from nautilus_trader.model import InstrumentId
 from plotted import Plotted, plotted
 from price_catalog import BTC, PriceCatalog, run_on
 
-from sbt2.results import BuyAndHold, PricedRun, RunTables, tearsheet
+from sbt2.results import (
+    BuyAndHold,
+    PricedRun,
+    RunTables,
+    costs_and_exposure,
+    tearsheet,
+)
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 HOUR = timedelta(hours=1)
@@ -46,6 +52,14 @@ def fill(instrument: InstrumentId, at: datetime, quantity: float, price: float):
     }
 
 
+def funding(instrument: InstrumentId, at: datetime, amount: float) -> dict[str, Any]:
+    return {
+        "instrument_id": str(instrument),
+        "pnl_change": f"{amount} USDT",
+        "ts_event": pd.Timestamp(at),
+    }
+
+
 def closed(instrument: InstrumentId, pnl: float, at: datetime) -> dict[str, Any]:
     return {
         "instrument_id": str(instrument),
@@ -65,15 +79,15 @@ def wavy(hours: int) -> list[float]:
 
 
 def btc_round_trip(prices: PriceCatalog) -> PricedRun:
-    """1 BTC bought at 50000 and sold at 51000 within two days."""
+    """1 BTC bought at 50000 and sold at 51000 within two days, paying funding."""
     end = START + 2 * DAY
-    prices.add_marks(BTC, {START + k * HOUR: 50_000.0 + 20 * k for k in range(48)})
+    prices.add_marks(BTC, {START + k * HOUR: 50_000.0 + 20 * k for k in range(49)})
     tables = RunTables(
         equity(hourly(wavy(48))),
         pd.DataFrame(
             [fill(BTC, START + HOUR, 1, 50_000.0), fill(BTC, START + DAY, -1, 51_000.0)]
         ),
-        pd.DataFrame(),
+        pd.DataFrame([funding(BTC, START + 8 * HOUR, -5.0)]),
         "USDT",
         pd.DataFrame([closed(BTC, 998.0, START + DAY)], index=pd.Index(["P-1"])),
     )
@@ -193,3 +207,19 @@ def test_the_rolling_sharpe_is_annualized_by_the_asset_calendar(
     sharpe = figure.trace("Rolling Sharpe")["y"]
     assert list(sharpe[~np.isnan(sharpe)]) == pytest.approx(list(expected))
     assert len([each for each in figure.titles if "Rolling Sharpe" in each]) == 1
+
+
+@pytest.mark.unit
+def test_the_cost_waterfall_steps_from_gross_to_net(
+    prices: PriceCatalog, tmp_path: Path
+) -> None:
+    run = btc_round_trip(prices)
+    costs = costs_and_exposure(run).total.costs
+
+    [waterfall] = drawn(run, tmp_path).of_type("waterfall")
+
+    assert list(waterfall["x"]) == ["Gross PnL", "Fees", "Carry", "Net PnL"]
+    assert list(waterfall["measure"]) == ["absolute", "relative", "relative", "total"]
+    assert list(waterfall["y"]) == pytest.approx(astuple(costs))
+    assert costs.fees == pytest.approx(-2.0)
+    assert costs.carry == pytest.approx(-5.0)

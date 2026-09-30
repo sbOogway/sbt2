@@ -5,6 +5,7 @@ arguments: its own, such as ``returns`` and ``theme_config``, and the panel's.
 """
 
 import math
+from dataclasses import astuple
 from typing import Any
 
 import pandas as pd
@@ -15,6 +16,9 @@ from nautilus_trader.analysis import (
     register_tearsheet_chart,
 )
 
+from sbt2.results.costs import CostWaterfall
+
+_COST_WATERFALL = "sbt2_cost_waterfall"
 _ROLLING_SHARPE = "sbt2_rolling_sharpe"
 _ROLLING_WINDOW = 60
 
@@ -25,6 +29,11 @@ def rolling_sharpe(days_per_year: int) -> TearsheetChart:
     return TearsheetCustomChart(
         chart=_ROLLING_SHARPE, args={"days_per_year": days_per_year}
     )
+
+
+def cost_waterfall(costs: CostWaterfall) -> TearsheetChart:
+    """The run's gross PnL, its fees and carry, and the net PnL they leave."""
+    return TearsheetCustomChart(chart=_COST_WATERFALL, args={"costs": costs})
 
 
 def _draw_rolling_sharpe(fig: go.Figure, row: int, col: int, **panel: Any) -> None:
@@ -51,6 +60,27 @@ def _draw_rolling_sharpe(fig: go.Figure, row: int, col: int, **panel: Any) -> No
     fig.update_yaxes(title_text="Sharpe Ratio", row=row, col=col)
 
 
+def _draw_cost_waterfall(fig: go.Figure, row: int, col: int, **panel: Any) -> None:
+    colors = panel["theme_config"]["colors"]
+    fig.add_trace(
+        go.Waterfall(
+            x=["Gross PnL", "Fees", "Carry", "Net PnL"],
+            y=list(astuple(panel["costs"])),
+            measure=["absolute", "relative", "relative", "total"],
+            increasing={"marker": {"color": colors["positive"]}},
+            decreasing={"marker": {"color": colors["negative"]}},
+            totals={"marker": {"color": colors["primary"]}},
+            showlegend=False,
+        ),
+        row=row,
+        col=col,
+    )
+    fig.update_yaxes(title_text="PnL", row=row, col=col)
+
+
+register_tearsheet_chart(
+    _COST_WATERFALL, "waterfall", "Cost Waterfall", _draw_cost_waterfall
+)
 register_tearsheet_chart(
     _ROLLING_SHARPE,
     "scatter",

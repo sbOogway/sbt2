@@ -15,7 +15,7 @@ from nautilus_trader.analysis import (
 )
 
 from sbt2.results.benchmarks import Benchmark
-from sbt2.results.costs import PricedRun
+from sbt2.results.costs import PricedRun, costs_and_exposure
 from sbt2.results.metrics import (
     FullMetrics,
     Segment,
@@ -24,7 +24,7 @@ from sbt2.results.metrics import (
     daily_returns,
     full_metrics,
 )
-from sbt2.results.panels import rolling_sharpe
+from sbt2.results.panels import cost_waterfall, rolling_sharpe
 
 type Statistics = dict[str, float | None]
 
@@ -108,6 +108,7 @@ def _config(run: PricedRun) -> TearsheetConfig:
             TearsheetDistributionChart(),
             rolling_sharpe(run.spec.asset.days_per_year),
             TearsheetYearlyReturnsChart(),
+            cost_waterfall(costs_and_exposure(run).total.costs),
         ],
         title=f"{run.spec.strategy.strategy}, {run.spec.part}",
     )
