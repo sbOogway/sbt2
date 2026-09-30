@@ -114,8 +114,8 @@ def batch(
     setup: BatchSetup,
     progress: BatchProgress | None = None,
 ) -> tuple[str, ...]:
-    """Pre-flight every run, then execute each in a fresh process; returns their
-    run_ids, in the order of ``specs``."""
+    """Pre-flight every run, then execute each in a fresh process, all under one
+    fresh batch id; returns their run_ids, in the order of ``specs``."""
     setup.launcher.check()
     known_gaps = [_preflight(each, setup) for each in specs]
     progress = progress or _NoProgress()
@@ -135,12 +135,19 @@ def _orders(
     setup: BatchSetup,
     errors: Path,
 ) -> list[Order]:
+    batch_id = str(uuid.uuid7())
     orders = []
     for spec, known_gaps in runs:
         run_id = str(uuid.uuid7())
         orders.append(
             Order(
-                run_id, spec, known_gaps, setup.store, setup.settings, errors / run_id
+                run_id,
+                batch_id,
+                spec,
+                known_gaps,
+                setup.store,
+                setup.settings,
+                errors / run_id,
             )
         )
     return orders
