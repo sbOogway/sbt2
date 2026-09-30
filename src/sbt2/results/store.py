@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Protocol
 
@@ -10,25 +11,38 @@ from sbt2.spec import ResolvedRunSpec
 Table = Literal["equity", "carry", "fills", "positions", "account", "orders", "summary"]
 
 
+@dataclass(frozen=True)
+class RunIds:
+    """A new run's run_id, a fresh one when None, and the batch it belongs to."""
+
+    run_id: str | None = None
+    batch_id: str | None = None
+
+
 class ResultStore(Protocol):
     def new_run(
         self,
         spec: ResolvedRunSpec,
         known_gaps: tuple[Gap, ...] = (),
-        run_id: str | None = None,
+        ids: RunIds | None = None,
     ) -> OutputSink:
-        """A sink writing a new run under ``run_id``, or a fresh one.
+        """A sink writing a new run under ``ids``, a fresh run_id outside a batch
+        without them.
 
         ``known_gaps`` are the days of the run's data the source confirmed it lacks.
         """
         ...
 
     def runs(
-        self, strategy: str | None = None, part: str | None = None
+        self,
+        strategy: str | None = None,
+        part: str | None = None,
+        batch: str | None = None,
     ) -> pd.DataFrame:
         """The summaries of every finished run, oldest first.
 
-        ``strategy`` and ``part``, when given, keep only the runs that match them.
+        ``strategy``, ``part`` and ``batch``, when given, keep only the runs that
+        match them.
         """
         ...
 

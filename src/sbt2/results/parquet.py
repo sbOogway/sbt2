@@ -16,7 +16,7 @@ from nautilus_trader.model import PortfolioSnapshot, PositionAdjusted
 from sbt2.data import Gap
 from sbt2.results.metrics import HeadlineMetrics, RunTables, Segment, headline_metrics
 from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
-from sbt2.results.store import MissingTableError, Table, UnknownRunError
+from sbt2.results.store import MissingTableError, RunIds, Table, UnknownRunError
 from sbt2.results.tables import carry_table, equity_table, read_table, write_table
 from sbt2.spec import ResolvedRunSpec
 
@@ -25,8 +25,14 @@ SUMMARY = "summary"
 _SUMMARIES = f"*/{SUMMARY}.parquet"
 _SPEC = "spec.json"
 _RUNS = """
-SELECT * FROM read_parquet($1, union_by_name = true)
-WHERE ($2 IS NULL OR strategy = $2) AND ($3 IS NULL OR part = $3)
+SELECT * FROM (
+    SELECT * FROM summary_schema
+    UNION ALL BY NAME
+    SELECT * FROM read_parquet($1, union_by_name = true)
+)
+WHERE ($2 IS NULL OR strategy = $2)
+    AND ($3 IS NULL OR part = $3)
+    AND ($4 IS NULL OR batch_id = $4)
 ORDER BY run_id
 """
 
@@ -34,6 +40,7 @@ _UTC = pa.timestamp("ns", tz="UTC")
 _SUMMARY_SCHEMA = pa.schema(
     [
         ("run_id", pa.string()),
+        ("batch_id", pa.string()),
         ("spec_hash", pa.string()),
         ("strategy", pa.string()),
         ("params", pa.string()),
@@ -66,23 +73,29 @@ class ParquetResultStore:
         self,
         spec: ResolvedRunSpec,
         known_gaps: tuple[Gap, ...] = (),
-        run_id: str | None = None,
+        ids: RunIds | None = None,
     ) -> OutputSink:
-        run = _Run(run_id or str(uuid.uuid7()), spec, known_gaps)
+        ids = ids or RunIds()
+        run_id = ids.run_id or str(uuid.uuid7())
+        run = _Run(run_id, ids.batch_id, spec, known_gaps)
         folder = self.folder(run.run_id)
         folder.mkdir(parents=True)
         (folder / _SPEC).write_text(spec.to_json())
         return _ParquetSink(folder, run)
 
     def runs(
-        self, strategy: str | None = None, part: str | None = None
+        self,
+        strategy: str | None = None,
+        part: str | None = None,
+        batch: str | None = None,
     ) -> pd.DataFrame:
         if not any(self._runs.glob(_SUMMARIES)):
             return _SUMMARY_SCHEMA.empty_table().to_pandas()
         summaries = str(self._runs / _SUMMARIES)
         with duckdb.connect() as db:
             db.execute("SET TimeZone = 'UTC'")
-            found = db.execute(_RUNS, [summaries, strategy, part])
+            db.register("summary_schema", _SUMMARY_SCHEMA.empty_table())
+            found = db.execute(_RUNS, [summaries, strategy, part, batch])
             return found.arrow().read_all().to_pandas()
 
     def load(self, run_id: str, table: Table) -> pd.DataFrame:
@@ -110,6 +123,7 @@ class ParquetResultStore:
 @dataclass(frozen=True)
 class _Run:
     run_id: str
+    batch_id: str | None
     spec: ResolvedRunSpec
     known_gaps: tuple[Gap, ...]
 
@@ -177,6 +191,7 @@ def _summary(
     strategy = run.spec.strategy
     return {
         "run_id": run.run_id,
+        "batch_id": run.batch_id,
         "spec_hash": run.spec.hash,
         "strategy": strategy.strategy,
         "params": json.dumps(dict(strategy.params), sort_keys=True, default=str),

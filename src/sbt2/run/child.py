@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import IO
 
 from sbt2.data import Gap
-from sbt2.results import ResultStore
+from sbt2.results import ResultStore, RunIds
 from sbt2.run.execute import RunSettings, execute
 from sbt2.spec import ResolvedRunSpec
 
@@ -48,7 +48,7 @@ def _receive(stream: IO[bytes]) -> Order:
 def _run(order: Order) -> None:
     logging.basicConfig(format=LOG_FORMAT, level=order.settings.log_level.name)
     try:
-        sink = order.store.new_run(order.spec, order.known_gaps, order.run_id)
+        sink = order.store.new_run(order.spec, order.known_gaps, RunIds(order.run_id))
         execute(order.spec, sink, order.settings)
     except BaseException as error:
         order.error_file.write_text(_described(error))

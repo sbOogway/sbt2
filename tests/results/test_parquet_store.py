@@ -27,6 +27,7 @@ from sbt2.results import (
     OutputSink,
     ParquetResultStore,
     Reports,
+    RunIds,
     RunTables,
     Segment,
     UnknownRunError,
@@ -97,10 +98,33 @@ def test_a_new_run_takes_the_run_id_it_is_given(
 ) -> None:
     run_id = str(uuid.uuid7())
 
-    sink = store.new_run(spec(), run_id=run_id)
+    sink = store.new_run(spec(), ids=RunIds(run_id))
 
     assert sink.run_id == run_id
     assert (tmp_path / "runs" / run_id / "spec.json").exists()
+
+
+@pytest.mark.unit
+def test_the_summary_holds_the_batch_id(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    batch_id = str(uuid.uuid7())
+    sink = store.new_run(spec(), ids=RunIds(batch_id=batch_id))
+    write(sink, output)
+    sink.finalize()
+
+    [summary] = store.runs().to_dict("records")
+    assert summary["batch_id"] == batch_id
+
+
+@pytest.mark.unit
+def test_a_run_outside_a_batch_has_no_batch_id(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    finished_run(store, output)
+
+    [summary] = store.runs().to_dict("records")
+    assert pd.isna(summary["batch_id"])
 
 
 @pytest.mark.unit
@@ -357,6 +381,17 @@ def test_runs_filters_combine(store: ParquetResultStore, output: RunOutput) -> N
 
 
 @pytest.mark.unit
+def test_runs_filter_by_batch(store: ParquetResultStore, output: RunOutput) -> None:
+    batch_id = str(uuid.uuid7())
+    finished_run(store, output)
+    sink = store.new_run(spec(), ids=RunIds(batch_id=batch_id))
+    write(sink, output)
+    sink.finalize()
+
+    assert listed(store.runs(batch=batch_id)) == [sink.run_id]
+
+
+@pytest.mark.unit
 def test_listing_runs_writes_nothing_to_the_store(
     store: ParquetResultStore, output: RunOutput, tmp_path: Path
 ) -> None:
@@ -462,6 +497,20 @@ def test_runs_stored_before_the_trip_column_are_still_listed(
 
     assert listed(runs) == [older, newer]
     assert list(runs["drawdown_tripped_at"].isna()) == [True, True]
+
+
+@pytest.mark.unit
+def test_summaries_written_before_the_batch_id_still_list(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    run_id = finished_run(store, output)
+    path = store.folder(run_id) / "summary.parquet"
+    pq.write_table(pq.read_table(path).drop_columns("batch_id"), path)
+
+    runs = store.runs()
+
+    assert listed(runs) == [run_id]
+    assert list(runs["batch_id"].isna()) == [True]
 
 
 @pytest.mark.unit
