@@ -9,7 +9,6 @@ from sbt2.results.benchmarks import (
     build_benchmark,
 )
 from sbt2.results.metrics import (
-    CurrencyMismatchError,
     FullMetrics,
     HeadlineMetrics,
     RunTables,
@@ -19,6 +18,7 @@ from sbt2.results.metrics import (
     full_metrics,
     headline_metrics,
 )
+from sbt2.results.money import CurrencyMismatchError
 from sbt2.results.parquet import ParquetResultStore
 from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
 from sbt2.results.store import (

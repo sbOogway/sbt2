@@ -1,5 +1,5 @@
 import math
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from statistics import NormalDist
@@ -43,6 +43,8 @@ from nautilus_trader.analysis import (
 )
 from nautilus_trader.model import Currency, Money, PositionId
 
+from sbt2.results.money import total
+from sbt2.results.trades import closed_trades
 from sbt2.spec import ResolvedRunSpec
 
 
@@ -109,10 +111,6 @@ _ACCOUNT_STATISTICS = ("PnL (total)", "PnL% (total)")
 """Nautilus computes these from the account's balances, which trades alone lack."""
 
 
-class CurrencyMismatchError(ValueError):
-    pass
-
-
 def headline_metrics(run: RunTables, segment: Segment) -> HeadlineMetrics:
     """Headline metrics from mark-to-market equity over the segment."""
     curve = equity_curve(run.equity, run.currency, segment)
@@ -124,8 +122,8 @@ def headline_metrics(run: RunTables, segment: Segment) -> HeadlineMetrics:
         sharpe=_statistic(SharpeRatio(period=period), returns),
         max_drawdown=_statistic(MaxDrawdown(), returns),
         trade_count=len(run.fills),
-        total_fees=_total(run.fills, "commission", run.currency),
-        total_carry=_total(run.carry, "pnl_change", run.currency),
+        total_fees=total(run.fills, "commission", run.currency),
+        total_carry=total(run.carry, "pnl_change", run.currency),
     )
 
 
@@ -135,7 +133,7 @@ def full_metrics(run: RunTables, segment: Segment) -> FullMetrics:
     Return statistics come from mark-to-market equity on the segment's grid,
     trade statistics from the closed positions and position snapshots.
     """
-    trades = _trades(run)
+    trades = closed_trades(run.positions, run.currency)
     returns = _returns(equity_curve(run.equity, run.currency, segment))
     return FullMetrics(
         pnls=_trade_statistics(trades, run.currency),
@@ -216,17 +214,6 @@ def _probabilistic_sharpe(returns: pd.Series) -> float | None:
     if not variance > 0:
         return None
     return NormalDist().cdf(sharpe * math.sqrt((len(returns) - 1) / variance))
-
-
-def _trades(run: RunTables) -> pd.DataFrame:
-    """Closed positions and snapshots, with their realized PnL as ``pnl``.
-
-    A position still open at the end has no close time, so it is left out.
-    """
-    if run.positions.empty:
-        return pd.DataFrame(columns=["instrument_id", "entry", "ts_closed", "pnl"])
-    trades = run.positions.loc[run.positions["ts_closed"].notna()]
-    return trades.assign(pnl=_amounts(trades["realized_pnl"], run.currency))
 
 
 def _trade_statistics(trades: pd.DataFrame, currency: str) -> dict[str, float | None]:
@@ -345,26 +332,6 @@ def _nanos(returns: pd.Series) -> dict[int, float]:
     return {
         int(ts.value): float(value) for ts, value in zip(index, returns, strict=True)
     }
-
-
-def _total(frame: pd.DataFrame, column: str, currency: str) -> float:
-    if frame.empty:
-        return 0.0
-    return sum(_amounts(frame[column], currency), 0.0)
-
-
-def _amounts(values: Iterable[str], currency: str) -> list[float]:
-    amounts = [Money.from_str(each) for each in values]
-    foreign = {each.currency.code for each in amounts} - {currency}
-    if foreign:
-        raise _mismatch(foreign, currency)
-    return [each.as_double() for each in amounts]
-
-
-def _mismatch(foreign: set[str], currency: str) -> CurrencyMismatchError:
-    return CurrencyMismatchError(
-        f"amounts in {', '.join(sorted(foreign))}, not the settlement currency {currency}"
-    )
 
 
 def _finite_values(statistics: Mapping[str, float]) -> dict[str, float | None]:
