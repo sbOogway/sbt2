@@ -68,6 +68,7 @@ class Activity:
     costs: CostWaterfall
     exposure: Exposure
     holding_time: HoldingTime | None
+    turnover: float
 
 
 @dataclass(frozen=True)
@@ -90,6 +91,7 @@ def costs_and_exposure(run: PricedRun) -> CostsAndExposure:
             holding_time=_holding_time(
                 closed_trades(run.tables.positions, run.tables.currency)
             ),
+            turnover=_turnover(_within(run.tables.fills, book.segment), book),
         )
     )
 
@@ -116,37 +118,37 @@ class _Book:
         return pd.DataFrame(held, index=grid)
 
     @cached_property
+    def multipliers(self) -> dict[str, float]:
+        """Each traded instrument's contract multiplier; an inverse one fails."""
+        ids = [InstrumentId.from_str(str(each)) for each in self.quantities.columns]
+        instruments = self._run.catalog.instruments(ids)
+        missing = [str(each) for each in ids if each not in instruments]
+        if missing:
+            raise MissingPricesError(
+                f"no instrument {', '.join(missing)} in the catalog"
+            )
+        inverse = [str(each) for each in ids if instruments[each].is_inverse]
+        if inverse:
+            raise InverseInstrumentError(
+                f"{', '.join(inverse)} is inverse; "
+                "exposure values linear instruments only"
+            )
+        return {str(each): float(instruments[each].multiplier) for each in ids}
+
+    @cached_property
     def notionals(self) -> pd.DataFrame:
         """Quantity times valuation price times contract multiplier."""
         market = Market(self._run.spec, self._run.catalog, self._run.known_gaps)
         price_type = self._run.spec.asset.valuation_price
-        ids = [InstrumentId.from_str(str(each)) for each in self.quantities.columns]
-        multipliers = _linear_multipliers(ids, self._run.catalog)
         return pd.DataFrame(
             {
-                str(each): self.quantities[str(each)]
-                * market.prices(each, price_type)
-                * multipliers[each]
-                for each in ids
+                instrument: self.quantities[instrument]
+                * market.prices(InstrumentId.from_str(instrument), price_type)
+                * multiplier
+                for instrument, multiplier in self.multipliers.items()
             },
             index=self.segment.grid,
         )
-
-
-def _linear_multipliers(
-    ids: list[InstrumentId], catalog: Catalog
-) -> dict[InstrumentId, float]:
-    """Each instrument's contract multiplier; an inverse instrument fails."""
-    instruments = catalog.instruments(ids)
-    missing = [str(each) for each in ids if each not in instruments]
-    if missing:
-        raise MissingPricesError(f"no instrument {', '.join(missing)} in the catalog")
-    inverse = [str(each) for each in ids if instruments[each].is_inverse]
-    if inverse:
-        raise InverseInstrumentError(
-            f"{', '.join(inverse)} is inverse; exposure values linear instruments only"
-        )
-    return {each: float(instruments[each].multiplier) for each in ids}
 
 
 def _signed_quantities(fills: pd.DataFrame) -> pd.Series:
@@ -167,6 +169,19 @@ def _time_in_market(quantities: pd.DataFrame) -> float:
     """The share of grid steps that start with an open position."""
     open_at_start = (quantities.iloc[:-1] != 0).any(axis=1)
     return float(open_at_start.mean())
+
+
+def _turnover(fills: pd.DataFrame, book: _Book) -> float:
+    """Traded notional over mean equity, per year of the asset's calendar."""
+    if fills.empty:
+        return 0.0
+    multipliers = fills["instrument_id"].astype(str).map(book.multipliers.__getitem__)
+    traded = (
+        fills["last_qty"].astype(float) * fills["last_px"].astype(float) * multipliers
+    ).sum()
+    segment = book.segment
+    years = (segment.end - segment.start) / timedelta(days=segment.days_per_year)
+    return float(traded / book.equity.mean() / years)
 
 
 def _holding_time(trades: pd.DataFrame) -> HoldingTime | None:

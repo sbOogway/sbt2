@@ -258,3 +258,40 @@ def test_holding_time_comes_from_the_closed_trades(prices: PriceCatalog) -> None
     assert holding is not None
     assert holding.mean == 2 * HOUR
     assert holding.median == 2 * HOUR
+
+
+@pytest.mark.unit
+def test_turnover_is_traded_notional_over_mean_equity_per_year(
+    prices: PriceCatalog,
+) -> None:
+    end = START + 10 * DAY
+    prices.add_marks(BTC, {START + k * DAY: 50_000.0 for k in range(10)})
+    run = tables(
+        flat(10_000.0, end),
+        [fill(START + DAY, 1, 50_000.0), fill(START + 2 * DAY, -1, 50_000.0)],
+        [],
+    )
+
+    activity = costs_and_exposure(
+        PricedRun(run_on([BTC], START, end), run, prices.catalog)
+    ).total
+
+    assert activity.turnover == pytest.approx(365.0)
+
+
+@pytest.mark.unit
+def test_a_run_without_trades_has_no_exposure_or_holding_time(
+    prices: PriceCatalog,
+) -> None:
+    end = START + 2 * HOUR
+    run = tables(flat(10_000.0, end), [], [])
+
+    activity = costs_and_exposure(
+        PricedRun(run_on([BTC], START, end), run, prices.catalog)
+    ).total
+
+    assert list(activity.exposure.gross_leverage) == [0.0, 0.0, 0.0]
+    assert list(activity.exposure.net_leverage) == [0.0, 0.0, 0.0]
+    assert activity.exposure.time_in_market == 0.0
+    assert activity.holding_time is None
+    assert activity.turnover == 0.0
