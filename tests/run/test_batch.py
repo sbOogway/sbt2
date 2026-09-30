@@ -64,6 +64,16 @@ def test_every_run_of_a_batch_is_stored_under_its_run_id(tmp_path: Path) -> None
 
 
 @pytest.mark.integration
+def test_a_run_writes_no_tearsheet(tmp_path: Path) -> None:
+    run_ids = batch([resolved(tmp_path)], setup(tmp_path, PlainLauncher()))
+
+    stored = [each for each in (tmp_path / "results").rglob("*") if each.is_file()]
+    assert set(summaries(tmp_path)) == set(run_ids)
+    assert stored
+    assert not [each for each in stored if each.suffix == ".html"]
+
+
+@pytest.mark.integration
 def test_every_run_of_a_batch_shares_one_time_sortable_batch_id(
     tmp_path: Path,
 ) -> None:

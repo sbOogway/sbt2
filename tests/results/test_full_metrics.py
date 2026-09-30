@@ -7,6 +7,7 @@ import pytest
 from nautilus_trader.analysis import CAGR, SharpeRatio
 
 from sbt2.results import CurrencyMismatchError, RunTables, Segment, full_metrics
+from sbt2.results.metrics import compounded_daily
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 DAY = timedelta(days=1)
@@ -214,3 +215,20 @@ def test_flat_equity_has_no_probabilistic_sharpe() -> None:
     result = full_metrics(run_on(daily_equity(100.0)), YEAR)
 
     assert result.probabilistic_sharpe is None
+
+
+@pytest.mark.unit
+def test_a_step_ending_at_midnight_belongs_to_the_day_before() -> None:
+    hour = timedelta(hours=1)
+    ends = pd.DatetimeIndex([START + k * hour for k in range(1, 49)])
+    returns = pd.Series([0.001 * (k % 7 - 3) for k in range(48)], index=ends)
+
+    daily = compounded_daily(returns)
+
+    assert list(daily.index) == [pd.Timestamp(START), pd.Timestamp(START + DAY)]
+    assert daily.iloc[0] == pytest.approx(
+        math.prod(1 + each for each in returns.iloc[:24]) - 1
+    )
+    assert daily.iloc[1] == pytest.approx(
+        math.prod(1 + each for each in returns.iloc[24:]) - 1
+    )

@@ -45,6 +45,7 @@ from sbt2.results.store import (
     Table,
     UnknownRunError,
 )
+from sbt2.results.tearsheet import tearsheet
 
 __all__ = [
     "Activity",
@@ -86,4 +87,5 @@ __all__ = [
     "equity_curve",
     "full_metrics",
     "headline_metrics",
+    "tearsheet",
 ]
