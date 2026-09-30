@@ -123,6 +123,45 @@ def test_a_spec_without_a_part_stores_a_train_and_a_validation_run(
     assert sorted(runs["part"]) == ["train", "validation"]
 
 
+SUMMARY_HEADER = [
+    "run_id",
+    "strategy",
+    "net_return",
+    "annualized_return",
+    "sharpe",
+    "max_drawdown",
+    "trade_count",
+    "total_fees",
+    "total_carry",
+]
+
+
+@pytest.mark.e2e
+def test_run_prints_the_headline_metrics_per_part(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, VALIDATION_DAY)
+    spec = without_a_part(served(tmp_path, monkeypatch, source))
+    spec.write_text(spec.read_text().replace("fast = 1", "fast = [1, 2]"))
+
+    result = runner.invoke(app, ["run", str(spec)])
+
+    assert result.exit_code == 0, result.output
+    runs = ParquetResultStore(tmp_path / "data" / "results").runs()
+    tables = [block.splitlines() for block in result.stdout.strip().split("\n\n")]
+    assert [table[0] for table in tables] == ["train", "validation"]
+    for (part, header, *rows), (_, stored) in zip(
+        tables, runs.groupby("part"), strict=True
+    ):
+        assert header.split() == SUMMARY_HEADER
+        cells = [row.split() for row in rows]
+        assert [row[0] for row in cells] == list(stored["run_id"]), part
+        assert [row[6] for row in cells] == [
+            str(each) for each in stored["trade_count"]
+        ]
+
+
 @pytest.mark.e2e
 def test_every_run_is_preflighted_before_any_executes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

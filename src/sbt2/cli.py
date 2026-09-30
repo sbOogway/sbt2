@@ -154,6 +154,31 @@ def _run(spec_file: Path, setup: BatchSetup) -> None:
         run_ids = batch(runs, setup, bar)
     for run_id in run_ids:
         logger.info("stored run %s in %s", run_id, setup.store.folder(run_id))
+    typer.echo(_headline_tables(setup.store, run_ids))
+
+
+_HEADLINE_HEADER = (
+    "run_id",
+    "strategy",
+    "net_return",
+    "annualized_return",
+    "sharpe",
+    "max_drawdown",
+    "trade_count",
+    "total_fees",
+    "total_carry",
+)
+
+
+def _headline_tables(store: ResultStore, run_ids: tuple[str, ...]) -> str:
+    """One table of the runs' headline metrics per part, in split order."""
+    runs = store.runs()
+    runs = runs.loc[runs["run_id"].isin(run_ids)]
+    return "\n\n".join(
+        f"{part}\n{_frame_table(runs.loc[runs['part'] == part], _HEADLINE_HEADER)}"
+        for part in spec.PARTS
+        if (runs["part"] == part).any()
+    )
 
 
 @app.command()
