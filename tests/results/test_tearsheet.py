@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 from nautilus_trader.model import InstrumentId
 from plotted import Plotted, plotted
-from price_catalog import BTC, PriceCatalog, run_on
+from price_catalog import BTC, ETH, PriceCatalog, run_on
 
 from sbt2.results import (
     BuyAndHold,
@@ -94,6 +94,31 @@ def btc_round_trip(prices: PriceCatalog) -> PricedRun:
     return PricedRun(run_on([BTC], START, end), tables, prices.catalog)
 
 
+def btc_and_eth(prices: PriceCatalog) -> PricedRun:
+    """The BTC round trip, and 10 ETH bought at 2500 and sold at 2600 at a loss
+    of 3 USDT."""
+    btc = btc_round_trip(prices)
+    prices.add_marks(ETH, {START + k * HOUR: 2_500.0 + k for k in range(49)})
+    eth_fills = [
+        fill(ETH, START + 2 * HOUR, 10, 2_500.0),
+        fill(ETH, START + 30 * HOUR, -10, 2_600.0),
+    ]
+    tables = replace(
+        btc.tables,
+        fills=pd.concat([btc.tables.fills, pd.DataFrame(eth_fills)]),
+        positions=pd.concat(
+            [
+                btc.tables.positions,
+                pd.DataFrame(
+                    [closed(ETH, -3.0, START + 30 * HOUR)], index=pd.Index(["P-2"])
+                ),
+            ]
+        ),
+    )
+    spec = run_on([BTC, ETH], START, START + 2 * DAY)
+    return PricedRun(spec, tables, prices.catalog)
+
+
 def drawn(run: PricedRun, path: Path, **options: Any) -> Plotted:
     target = path / "tearsheet.html"
     tearsheet(run, target, **options)
@@ -109,6 +134,20 @@ def statistic_names(figure: Plotted) -> list[str]:
     return table["cells"]["values"][0]
 
 
+def instrument_rows(figure: Plotted) -> dict[str, dict[str, str]]:
+    [table] = [
+        each
+        for each in figure.of_type("table")
+        if each["header"]["values"][0] == "<b>Instrument</b>"
+    ]
+    header = [
+        each.removeprefix("<b>").removesuffix("</b>")
+        for each in table["header"]["values"]
+    ]
+    rows = zip(*table["cells"]["values"], strict=True)
+    return {row[0]: dict(zip(header[1:], row[1:], strict=True)) for row in rows}
+
+
 @pytest.mark.unit
 def test_the_tearsheet_is_written_to_the_given_path(
     prices: PriceCatalog, tmp_path: Path
@@ -119,6 +158,19 @@ def test_the_tearsheet_is_written_to_the_given_path(
     tearsheet(btc_round_trip(prices), target)
 
     assert "Plotly.newPlot(" in target.read_text()
+
+
+@pytest.mark.unit
+def test_a_run_without_trades_still_gets_a_tearsheet(
+    prices: PriceCatalog, tmp_path: Path
+) -> None:
+    run = PricedRun(
+        run_on([BTC], START, START + 2 * DAY),
+        RunTables(equity(hourly(wavy(48))), pd.DataFrame(), pd.DataFrame(), "USDT"),
+        prices.catalog,
+    )
+
+    assert instrument_rows(drawn(run, tmp_path)) == {}
 
 
 @pytest.mark.unit
@@ -223,3 +275,27 @@ def test_the_cost_waterfall_steps_from_gross_to_net(
     assert list(waterfall["y"]) == pytest.approx(astuple(costs))
     assert costs.fees == pytest.approx(-2.0)
     assert costs.carry == pytest.approx(-5.0)
+
+
+@pytest.mark.unit
+def test_the_instrument_breakdown_has_a_row_per_traded_instrument(
+    prices: PriceCatalog, tmp_path: Path
+) -> None:
+    run = btc_and_eth(prices)
+    activities = costs_and_exposure(run).by_instrument
+
+    rows = instrument_rows(drawn(run, tmp_path))
+
+    assert set(rows) == {str(BTC), str(ETH)}
+    for instrument, win_rate in ((BTC, 1.0), (ETH, 0.0)):
+        row, activity = rows[str(instrument)], activities[str(instrument)]
+        assert float(row["Net PnL"]) == pytest.approx(activity.costs.net, abs=1e-4)
+        assert float(row["Fees"]) == pytest.approx(activity.costs.fees, abs=1e-4)
+        assert float(row["Carry"]) == pytest.approx(activity.costs.carry, abs=1e-4)
+        assert float(row["Turnover"]) == pytest.approx(activity.turnover, abs=1e-4)
+        assert float(row["Time in Market"]) == pytest.approx(
+            activity.exposure.time_in_market, abs=1e-4
+        )
+        assert row["Trades"] == "2"
+        assert float(row["Win Rate"]) == pytest.approx(win_rate)
+    assert float(rows[str(BTC)]["Carry"]) == pytest.approx(-5.0)

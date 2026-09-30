@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 from nautilus_trader.analysis import (
+    GridLayout,
     TearsheetConfig,
     TearsheetDistributionChart,
     TearsheetDrawdownChart,
@@ -15,7 +16,7 @@ from nautilus_trader.analysis import (
 )
 
 from sbt2.results.benchmarks import Benchmark
-from sbt2.results.costs import PricedRun, costs_and_exposure
+from sbt2.results.costs import CostsAndExposure, PricedRun, costs_and_exposure
 from sbt2.results.metrics import (
     FullMetrics,
     Segment,
@@ -24,7 +25,7 @@ from sbt2.results.metrics import (
     daily_returns,
     full_metrics,
 )
-from sbt2.results.panels import cost_waterfall, rolling_sharpe
+from sbt2.results.panels import cost_waterfall, instrument_breakdown, rolling_sharpe
 
 type Statistics = dict[str, float | None]
 
@@ -44,7 +45,7 @@ def tearsheet(run: PricedRun, path: Path, benchmark: Benchmark | None = None) ->
         sheet.general_statistics,
         sheet.returns,
         output_path=str(path),
-        config=_config(run),
+        config=_config(sheet),
         benchmark_returns=sheet.benchmark_returns,
         benchmark_name=sheet.benchmark_name,
     )
@@ -62,6 +63,10 @@ class _Sheet:
     @cached_property
     def metrics(self) -> FullMetrics:
         return full_metrics(self.run.tables, self.segment)
+
+    @cached_property
+    def costs(self) -> CostsAndExposure:
+        return costs_and_exposure(self.run)
 
     @cached_property
     def returns(self) -> pd.Series:
@@ -97,8 +102,48 @@ class _Sheet:
             "Probabilistic Sharpe Ratio": self.metrics.probabilistic_sharpe,
         }
 
+    @property
+    def instrument_rows(self) -> pd.DataFrame:
+        """Each traded instrument's costs, activity and trade statistics."""
+        trades = _fill_counts(self.run.tables.fills)
+        pnls = self.metrics.pnls_by_instrument
+        rows = {
+            instrument: [
+                activity.costs.net,
+                activity.costs.fees,
+                activity.costs.carry,
+                activity.turnover,
+                activity.exposure.time_in_market,
+                trades[instrument],
+                pnls.get(instrument, {}).get("Win Rate"),
+            ]
+            for instrument, activity in self.costs.by_instrument.items()
+        }
+        return pd.DataFrame.from_dict(
+            rows, orient="index", columns=_INSTRUMENT_COLUMNS, dtype=object
+        )
 
-def _config(run: PricedRun) -> TearsheetConfig:
+
+def _fill_counts(fills: pd.DataFrame) -> dict[str, int]:
+    if fills.empty:
+        return {}
+    counts = fills["instrument_id"].astype(str).value_counts()
+    return {str(instrument): int(count) for instrument, count in counts.items()}
+
+
+_INSTRUMENT_COLUMNS = [
+    "Net PnL",
+    "Fees",
+    "Carry",
+    "Turnover",
+    "Time in Market",
+    "Trades",
+    "Win Rate",
+]
+
+
+def _config(sheet: _Sheet) -> TearsheetConfig:
+    spec = sheet.run.spec
     return TearsheetConfig(
         charts=[
             TearsheetStatsTableChart(),
@@ -106,9 +151,17 @@ def _config(run: PricedRun) -> TearsheetConfig:
             TearsheetDrawdownChart(),
             TearsheetMonthlyReturnsChart(),
             TearsheetDistributionChart(),
-            rolling_sharpe(run.spec.asset.days_per_year),
+            rolling_sharpe(spec.asset.days_per_year),
             TearsheetYearlyReturnsChart(),
-            cost_waterfall(costs_and_exposure(run).total.costs),
+            cost_waterfall(sheet.costs.total.costs),
+            instrument_breakdown(sheet.instrument_rows),
         ],
-        title=f"{run.spec.strategy.strategy}, {run.spec.part}",
+        layout=GridLayout(
+            rows=5,
+            cols=2,
+            heights=[0.32, 0.17, 0.17, 0.17, 0.17],
+            vertical_spacing=0.06,
+        ),
+        title=f"{spec.strategy.strategy}, {spec.part}",
+        height=2200,
     )
