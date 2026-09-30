@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import timedelta
 from functools import cached_property
 
 import numpy as np
@@ -9,6 +10,7 @@ from sbt2.data import Catalog, Gap
 from sbt2.results.metrics import RunTables, Segment, equity_curve
 from sbt2.results.money import total
 from sbt2.results.pricing import Market, MissingPricesError, on_grid
+from sbt2.results.trades import closed_trades
 from sbt2.spec import ResolvedRunSpec
 
 
@@ -52,9 +54,20 @@ class Exposure:
 
 
 @dataclass(frozen=True)
+class HoldingTime:
+    """How long the closed trades were held."""
+
+    mean: timedelta
+    median: timedelta
+
+
+@dataclass(frozen=True)
 class Activity:
+    """Costs, exposure and holding time; no holding time without a closed trade."""
+
     costs: CostWaterfall
     exposure: Exposure
+    holding_time: HoldingTime | None
 
 
 @dataclass(frozen=True)
@@ -74,6 +87,9 @@ def costs_and_exposure(run: PricedRun) -> CostsAndExposure:
         total=Activity(
             costs=_waterfall(net, run, book.segment),
             exposure=_exposure(book.notionals, book),
+            holding_time=_holding_time(
+                closed_trades(run.tables.positions, run.tables.currency)
+            ),
         )
     )
 
@@ -151,6 +167,18 @@ def _time_in_market(quantities: pd.DataFrame) -> float:
     """The share of grid steps that start with an open position."""
     open_at_start = (quantities.iloc[:-1] != 0).any(axis=1)
     return float(open_at_start.mean())
+
+
+def _holding_time(trades: pd.DataFrame) -> HoldingTime | None:
+    """Over the closed positions and snapshots, as the trade statistics count them."""
+    if trades.empty:
+        return None
+    nanos = pd.Series(trades["duration_ns"], dtype=float)
+    return HoldingTime(mean=_duration(nanos.mean()), median=_duration(nanos.median()))
+
+
+def _duration(nanos: float) -> timedelta:
+    return timedelta(microseconds=nanos / 1_000)
 
 
 def _waterfall(net: float, run: PricedRun, segment: Segment) -> CostWaterfall:

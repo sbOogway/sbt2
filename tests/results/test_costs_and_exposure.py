@@ -1,4 +1,4 @@
-from dataclasses import astuple
+from dataclasses import astuple, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -69,6 +69,25 @@ def tables(
     points: dict[datetime, float], fills: list[dict], carry: list[dict]
 ) -> RunTables:
     return RunTables(equity(points), pd.DataFrame(fills), pd.DataFrame(carry), "USDT")
+
+
+def trade(held: timedelta) -> dict:
+    """A closed BTC trade held for ``held``."""
+    return {
+        "instrument_id": str(BTC),
+        "entry": "BUY",
+        "ts_closed": pd.Timestamp(START + held),
+        "duration_ns": int(held.total_seconds() * 1e9),
+        "realized_pnl": "0 USDT",
+    }
+
+
+def still_open(row: dict) -> dict:
+    return {**row, "ts_closed": pd.NaT}
+
+
+def with_trades(run: RunTables, trades: list[dict]) -> RunTables:
+    return replace(run, positions=pd.DataFrame(trades))
 
 
 def flat(value: float, end: datetime) -> dict[datetime, float]:
@@ -222,3 +241,20 @@ def test_notional_counts_the_contract_multiplier(prices: PriceCatalog) -> None:
     run = tables(flat(10_000.0, end), [fill(START, 1, 500.0)], [])
 
     assert exposure_of(run, prices, end).gross_leverage[end] == pytest.approx(0.5)
+
+
+@pytest.mark.unit
+def test_holding_time_comes_from_the_closed_trades(prices: PriceCatalog) -> None:
+    end = START + 4 * HOUR
+    run = with_trades(
+        tables(flat(10_000.0, end), [], []),
+        [trade(HOUR), trade(3 * HOUR), still_open(trade(10 * HOUR))],
+    )
+
+    holding = costs_and_exposure(
+        PricedRun(run_on([BTC], START, end), run, prices.catalog)
+    ).total.holding_time
+
+    assert holding is not None
+    assert holding.mean == 2 * HOUR
+    assert holding.median == 2 * HOUR
