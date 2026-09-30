@@ -94,11 +94,13 @@ class HeadlineMetrics:
 
 @dataclass(frozen=True)
 class FullMetrics:
-    """Nautilus's statistics of a run, under its own names."""
+    """Nautilus's pnls, returns and general statistics of a run under its own
+    names, and the pnls again per instrument id."""
 
     pnls: dict[str, float | None]
     returns: dict[str, float | None]
     general: dict[str, float | None]
+    pnls_by_instrument: dict[str, dict[str, float | None]]
 
 
 _ACCOUNT_STATISTICS = ("PnL (total)", "PnL% (total)")
@@ -136,6 +138,10 @@ def full_metrics(run: RunTables, segment: Segment) -> FullMetrics:
         pnls=_trade_statistics(trades, run.currency),
         returns=_return_statistics(run, segment),
         general=_general_statistics(trades),
+        pnls_by_instrument={
+            str(instrument): _trade_statistics(each, run.currency)
+            for instrument, each in trades.groupby("instrument_id")
+        },
     )
 
 
@@ -196,7 +202,7 @@ def _trades(run: RunTables) -> pd.DataFrame:
     A position still open at the end has no close time, so it is left out.
     """
     if run.positions.empty:
-        return pd.DataFrame(columns=["entry", "ts_closed", "pnl"])
+        return pd.DataFrame(columns=["instrument_id", "entry", "ts_closed", "pnl"])
     trades = run.positions.loc[run.positions["ts_closed"].notna()]
     return trades.assign(pnl=_amounts(trades["realized_pnl"], run.currency))
 

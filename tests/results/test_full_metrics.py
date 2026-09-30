@@ -155,3 +155,18 @@ def test_realized_pnl_in_another_currency_fails() -> None:
 
     with pytest.raises(CurrencyMismatchError, match="USDC"):
         full_metrics(run, YEAR)
+
+
+@pytest.mark.unit
+def test_trade_statistics_are_split_per_instrument() -> None:
+    run = with_positions(
+        closed("10 USDT", BTC), closed("-5 USDT", ETH), closed("20 USDT", BTC)
+    )
+
+    by_instrument = full_metrics(run, YEAR).pnls_by_instrument
+
+    assert set(by_instrument) == {BTC, ETH}
+    assert by_instrument[BTC]["Win Rate"] == pytest.approx(1.0)
+    assert by_instrument[BTC]["Avg Winner"] == pytest.approx(15.0)
+    assert by_instrument[ETH]["Win Rate"] == pytest.approx(0.0)
+    assert by_instrument[ETH]["Avg Loser"] == pytest.approx(-5.0)
