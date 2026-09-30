@@ -394,12 +394,20 @@ def _store(data_root: Path) -> ParquetResultStore:
 def _runs_table(runs: pd.DataFrame) -> str:
     if runs.empty:
         return "no runs"
-    records = runs.to_dict("records")
-    return _table(_RUNS_HEADER, [_runs_row(each) for each in records])
+    return _frame_table(runs, _RUNS_HEADER)
 
 
-def _runs_row(record: Mapping[Hashable, object]) -> tuple[str, ...]:
-    return tuple(_cell(record[column]) for column in _RUNS_HEADER)
+def _frame_table(frame: pd.DataFrame, columns: tuple[str, ...]) -> str:
+    """The frame's ``columns``, one row per record, cells as ``runs list``
+    prints them."""
+    records = frame.to_dict("records")
+    return _table(columns, [_row(each, columns) for each in records])
+
+
+def _row(
+    record: Mapping[Hashable, object], columns: tuple[str, ...]
+) -> tuple[str, ...]:
+    return tuple(_cell(record[column]) for column in columns)
 
 
 def _cell(value: object) -> str:
