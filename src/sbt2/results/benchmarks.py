@@ -50,6 +50,15 @@ class BuyAndHold(Benchmark):
         return _held([held], market)
 
 
+@dataclass(frozen=True)
+class EqualWeight(Benchmark):
+    """The run's instruments, equal notional in each at the start, held without
+    rebalancing, so the weights drift with the prices."""
+
+    def _value(self, market: _Market) -> pd.Series:
+        return _held(market.run.strategy.instruments, market)
+
+
 def _held(instruments: Sequence[InstrumentId], market: _Market) -> pd.Series:
     """Equal notional in each instrument, bought at the start and held.
 

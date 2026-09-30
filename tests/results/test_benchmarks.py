@@ -6,7 +6,12 @@ import pandas as pd
 import pytest
 from price_catalog import BTC, ETH, TAKER_RATE, PriceCatalog, run_on
 
-from sbt2.results import BenchmarkCoverageError, BuyAndHold, benchmark_statistics
+from sbt2.results import (
+    BenchmarkCoverageError,
+    BuyAndHold,
+    EqualWeight,
+    benchmark_statistics,
+)
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 HOUR = timedelta(hours=1)
@@ -61,6 +66,21 @@ def test_prices_are_forward_filled_onto_the_run_grid(prices: PriceCatalog) -> No
 
     assert list(returns.index) == [START + k * HOUR for k in range(1, 5)]
     assert list(returns) == pytest.approx([KEPT - 1, 0.0, 0.2, 0.0])
+
+
+@pytest.mark.unit
+def test_equal_weight_basket_is_bought_at_the_start_and_held(
+    prices: PriceCatalog,
+) -> None:
+    later = START + 90 * MINUTE
+    prices.add_marks(BTC, {START: 100.0, START + 30 * MINUTE: 200.0, later: 300.0})
+    prices.add_marks(ETH, {START: 50.0, later: 100.0})
+    run = run_on([BTC, ETH], START, START + 2 * HOUR)
+
+    returns = EqualWeight().returns(run, prices.catalog)
+
+    value = (1 + returns).cumprod()
+    assert list(value) == pytest.approx([KEPT * 1.5, KEPT * (3 + 2) / 2])
 
 
 @pytest.mark.unit
