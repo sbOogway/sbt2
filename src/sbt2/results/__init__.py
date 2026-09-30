@@ -1,3 +1,4 @@
+from sbt2.results.benchmarks import Benchmark, BenchmarkCoverageError, BuyAndHold
 from sbt2.results.metrics import (
     CurrencyMismatchError,
     HeadlineMetrics,
@@ -17,6 +18,9 @@ from sbt2.results.store import (
 )
 
 __all__ = [
+    "Benchmark",
+    "BenchmarkCoverageError",
+    "BuyAndHold",
     "CurrencyMismatchError",
     "HeadlineMetrics",
     "IncompleteRunError",

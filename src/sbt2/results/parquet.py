@@ -3,7 +3,7 @@ import shutil
 import uuid
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -115,12 +115,7 @@ class _Run:
 
     @property
     def segment(self) -> Segment:
-        return Segment(
-            self.spec.start,
-            self.spec.end,
-            timedelta(milliseconds=self.spec.equity_interval_ms),
-            self.spec.asset.days_per_year,
-        )
+        return Segment.of_run(self.spec)
 
 
 class _ParquetSink:

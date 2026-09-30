@@ -19,6 +19,8 @@ from nautilus_trader.analysis import (
 )
 from nautilus_trader.model import Money
 
+from sbt2.spec import ResolvedRunSpec
+
 
 @dataclass(frozen=True)
 class Segment:
@@ -28,6 +30,21 @@ class Segment:
     end: datetime
     interval: timedelta
     days_per_year: int
+
+    @classmethod
+    def of_run(cls, run: ResolvedRunSpec) -> Segment:
+        return cls(
+            run.start,
+            run.end,
+            timedelta(milliseconds=run.equity_interval_ms),
+            run.asset.days_per_year,
+        )
+
+    @property
+    def grid(self) -> pd.DatetimeIndex:
+        """From the start at the equity interval, ending on the end."""
+        grid = pd.date_range(self.start, self.end, freq=self.interval)
+        return pd.DatetimeIndex(grid.union(pd.DatetimeIndex([self.end])))
 
 
 @dataclass(frozen=True)
@@ -80,7 +97,7 @@ def equity_curve(equity: pd.DataFrame, currency: str, segment: Segment) -> pd.Se
     rows = equity.loc[equity["currency"] == currency]
     last = rows.groupby("ts_event", sort=True)["total_equity"].last()
     series = pd.Series(last.to_numpy(), index=pd.DatetimeIndex(last.index))
-    grid = _grid(segment)
+    grid = segment.grid
     return series.reindex(series.index.union(grid)).ffill().reindex(grid)
 
 
@@ -115,11 +132,6 @@ def _relative_analyzer(days_per_year: int) -> PortfolioAnalyzer:
     ):
         analyzer.register_statistic(statistic)
     return analyzer
-
-
-def _grid(segment: Segment) -> pd.DatetimeIndex:
-    grid = pd.date_range(segment.start, segment.end, freq=segment.interval)
-    return pd.DatetimeIndex(grid.union(pd.DatetimeIndex([segment.end])))
 
 
 class _ReturnsStatistic(Protocol):
