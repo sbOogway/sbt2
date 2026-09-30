@@ -5,7 +5,7 @@ from typing import Any
 from sbt2.spec.errors import SpecError
 from sbt2.spec.split.dates import DateSplit, SplitDateError
 from sbt2.spec.split.fractions import FractionSplit, SplitFractionError
-from sbt2.spec.split.splitter import Splitter
+from sbt2.spec.split.splitter import PARTS, Splitter
 
 _SPLITTERS: tuple[type[Splitter], ...] = (FractionSplit, DateSplit)
 
@@ -30,6 +30,7 @@ def _arguments(kind: type[Splitter]) -> set[str]:
 
 
 __all__ = [
+    "PARTS",
     "DateSplit",
     "FractionSplit",
     "SplitDateError",

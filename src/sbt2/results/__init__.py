@@ -8,6 +8,7 @@ from sbt2.results.benchmarks import (
     UnknownBenchmarkError,
     build_benchmark,
 )
+from sbt2.results.comparisons import compare_parts
 from sbt2.results.costs import (
     Activity,
     CostsAndExposure,
@@ -72,6 +73,7 @@ __all__ = [
     "UnknownRunError",
     "benchmark_statistics",
     "build_benchmark",
+    "compare_parts",
     "costs_and_exposure",
     "equity_curve",
     "full_metrics",
