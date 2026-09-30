@@ -4,7 +4,9 @@ from typing import Any, Literal, Protocol
 
 import pandas as pd
 
-from sbt2.data import Gap
+from sbt2.data import Catalog, Gap
+from sbt2.results.costs import PricedRun
+from sbt2.results.metrics import RunTables
 from sbt2.results.sink import OutputSink
 from sbt2.spec import ResolvedRunSpec
 
@@ -17,6 +19,19 @@ class RunIds:
 
     run_id: str | None = None
     batch_id: str | None = None
+
+
+@dataclass(frozen=True)
+class StoredRun:
+    """A finished run as the store holds it, with the days its data skipped."""
+
+    spec: ResolvedRunSpec
+    tables: RunTables
+    known_gaps: frozenset[Gap]
+
+    def priced(self, catalog: Catalog) -> PricedRun:
+        """The run valued from ``catalog``."""
+        return PricedRun(self.spec, self.tables, catalog, self.known_gaps)
 
 
 class ResultStore(Protocol):
@@ -47,6 +62,11 @@ class ResultStore(Protocol):
         ...
 
     def load(self, run_id: str, table: Table) -> pd.DataFrame: ...
+
+    def stored_run(self, run_id: str) -> StoredRun:
+        """The finished run, its spec rebuilt from its document; a run without a
+        summary raises ``MissingTableError``."""
+        ...
 
     def spec(self, run_id: str) -> dict[str, Any]:
         """The resolved spec document of a run, finished or not."""

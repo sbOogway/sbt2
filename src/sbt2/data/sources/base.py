@@ -5,6 +5,7 @@ from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar, Self
 
+import nautilus_trader.model
 from nautilus_trader.model import BarType, InstrumentId
 
 type Fetch = Callable[[], Awaitable[bytes]]
@@ -54,6 +55,16 @@ class Gap:
 
     def __str__(self) -> str:
         return f"{self.instrument_id} {self.data_type.__name__} {self.day.isoformat()}"
+
+    @classmethod
+    def from_str(cls, text: str) -> Gap:
+        """The gap ``str`` gave, of one of nautilus's model data types."""
+        instrument_id, data_type, day = text.split(" ")
+        return cls(
+            InstrumentId.from_str(instrument_id),
+            getattr(nautilus_trader.model, data_type),
+            date.fromisoformat(day),
+        )
 
 
 class Source(ABC):

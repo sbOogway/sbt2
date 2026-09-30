@@ -16,7 +16,13 @@ from nautilus_trader.model import PortfolioSnapshot, PositionAdjusted
 from sbt2.data import Gap
 from sbt2.results.metrics import HeadlineMetrics, RunTables, Segment, headline_metrics
 from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
-from sbt2.results.store import MissingTableError, RunIds, Table, UnknownRunError
+from sbt2.results.store import (
+    MissingTableError,
+    RunIds,
+    StoredRun,
+    Table,
+    UnknownRunError,
+)
 from sbt2.results.tables import carry_table, equity_table, read_table, write_table
 from sbt2.spec import ResolvedRunSpec
 
@@ -103,6 +109,20 @@ class ParquetResultStore:
         if not path.exists():
             raise MissingTableError(f"run {run_id} has no {table} table")
         return read_table(path)
+
+    def stored_run(self, run_id: str) -> StoredRun:
+        [summary] = self.load(run_id, "summary").to_dict("records")
+        return StoredRun(
+            spec=ResolvedRunSpec.from_document(self.spec(run_id)),
+            tables=RunTables(
+                equity=self.load(run_id, "equity"),
+                fills=self.load(run_id, "fills"),
+                carry=self.load(run_id, "carry"),
+                currency=summary["currency"],
+                positions=self.load(run_id, "positions"),
+            ),
+            known_gaps=frozenset(Gap.from_str(each) for each in summary["known_gaps"]),
+        )
 
     def spec(self, run_id: str) -> dict[str, Any]:
         return json.loads((self._folder(run_id) / _SPEC).read_text())

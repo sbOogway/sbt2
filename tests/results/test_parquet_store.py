@@ -1,6 +1,6 @@
 import json
 import uuid
-from dataclasses import replace
+from dataclasses import asdict, replace
 from datetime import date
 from pathlib import Path
 
@@ -34,6 +34,7 @@ from sbt2.results import (
     full_metrics,
 )
 from sbt2.spec import ResolvedRunSpec
+from strategies.ma_cross import CrossParams
 
 
 @pytest.fixture(scope="module")
@@ -551,3 +552,46 @@ def test_trade_statistics_of_a_stored_run_match_nautilus_own_analyzer(
     assert {name: result.pnls[name] for name in expected} == pytest.approx(expected)
     assert result.pnls["Win Rate"] == pytest.approx(1 / 3)
     assert result.general == own.general
+
+
+def importable() -> ResolvedRunSpec:
+    """The toy run's spec under a strategy a stored run can be rebuilt with."""
+    run_spec = spec()
+    strategy = replace(
+        run_spec.strategy,
+        strategy="strategies.ma_cross:MovingAverageCross",
+        params=asdict(CrossParams()),
+    )
+    return replace(run_spec, strategy=strategy)
+
+
+@pytest.mark.unit
+def test_a_stored_run_is_loaded_with_its_spec_tables_and_known_gaps(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    gap = Gap(INSTRUMENT_ID, FundingRateUpdate, date(2024, 1, 2))
+    sink = store.new_run(importable(), (gap,))
+    write(sink, output)
+    sink.finalize()
+
+    run = store.stored_run(sink.run_id)
+
+    assert run.spec.hash == importable().hash
+    tables, run_id = run.tables, sink.run_id
+    pd.testing.assert_frame_equal(tables.equity, store.load(run_id, "equity"))
+    pd.testing.assert_frame_equal(tables.fills, store.load(run_id, "fills"))
+    pd.testing.assert_frame_equal(tables.carry, store.load(run_id, "carry"))
+    pd.testing.assert_frame_equal(tables.positions, store.load(run_id, "positions"))
+    assert tables.currency == "USDT"
+    assert run.known_gaps == frozenset({gap})
+
+
+@pytest.mark.unit
+def test_a_failed_run_cannot_be_loaded_whole(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    sink = store.new_run(importable())
+    write(sink, output)
+
+    with pytest.raises(MissingTableError, match="summary"):
+        store.stored_run(sink.run_id)
