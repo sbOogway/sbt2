@@ -36,11 +36,8 @@ class OutputSink(Protocol):
         """
         ...
 
-    def finalize(self, benchmark: pd.Series | None = None) -> None:
-        """Compute the headline metrics and write the run's summary, last.
-
-        ``benchmark`` is a return series indexed by UTC timestamps.
-        """
+    def finalize(self) -> None:
+        """Compute the headline metrics and write the run's summary, last."""
         ...
 
 

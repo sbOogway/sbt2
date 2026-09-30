@@ -48,8 +48,6 @@ _SUMMARY_SCHEMA = pa.schema(
         ("annualized_return", pa.float64()),
         ("sharpe", pa.float64()),
         ("max_drawdown", pa.float64()),
-        ("alpha", pa.float64()),
-        ("beta", pa.float64()),
         ("trade_count", pa.int64()),
         ("total_fees", pa.float64()),
         ("total_carry", pa.float64()),
@@ -152,8 +150,8 @@ class _ParquetSink:
     def write_drawdown_trip(self, tripped_at: datetime) -> None:
         self._drawdown_tripped_at = tripped_at
 
-    def finalize(self, benchmark: pd.Series | None = None) -> None:
-        metrics = headline_metrics(self._run_tables(), self._run.segment, benchmark)
+    def finalize(self) -> None:
+        metrics = headline_metrics(self._run_tables(), self._run.segment)
         row = _summary(self._run, metrics, self._drawdown_tripped_at)
         summary = pa.Table.from_pylist([row], _SUMMARY_SCHEMA)
         pq.write_table(summary, self._folder / f"{SUMMARY}.parquet")

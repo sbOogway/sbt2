@@ -5,6 +5,7 @@ from datetime import date
 from pathlib import Path
 
 import pandas as pd
+import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 from nautilus_run import (
@@ -49,12 +50,11 @@ def write(sink: OutputSink, output: RunOutput) -> None:
 def finished_run(
     store: ParquetResultStore,
     output: RunOutput,
-    benchmark: pd.Series | None = None,
     known_gaps: tuple[Gap, ...] = (),
 ) -> str:
     sink = store.new_run(spec(), known_gaps)
     write(sink, output)
-    sink.finalize(benchmark)
+    sink.finalize()
     return sink.run_id
 
 
@@ -147,7 +147,7 @@ def test_summary_holds_the_run_and_its_headline_metrics(
     assert summary["total_carry"] == pytest.approx(-5.0)
     assert summary["net_return"] == pytest.approx(993 / 10_000)
     assert summary["max_drawdown"] <= 0
-    assert pd.isna(summary["alpha"]) and pd.isna(summary["beta"])
+    assert not {"alpha", "beta"} & set(summary)
 
 
 @pytest.mark.unit
@@ -183,17 +183,6 @@ def test_the_summary_holds_the_split_as_json_and_the_part(
     assert summary["split"] == '{"kind":"Split","test":0.2,"validation":0.2}'
     assert summary["part"] == "train"
     assert "segment" not in summary
-
-
-@pytest.mark.unit
-def test_a_benchmark_gives_alpha_and_beta(
-    store: ParquetResultStore, output: RunOutput
-) -> None:
-    days = pd.date_range(START, periods=3, freq="12h", tz="UTC")
-    finished_run(store, output, pd.Series([0.01, -0.02, 0.015], index=days))
-
-    [summary] = store.runs().to_dict("records")
-    assert not pd.isna(summary["alpha"]) and not pd.isna(summary["beta"])
 
 
 @pytest.mark.unit
@@ -469,3 +458,18 @@ def test_runs_stored_before_the_trip_column_are_still_listed(
 
     assert listed(runs) == [older, newer]
     assert list(runs["drawdown_tripped_at"].isna()) == [True, True]
+
+
+@pytest.mark.unit
+def test_a_summary_written_with_alpha_and_beta_still_lists(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    older = finished_run(store, output)
+    path = store.folder(older) / "summary.parquet"
+    written = pq.read_table(path)
+    for name, value in (("alpha", 0.01), ("beta", 0.9)):
+        written = written.append_column(name, pa.array([value], pa.float64()))
+    pq.write_table(written, path)
+    newer = finished_run(store, output)
+
+    assert listed(store.runs()) == [older, newer]
