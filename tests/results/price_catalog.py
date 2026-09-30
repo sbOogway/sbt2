@@ -53,7 +53,12 @@ def run_on(
 class PriceCatalog:
     def __init__(self, path: Path) -> None:
         self._writer = CatalogWriter(path)
+        self._instruments: dict[InstrumentId, Any] = {}
         self.catalog = Catalog(path)
+
+    def add_instrument(self, instrument: Any) -> None:
+        """Price ``instrument`` instead of a linear perpetual of its id."""
+        self._instruments[instrument.id] = instrument
 
     def add_marks(self, instrument_id: InstrumentId, prices: Prices) -> None:
         records = [
@@ -74,7 +79,7 @@ class PriceCatalog:
     def _write_days(
         self, data_type: type, instrument_id: InstrumentId, records: Sequence[Any]
     ) -> None:
-        instrument = perpetual(instrument_id)
+        instrument = self._instruments.get(instrument_id) or perpetual(instrument_id)
         self._writer.write_instrument(instrument)
         for day in sorted({each.ts_event // DAY_NS for each in records}):
             within = [each for each in records if each.ts_event // DAY_NS == day]
@@ -100,6 +105,12 @@ def perpetual(instrument_id: InstrumentId) -> CryptoPerpetual:
         margin_init=Decimal("0.01"),
         margin_maint=Decimal("0.005"),
     )
+
+
+def perpetual_with(instrument_id: InstrumentId, **changes: Any) -> CryptoPerpetual:
+    """A perpetual of ``instrument_id`` with some of its fields changed."""
+    fields = CryptoPerpetual.to_dict(perpetual(instrument_id))
+    return CryptoPerpetual.from_dict({**fields, **changes})
 
 
 def _nanos[T](values: Mapping[datetime, T]) -> list[tuple[int, T]]:

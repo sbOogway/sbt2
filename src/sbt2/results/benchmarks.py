@@ -2,14 +2,13 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
-from functools import cached_property
 from pathlib import Path
 
 import pandas as pd
 from nautilus_trader.model import InstrumentId
 
-from sbt2.data import Catalog, Gap, Selection, Window
-from sbt2.results.metrics import Segment
+from sbt2.data import Catalog, Gap
+from sbt2.results.pricing import Market, MissingPricesError, on_grid
 from sbt2.spec import ResolvedRunSpec
 
 
@@ -25,21 +24,6 @@ class BenchmarkArgumentError(ValueError):
     pass
 
 
-@dataclass(frozen=True)
-class _Market:
-    run: ResolvedRunSpec
-    catalog: Catalog
-    known_gaps: frozenset[Gap]
-
-    @cached_property
-    def grid(self) -> pd.DatetimeIndex:
-        return Segment.of_run(self.run).grid
-
-    @property
-    def window(self) -> Window:
-        return Window(self.run.start, self.run.end)
-
-
 class Benchmark(ABC):
     """What a run is compared against, as returns on the run's equity grid."""
 
@@ -53,11 +37,11 @@ class Benchmark(ABC):
 
         Prices are carried across ``known_gaps``, the days the run skipped.
         """
-        market = _Market(run, catalog, known_gaps)
+        market = Market(run, catalog, known_gaps)
         return self._value(market).pct_change().iloc[1:]
 
     @abstractmethod
-    def _value(self, market: _Market) -> pd.Series:
+    def _value(self, market: Market) -> pd.Series:
         """The benchmark's value on the grid, 1 at the start before entry."""
 
 
@@ -68,7 +52,7 @@ class BuyAndHold(Benchmark):
 
     instrument: InstrumentId | None = None
 
-    def _value(self, market: _Market) -> pd.Series:
+    def _value(self, market: Market) -> pd.Series:
         held = self.instrument or market.run.strategy.instruments[0]
         return _held([held], market)
 
@@ -78,7 +62,7 @@ class EqualWeight(Benchmark):
     """The run's instruments, equal notional in each at the start, held without
     rebalancing, so the weights drift with the prices."""
 
-    def _value(self, market: _Market) -> pd.Series:
+    def _value(self, market: Market) -> pd.Series:
         return _held(market.run.strategy.instruments, market)
 
 
@@ -89,13 +73,13 @@ class External(Benchmark):
 
     path: Path
 
-    def _value(self, market: _Market) -> pd.Series:
+    def _value(self, market: Market) -> pd.Series:
         prices = self._prices()
         self._check_covers(prices, market)
-        on_grid = _on_grid(prices, market.grid)
-        return on_grid / on_grid.iloc[0]
+        held = on_grid(prices, market.grid)
+        return held / held.iloc[0]
 
-    def _check_covers(self, prices: pd.Series, market: _Market) -> None:
+    def _check_covers(self, prices: pd.Series, market: Market) -> None:
         """A price at or before the start, and one within the last equity
         interval of the end, so a sparser file needn't tick on the end."""
         start = market.grid[0]
@@ -120,7 +104,7 @@ class External(Benchmark):
         return pd.Series(frame["price"].to_numpy(dtype=float), index=index).sort_index()
 
 
-def _held(instruments: Sequence[InstrumentId], market: _Market) -> pd.Series:
+def _held(instruments: Sequence[InstrumentId], market: Market) -> pd.Series:
     """Equal notional in each instrument, bought at the start and held.
 
     Entry is at each instrument's first valuation price of the part.
@@ -134,38 +118,11 @@ def _held(instruments: Sequence[InstrumentId], market: _Market) -> pd.Series:
     return value
 
 
-def _prices(instrument: InstrumentId, market: _Market) -> pd.Series:
-    price_type = market.run.asset.buy_and_hold.price
-    _check_coverage(instrument, price_type, market)
-    frame = market.catalog.frame(instrument, price_type, market.window)
-    if frame.empty:
-        raise _no_prices(instrument, price_type, market.window.days)
-    return _on_grid(pd.Series(frame["price"]), market.grid).bfill()
-
-
-def _check_coverage(
-    instrument: InstrumentId, price_type: type, market: _Market
-) -> None:
-    selection = Selection((instrument,), (price_type,), market.window)
-    [coverage] = market.catalog.coverage(selection, market.known_gaps)
-    if coverage.missing:
-        raise _no_prices(instrument, price_type, coverage.missing)
-
-
-def _no_prices(
-    instrument: InstrumentId, price_type: type, days: Sequence[object]
-) -> BenchmarkCoverageError:
-    return BenchmarkCoverageError(
-        f"no {price_type.__name__} for {instrument} on "
-        f"{', '.join(str(each) for each in days)} to price the benchmark"
-    )
-
-
-def _on_grid(prices: pd.Series, grid: pd.DatetimeIndex) -> pd.Series:
-    """The last price at or before each grid time."""
-    last = prices.groupby(level=0, sort=True).last()
-    last.index = pd.DatetimeIndex(last.index)
-    return last.reindex(last.index.union(grid)).ffill().reindex(grid)
+def _prices(instrument: InstrumentId, market: Market) -> pd.Series:
+    try:
+        return market.prices(instrument, market.run.asset.buy_and_hold.price)
+    except MissingPricesError as error:
+        raise BenchmarkCoverageError(f"{error} to price the benchmark") from None
 
 
 def build_benchmark(name: str, argument: str | None = None) -> Benchmark | None:
