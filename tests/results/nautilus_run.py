@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from nautilus_trader.analysis import ReportProvider
+from nautilus_trader.analysis import PortfolioStatistics, ReportProvider
 from nautilus_trader.backtest import BacktestEngine, BacktestEngineConfig
 from nautilus_trader.common import LoggerConfig, LogLevel
 from nautilus_trader.core import dt_to_unix_nanos
@@ -91,18 +91,51 @@ def round_trip_with_funding() -> RunOutput:
     return _output(engine)
 
 
+def round_trips() -> tuple[RunOutput, PortfolioStatistics]:
+    """A long win, a short loss and a long loss of 1 BTC, flat at the end.
+
+    The netting OMS keeps one position, so the first two cycles are stored as
+    position snapshots. Also returns the statistics of the engine's own analyzer.
+    """
+    engine = _engine()
+    prices = ("50000.0", "51000.0", "51100.0", "51300.0", "51000.0", "50500.0")
+    engine.add_data(
+        [
+            each
+            for hour, price in enumerate((*prices, prices[-1]))
+            for each in _prices(_at(hours=2 * hour), price)
+        ]
+    )
+    engine.add_strategy(_RoundTrips())
+    engine.run()
+    return _output(engine), engine.portfolio.statistics()
+
+
 class _RoundTrip(Strategy):
+    SIDES = (OrderSide.BUY, OrderSide.SELL)
+
     def on_start(self) -> None:
         self.quotes = 0
         self.subscribe_quotes(INSTRUMENT_ID)
 
     def on_quote(self, quote: QuoteTick) -> None:
         self.quotes += 1
-        side = {1: OrderSide.BUY, 2: OrderSide.SELL}.get(self.quotes)
-        if side is not None:
+        if self.quotes <= len(self.SIDES):
+            side = self.SIDES[self.quotes - 1]
             self.submit_order(
                 self.order_factory.market(INSTRUMENT_ID, side, Quantity.from_str("1"))
             )
+
+
+class _RoundTrips(_RoundTrip):
+    SIDES = (
+        OrderSide.BUY,
+        OrderSide.SELL,
+        OrderSide.SELL,
+        OrderSide.BUY,
+        OrderSide.BUY,
+        OrderSide.SELL,
+    )
 
 
 def _engine() -> BacktestEngine:
@@ -170,7 +203,9 @@ def _output(engine: BacktestEngine) -> RunOutput:
         ],
         reports=Reports(
             fills=ReportProvider.generate_fills_report(cache.orders()),
-            positions=ReportProvider.generate_positions_report(cache.positions()),
+            positions=ReportProvider.generate_positions_report(
+                cache.positions(), cache.position_snapshots()
+            ),
             account=ReportProvider.generate_account_report(account),
             orders=ReportProvider.generate_orders_report(cache.orders()),
         ),

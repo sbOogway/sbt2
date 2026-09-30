@@ -1,23 +1,47 @@
 import math
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from statistics import NormalDist
 from typing import Protocol
 
 import pandas as pd
 from nautilus_trader.analysis import (
     CAGR,
     Alpha,
+    AvgLoser,
+    AvgWinner,
     BetaRatio,
+    CalmarRatio,
     DownCaptureRatio,
+    Expectancy,
+    ExpectedShortfall,
     InformationRatio,
     MaxDrawdown,
+    MaxLoser,
+    MaxWinner,
+    MinLoser,
+    MinWinner,
+    OmegaRatio,
     PortfolioAnalyzer,
+    ProfitFactor,
+    ReturnsAverage,
+    ReturnsAverageLoss,
+    ReturnsAverageWin,
+    ReturnsKurtosis,
+    ReturnsSkewness,
+    ReturnsVolatility,
+    RiskReturnRatio,
     SharpeRatio,
+    SortinoRatio,
+    TailRatio,
     TrackingError,
+    UlcerIndex,
     UpCaptureRatio,
+    ValueAtRisk,
+    WinRate,
 )
-from nautilus_trader.model import Money
+from nautilus_trader.model import Currency, Money, PositionId
 
 from sbt2.spec import ResolvedRunSpec
 
@@ -55,6 +79,7 @@ class RunTables:
     fills: pd.DataFrame
     carry: pd.DataFrame
     currency: str
+    positions: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 @dataclass(frozen=True)
@@ -68,6 +93,22 @@ class HeadlineMetrics:
     total_carry: float
 
 
+@dataclass(frozen=True)
+class FullMetrics:
+    """Nautilus's pnls, returns and general statistics of a run under its own
+    names, the pnls again per instrument id, and the probabilistic Sharpe ratio."""
+
+    pnls: dict[str, float | None]
+    returns: dict[str, float | None]
+    general: dict[str, float | None]
+    pnls_by_instrument: dict[str, dict[str, float | None]]
+    probabilistic_sharpe: float | None
+
+
+_ACCOUNT_STATISTICS = ("PnL (total)", "PnL% (total)")
+"""Nautilus computes these from the account's balances, which trades alone lack."""
+
+
 class CurrencyMismatchError(ValueError):
     pass
 
@@ -75,7 +116,7 @@ class CurrencyMismatchError(ValueError):
 def headline_metrics(run: RunTables, segment: Segment) -> HeadlineMetrics:
     """Headline metrics from mark-to-market equity over the segment."""
     curve = equity_curve(run.equity, run.currency, segment)
-    returns = curve.pct_change().iloc[1:]
+    returns = _returns(curve)
     period = segment.days_per_year
     return HeadlineMetrics(
         net_return=_finite(curve.iloc[-1] / curve.iloc[0] - 1),
@@ -85,6 +126,23 @@ def headline_metrics(run: RunTables, segment: Segment) -> HeadlineMetrics:
         trade_count=len(run.fills),
         total_fees=_total(run.fills, "commission", run.currency),
         total_carry=_total(run.carry, "pnl_change", run.currency),
+    )
+
+
+def full_metrics(run: RunTables, segment: Segment) -> FullMetrics:
+    """Nautilus's full statistic set over the segment, annualized by its calendar.
+
+    Return statistics come from mark-to-market equity on the segment's grid,
+    trade statistics from the closed positions and position snapshots.
+    """
+    trades = _trades(run)
+    returns = _returns(equity_curve(run.equity, run.currency, segment))
+    return FullMetrics(
+        pnls=_trade_statistics(trades, run.currency),
+        returns=_return_statistics(returns, segment.days_per_year),
+        general=_general_statistics(trades),
+        pnls_by_instrument=_trade_statistics_by_instrument(trades, run.currency),
+        probabilistic_sharpe=_probabilistic_sharpe(returns),
     )
 
 
@@ -117,19 +175,148 @@ def benchmark_statistics(
     statistics = analyzer.get_performance_stats_returns_vs_benchmark(
         _nanos(_daily(benchmark))
     )
-    return {name: _finite(value) for name, value in statistics.items()}
+    return _finite_values(statistics)
 
 
 def _relative_analyzer(days_per_year: int) -> PortfolioAnalyzer:
-    analyzer = PortfolioAnalyzer()
-    for statistic in (
+    return _analyzer(
         Alpha(period=days_per_year),
         BetaRatio(),
         InformationRatio(period=days_per_year),
         TrackingError(period=days_per_year),
         UpCaptureRatio(period=days_per_year),
         DownCaptureRatio(period=days_per_year),
-    ):
+    )
+
+
+def _return_statistics(
+    returns: pd.Series, days_per_year: int
+) -> dict[str, float | None]:
+    analyzer = _return_analyzer(days_per_year)
+    for ts, value in _nanos(returns).items():
+        analyzer.add_return(ts, value)
+    return _finite_values(analyzer.get_performance_stats_returns())
+
+
+def _probabilistic_sharpe(returns: pd.Series) -> float | None:
+    """The probability that the true Sharpe ratio is above 0.
+
+    Bailey & López de Prado (2012), https://papers.ssrn.com/abstract=1821643,
+    on the grid's returns, not annualized. The skewness and excess kurtosis
+    are the unbiased sample estimators of nautilus's ``ReturnsSkewness`` and
+    ``ReturnsKurtosis``, which resample to daily returns first and so can't
+    take the grid's own.
+    """
+    volatility = returns.std()
+    if not volatility > 0:
+        return None
+    sharpe = returns.mean() / volatility
+    kurtosis = returns.kurt() + 3
+    variance = 1 - returns.skew() * sharpe + (kurtosis - 1) / 4 * sharpe**2
+    if not variance > 0:
+        return None
+    return NormalDist().cdf(sharpe * math.sqrt((len(returns) - 1) / variance))
+
+
+def _trades(run: RunTables) -> pd.DataFrame:
+    """Closed positions and snapshots, with their realized PnL as ``pnl``.
+
+    A position still open at the end has no close time, so it is left out.
+    """
+    if run.positions.empty:
+        return pd.DataFrame(columns=["instrument_id", "entry", "ts_closed", "pnl"])
+    trades = run.positions.loc[run.positions["ts_closed"].notna()]
+    return trades.assign(pnl=_amounts(trades["realized_pnl"], run.currency))
+
+
+def _trade_statistics(trades: pd.DataFrame, currency: str) -> dict[str, float | None]:
+    if trades.empty:
+        return {}
+    settlement = Currency.from_str(currency)
+    pnls = pd.Series(trades["pnl"], dtype=float)
+    closed_at = pd.DatetimeIndex(trades["ts_closed"])
+    analyzer = _trade_analyzer()
+    for position_id, ts, pnl in zip(trades.index, closed_at, pnls, strict=True):
+        analyzer.add_trade(
+            PositionId(str(position_id)), ts.value, Money(pnl, settlement)
+        )
+    statistics = analyzer.get_performance_stats_pnls(settlement, None)
+    return {**_without_account(statistics), "Profit Factor": _profit_factor(pnls)}
+
+
+def _without_account(statistics: Mapping[str, float]) -> dict[str, float | None]:
+    return {
+        name: value
+        for name, value in _finite_values(statistics).items()
+        if name not in _ACCOUNT_STATISTICS
+    }
+
+
+def _trade_statistics_by_instrument(
+    trades: pd.DataFrame, currency: str
+) -> dict[str, dict[str, float | None]]:
+    return {
+        str(instrument): _trade_statistics(each, currency)
+        for instrument, each in trades.groupby("instrument_id")
+    }
+
+
+def _profit_factor(pnls: pd.Series) -> float | None:
+    """Nautilus's ``ProfitFactor`` takes returns only, not realized PnLs."""
+    losses = -pnls[pnls < 0].sum()
+    return _finite(pnls[pnls > 0].sum() / losses) if losses else None
+
+
+def _general_statistics(trades: pd.DataFrame) -> dict[str, float | None]:
+    """Nautilus's ``LongRatio``, rounded as it rounds.
+
+    Its formula takes nautilus ``Position`` objects, which a stored run no
+    longer has; the positions report keeps each one's entry side.
+    """
+    if trades.empty:
+        return {}
+    return {"Long Ratio": round(float((trades["entry"] == "BUY").mean()), 2)}
+
+
+def _return_analyzer(days_per_year: int) -> PortfolioAnalyzer:
+    return _analyzer(
+        CAGR(period=days_per_year),
+        CalmarRatio(period=days_per_year),
+        ReturnsVolatility(period=days_per_year),
+        SharpeRatio(period=days_per_year),
+        SortinoRatio(period=days_per_year),
+        MaxDrawdown(),
+        ExpectedShortfall(),
+        ValueAtRisk(),
+        OmegaRatio(),
+        ProfitFactor(),
+        ReturnsAverage(),
+        ReturnsAverageLoss(),
+        ReturnsAverageWin(),
+        ReturnsKurtosis(),
+        ReturnsSkewness(),
+        RiskReturnRatio(),
+        TailRatio(),
+        UlcerIndex(),
+    )
+
+
+def _trade_analyzer() -> PortfolioAnalyzer:
+    return _analyzer(
+        AvgLoser(),
+        AvgWinner(),
+        Expectancy(),
+        MaxLoser(),
+        MaxWinner(),
+        MinLoser(),
+        MinWinner(),
+        WinRate(),
+    )
+
+
+def _analyzer(*statistics: object) -> PortfolioAnalyzer:
+    analyzer = PortfolioAnalyzer()
+    for statistic in statistics:
         analyzer.register_statistic(statistic)
     return analyzer
 
@@ -142,6 +329,10 @@ class _ReturnsStatistic(Protocol):
 
 def _statistic(statistic: _ReturnsStatistic, returns: pd.Series) -> float | None:
     return _finite(statistic.calculate_from_returns(_nanos(returns)))
+
+
+def _returns(curve: pd.Series) -> pd.Series:
+    return curve.pct_change().iloc[1:]
 
 
 def _daily(returns: pd.Series) -> pd.Series:
@@ -159,17 +350,25 @@ def _nanos(returns: pd.Series) -> dict[int, float]:
 def _total(frame: pd.DataFrame, column: str, currency: str) -> float:
     if frame.empty:
         return 0.0
-    amounts = [Money.from_str(each) for each in frame[column]]
+    return sum(_amounts(frame[column], currency), 0.0)
+
+
+def _amounts(values: Iterable[str], currency: str) -> list[float]:
+    amounts = [Money.from_str(each) for each in values]
     foreign = {each.currency.code for each in amounts} - {currency}
     if foreign:
         raise _mismatch(foreign, currency)
-    return sum((each.as_double() for each in amounts), 0.0)
+    return [each.as_double() for each in amounts]
 
 
 def _mismatch(foreign: set[str], currency: str) -> CurrencyMismatchError:
     return CurrencyMismatchError(
         f"amounts in {', '.join(sorted(foreign))}, not the settlement currency {currency}"
     )
+
+
+def _finite_values(statistics: Mapping[str, float]) -> dict[str, float | None]:
+    return {name: _finite(value) for name, value in statistics.items()}
 
 
 def _finite(value: float | None) -> float | None:
