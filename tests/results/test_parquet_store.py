@@ -14,6 +14,7 @@ from nautilus_run import (
     START,
     RunOutput,
     round_trip_with_funding,
+    round_trips,
     spec,
 )
 from nautilus_trader.core import UUID4
@@ -26,7 +27,10 @@ from sbt2.results import (
     OutputSink,
     ParquetResultStore,
     Reports,
+    RunTables,
+    Segment,
     UnknownRunError,
+    full_metrics,
 )
 from sbt2.spec import ResolvedRunSpec
 
@@ -473,3 +477,28 @@ def test_a_summary_written_with_alpha_and_beta_still_lists(
     newer = finished_run(store, output)
 
     assert listed(store.runs()) == [older, newer]
+
+
+@pytest.mark.integration
+def test_trade_statistics_of_a_stored_run_match_nautilus_own_analyzer(
+    store: ParquetResultStore,
+) -> None:
+    output, own = round_trips()
+    run_id = finished_run(store, output)
+    stored = RunTables(
+        *(store.load(run_id, table) for table in ("equity", "fills", "carry")),
+        currency="USDT",
+        positions=store.load(run_id, "positions"),
+    )
+
+    result = full_metrics(stored, Segment.of_run(spec()))
+
+    expected = {
+        name: value
+        for name, value in own.pnls["USDT"].items()
+        if name not in ("PnL (total)", "PnL% (total)")
+    }
+    assert len(expected) == 8
+    assert {name: result.pnls[name] for name in expected} == pytest.approx(expected)
+    assert result.pnls["Win Rate"] == pytest.approx(1 / 3)
+    assert result.general == own.general

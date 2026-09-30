@@ -1,6 +1,6 @@
 import math
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Protocol
 
@@ -16,7 +16,6 @@ from nautilus_trader.analysis import (
     Expectancy,
     ExpectedShortfall,
     InformationRatio,
-    LongRatio,
     MaxDrawdown,
     MaxLoser,
     MaxWinner,
@@ -41,7 +40,7 @@ from nautilus_trader.analysis import (
     ValueAtRisk,
     WinRate,
 )
-from nautilus_trader.model import Money
+from nautilus_trader.model import Currency, Money, PositionId
 
 from sbt2.spec import ResolvedRunSpec
 
@@ -79,6 +78,7 @@ class RunTables:
     fills: pd.DataFrame
     carry: pd.DataFrame
     currency: str
+    positions: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 @dataclass(frozen=True)
@@ -96,7 +96,13 @@ class HeadlineMetrics:
 class FullMetrics:
     """Nautilus's statistics of a run, under its own names."""
 
+    pnls: dict[str, float | None]
     returns: dict[str, float | None]
+    general: dict[str, float | None]
+
+
+_ACCOUNT_STATISTICS = ("PnL (total)", "PnL% (total)")
+"""Nautilus computes these from the account's balances, which trades alone lack."""
 
 
 class CurrencyMismatchError(ValueError):
@@ -122,13 +128,15 @@ def headline_metrics(run: RunTables, segment: Segment) -> HeadlineMetrics:
 def full_metrics(run: RunTables, segment: Segment) -> FullMetrics:
     """Nautilus's full statistic set over the segment, annualized by its calendar.
 
-    Return statistics come from mark-to-market equity on the segment's grid.
+    Return statistics come from mark-to-market equity on the segment's grid,
+    trade statistics from the closed positions and position snapshots.
     """
-    analyzer = _full_analyzer(segment.days_per_year)
-    curve = equity_curve(run.equity, run.currency, segment)
-    for ts, value in _nanos(_returns(curve)).items():
-        analyzer.add_return(ts, value)
-    return FullMetrics(returns=_finite_values(analyzer.get_performance_stats_returns()))
+    trades = _trades(run)
+    return FullMetrics(
+        pnls=_trade_statistics(trades, run.currency),
+        returns=_return_statistics(run, segment),
+        general=_general_statistics(trades),
+    )
 
 
 def equity_curve(equity: pd.DataFrame, currency: str, segment: Segment) -> pd.Series:
@@ -174,8 +182,66 @@ def _relative_analyzer(days_per_year: int) -> PortfolioAnalyzer:
     )
 
 
-def _full_analyzer(days_per_year: int) -> PortfolioAnalyzer:
-    """Every nautilus statistic that needs no benchmark."""
+def _return_statistics(run: RunTables, segment: Segment) -> dict[str, float | None]:
+    analyzer = _return_analyzer(segment.days_per_year)
+    curve = equity_curve(run.equity, run.currency, segment)
+    for ts, value in _nanos(_returns(curve)).items():
+        analyzer.add_return(ts, value)
+    return _finite_values(analyzer.get_performance_stats_returns())
+
+
+def _trades(run: RunTables) -> pd.DataFrame:
+    """Closed positions and snapshots, with their realized PnL as ``pnl``.
+
+    A position still open at the end has no close time, so it is left out.
+    """
+    if run.positions.empty:
+        return pd.DataFrame(columns=["entry", "ts_closed", "pnl"])
+    trades = run.positions.loc[run.positions["ts_closed"].notna()]
+    return trades.assign(pnl=_amounts(trades["realized_pnl"], run.currency))
+
+
+def _trade_statistics(trades: pd.DataFrame, currency: str) -> dict[str, float | None]:
+    if trades.empty:
+        return {}
+    settlement = Currency.from_str(currency)
+    pnls = pd.Series(trades["pnl"], dtype=float)
+    closed_at = pd.DatetimeIndex(trades["ts_closed"])
+    analyzer = _trade_analyzer()
+    for position_id, ts, pnl in zip(trades.index, closed_at, pnls, strict=True):
+        analyzer.add_trade(
+            PositionId(str(position_id)), ts.value, Money(pnl, settlement)
+        )
+    statistics = analyzer.get_performance_stats_pnls(settlement, None)
+    return {**_without_account(statistics), "Profit Factor": _profit_factor(pnls)}
+
+
+def _without_account(statistics: Mapping[str, float]) -> dict[str, float | None]:
+    return {
+        name: value
+        for name, value in _finite_values(statistics).items()
+        if name not in _ACCOUNT_STATISTICS
+    }
+
+
+def _profit_factor(pnls: pd.Series) -> float | None:
+    """Nautilus's ``ProfitFactor`` takes returns only, not realized PnLs."""
+    losses = -pnls[pnls < 0].sum()
+    return _finite(pnls[pnls > 0].sum() / losses) if losses else None
+
+
+def _general_statistics(trades: pd.DataFrame) -> dict[str, float | None]:
+    """Nautilus's ``LongRatio``, rounded as it rounds.
+
+    Its formula takes nautilus ``Position`` objects, which a stored run no
+    longer has; the positions report keeps each one's entry side.
+    """
+    if trades.empty:
+        return {}
+    return {"Long Ratio": round(float((trades["entry"] == "BUY").mean()), 2)}
+
+
+def _return_analyzer(days_per_year: int) -> PortfolioAnalyzer:
     return _analyzer(
         CAGR(period=days_per_year),
         CalmarRatio(period=days_per_year),
@@ -195,10 +261,14 @@ def _full_analyzer(days_per_year: int) -> PortfolioAnalyzer:
         RiskReturnRatio(),
         TailRatio(),
         UlcerIndex(),
+    )
+
+
+def _trade_analyzer() -> PortfolioAnalyzer:
+    return _analyzer(
         AvgLoser(),
         AvgWinner(),
         Expectancy(),
-        LongRatio(),
         MaxLoser(),
         MaxWinner(),
         MinLoser(),
@@ -243,11 +313,15 @@ def _nanos(returns: pd.Series) -> dict[int, float]:
 def _total(frame: pd.DataFrame, column: str, currency: str) -> float:
     if frame.empty:
         return 0.0
-    amounts = [Money.from_str(each) for each in frame[column]]
+    return sum(_amounts(frame[column], currency), 0.0)
+
+
+def _amounts(values: Iterable[str], currency: str) -> list[float]:
+    amounts = [Money.from_str(each) for each in values]
     foreign = {each.currency.code for each in amounts} - {currency}
     if foreign:
         raise _mismatch(foreign, currency)
-    return sum((each.as_double() for each in amounts), 0.0)
+    return [each.as_double() for each in amounts]
 
 
 def _mismatch(foreign: set[str], currency: str) -> CurrencyMismatchError:

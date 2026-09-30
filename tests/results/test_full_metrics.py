@@ -5,12 +5,13 @@ import pandas as pd
 import pytest
 from nautilus_trader.analysis import CAGR, SharpeRatio
 
-from sbt2.results import RunTables, Segment, full_metrics
+from sbt2.results import CurrencyMismatchError, RunTables, Segment, full_metrics
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 DAY = timedelta(days=1)
 YEAR = Segment(START, START + 365 * DAY, DAY, days_per_year=365)
 NO_TABLE = pd.DataFrame()
+BTC, ETH = "BTCUSDT-LINEAR.BYBIT", "ETHUSDT-LINEAR.BYBIT"
 
 
 def equity(points: dict[datetime, float]) -> pd.DataFrame:
@@ -29,6 +30,31 @@ def daily_equity(*values: float) -> pd.DataFrame:
 
 def run_on(run_equity: pd.DataFrame) -> RunTables:
     return RunTables(run_equity, NO_TABLE, NO_TABLE, "USDT")
+
+
+def closed(pnl: str, instrument: str = BTC, entry: str = "BUY") -> dict[str, object]:
+    return {
+        "instrument_id": instrument,
+        "entry": entry,
+        "realized_pnl": pnl,
+        "ts_closed": pd.Timestamp(START + DAY),
+        "is_snapshot": False,
+    }
+
+
+def snapshot(pnl: str) -> dict[str, object]:
+    return {**closed(pnl), "is_snapshot": True}
+
+
+def still_open(pnl: str) -> dict[str, object]:
+    return {**closed(pnl), "ts_closed": pd.NA}
+
+
+def with_positions(*rows: dict[str, object]) -> RunTables:
+    positions = pd.DataFrame(
+        list(rows), index=pd.Index([f"P-{k}" for k in range(len(rows))])
+    )
+    return RunTables(daily_equity(*wavy(365)), NO_TABLE, NO_TABLE, "USDT", positions)
 
 
 def wavy(days: int) -> list[float]:
@@ -75,3 +101,57 @@ def test_return_statistics_cover_the_part_only() -> None:
     assert full_metrics(run_on(with_warmup), YEAR).returns == pytest.approx(
         full_metrics(run_on(segment_only), YEAR).returns
     )
+
+
+@pytest.mark.unit
+def test_trade_statistics_come_from_closed_positions() -> None:
+    run = with_positions(
+        closed("10 USDT"), closed("-5 USDT"), closed("20 USDT"), still_open("99 USDT")
+    )
+
+    pnls = full_metrics(run, YEAR).pnls
+
+    assert pnls["Win Rate"] == pytest.approx(2 / 3)
+    assert pnls["Profit Factor"] == pytest.approx(6.0)
+    assert pnls["Expectancy"] == pytest.approx(2 / 3 * 15 - 1 / 3 * 5)
+    assert pnls["Avg Winner"] == pytest.approx(15.0)
+    assert pnls["Avg Loser"] == pytest.approx(-5.0)
+    assert pnls["Max Winner"] == pytest.approx(20.0)
+
+
+@pytest.mark.unit
+def test_position_snapshots_count_as_trades() -> None:
+    run = with_positions(closed("10 USDT"), snapshot("-5 USDT"))
+
+    assert full_metrics(run, YEAR).pnls["Win Rate"] == pytest.approx(0.5)
+
+
+@pytest.mark.unit
+def test_long_ratio_is_the_share_of_trades_entered_long() -> None:
+    run = with_positions(
+        closed("10 USDT"),
+        closed("-5 USDT", entry="SELL"),
+        closed("20 USDT"),
+        still_open("1 USDT"),
+    )
+
+    assert full_metrics(run, YEAR).general == {"Long Ratio": 0.67}
+
+
+@pytest.mark.unit
+def test_a_run_without_positions_has_no_trade_statistics() -> None:
+    run = RunTables(daily_equity(*wavy(365)), NO_TABLE, NO_TABLE, "USDT", NO_TABLE)
+
+    result = full_metrics(run, YEAR)
+
+    assert result.pnls == {}
+    assert result.general == {}
+    assert result.returns["Sharpe Ratio (365 days)"] is not None
+
+
+@pytest.mark.unit
+def test_realized_pnl_in_another_currency_fails() -> None:
+    run = with_positions(closed("10 USDT"), closed("-5 USDC"))
+
+    with pytest.raises(CurrencyMismatchError, match="USDC"):
+        full_metrics(run, YEAR)
