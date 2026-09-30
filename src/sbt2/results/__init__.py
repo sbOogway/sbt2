@@ -8,6 +8,13 @@ from sbt2.results.benchmarks import (
     UnknownBenchmarkError,
     build_benchmark,
 )
+from sbt2.results.costs import (
+    Activity,
+    CostsAndExposure,
+    CostWaterfall,
+    PricedRun,
+    costs_and_exposure,
+)
 from sbt2.results.metrics import (
     FullMetrics,
     HeadlineMetrics,
@@ -29,10 +36,13 @@ from sbt2.results.store import (
 )
 
 __all__ = [
+    "Activity",
     "Benchmark",
     "BenchmarkArgumentError",
     "BenchmarkCoverageError",
     "BuyAndHold",
+    "CostWaterfall",
+    "CostsAndExposure",
     "CurrencyMismatchError",
     "EqualWeight",
     "External",
@@ -42,6 +52,7 @@ __all__ = [
     "MissingTableError",
     "OutputSink",
     "ParquetResultStore",
+    "PricedRun",
     "Reports",
     "ResultStore",
     "RunTables",
@@ -51,6 +62,7 @@ __all__ = [
     "UnknownRunError",
     "benchmark_statistics",
     "build_benchmark",
+    "costs_and_exposure",
     "equity_curve",
     "full_metrics",
     "headline_metrics",
