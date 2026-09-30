@@ -8,8 +8,12 @@ from nautilus_trader.model import InstrumentId
 from sbt2.data import Catalog, Gap
 from sbt2.results.metrics import RunTables, Segment, equity_curve
 from sbt2.results.money import total
-from sbt2.results.pricing import Market, on_grid
+from sbt2.results.pricing import Market, MissingPricesError, on_grid
 from sbt2.spec import ResolvedRunSpec
+
+
+class InverseInstrumentError(ValueError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -97,16 +101,36 @@ class _Book:
 
     @cached_property
     def notionals(self) -> pd.DataFrame:
+        """Quantity times valuation price times contract multiplier."""
         market = Market(self._run.spec, self._run.catalog, self._run.known_gaps)
         price_type = self._run.spec.asset.valuation_price
+        ids = [InstrumentId.from_str(str(each)) for each in self.quantities.columns]
+        multipliers = _linear_multipliers(ids, self._run.catalog)
         return pd.DataFrame(
             {
-                instrument: held
-                * market.prices(InstrumentId.from_str(str(instrument)), price_type)
-                for instrument, held in self.quantities.items()
+                str(each): self.quantities[str(each)]
+                * market.prices(each, price_type)
+                * multipliers[each]
+                for each in ids
             },
             index=self.segment.grid,
         )
+
+
+def _linear_multipliers(
+    ids: list[InstrumentId], catalog: Catalog
+) -> dict[InstrumentId, float]:
+    """Each instrument's contract multiplier; an inverse instrument fails."""
+    instruments = catalog.instruments(ids)
+    missing = [str(each) for each in ids if each not in instruments]
+    if missing:
+        raise MissingPricesError(f"no instrument {', '.join(missing)} in the catalog")
+    inverse = [str(each) for each in ids if instruments[each].is_inverse]
+    if inverse:
+        raise InverseInstrumentError(
+            f"{', '.join(inverse)} is inverse; exposure values linear instruments only"
+        )
+    return {each: float(instruments[each].multiplier) for each in ids}
 
 
 def _signed_quantities(fills: pd.DataFrame) -> pd.Series:

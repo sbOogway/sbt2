@@ -13,6 +13,7 @@ from sbt2.results.costs import (
     CostsAndExposure,
     CostWaterfall,
     Exposure,
+    InverseInstrumentError,
     PricedRun,
     costs_and_exposure,
 )
@@ -52,6 +53,7 @@ __all__ = [
     "FullMetrics",
     "HeadlineMetrics",
     "IncompleteRunError",
+    "InverseInstrumentError",
     "MissingPricesError",
     "MissingTableError",
     "OutputSink",

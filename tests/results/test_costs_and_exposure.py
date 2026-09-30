@@ -5,10 +5,11 @@ from pathlib import Path
 import pandas as pd
 import pytest
 from nautilus_trader.model import InstrumentId, MarkPriceUpdate
-from price_catalog import BTC, ETH, PriceCatalog, run_on
+from price_catalog import BTC, ETH, PriceCatalog, perpetual_with, run_on
 
 from sbt2.data import Gap
 from sbt2.results import (
+    InverseInstrumentError,
     MissingPricesError,
     PricedRun,
     RunTables,
@@ -193,3 +194,31 @@ def test_missing_valuation_prices_fail(prices: PriceCatalog) -> None:
         match="MarkPriceUpdate for BTCUSDT-LINEAR.BYBIT on 2024-01-02",
     ):
         exposure_of(run, prices, end)
+
+
+@pytest.mark.unit
+def test_an_inverse_instrument_fails(prices: PriceCatalog) -> None:
+    end = START + HOUR
+    inverse = InstrumentId.from_str("BTCUSD-INVERSE.BYBIT")
+    prices.add_instrument(
+        perpetual_with(
+            inverse, is_inverse=True, quote_currency="USD", settlement_currency="BTC"
+        )
+    )
+    prices.add_marks(inverse, {START: 50_000.0})
+    run = tables(flat(10_000.0, end), [of(inverse, fill(START, 1, 50_000.0))], [])
+
+    with pytest.raises(InverseInstrumentError, match="BTCUSD-INVERSE.BYBIT"):
+        costs_and_exposure(
+            PricedRun(run_on([inverse], START, end), run, prices.catalog)
+        )
+
+
+@pytest.mark.unit
+def test_notional_counts_the_contract_multiplier(prices: PriceCatalog) -> None:
+    end = START + HOUR
+    prices.add_instrument(perpetual_with(BTC, multiplier="10"))
+    prices.add_marks(BTC, {START: 500.0})
+    run = tables(flat(10_000.0, end), [fill(START, 1, 500.0)], [])
+
+    assert exposure_of(run, prices, end).gross_leverage[end] == pytest.approx(0.5)
