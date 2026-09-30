@@ -10,11 +10,13 @@ from sbt2.results.benchmarks import (
 )
 from sbt2.results.metrics import (
     CurrencyMismatchError,
+    FullMetrics,
     HeadlineMetrics,
     RunTables,
     Segment,
     benchmark_statistics,
     equity_curve,
+    full_metrics,
     headline_metrics,
 )
 from sbt2.results.parquet import ParquetResultStore
@@ -34,6 +36,7 @@ __all__ = [
     "CurrencyMismatchError",
     "EqualWeight",
     "External",
+    "FullMetrics",
     "HeadlineMetrics",
     "IncompleteRunError",
     "MissingTableError",
@@ -49,5 +52,6 @@ __all__ = [
     "benchmark_statistics",
     "build_benchmark",
     "equity_curve",
+    "full_metrics",
     "headline_metrics",
 ]
