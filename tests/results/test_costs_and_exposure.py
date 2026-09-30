@@ -358,3 +358,24 @@ def test_exposure_holding_time_and_turnover_are_split_per_instrument(
     years_of_the_part = 2 / (365 * 24)
     assert btc.turnover == pytest.approx(0.5 / years_of_the_part)
     assert eth.turnover == pytest.approx(1.0 / years_of_the_part)
+
+
+@pytest.mark.unit
+def test_a_position_opened_at_the_part_start_counts_in_its_instrument_net(
+    prices: PriceCatalog,
+) -> None:
+    end = START + 2 * HOUR
+    prices.add_marks(BTC, {START: 50_000.0, START + 90 * MINUTE: 50_500.0})
+    run = tables(
+        {START: 10_000.0, end: 10_499.0},
+        [paying(fill(START, 1, 50_000.0), 1.0)],
+        [],
+    )
+
+    result = costs_and_exposure(
+        PricedRun(run_on([BTC], START, end), run, prices.catalog)
+    )
+
+    assert astuple(result.by_instrument[str(BTC)].costs) == pytest.approx(
+        astuple(result.total.costs)
+    )

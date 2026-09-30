@@ -136,19 +136,22 @@ class _Book:
         return {str(each): float(instruments[each].multiplier) for each in ids}
 
     @cached_property
-    def notionals(self) -> pd.DataFrame:
-        """Quantity times valuation price times contract multiplier."""
+    def unit_values(self) -> pd.DataFrame:
+        """Valuation price times contract multiplier: the value of one unit held."""
         market = Market(self.run.spec, self.run.catalog, self.run.known_gaps)
         price_type = self.run.spec.asset.valuation_price
         return pd.DataFrame(
             {
-                instrument: self.quantities[instrument]
-                * market.prices(InstrumentId.from_str(instrument), price_type)
+                instrument: market.prices(InstrumentId.from_str(instrument), price_type)
                 * multiplier
                 for instrument, multiplier in self.multipliers.items()
             },
             index=self.segment.grid,
         )
+
+    @cached_property
+    def notionals(self) -> pd.DataFrame:
+        return self.quantities.filter(items=self.multipliers) * self.unit_values
 
     def traded_notional(self, fills: pd.DataFrame) -> pd.Series:
         """Each fill's quantity times its price times the contract multiplier."""
@@ -235,11 +238,21 @@ def _instrument_activity(part: _Slice, book: _Book) -> Activity:
 def _instrument_costs(part: _Slice, book: _Book) -> CostWaterfall:
     """Gross PnL is the fills' cash flow plus the change in the position's value,
     so net PnL is the realized plus the unrealized at the part end's price."""
-    [notional] = [book.notionals[each] for each in part.instruments]
+    [instrument] = part.instruments
+    value = book.unit_values[instrument]
+    held = book.quantities[instrument]
+    opened = held.iloc[0] - _signed_at_start(part.fills, book.segment)
     paid = _sides(part.fills) * book.traded_notional(part.fills).to_numpy()
-    gross = float(notional.iloc[-1] - notional.iloc[0] - paid.sum())
+    gross = float(held.iloc[-1] * value.iloc[-1] - opened * value.iloc[0] - paid.sum())
     fees, carry = part.fees(book.currency), part.carried(book.currency)
     return CostWaterfall(gross, fees, carry, gross + fees + carry)
+
+
+def _signed_at_start(fills: pd.DataFrame, segment: Segment) -> float:
+    """What the part's fills at its start traded, already in the start position
+    but paid for within the part, like the fees counted from the start."""
+    at_start = pd.DatetimeIndex(fills["ts_event"]) == segment.start
+    return float(_signed_quantities(fills)[at_start].sum())
 
 
 def _signed_quantities(fills: pd.DataFrame) -> np.ndarray:
