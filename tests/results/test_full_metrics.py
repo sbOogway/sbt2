@@ -1,5 +1,6 @@
 import math
 from datetime import UTC, datetime, timedelta
+from statistics import NormalDist
 
 import pandas as pd
 import pytest
@@ -59,6 +60,17 @@ def with_positions(*rows: dict[str, object]) -> RunTables:
 
 def wavy(days: int) -> list[float]:
     return [100.0 + 5 * math.sin(k) + k / 10 for k in range(days + 1)]
+
+
+def compounded(returns: list[float]) -> pd.DataFrame:
+    values = [100.0]
+    for each in returns:
+        values.append(values[-1] * (1 + each))
+    return daily_equity(*values)
+
+
+def segment_of(days: int) -> Segment:
+    return Segment(START, START + days * DAY, DAY, days_per_year=365)
 
 
 def nanos(values: list[float]) -> dict[int, float]:
@@ -170,3 +182,35 @@ def test_trade_statistics_are_split_per_instrument() -> None:
     assert by_instrument[BTC]["Avg Winner"] == pytest.approx(15.0)
     assert by_instrument[ETH]["Win Rate"] == pytest.approx(0.0)
     assert by_instrument[ETH]["Avg Loser"] == pytest.approx(-5.0)
+
+
+@pytest.mark.unit
+def test_probabilistic_sharpe_ratio_follows_bailey_and_lopez_de_prado() -> None:
+    returns = [0.01, -0.004, 0.012, 0.003, -0.02, 0.08, 0.005, -0.001, 0.002, 0.004]
+    returns *= 3
+    series = pd.Series(returns)
+    sharpe = series.mean() / series.std()
+    skew, kurtosis = series.skew(), series.kurt() + 3
+    variance = 1 - skew * sharpe + (kurtosis - 1) / 4 * sharpe**2
+    expected = NormalDist().cdf(sharpe * math.sqrt((len(returns) - 1) / variance))
+
+    result = full_metrics(run_on(compounded(returns)), segment_of(len(returns)))
+
+    assert skew > 1 and kurtosis > 3
+    assert result.probabilistic_sharpe == pytest.approx(expected)
+
+
+@pytest.mark.unit
+def test_probabilistic_sharpe_is_one_half_when_the_sharpe_is_the_threshold() -> None:
+    returns = [0.01, -0.01, 0.03, -0.03, 0.02, -0.02] * 5
+
+    result = full_metrics(run_on(compounded(returns)), segment_of(len(returns)))
+
+    assert result.probabilistic_sharpe == pytest.approx(0.5)
+
+
+@pytest.mark.unit
+def test_flat_equity_has_no_probabilistic_sharpe() -> None:
+    result = full_metrics(run_on(daily_equity(100.0)), YEAR)
+
+    assert result.probabilistic_sharpe is None

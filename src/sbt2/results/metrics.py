@@ -2,6 +2,7 @@ import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from statistics import NormalDist
 from typing import Protocol
 
 import pandas as pd
@@ -95,12 +96,13 @@ class HeadlineMetrics:
 @dataclass(frozen=True)
 class FullMetrics:
     """Nautilus's pnls, returns and general statistics of a run under its own
-    names, and the pnls again per instrument id."""
+    names, the pnls again per instrument id, and the probabilistic Sharpe ratio."""
 
     pnls: dict[str, float | None]
     returns: dict[str, float | None]
     general: dict[str, float | None]
     pnls_by_instrument: dict[str, dict[str, float | None]]
+    probabilistic_sharpe: float | None
 
 
 _ACCOUNT_STATISTICS = ("PnL (total)", "PnL% (total)")
@@ -134,14 +136,13 @@ def full_metrics(run: RunTables, segment: Segment) -> FullMetrics:
     trade statistics from the closed positions and position snapshots.
     """
     trades = _trades(run)
+    returns = _returns(equity_curve(run.equity, run.currency, segment))
     return FullMetrics(
         pnls=_trade_statistics(trades, run.currency),
-        returns=_return_statistics(run, segment),
+        returns=_return_statistics(returns, segment.days_per_year),
         general=_general_statistics(trades),
-        pnls_by_instrument={
-            str(instrument): _trade_statistics(each, run.currency)
-            for instrument, each in trades.groupby("instrument_id")
-        },
+        pnls_by_instrument=_trade_statistics_by_instrument(trades, run.currency),
+        probabilistic_sharpe=_probabilistic_sharpe(returns),
     )
 
 
@@ -188,12 +189,33 @@ def _relative_analyzer(days_per_year: int) -> PortfolioAnalyzer:
     )
 
 
-def _return_statistics(run: RunTables, segment: Segment) -> dict[str, float | None]:
-    analyzer = _return_analyzer(segment.days_per_year)
-    curve = equity_curve(run.equity, run.currency, segment)
-    for ts, value in _nanos(_returns(curve)).items():
+def _return_statistics(
+    returns: pd.Series, days_per_year: int
+) -> dict[str, float | None]:
+    analyzer = _return_analyzer(days_per_year)
+    for ts, value in _nanos(returns).items():
         analyzer.add_return(ts, value)
     return _finite_values(analyzer.get_performance_stats_returns())
+
+
+def _probabilistic_sharpe(returns: pd.Series) -> float | None:
+    """The probability that the true Sharpe ratio is above 0.
+
+    Bailey & López de Prado (2012), https://papers.ssrn.com/abstract=1821643,
+    on the grid's returns, not annualized. The skewness and excess kurtosis
+    are the unbiased sample estimators of nautilus's ``ReturnsSkewness`` and
+    ``ReturnsKurtosis``, which resample to daily returns first and so can't
+    take the grid's own.
+    """
+    volatility = returns.std()
+    if not volatility > 0:
+        return None
+    sharpe = returns.mean() / volatility
+    kurtosis = returns.kurt() + 3
+    variance = 1 - returns.skew() * sharpe + (kurtosis - 1) / 4 * sharpe**2
+    if not variance > 0:
+        return None
+    return NormalDist().cdf(sharpe * math.sqrt((len(returns) - 1) / variance))
 
 
 def _trades(run: RunTables) -> pd.DataFrame:
@@ -227,6 +249,15 @@ def _without_account(statistics: Mapping[str, float]) -> dict[str, float | None]
         name: value
         for name, value in _finite_values(statistics).items()
         if name not in _ACCOUNT_STATISTICS
+    }
+
+
+def _trade_statistics_by_instrument(
+    trades: pd.DataFrame, currency: str
+) -> dict[str, dict[str, float | None]]:
+    return {
+        str(instrument): _trade_statistics(each, currency)
+        for instrument, each in trades.groupby("instrument_id")
     }
 
 
