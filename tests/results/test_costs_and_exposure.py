@@ -295,3 +295,66 @@ def test_a_run_without_trades_has_no_exposure_or_holding_time(
     assert activity.exposure.time_in_market == 0.0
     assert activity.holding_time is None
     assert activity.turnover == 0.0
+
+
+@pytest.mark.unit
+def test_instrument_nets_add_up_to_the_run_net(prices: PriceCatalog) -> None:
+    end = START + 3 * HOUR
+    prices.add_marks(BTC, {START: 50_000.0})
+    prices.add_marks(ETH, {START: 2_500.0, START + 150 * MINUTE: 2_600.0})
+    btc_realized = 1_000.0 - 2.0 - 5.0
+    eth_realized, eth_unrealized = -1.0, 10 * 100.0
+    run = tables(
+        {START: 10_000.0, end: 10_000.0 + btc_realized + eth_realized + eth_unrealized},
+        [
+            paying(fill(START + HOUR, 1, 50_000.0), 1.0),
+            paying(fill(START + 2 * HOUR, -1, 51_000.0), 1.0),
+            paying(of(ETH, fill(START + HOUR, 10, 2_500.0)), 1.0),
+        ],
+        [funding(START + 90 * MINUTE, -5.0)],
+    )
+
+    result = costs_and_exposure(
+        PricedRun(run_on([BTC, ETH], START, end), run, prices.catalog)
+    )
+
+    btc = result.by_instrument[str(BTC)].costs
+    eth = result.by_instrument[str(ETH)].costs
+    assert btc.net == pytest.approx(btc_realized)
+    assert eth.net == pytest.approx(eth_realized + eth_unrealized)
+    assert btc.net + eth.net == pytest.approx(result.total.costs.net)
+    assert astuple(btc) == pytest.approx((1_000.0, -2.0, -5.0, btc_realized))
+    assert astuple(eth) == pytest.approx((1_000.0, -1.0, 0.0, 999.0))
+
+
+@pytest.mark.unit
+def test_exposure_holding_time_and_turnover_are_split_per_instrument(
+    prices: PriceCatalog,
+) -> None:
+    end = START + 2 * HOUR
+    prices.add_marks(BTC, {START: 50_000.0})
+    prices.add_marks(ETH, {START: 2_500.0})
+    run = with_trades(
+        tables(
+            flat(10_000.0, end),
+            [fill(START + HOUR, 0.1, 50_000.0), of(ETH, fill(START, -4, 2_500.0))],
+            [],
+        ),
+        [trade(HOUR), of(ETH, trade(3 * HOUR))],
+    )
+
+    split = costs_and_exposure(
+        PricedRun(run_on([BTC, ETH], START, end), run, prices.catalog)
+    ).by_instrument
+
+    btc, eth = split[str(BTC)], split[str(ETH)]
+    assert list(btc.exposure.gross_leverage) == pytest.approx([0.0, 0.5, 0.5])
+    assert list(eth.exposure.gross_leverage) == pytest.approx([1.0, 1.0, 1.0])
+    assert list(eth.exposure.net_leverage) == pytest.approx([-1.0, -1.0, -1.0])
+    assert btc.exposure.time_in_market == pytest.approx(0.5)
+    assert eth.exposure.time_in_market == pytest.approx(1.0)
+    assert btc.holding_time is not None and btc.holding_time.mean == HOUR
+    assert eth.holding_time is not None and eth.holding_time.mean == 3 * HOUR
+    years_of_the_part = 2 / (365 * 24)
+    assert btc.turnover == pytest.approx(0.5 / years_of_the_part)
+    assert eth.turnover == pytest.approx(1.0 / years_of_the_part)

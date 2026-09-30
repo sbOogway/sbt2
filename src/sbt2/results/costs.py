@@ -1,6 +1,8 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import cached_property
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -73,7 +75,13 @@ class Activity:
 
 @dataclass(frozen=True)
 class CostsAndExposure:
+    """The run's costs and exposure, and each traded instrument's by its id.
+
+    The instruments' net PnLs add up to the run's.
+    """
+
     total: Activity
+    by_instrument: dict[str, Activity]
 
 
 def costs_and_exposure(run: PricedRun) -> CostsAndExposure:
@@ -83,16 +91,13 @@ def costs_and_exposure(run: PricedRun) -> CostsAndExposure:
     valuation price on the run's equity grid.
     """
     book = _Book(run)
-    net = float(book.equity.iloc[-1] - book.equity.iloc[0])
+    part = _Slice.of_run(book)
     return CostsAndExposure(
-        total=Activity(
-            costs=_waterfall(net, run, book.segment),
-            exposure=_exposure(book.notionals, book),
-            holding_time=_holding_time(
-                closed_trades(run.tables.positions, run.tables.currency)
-            ),
-            turnover=_turnover(_within(run.tables.fills, book.segment), book),
-        )
+        total=_activity(_run_costs(part, book), part, book),
+        by_instrument={
+            instrument: _instrument_activity(part.of(instrument), book)
+            for instrument in book.multipliers
+        },
     )
 
 
@@ -100,17 +105,23 @@ class _Book:
     """The run's positions on its equity grid, one column per traded instrument."""
 
     def __init__(self, run: PricedRun) -> None:
-        self._run = run
+        self.run = run
         self.segment = Segment.of_run(run.spec)
         self.equity = equity_curve(run.tables.equity, run.tables.currency, self.segment)
+
+    @property
+    def currency(self) -> str:
+        return self.run.tables.currency
 
     @cached_property
     def quantities(self) -> pd.DataFrame:
         grid = self.segment.grid
-        fills = self._run.tables.fills
+        fills = self.run.tables.fills
         if fills.empty:
             return pd.DataFrame(index=grid)
-        signed = _signed_quantities(fills)
+        signed = pd.Series(
+            _signed_quantities(fills), index=pd.DatetimeIndex(fills["ts_event"])
+        )
         held = {
             str(instrument): on_grid(each.cumsum(), grid).fillna(0.0)
             for instrument, each in signed.groupby(fills["instrument_id"].to_numpy())
@@ -121,25 +132,14 @@ class _Book:
     def multipliers(self) -> dict[str, float]:
         """Each traded instrument's contract multiplier; an inverse one fails."""
         ids = [InstrumentId.from_str(str(each)) for each in self.quantities.columns]
-        instruments = self._run.catalog.instruments(ids)
-        missing = [str(each) for each in ids if each not in instruments]
-        if missing:
-            raise MissingPricesError(
-                f"no instrument {', '.join(missing)} in the catalog"
-            )
-        inverse = [str(each) for each in ids if instruments[each].is_inverse]
-        if inverse:
-            raise InverseInstrumentError(
-                f"{', '.join(inverse)} is inverse; "
-                "exposure values linear instruments only"
-            )
+        instruments = _linear_instruments(ids, self.run.catalog)
         return {str(each): float(instruments[each].multiplier) for each in ids}
 
     @cached_property
     def notionals(self) -> pd.DataFrame:
         """Quantity times valuation price times contract multiplier."""
-        market = Market(self._run.spec, self._run.catalog, self._run.known_gaps)
-        price_type = self._run.spec.asset.valuation_price
+        market = Market(self.run.spec, self.run.catalog, self.run.known_gaps)
+        price_type = self.run.spec.asset.valuation_price
         return pd.DataFrame(
             {
                 instrument: self.quantities[instrument]
@@ -150,18 +150,115 @@ class _Book:
             index=self.segment.grid,
         )
 
+    def traded_notional(self, fills: pd.DataFrame) -> pd.Series:
+        """Each fill's quantity times its price times the contract multiplier."""
+        multipliers = (
+            fills["instrument_id"].astype(str).map(self.multipliers.__getitem__)
+        )
+        return (
+            fills["last_qty"].astype(float)
+            * fills["last_px"].astype(float)
+            * multipliers
+        )
 
-def _signed_quantities(fills: pd.DataFrame) -> pd.Series:
-    sign = np.where(fills["order_side"] == "BUY", 1.0, -1.0)
-    signed = fills["last_qty"].astype(float).to_numpy() * sign
-    return pd.Series(signed, index=pd.DatetimeIndex(fills["ts_event"]))
+
+def _linear_instruments(
+    ids: list[InstrumentId], catalog: Catalog
+) -> Mapping[InstrumentId, Any]:
+    instruments = catalog.instruments(ids)
+    missing = [str(each) for each in ids if each not in instruments]
+    if missing:
+        raise MissingPricesError(f"no instrument {', '.join(missing)} in the catalog")
+    inverse = [str(each) for each in ids if instruments[each].is_inverse]
+    if inverse:
+        raise InverseInstrumentError(
+            f"{', '.join(inverse)} is inverse; exposure values linear instruments only"
+        )
+    return instruments
 
 
-def _exposure(notionals: pd.DataFrame, book: _Book) -> Exposure:
+@dataclass(frozen=True)
+class _Slice:
+    """The part's fills, carry and closed trades, and the positions they held,
+    of the whole run or of one instrument."""
+
+    fills: pd.DataFrame
+    carry: pd.DataFrame
+    trades: pd.DataFrame
+    instruments: list[str]
+
+    @classmethod
+    def of_run(cls, book: _Book) -> _Slice:
+        tables = book.run.tables
+        return cls(
+            _within(tables.fills, book.segment),
+            _within(tables.carry, book.segment),
+            closed_trades(tables.positions, tables.currency),
+            list(book.multipliers),
+        )
+
+    def of(self, instrument: str) -> _Slice:
+        return _Slice(
+            _of(self.fills, instrument),
+            _of(self.carry, instrument),
+            _of(self.trades, instrument),
+            [instrument],
+        )
+
+    def fees(self, currency: str) -> float:
+        return -total(self.fills, "commission", currency)
+
+    def carried(self, currency: str) -> float:
+        return total(self.carry, "pnl_change", currency)
+
+
+def _activity(costs: CostWaterfall, part: _Slice, book: _Book) -> Activity:
+    return Activity(
+        costs=costs,
+        exposure=_exposure(part, book),
+        holding_time=_holding_time(part.trades),
+        turnover=_turnover(part, book),
+    )
+
+
+def _run_costs(part: _Slice, book: _Book) -> CostWaterfall:
+    """Net PnL is the equity change; gross is what is left before fees and carry."""
+    net = float(book.equity.iloc[-1] - book.equity.iloc[0])
+    fees, carry = part.fees(book.currency), part.carried(book.currency)
+    return CostWaterfall(net - fees - carry, fees, carry, net)
+
+
+def _instrument_activity(part: _Slice, book: _Book) -> Activity:
+    return _activity(_instrument_costs(part, book), part, book)
+
+
+def _instrument_costs(part: _Slice, book: _Book) -> CostWaterfall:
+    """Gross PnL is the fills' cash flow plus the change in the position's value,
+    so net PnL is the realized plus the unrealized at the part end's price."""
+    [notional] = [book.notionals[each] for each in part.instruments]
+    paid = _sides(part.fills) * book.traded_notional(part.fills).to_numpy()
+    gross = float(notional.iloc[-1] - notional.iloc[0] - paid.sum())
+    fees, carry = part.fees(book.currency), part.carried(book.currency)
+    return CostWaterfall(gross, fees, carry, gross + fees + carry)
+
+
+def _signed_quantities(fills: pd.DataFrame) -> np.ndarray:
+    return fills["last_qty"].astype(float).to_numpy() * _sides(fills)
+
+
+def _sides(fills: pd.DataFrame) -> np.ndarray:
+    """1 for a buy, -1 for a sell."""
+    if fills.empty:
+        return np.zeros(0)
+    return np.where(fills["order_side"] == "BUY", 1.0, -1.0)
+
+
+def _exposure(part: _Slice, book: _Book) -> Exposure:
+    notionals = book.notionals.filter(items=part.instruments)
     return Exposure(
         gross_leverage=notionals.abs().sum(axis=1) / book.equity,
         net_leverage=notionals.sum(axis=1) / book.equity,
-        time_in_market=_time_in_market(book.quantities),
+        time_in_market=_time_in_market(book.quantities.filter(items=part.instruments)),
     )
 
 
@@ -171,14 +268,11 @@ def _time_in_market(quantities: pd.DataFrame) -> float:
     return float(open_at_start.mean())
 
 
-def _turnover(fills: pd.DataFrame, book: _Book) -> float:
+def _turnover(part: _Slice, book: _Book) -> float:
     """Traded notional over mean equity, per year of the asset's calendar."""
-    if fills.empty:
+    if part.fills.empty:
         return 0.0
-    multipliers = fills["instrument_id"].astype(str).map(book.multipliers.__getitem__)
-    traded = (
-        fills["last_qty"].astype(float) * fills["last_px"].astype(float) * multipliers
-    ).sum()
+    traded = book.traded_notional(part.fills).sum()
     segment = book.segment
     years = (segment.end - segment.start) / timedelta(days=segment.days_per_year)
     return float(traded / book.equity.mean() / years)
@@ -196,15 +290,14 @@ def _duration(nanos: float) -> timedelta:
     return timedelta(microseconds=nanos / 1_000)
 
 
-def _waterfall(net: float, run: PricedRun, segment: Segment) -> CostWaterfall:
-    currency = run.tables.currency
-    fees = -total(_within(run.tables.fills, segment), "commission", currency)
-    carry = total(_within(run.tables.carry, segment), "pnl_change", currency)
-    return CostWaterfall(net - fees - carry, fees, carry, net)
-
-
 def _within(frame: pd.DataFrame, segment: Segment) -> pd.DataFrame:
     if frame.empty:
         return frame
     at = pd.DatetimeIndex(frame["ts_event"])
     return frame.loc[(at >= segment.start) & (at <= segment.end)]
+
+
+def _of(frame: pd.DataFrame, instrument: str) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    return frame.loc[frame["instrument_id"].astype(str) == instrument]
