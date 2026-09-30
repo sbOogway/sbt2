@@ -176,6 +176,12 @@ def benchmark_statistics(
     return _finite_values(statistics)
 
 
+def daily_returns(run: RunTables, segment: Segment) -> pd.Series:
+    """The returns of the run's equity on the segment's grid, compounded to
+    one per UTC day."""
+    return _daily(_returns(equity_curve(run.equity, run.currency, segment)))
+
+
 def _relative_analyzer(days_per_year: int) -> PortfolioAnalyzer:
     return _analyzer(
         Alpha(period=days_per_year),
