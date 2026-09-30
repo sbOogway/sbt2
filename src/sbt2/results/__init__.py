@@ -42,6 +42,7 @@ from sbt2.results.store import (
     MissingTableError,
     ResultStore,
     RunIds,
+    StoredRun,
     Table,
     UnknownRunError,
 )
@@ -74,6 +75,7 @@ __all__ = [
     "RunIds",
     "RunTables",
     "Segment",
+    "StoredRun",
     "Table",
     "UnknownBatchError",
     "UnknownBenchmarkError",

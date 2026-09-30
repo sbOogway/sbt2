@@ -26,9 +26,16 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from sbt2 import data, spec
+from sbt2 import data, results, spec
 from sbt2.config import ROOT, SOURCES, Root
-from sbt2.results import MissingTableError, ParquetResultStore, ResultStore
+from sbt2.results import (
+    Benchmark,
+    MissingTableError,
+    ParquetResultStore,
+    ResultStore,
+    StoredRun,
+    build_benchmark,
+)
 from sbt2.run import (
     BatchSetup,
     DataFolders,
@@ -37,6 +44,7 @@ from sbt2.run import (
     SystemdScope,
     batch,
 )
+from sbt2.strategy import import_strategy
 
 DAY = ["%Y-%m-%d"]
 SIZE = re.compile(r"(\d+)([KMGT]?)")
@@ -48,6 +56,8 @@ data_app = typer.Typer(no_args_is_help=True, help="Inspect the catalog.")
 app.add_typer(data_app, name="data")
 runs_app = typer.Typer(no_args_is_help=True, help="Query and manage stored runs.")
 app.add_typer(runs_app, name="runs")
+report_app = typer.Typer(no_args_is_help=True, help="Report on stored runs.")
+app.add_typer(report_app, name="report")
 logger = logging.getLogger("sbt2")
 
 
@@ -144,6 +154,31 @@ def _run(spec_file: Path, setup: BatchSetup) -> None:
         run_ids = batch(runs, setup, bar)
     for run_id in run_ids:
         logger.info("stored run %s in %s", run_id, setup.store.folder(run_id))
+    typer.echo(_headline_tables(setup.store, run_ids))
+
+
+_HEADLINE_HEADER = (
+    "run_id",
+    "strategy",
+    "net_return",
+    "annualized_return",
+    "sharpe",
+    "max_drawdown",
+    "trade_count",
+    "total_fees",
+    "total_carry",
+)
+
+
+def _headline_tables(store: ResultStore, run_ids: tuple[str, ...]) -> str:
+    """One table of the runs' headline metrics per part, in split order."""
+    runs = store.runs()
+    runs = runs.loc[runs["run_id"].isin(run_ids)]
+    return "\n\n".join(
+        f"{part}\n{_frame_table(runs.loc[runs['part'] == part], _HEADLINE_HEADER)}"
+        for part in spec.PARTS
+        if (runs["part"] == part).any()
+    )
 
 
 @app.command()
@@ -384,12 +419,20 @@ def _store(data_root: Path) -> ParquetResultStore:
 def _runs_table(runs: pd.DataFrame) -> str:
     if runs.empty:
         return "no runs"
-    records = runs.to_dict("records")
-    return _table(_RUNS_HEADER, [_runs_row(each) for each in records])
+    return _frame_table(runs, _RUNS_HEADER)
 
 
-def _runs_row(record: Mapping[Hashable, object]) -> tuple[str, ...]:
-    return tuple(_cell(record[column]) for column in _RUNS_HEADER)
+def _frame_table(frame: pd.DataFrame, columns: tuple[str, ...]) -> str:
+    """The frame's ``columns``, one row per record, cells as ``runs list``
+    prints them."""
+    records = frame.to_dict("records")
+    return _table(columns, [_row(each, columns) for each in records])
+
+
+def _row(
+    record: Mapping[Hashable, object], columns: tuple[str, ...]
+) -> tuple[str, ...]:
+    return tuple(_cell(record[column]) for column in columns)
 
 
 def _cell(value: object) -> str:
@@ -460,6 +503,99 @@ def _text(value: object) -> str:
 
 def _missing(value: object) -> bool:
     return value is None or (isinstance(value, float) and math.isnan(value))
+
+
+@report_app.command("tearsheet")
+def report_tearsheet(
+    run_id: Annotated[str, typer.Argument(help="The run's id.")],
+    data_root: Annotated[
+        Path, typer.Option("--data", help="Reads PATH/results and PATH/catalog.")
+    ] = ROOT,
+    benchmark: Annotated[
+        str | None,
+        typer.Option(
+            metavar="NAME[:ARG]",
+            help="buy-and-hold[:INSTRUMENT], equal-weight, external:FILE or none. "
+            "Default: the strategy's.",
+        ),
+    ] = None,
+    output: Annotated[
+        Path | None,
+        typer.Option(help="Default: tearsheet.html in the run's folder."),
+    ] = None,
+) -> None:
+    """Write a run's tearsheet, against a benchmark."""
+    root = Root(data_root)
+    with _failing("tearsheet of run %s", run_id):
+        store = ParquetResultStore(root.results)
+        stored = store.stored_run(run_id)
+        path = output or store.folder(run_id) / "tearsheet.html"
+        priced = stored.priced(data.Catalog(root.catalog))
+        results.tearsheet(priced, path, _benchmark(benchmark, stored))
+    logger.info("wrote the tearsheet of run %s to %s", run_id, path)
+
+
+_PARTS_HEADER = (
+    "part",
+    "run_id",
+    "start",
+    "end",
+    "net_return",
+    "annualized_return",
+    "sharpe",
+    "max_drawdown",
+    "trade_count",
+    "total_fees",
+    "total_carry",
+)
+
+
+@report_app.command("parts")
+def report_parts(
+    run_id: Annotated[str, typer.Argument(help="The run's id.")],
+    data_root: Annotated[
+        Path, typer.Option("--data", help="Reads PATH/results.")
+    ] = ROOT,
+) -> None:
+    """Show each part a run's parameters were run on, then how the headline
+    metrics change from one part to the next."""
+    with _failing("comparing the parts of run %s", run_id):
+        parts = results.compare_parts(_store(data_root), run_id)
+        change = results.degradation(parts)
+    typer.echo(f"{_parts_table(parts)}\n\n{_change_table(change)}")
+
+
+def _parts_table(parts: pd.DataFrame) -> str:
+    return _frame_table(parts.reset_index(), _PARTS_HEADER)
+
+
+def _change_table(change: pd.DataFrame) -> str:
+    """One row per headline metric, one column per part and per change."""
+    rows = change.rename_axis("metric").reset_index()
+    return _frame_table(rows, ("metric", *(str(each) for each in change.columns)))
+
+
+@report_app.command("batch")
+def report_batch(
+    batch_id: Annotated[str, typer.Argument(help="The batch's id.")],
+    data_root: Annotated[
+        Path, typer.Option("--data", help="Reads PATH/results.")
+    ] = ROOT,
+) -> None:
+    """Show one row per run of a batch: the parameters that vary across it,
+    then the headline metrics."""
+    with _failing("reporting batch %s", batch_id):
+        table = results.batch_table(_store(data_root), batch_id)
+    columns = ("run_id", *(str(each) for each in table.columns))
+    typer.echo(_frame_table(table.reset_index(), columns))
+
+
+def _benchmark(option: str | None, stored: StoredRun) -> Benchmark | None:
+    """The benchmark ``NAME[:ARG]`` names, the strategy's own without one."""
+    if option is None:
+        return import_strategy(stored.spec.strategy.strategy).benchmark
+    name, _, argument = option.partition(":")
+    return build_benchmark(name, argument or None)
 
 
 class _Bar:

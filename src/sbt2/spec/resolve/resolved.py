@@ -15,6 +15,7 @@ from nautilus_trader.risk import RiskEngineConfig
 
 from sbt2.assets import AssetProfile
 from sbt2.spec.resolve.canonical import canonical_hash, canonical_json
+from sbt2.spec.resolve.document import spec_fields
 from sbt2.spec.resolve.venues import venue_objects
 from sbt2.spec.split import Splitter
 from sbt2.strategy import StrategyRun
@@ -27,7 +28,8 @@ class ResolvedRunSpec:
     ``venue`` and ``data`` are nautilus's own ``BacktestVenueConfig`` and
     ``BacktestDataConfig`` arguments as plain data, without the catalog path.
     ``source`` names where missing data is fetched from; like the catalog path,
-    it is not hashed. ``start`` and ``end`` are the dates of ``part``.
+    it is neither hashed nor compared, and a spec rebuilt from its document has
+    none. ``start`` and ``end`` are the dates of ``part``.
     ``risk`` holds nautilus's ``RiskEngineConfig`` arguments. With the
     strategy's drawdown limit it enters the hashed document only when set, so
     a run without either keeps its hash.
@@ -35,7 +37,7 @@ class ResolvedRunSpec:
 
     strategy: StrategyRun
     asset: AssetProfile
-    source: str
+    source: str = field(compare=False)
     venue: Mapping[str, Any]
     data: Sequence[Mapping[str, Any]]
     equity_interval_ms: int
@@ -44,6 +46,11 @@ class ResolvedRunSpec:
     start: datetime
     end: datetime
     risk: Mapping[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_document(cls, document: Mapping[str, Any]) -> ResolvedRunSpec:
+        """The spec whose hashed document ``document`` is, as ``to_json`` wrote it."""
+        return cls(source="", **spec_fields(document))
 
     @property
     def hash(self) -> str:

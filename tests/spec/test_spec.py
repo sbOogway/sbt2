@@ -815,6 +815,39 @@ def test_a_resolved_spec_survives_pickling(paths: tuple[Path, Path], bars: str) 
 
 
 @pytest.mark.unit
+def test_a_resolved_spec_is_rebuilt_from_its_document(
+    paths: tuple[Path, Path],
+) -> None:
+    spec = resolved(
+        paths,
+        risk={**RISK, "drawdown_limit": 0.2},
+        params={"lookback": 31, "stop": "0.05"},
+    )
+
+    rebuilt = ResolvedRunSpec.from_document(json.loads(spec.to_json()))
+
+    assert rebuilt == spec
+    assert rebuilt.hash == spec.hash
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("venue", "bars"), [("seeded_linear", "trades"), ("test_linear", "candles")]
+)
+def test_a_spec_is_rebuilt_whatever_its_venue_and_bars(
+    paths: tuple[Path, Path], venue: str, bars: str
+) -> None:
+    spec = resolved(
+        paths, venue=venue, bars=bars, split={"validation": 0.25, "test": 0.25}
+    )
+
+    rebuilt = ResolvedRunSpec.from_document(json.loads(spec.to_json()))
+
+    assert rebuilt == spec
+    assert rebuilt.hash == spec.hash
+
+
+@pytest.mark.unit
 def test_every_spec_error_is_a_spec_error() -> None:
     errors = [
         each
