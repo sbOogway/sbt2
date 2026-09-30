@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 
 import pandas as pd
 from nautilus_trader.model import InstrumentId
 
-from sbt2.data import Catalog, Selection, Window
+from sbt2.data import Catalog, Gap, Selection, Window
 from sbt2.results.metrics import Segment
 from sbt2.spec import ResolvedRunSpec
 
@@ -27,7 +28,11 @@ class BenchmarkArgumentError(ValueError):
 class _Market:
     run: ResolvedRunSpec
     catalog: Catalog
-    grid: pd.DatetimeIndex
+    known_gaps: frozenset[Gap]
+
+    @cached_property
+    def grid(self) -> pd.DatetimeIndex:
+        return Segment.of_run(self.run).grid
 
     @property
     def window(self) -> Window:
@@ -37,9 +42,17 @@ class _Market:
 class Benchmark(ABC):
     """What a run is compared against, as returns on the run's equity grid."""
 
-    def returns(self, run: ResolvedRunSpec, catalog: Catalog) -> pd.Series:
-        """One return per step of the run's grid, indexed by its end."""
-        market = _Market(run, catalog, Segment.of_run(run).grid)
+    def returns(
+        self,
+        run: ResolvedRunSpec,
+        catalog: Catalog,
+        known_gaps: frozenset[Gap] = frozenset(),
+    ) -> pd.Series:
+        """One return per step of the run's grid, indexed by its end.
+
+        Prices are carried across ``known_gaps``, the days the run skipped.
+        """
+        market = _Market(run, catalog, known_gaps)
         return self._value(market).pct_change().iloc[1:]
 
     @abstractmethod
@@ -122,7 +135,7 @@ def _check_coverage(
     instrument: InstrumentId, price_type: type, market: _Market
 ) -> None:
     selection = Selection((instrument,), (price_type,), market.window)
-    [coverage] = market.catalog.coverage(selection)
+    [coverage] = market.catalog.coverage(selection, market.known_gaps)
     if coverage.missing:
         raise _no_prices(instrument, price_type, coverage.missing)
 

@@ -4,8 +4,10 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from nautilus_trader.model import MarkPriceUpdate
 from price_catalog import BTC, ETH, TAKER_RATE, PriceCatalog, run_on
 
+from sbt2.data import Gap
 from sbt2.results import (
     BenchmarkArgumentError,
     BenchmarkCoverageError,
@@ -70,6 +72,20 @@ def test_prices_are_forward_filled_onto_the_run_grid(prices: PriceCatalog) -> No
 
     assert list(returns.index) == [START + k * HOUR for k in range(1, 5)]
     assert list(returns) == pytest.approx([KEPT - 1, 0.0, 0.2, 0.0])
+
+
+@pytest.mark.unit
+def test_known_gap_days_are_carried_across(prices: PriceCatalog) -> None:
+    last_day = START + timedelta(days=2)
+    prices.add_marks(BTC, {START: 100.0, last_day + 30 * MINUTE: 120.0})
+    gap = Gap(BTC, MarkPriceUpdate, (START + timedelta(days=1)).date())
+    run = run_on([BTC], START, START + timedelta(days=3))
+
+    returns = BuyAndHold().returns(run, prices.catalog, frozenset({gap}))
+
+    assert len(returns) == 72
+    assert (returns[START + 2 * HOUR : last_day] == 0.0).all()
+    assert returns[last_day + HOUR] == pytest.approx(0.2)
 
 
 @pytest.mark.unit
