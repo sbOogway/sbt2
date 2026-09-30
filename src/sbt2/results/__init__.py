@@ -3,6 +3,7 @@ from sbt2.results.benchmarks import (
     BenchmarkCoverageError,
     BuyAndHold,
     EqualWeight,
+    External,
 )
 from sbt2.results.metrics import (
     CurrencyMismatchError,
@@ -28,6 +29,7 @@ __all__ = [
     "BuyAndHold",
     "CurrencyMismatchError",
     "EqualWeight",
+    "External",
     "HeadlineMetrics",
     "IncompleteRunError",
     "MissingTableError",

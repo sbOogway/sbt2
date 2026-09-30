@@ -10,6 +10,7 @@ from sbt2.results import (
     BenchmarkCoverageError,
     BuyAndHold,
     EqualWeight,
+    External,
     benchmark_statistics,
 )
 
@@ -81,6 +82,45 @@ def test_equal_weight_basket_is_bought_at_the_start_and_held(
 
     value = (1 + returns).cumprod()
     assert list(value) == pytest.approx([KEPT * 1.5, KEPT * (3 + 2) / 2])
+
+
+def price_file(path: Path, prices: dict[datetime, float]) -> Path:
+    frame = pd.DataFrame({"timestamp": list(prices), "price": list(prices.values())})
+    if path.suffix == ".csv":
+        frame.to_csv(path, index=False)
+    else:
+        frame.to_parquet(path)
+    return path
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("suffix", [".csv", ".parquet"])
+def test_external_series_is_read_from_prices_in_a_file(
+    tmp_path: Path, prices: PriceCatalog, suffix: str
+) -> None:
+    path = price_file(
+        tmp_path / f"index{suffix}",
+        {START - HOUR: 200.0, START + 90 * MINUTE: 220.0, START + 2 * HOUR: 110.0},
+    )
+
+    returns = External(path).returns(
+        run_on([BTC], START, START + 2 * HOUR), prices.catalog
+    )
+
+    assert list(returns.index) == [START + HOUR, START + 2 * HOUR]
+    assert list(returns) == pytest.approx([0.0, 110 / 200 - 1])
+
+
+@pytest.mark.unit
+def test_an_external_series_starting_after_the_part_fails(
+    tmp_path: Path, prices: PriceCatalog
+) -> None:
+    path = price_file(tmp_path / "late.csv", {START + HOUR: 100.0})
+
+    with pytest.raises(
+        BenchmarkCoverageError, match=r"late\.csv has no price at 2024-01-01 00:00:00"
+    ):
+        External(path).returns(run_on([BTC], START, START + 2 * HOUR), prices.catalog)
 
 
 @pytest.mark.unit

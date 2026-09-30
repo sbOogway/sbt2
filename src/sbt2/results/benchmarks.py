@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 import pandas as pd
 from nautilus_trader.model import InstrumentId
@@ -57,6 +58,33 @@ class EqualWeight(Benchmark):
 
     def _value(self, market: _Market) -> pd.Series:
         return _held(market.run.strategy.instruments, market)
+
+
+@dataclass(frozen=True)
+class External(Benchmark):
+    """Prices from a CSV or parquet file with a UTC ``timestamp`` column and a
+    ``price`` column, held without fees from the part start."""
+
+    path: Path
+
+    def _value(self, market: _Market) -> pd.Series:
+        prices = self._prices()
+        start = market.grid[0]
+        if prices.empty or prices.index[0] > start:
+            raise BenchmarkCoverageError(
+                f"the benchmark file {self.path} has no price at {start}"
+            )
+        on_grid = _on_grid(prices, market.grid)
+        return on_grid / on_grid.iloc[0]
+
+    def _prices(self) -> pd.Series:
+        frame = (
+            pd.read_csv(self.path)
+            if self.path.suffix == ".csv"
+            else pd.read_parquet(self.path)
+        )
+        index = pd.DatetimeIndex(pd.to_datetime(frame["timestamp"], utc=True))
+        return pd.Series(frame["price"].to_numpy(dtype=float), index=index).sort_index()
 
 
 def _held(instruments: Sequence[InstrumentId], market: _Market) -> pd.Series:
