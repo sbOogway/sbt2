@@ -510,6 +510,46 @@ def report_tearsheet(
     logger.info("wrote the tearsheet of run %s to %s", run_id, path)
 
 
+_PARTS_HEADER = (
+    "part",
+    "run_id",
+    "start",
+    "end",
+    "net_return",
+    "annualized_return",
+    "sharpe",
+    "max_drawdown",
+    "trade_count",
+    "total_fees",
+    "total_carry",
+)
+
+
+@report_app.command("parts")
+def report_parts(
+    run_id: Annotated[str, typer.Argument(help="The run's id.")],
+    data_root: Annotated[
+        Path, typer.Option("--data", help="Reads PATH/results.")
+    ] = ROOT,
+) -> None:
+    """Show each part a run's parameters were run on, then how the headline
+    metrics change from one part to the next."""
+    with _failing("comparing the parts of run %s", run_id):
+        parts = results.compare_parts(_store(data_root), run_id)
+        change = results.degradation(parts)
+    typer.echo(f"{_parts_table(parts)}\n\n{_change_table(change)}")
+
+
+def _parts_table(parts: pd.DataFrame) -> str:
+    return _frame_table(parts.reset_index(), _PARTS_HEADER)
+
+
+def _change_table(change: pd.DataFrame) -> str:
+    """One row per headline metric, one column per part and per change."""
+    rows = change.rename_axis("metric").reset_index()
+    return _frame_table(rows, ("metric", *(str(each) for each in change.columns)))
+
+
 def _benchmark(option: str | None, stored: StoredRun) -> Benchmark | None:
     """The benchmark ``NAME[:ARG]`` names, the strategy's own without one."""
     if option is None:

@@ -8,7 +8,7 @@ from nautilus_trader.core import dt_to_unix_nanos
 from nautilus_trader.model import CryptoPerpetual, MarkPriceUpdate, Price
 from plotted import Plotted, plotted
 from served_source import ServedSource, perpetual
-from served_spec import DAY, NEXT_DAY, served
+from served_spec import DAY, NEXT_DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
 
 from sbt2.cli import app
@@ -227,3 +227,49 @@ def test_a_batch_on_the_synthetic_catalog_gets_a_tearsheet_with_a_benchmark(
     names = statistic_names(figure)
     assert "Alpha (365 days)" in names
     assert "Beta" in names
+
+
+def stored_parts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ParquetResultStore:
+    """A store holding a train and a validation run of the served spec."""
+    source = ServedSource()
+    source.serve(DAY, VALIDATION_DAY)
+    spec = without_a_part(served(tmp_path, monkeypatch, source))
+    result = runner.invoke(app, ["run", str(spec)])
+    assert result.exit_code == 0, result.output
+    return ParquetResultStore(tmp_path / "data" / "results")
+
+
+def lines_of(block: str) -> list[list[str]]:
+    return [line.split() for line in block.splitlines()]
+
+
+@pytest.mark.e2e
+def test_report_parts_prints_each_part_and_the_degradation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = stored_parts(tmp_path, monkeypatch)
+    train, validation = store.runs()["run_id"]
+
+    result = report("parts", train)
+
+    assert result.exit_code == 0, result.output
+    parts, change = result.output.strip().split("\n\n")
+    header, *rows = lines_of(parts)
+    assert header[:2] == ["part", "run_id"]
+    assert {"net_return", "sharpe", "trade_count"} <= set(header)
+    assert [row[:2] for row in rows] == [["train", train], ["validation", validation]]
+    metric_header, *metrics = change.splitlines()
+    assert metric_header.split()[:3] == ["metric", "train", "validation"]
+    assert "train → validation %" in metric_header
+    assert {line.split()[0] for line in metrics} >= {"net_return", "sharpe"}
+
+
+@pytest.mark.e2e
+def test_report_parts_of_an_unknown_run_fails(tmp_path: Path) -> None:
+    run_id = str(uuid.uuid7())
+    log = tmp_path / "sbt2.log"
+
+    result = report("parts", run_id, "--data", str(tmp_path), log=log)
+
+    assert result.exit_code == 1
+    assert "UnknownRunError" in log.read_text()
