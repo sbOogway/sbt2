@@ -3,10 +3,16 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import pytest
 from nautilus_run import RunOutput, round_trip_with_funding, spec
 
-from sbt2.results import ParquetResultStore, UnknownRunError, compare_parts
+from sbt2.results import (
+    ParquetResultStore,
+    UnknownRunError,
+    compare_parts,
+    degradation,
+)
 from sbt2.spec import ResolvedRunSpec
 
 
@@ -84,3 +90,66 @@ def test_comparing_the_parts_of_an_unknown_run_fails(
 ) -> None:
     with pytest.raises(UnknownRunError):
         compare_parts(store, str(uuid.uuid7()))
+
+
+HEADLINE = [
+    "net_return",
+    "annualized_return",
+    "sharpe",
+    "max_drawdown",
+    "trade_count",
+    "total_fees",
+    "total_carry",
+]
+
+
+def parts_with_sharpe(sharpe: dict[str, float]) -> pd.DataFrame:
+    metrics = dict.fromkeys(HEADLINE, 1.0)
+    rows = [
+        {"run_id": part, **metrics, "sharpe": value} for part, value in sharpe.items()
+    ]
+    return pd.DataFrame(rows, index=pd.Index(list(sharpe), name="part"))
+
+
+@pytest.mark.unit
+def test_degradation_is_the_change_from_each_part_to_the_next() -> None:
+    parts = parts_with_sharpe({"train": 2.0, "validation": 1.0, "test": -0.5})
+
+    table = degradation(parts)
+
+    assert list(table.index) == HEADLINE
+    assert list(table.columns) == [
+        "train",
+        "validation",
+        "test",
+        "train → validation",
+        "train → validation %",
+        "validation → test",
+        "validation → test %",
+    ]
+    sharpe = table.loc["sharpe"]
+    assert sharpe["train → validation"] == pytest.approx(-1.0)
+    assert sharpe["train → validation %"] == pytest.approx(-50.0)
+    assert sharpe["validation → test"] == pytest.approx(-1.5)
+    assert sharpe["validation → test %"] == pytest.approx(-150.0)
+
+
+@pytest.mark.unit
+def test_degradation_has_no_percentage_from_a_base_of_zero_or_below() -> None:
+    parts = parts_with_sharpe({"train": 0.0, "validation": -1.0, "test": 0.5})
+
+    sharpe = degradation(parts).loc["sharpe"]
+
+    assert sharpe["train → validation"] == pytest.approx(-1.0)
+    assert sharpe["validation → test"] == pytest.approx(1.5)
+    assert pd.isna(sharpe["train → validation %"])
+    assert pd.isna(sharpe["validation → test %"])
+
+
+@pytest.mark.unit
+def test_degradation_skips_the_changes_of_a_missing_part() -> None:
+    parts = parts_with_sharpe({"train": 2.0, "test": 1.0})
+
+    table = degradation(parts)
+
+    assert list(table.columns) == ["train", "test"]
