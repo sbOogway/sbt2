@@ -550,6 +550,21 @@ def _change_table(change: pd.DataFrame) -> str:
     return _frame_table(rows, ("metric", *(str(each) for each in change.columns)))
 
 
+@report_app.command("batch")
+def report_batch(
+    batch_id: Annotated[str, typer.Argument(help="The batch's id.")],
+    data_root: Annotated[
+        Path, typer.Option("--data", help="Reads PATH/results.")
+    ] = ROOT,
+) -> None:
+    """Show one row per run of a batch: the parameters that vary across it,
+    then the headline metrics."""
+    with _failing("reporting batch %s", batch_id):
+        table = results.batch_table(_store(data_root), batch_id)
+    columns = ("run_id", *(str(each) for each in table.columns))
+    typer.echo(_frame_table(table.reset_index(), columns))
+
+
 def _benchmark(option: str | None, stored: StoredRun) -> Benchmark | None:
     """The benchmark ``NAME[:ARG]`` names, the strategy's own without one."""
     if option is None:

@@ -239,6 +239,17 @@ def stored_parts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ParquetResu
     return ParquetResultStore(tmp_path / "data" / "results")
 
 
+def stored_batch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ParquetResultStore:
+    """A store holding one batch of two train runs, fast 1 and fast 2."""
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+    spec = served(tmp_path, monkeypatch, source)
+    spec.write_text(spec.read_text().replace("fast = 1", "fast = [1, 2]"))
+    result = runner.invoke(app, ["run", str(spec)])
+    assert result.exit_code == 0, result.output
+    return ParquetResultStore(tmp_path / "data" / "results")
+
+
 def lines_of(block: str) -> list[list[str]]:
     return [line.split() for line in block.splitlines()]
 
@@ -273,3 +284,33 @@ def test_report_parts_of_an_unknown_run_fails(tmp_path: Path) -> None:
 
     assert result.exit_code == 1
     assert "UnknownRunError" in log.read_text()
+
+
+@pytest.mark.e2e
+def test_report_batch_prints_the_batch_table(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = stored_batch(tmp_path, monkeypatch)
+    runs = store.runs()
+    [batch_id] = set(runs["batch_id"])
+
+    result = report("batch", batch_id)
+
+    assert result.exit_code == 0, result.output
+    header, *rows = lines_of(result.output)
+    assert header[:2] == ["run_id", "fast"]
+    assert "slow" not in header
+    assert "net_return" in header
+    assert [row[:2] for row in rows] == [
+        [run_id, fast] for run_id, fast in zip(runs["run_id"], ["1", "2"], strict=True)
+    ]
+
+
+@pytest.mark.e2e
+def test_report_batch_of_an_unknown_batch_fails(tmp_path: Path) -> None:
+    log = tmp_path / "sbt2.log"
+
+    result = report("batch", str(uuid.uuid7()), "--data", str(tmp_path), log=log)
+
+    assert result.exit_code == 1
+    assert "UnknownBatchError" in log.read_text()
