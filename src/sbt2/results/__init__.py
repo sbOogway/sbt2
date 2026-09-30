@@ -1,9 +1,12 @@
 from sbt2.results.benchmarks import (
     Benchmark,
+    BenchmarkArgumentError,
     BenchmarkCoverageError,
     BuyAndHold,
     EqualWeight,
     External,
+    UnknownBenchmarkError,
+    build_benchmark,
 )
 from sbt2.results.metrics import (
     CurrencyMismatchError,
@@ -25,6 +28,7 @@ from sbt2.results.store import (
 
 __all__ = [
     "Benchmark",
+    "BenchmarkArgumentError",
     "BenchmarkCoverageError",
     "BuyAndHold",
     "CurrencyMismatchError",
@@ -40,8 +44,10 @@ __all__ = [
     "RunTables",
     "Segment",
     "Table",
+    "UnknownBenchmarkError",
     "UnknownRunError",
     "benchmark_statistics",
+    "build_benchmark",
     "equity_curve",
     "headline_metrics",
 ]

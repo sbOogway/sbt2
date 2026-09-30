@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,6 +12,14 @@ from sbt2.spec import ResolvedRunSpec
 
 
 class BenchmarkCoverageError(LookupError):
+    pass
+
+
+class UnknownBenchmarkError(LookupError):
+    pass
+
+
+class BenchmarkArgumentError(ValueError):
     pass
 
 
@@ -133,3 +141,52 @@ def _on_grid(prices: pd.Series, grid: pd.DatetimeIndex) -> pd.Series:
     last = prices.groupby(level=0, sort=True).last()
     last.index = pd.DatetimeIndex(last.index)
     return last.reindex(last.index.union(grid)).ffill().reindex(grid)
+
+
+def build_benchmark(name: str, argument: str | None = None) -> Benchmark | None:
+    """The benchmark called ``name``; ``none`` is no benchmark.
+
+    ``argument`` is the instrument id of ``buy-and-hold``, which defaults to the
+    run's first instrument, or the file of ``external``.
+    """
+    try:
+        builder = _BUILDERS[name]
+    except KeyError:
+        raise UnknownBenchmarkError(
+            f"no benchmark {name}; known: {', '.join(sorted(_BUILDERS))}"
+        ) from None
+    return builder(name, argument)
+
+
+def _buy_and_hold(name: str, argument: str | None) -> Benchmark:
+    return BuyAndHold(None if argument is None else InstrumentId.from_str(argument))
+
+
+def _equal_weight(name: str, argument: str | None) -> Benchmark:
+    _refuse(name, argument)
+    return EqualWeight()
+
+
+def _external(name: str, argument: str | None) -> Benchmark:
+    if argument is None:
+        raise BenchmarkArgumentError(f"the benchmark {name} needs a file")
+    return External(Path(argument))
+
+
+def _none(name: str, argument: str | None) -> None:
+    _refuse(name, argument)
+
+
+def _refuse(name: str, argument: str | None) -> None:
+    if argument is not None:
+        raise BenchmarkArgumentError(
+            f"the benchmark {name} takes no argument, got {argument!r}"
+        )
+
+
+_BUILDERS: dict[str, Callable[[str, str | None], Benchmark | None]] = {
+    "buy-and-hold": _buy_and_hold,
+    "equal-weight": _equal_weight,
+    "external": _external,
+    "none": _none,
+}

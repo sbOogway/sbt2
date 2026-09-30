@@ -7,11 +7,14 @@ import pytest
 from price_catalog import BTC, ETH, TAKER_RATE, PriceCatalog, run_on
 
 from sbt2.results import (
+    BenchmarkArgumentError,
     BenchmarkCoverageError,
     BuyAndHold,
     EqualWeight,
     External,
+    UnknownBenchmarkError,
     benchmark_statistics,
+    build_benchmark,
 )
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
@@ -147,3 +150,43 @@ def test_benchmark_relative_statistics_come_from_nautilus() -> None:
     assert statistics["Beta"] == pytest.approx(1.0)
     assert statistics["Alpha (365 days)"] == pytest.approx(0.0, abs=1e-9)
     assert statistics["Tracking Error (365 days)"] == pytest.approx(0.0, abs=1e-12)
+
+
+@pytest.mark.unit
+def test_no_benchmark_has_no_series() -> None:
+    returns = pd.Series([0.01, -0.02], index=[START + HOUR, START + 2 * HOUR])
+
+    none = build_benchmark("none")
+
+    assert none is None
+    assert benchmark_statistics(returns, none, days_per_year=365) == {}
+
+
+@pytest.mark.unit
+def test_the_factory_builds_each_benchmark_by_name() -> None:
+    assert build_benchmark("buy-and-hold") == BuyAndHold()
+    assert build_benchmark("buy-and-hold", str(ETH)) == BuyAndHold(ETH)
+    assert build_benchmark("equal-weight") == EqualWeight()
+    assert build_benchmark("external", "index.csv") == External(Path("index.csv"))
+
+
+@pytest.mark.unit
+def test_unknown_benchmarks_list_the_known_ones() -> None:
+    with pytest.raises(
+        UnknownBenchmarkError,
+        match="no benchmark cash; known: buy-and-hold, equal-weight, external, none",
+    ):
+        build_benchmark("cash")
+
+
+@pytest.mark.unit
+def test_an_external_benchmark_needs_a_file() -> None:
+    with pytest.raises(BenchmarkArgumentError, match="external needs a file"):
+        build_benchmark("external")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("name", ["equal-weight", "none"])
+def test_benchmarks_without_an_argument_refuse_one(name: str) -> None:
+    with pytest.raises(BenchmarkArgumentError, match=f"{name} takes no argument"):
+        build_benchmark(name, "BTCUSDT-LINEAR.BYBIT")
