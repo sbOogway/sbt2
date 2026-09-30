@@ -12,6 +12,7 @@ from sbt2.results.costs import (
     Activity,
     CostsAndExposure,
     CostWaterfall,
+    Exposure,
     PricedRun,
     costs_and_exposure,
 )
@@ -27,6 +28,7 @@ from sbt2.results.metrics import (
 )
 from sbt2.results.money import CurrencyMismatchError
 from sbt2.results.parquet import ParquetResultStore
+from sbt2.results.pricing import MissingPricesError
 from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
 from sbt2.results.store import (
     MissingTableError,
@@ -45,10 +47,12 @@ __all__ = [
     "CostsAndExposure",
     "CurrencyMismatchError",
     "EqualWeight",
+    "Exposure",
     "External",
     "FullMetrics",
     "HeadlineMetrics",
     "IncompleteRunError",
+    "MissingPricesError",
     "MissingTableError",
     "OutputSink",
     "ParquetResultStore",
