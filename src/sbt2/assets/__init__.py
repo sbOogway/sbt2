@@ -1,12 +1,20 @@
 from nautilus_trader.model import AssetClass, InstrumentClass
 
-from sbt2.assets.base import AssetProfile, Calendar, Carry
+from sbt2.assets.base import (
+    AssetProfile,
+    BuyAndHoldConvention,
+    Calendar,
+    Carry,
+    NoTakerRateError,
+)
 from sbt2.assets.crypto_perp import CRYPTO_PERP
 
 __all__ = [
     "AssetProfile",
+    "BuyAndHoldConvention",
     "Calendar",
     "Carry",
+    "NoTakerRateError",
     "UnknownAssetClassError",
     "asset_profile",
 ]

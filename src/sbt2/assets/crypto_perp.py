@@ -9,7 +9,7 @@ from nautilus_trader.model import (
     OmsType,
 )
 
-from sbt2.assets.base import AssetProfile, Carry
+from sbt2.assets.base import AssetProfile, BuyAndHoldConvention, Carry
 from sbt2.assets.calendars import AlwaysOpen
 
 CRYPTO_PERP = AssetProfile(
@@ -27,4 +27,7 @@ CRYPTO_PERP = AssetProfile(
     ),
     reference_prices=(MarkPriceUpdate,),
     valuation_price=MarkPriceUpdate,
+    buy_and_hold=BuyAndHoldConvention(
+        price=MarkPriceUpdate, carry=Carry(data_types=())
+    ),
 )

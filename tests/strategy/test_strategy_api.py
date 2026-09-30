@@ -3,8 +3,9 @@ from decimal import Decimal
 
 import pytest
 from nautilus_trader.model import BarSpecification
-from toy_strategies import BuyEveryBar, CountWarmupBars, StepParams
+from toy_strategies import BuyEveryBar, BuyOnce, CountWarmupBars, StepParams
 
+from sbt2.results import BuyAndHold
 from sbt2.strategy import (
     InvalidParameterError,
     NoParams,
@@ -78,3 +79,17 @@ def test_decimal_params_are_parsed_from_plain_values(step: str | float) -> None:
 def test_params_of_the_wrong_type_fail(values: dict[str, object], message: str) -> None:
     with pytest.raises(InvalidParameterError, match=message):
         resolve_params(BuyEveryBar, values)
+
+
+class ComparedToItsFirstInstrument(BuyOnce):
+    benchmark = BuyAndHold()
+
+
+@pytest.mark.unit
+def test_a_strategy_has_no_default_benchmark() -> None:
+    assert BuyOnce.benchmark is None
+
+
+@pytest.mark.unit
+def test_a_strategy_declares_its_default_benchmark() -> None:
+    assert ComparedToItsFirstInstrument.benchmark == BuyAndHold()

@@ -5,7 +5,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import Any, ClassVar, get_type_hints
+from typing import TYPE_CHECKING, Any, ClassVar, get_type_hints
 
 from nautilus_trader.core import dt_to_unix_nanos, unix_nanos_to_dt
 from nautilus_trader.model import (
@@ -19,6 +19,9 @@ from nautilus_trader.trading import ImportableStrategyConfig
 from nautilus_trader.trading import Strategy as NautilusStrategy
 
 from sbt2.strategy.drawdown import DrawdownGuard
+
+if TYPE_CHECKING:
+    from sbt2.results import Benchmark
 
 
 @dataclass(frozen=True)
@@ -79,6 +82,8 @@ class Strategy[P](NautilusStrategy, ABC):
     """A nautilus strategy that sbt2 can describe without running it.
 
     ``Params`` is a dataclass: its fields are the parameter schema and defaults.
+    ``benchmark`` is the default benchmark reports compare the strategy against;
+    ``None`` compares it against nothing.
     ``inputs`` declares the bars the strategy needs; they are aggregated at run
     time from trades or 1-minute candles and subscribed on start, so a subclass
     that overrides ``on_start`` calls ``super().on_start()``. Either way they
@@ -93,6 +98,7 @@ class Strategy[P](NautilusStrategy, ABC):
     """
 
     Params: ClassVar[type[Any]] = NoParams
+    benchmark: ClassVar[Benchmark | None] = None
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)

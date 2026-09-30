@@ -41,14 +41,8 @@ def daily_equity(*values: float) -> pd.DataFrame:
     return equity({START + k * DAY: value for k, value in enumerate(values)})
 
 
-def metrics(
-    run_equity: pd.DataFrame,
-    segment: Segment = SEGMENT,
-    benchmark: pd.Series | None = None,
-):
-    return headline_metrics(
-        RunTables(run_equity, NO_FILLS, NO_CARRY, "USDT"), segment, benchmark
-    )
+def metrics(run_equity: pd.DataFrame, segment: Segment = SEGMENT):
+    return headline_metrics(RunTables(run_equity, NO_FILLS, NO_CARRY, "USDT"), segment)
 
 
 @pytest.mark.unit
@@ -108,29 +102,6 @@ def test_annualized_statistics_use_the_asset_calendar_year() -> None:
 @pytest.mark.unit
 def test_flat_equity_has_no_sharpe() -> None:
     assert metrics(daily_equity(100.0)).sharpe is None
-
-
-@pytest.mark.unit
-def test_alpha_and_beta_are_absent_without_a_benchmark() -> None:
-    result = metrics(daily_equity(100.0, 101.0, 100.5, 102.0, 103.0))
-
-    assert (result.alpha, result.beta) == (None, None)
-
-
-@pytest.mark.unit
-def test_alpha_and_beta_against_intraday_benchmark_returns() -> None:
-    run_equity = daily_equity(100.0, 101.0, 100.5, 102.0, 103.0)
-    curve = equity_curve(run_equity, "USDT", SEGMENT)
-    own_daily = curve.pct_change().iloc[1:]
-    benchmark = pd.Series(
-        [(1 + r) ** 0.5 - 1 for r in own_daily for _ in range(2)],
-        index=[day + half for day in own_daily.index for half in (0 * HOUR, 12 * HOUR)],
-    )
-
-    result = metrics(run_equity, benchmark=benchmark)
-
-    assert result.beta == pytest.approx(1.0)
-    assert result.alpha == pytest.approx(0.0, abs=1e-9)
 
 
 @pytest.mark.unit
