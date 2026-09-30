@@ -9,7 +9,6 @@ from nautilus_trader.analysis import (
     TearsheetDrawdownChart,
     TearsheetEquityChart,
     TearsheetMonthlyReturnsChart,
-    TearsheetRollingSharpeChart,
     TearsheetStatsTableChart,
     TearsheetYearlyReturnsChart,
     create_tearsheet_from_stats,
@@ -25,6 +24,7 @@ from sbt2.results.metrics import (
     daily_returns,
     full_metrics,
 )
+from sbt2.results.panels import rolling_sharpe
 
 type Statistics = dict[str, float | None]
 
@@ -106,7 +106,7 @@ def _config(run: PricedRun) -> TearsheetConfig:
             TearsheetDrawdownChart(),
             TearsheetMonthlyReturnsChart(),
             TearsheetDistributionChart(),
-            TearsheetRollingSharpeChart(),
+            rolling_sharpe(run.spec.asset.days_per_year),
             TearsheetYearlyReturnsChart(),
         ],
         title=f"{run.spec.strategy.strategy}, {run.spec.part}",

@@ -1,8 +1,11 @@
+import math
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import pytest
 from nautilus_trader.model import InstrumentId
@@ -160,3 +163,33 @@ def test_without_a_benchmark_there_is_no_overlay(
     names = statistic_names(figure)
     assert "Beta" not in names
     assert not [each for each in names if each.startswith("Alpha")]
+
+
+@pytest.mark.unit
+def test_the_rolling_sharpe_is_annualized_by_the_asset_calendar(
+    prices: PriceCatalog, tmp_path: Path
+) -> None:
+    days = 80
+    values = wavy(days)
+    daily_run = replace(
+        run_on([BTC], START, START + days * DAY), equity_interval_ms=86_400_000
+    )
+    run = PricedRun(
+        daily_run,
+        RunTables(
+            equity({START + k * DAY: value for k, value in enumerate(values)}),
+            pd.DataFrame(),
+            pd.DataFrame(),
+            "USDT",
+        ),
+        prices.catalog,
+    )
+    returns = pd.Series(values).pct_change().iloc[1:]
+    rolling = returns.rolling(60)
+    expected = pd.Series(rolling.mean() / rolling.std()).dropna() * math.sqrt(365)
+
+    figure = drawn(run, tmp_path)
+
+    sharpe = figure.trace("Rolling Sharpe")["y"]
+    assert list(sharpe[~np.isnan(sharpe)]) == pytest.approx(list(expected))
+    assert len([each for each in figure.titles if "Rolling Sharpe" in each]) == 1
