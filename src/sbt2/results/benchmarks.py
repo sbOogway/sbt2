@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from datetime import timedelta
 from functools import cached_property
 from pathlib import Path
 
@@ -90,13 +91,24 @@ class External(Benchmark):
 
     def _value(self, market: _Market) -> pd.Series:
         prices = self._prices()
+        self._check_covers(prices, market)
+        on_grid = _on_grid(prices, market.grid)
+        return on_grid / on_grid.iloc[0]
+
+    def _check_covers(self, prices: pd.Series, market: _Market) -> None:
+        """A price at or before the start, and one within the last equity
+        interval of the end, so a sparser file needn't tick on the end."""
         start = market.grid[0]
         if prices.empty or prices.index[0] > start:
             raise BenchmarkCoverageError(
                 f"the benchmark file {self.path} has no price at {start}"
             )
-        on_grid = _on_grid(prices, market.grid)
-        return on_grid / on_grid.iloc[0]
+        needed = market.grid[-1] - timedelta(milliseconds=market.run.equity_interval_ms)
+        if prices.index[-1] < needed:
+            raise BenchmarkCoverageError(
+                f"the benchmark file {self.path} ends at {prices.index[-1]}, "
+                f"before {needed}"
+            )
 
     def _prices(self) -> pd.Series:
         frame = (

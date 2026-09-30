@@ -143,6 +143,18 @@ def test_an_external_series_starting_after_the_part_fails(
 
 
 @pytest.mark.unit
+def test_an_external_series_ending_before_the_part_fails(
+    tmp_path: Path, prices: PriceCatalog
+) -> None:
+    path = price_file(tmp_path / "early.csv", {START: 100.0, START + HOUR: 110.0})
+
+    with pytest.raises(
+        BenchmarkCoverageError, match=r"early\.csv ends at 2024-01-01 01:00:00"
+    ):
+        External(path).returns(run_on([BTC], START, START + 3 * HOUR), prices.catalog)
+
+
+@pytest.mark.unit
 def test_missing_valuation_prices_fail(prices: PriceCatalog) -> None:
     prices.add_marks(BTC, {START: 100.0})
     run = run_on([BTC], START, START + timedelta(days=2))
