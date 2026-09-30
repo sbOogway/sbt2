@@ -168,10 +168,10 @@ def benchmark_statistics(
     if benchmark is None:
         return {}
     analyzer = _relative_analyzer(days_per_year)
-    for ts, value in _nanos(_daily(returns)).items():
+    for ts, value in _nanos(compounded_daily(returns)).items():
         analyzer.add_return(ts, value)
     statistics = analyzer.get_performance_stats_returns_vs_benchmark(
-        _nanos(_daily(benchmark))
+        _nanos(compounded_daily(benchmark))
     )
     return _finite_values(statistics)
 
@@ -179,7 +179,7 @@ def benchmark_statistics(
 def daily_returns(run: RunTables, segment: Segment) -> pd.Series:
     """The returns of the run's equity on the segment's grid, compounded to
     one per UTC day."""
-    return _daily(_returns(equity_curve(run.equity, run.currency, segment)))
+    return compounded_daily(_returns(equity_curve(run.equity, run.currency, segment)))
 
 
 def _relative_analyzer(days_per_year: int) -> PortfolioAnalyzer:
@@ -328,7 +328,8 @@ def _returns(curve: pd.Series) -> pd.Series:
     return curve.pct_change().iloc[1:]
 
 
-def _daily(returns: pd.Series) -> pd.Series:
+def compounded_daily(returns: pd.Series) -> pd.Series:
+    """Returns compounded to one per UTC day, labelled by the day's start."""
     days = pd.Series(returns.index, index=returns.index).dt.tz_convert("UTC")
     return (1 + returns).groupby(days.dt.floor("D")).prod() - 1
 

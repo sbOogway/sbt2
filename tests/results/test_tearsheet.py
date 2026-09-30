@@ -9,7 +9,7 @@ from nautilus_trader.model import InstrumentId
 from plotted import Plotted, plotted
 from price_catalog import BTC, PriceCatalog, run_on
 
-from sbt2.results import PricedRun, RunTables, tearsheet
+from sbt2.results import BuyAndHold, PricedRun, RunTables, tearsheet
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 HOUR = timedelta(hours=1)
@@ -132,3 +132,31 @@ def test_the_tearsheet_is_built_from_daily_returns(
     percents = drawn(run, tmp_path).trace("Returns")["x"]
 
     assert list(percents) == pytest.approx([100 * each for each in daily])
+
+
+@pytest.mark.unit
+def test_the_benchmark_is_overlaid_with_its_relative_statistics(
+    prices: PriceCatalog, tmp_path: Path
+) -> None:
+    figure = drawn(btc_round_trip(prices), tmp_path, benchmark=BuyAndHold())
+
+    overlay = figure.trace("BuyAndHold")
+    assert overlay["xaxis"] == figure.trace("Strategy")["xaxis"]
+    names = statistic_names(figure)
+    assert "Alpha (365 days)" in names
+    assert "Beta" in names
+
+
+@pytest.mark.unit
+def test_without_a_benchmark_there_is_no_overlay(
+    prices: PriceCatalog, tmp_path: Path
+) -> None:
+    figure = drawn(btc_round_trip(prices), tmp_path)
+
+    equity_panel = figure.trace("Strategy")["xaxis"]
+    assert [
+        each["name"] for each in figure.traces if each.get("xaxis") == equity_panel
+    ] == ["Strategy"]
+    names = statistic_names(figure)
+    assert "Beta" not in names
+    assert not [each for each in names if each.startswith("Alpha")]
