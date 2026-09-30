@@ -195,7 +195,7 @@ def test_the_tearsheet_is_built_from_daily_returns(
         RunTables(equity(hourly(values)), pd.DataFrame(), pd.DataFrame(), "USDT"),
         prices.catalog,
     )
-    day_ends = [values[0], values[23], values[47], values[71]]
+    day_ends = [values[0], values[24], values[48], values[71]]
     daily = [after / before - 1 for before, after in pairwise(day_ends)]
 
     percents = drawn(run, tmp_path).trace("Returns")["x"]

@@ -329,9 +329,14 @@ def _returns(curve: pd.Series) -> pd.Series:
 
 
 def compounded_daily(returns: pd.Series) -> pd.Series:
-    """Returns compounded to one per UTC day, labelled by the day's start."""
-    days = pd.Series(returns.index, index=returns.index).dt.tz_convert("UTC")
-    return (1 + returns).groupby(days.dt.floor("D")).prod() - 1
+    """Returns compounded to one per UTC day, labelled by the day's start.
+
+    A return covers the step up to its time, so one at midnight belongs to
+    the day before.
+    """
+    ends = pd.Series(returns.index, index=returns.index).dt.tz_convert("UTC")
+    days = ends.dt.ceil("D") - pd.Timedelta(days=1)
+    return (1 + returns).groupby(days).prod() - 1
 
 
 def _nanos(returns: pd.Series) -> dict[int, float]:
