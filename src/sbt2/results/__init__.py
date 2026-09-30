@@ -3,6 +3,7 @@ from sbt2.results.metrics import (
     HeadlineMetrics,
     RunTables,
     Segment,
+    benchmark_statistics,
     equity_curve,
     headline_metrics,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "Segment",
     "Table",
     "UnknownRunError",
+    "benchmark_statistics",
     "equity_curve",
     "headline_metrics",
 ]

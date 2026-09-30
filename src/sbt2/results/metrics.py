@@ -9,8 +9,13 @@ from nautilus_trader.analysis import (
     CAGR,
     Alpha,
     BetaRatio,
+    DownCaptureRatio,
+    InformationRatio,
     MaxDrawdown,
+    PortfolioAnalyzer,
     SharpeRatio,
+    TrackingError,
+    UpCaptureRatio,
 )
 from nautilus_trader.model import Money
 
@@ -87,6 +92,39 @@ def equity_curve(equity: pd.DataFrame, currency: str, segment: Segment) -> pd.Se
     series = pd.Series(last.to_numpy(), index=pd.DatetimeIndex(last.index))
     grid = _grid(segment)
     return series.reindex(series.index.union(grid)).ffill().reindex(grid)
+
+
+def benchmark_statistics(
+    returns: pd.Series, benchmark: pd.Series | None, days_per_year: int
+) -> dict[str, float | None]:
+    """Nautilus's benchmark-relative statistics, under its own names.
+
+    Both return series are compounded to daily returns first, since nautilus
+    pairs them only on identical timestamps. Without a benchmark there are none.
+    """
+    if benchmark is None:
+        return {}
+    analyzer = _relative_analyzer(days_per_year)
+    for ts, value in _nanos(_daily(returns)).items():
+        analyzer.add_return(ts, value)
+    statistics = analyzer.get_performance_stats_returns_vs_benchmark(
+        _nanos(_daily(benchmark))
+    )
+    return {name: _finite(value) for name, value in statistics.items()}
+
+
+def _relative_analyzer(days_per_year: int) -> PortfolioAnalyzer:
+    analyzer = PortfolioAnalyzer()
+    for statistic in (
+        Alpha(period=days_per_year),
+        BetaRatio(),
+        InformationRatio(period=days_per_year),
+        TrackingError(period=days_per_year),
+        UpCaptureRatio(period=days_per_year),
+        DownCaptureRatio(period=days_per_year),
+    ):
+        analyzer.register_statistic(statistic)
+    return analyzer
 
 
 def _grid(segment: Segment) -> pd.DatetimeIndex:
