@@ -8,6 +8,12 @@ from sbt2.results.benchmarks import (
     UnknownBenchmarkError,
     build_benchmark,
 )
+from sbt2.results.comparisons import (
+    UnknownBatchError,
+    batch_table,
+    compare_parts,
+    degradation,
+)
 from sbt2.results.costs import (
     Activity,
     CostsAndExposure,
@@ -35,6 +41,7 @@ from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
 from sbt2.results.store import (
     MissingTableError,
     ResultStore,
+    RunIds,
     Table,
     UnknownRunError,
 )
@@ -63,14 +70,19 @@ __all__ = [
     "PricedRun",
     "Reports",
     "ResultStore",
+    "RunIds",
     "RunTables",
     "Segment",
     "Table",
+    "UnknownBatchError",
     "UnknownBenchmarkError",
     "UnknownRunError",
+    "batch_table",
     "benchmark_statistics",
     "build_benchmark",
+    "compare_parts",
     "costs_and_exposure",
+    "degradation",
     "equity_curve",
     "full_metrics",
     "headline_metrics",

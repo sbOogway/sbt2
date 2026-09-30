@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 import time
+import uuid
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -60,6 +61,26 @@ def test_every_run_of_a_batch_is_stored_under_its_run_id(tmp_path: Path) -> None
     assert [stored[each]["spec_hash"] for each in run_ids] == [
         each.hash for each in specs
     ]
+
+
+@pytest.mark.integration
+def test_every_run_of_a_batch_shares_one_time_sortable_batch_id(
+    tmp_path: Path,
+) -> None:
+    first = batch(
+        [
+            resolved(tmp_path, params={"hold_bars": 2}),
+            resolved(tmp_path, params={"hold_bars": 3}),
+        ],
+        setup(tmp_path, PlainLauncher()),
+    )
+    second = batch([resolved(tmp_path)], setup(tmp_path, PlainLauncher()))
+
+    stored = summaries(tmp_path)
+    [first_id] = {stored[each]["batch_id"] for each in first}
+    [second_id] = {stored[each]["batch_id"] for each in second}
+    assert uuid.UUID(first_id).version == 7
+    assert first_id < second_id
 
 
 @pytest.mark.integration

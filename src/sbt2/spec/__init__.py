@@ -15,6 +15,7 @@ from sbt2.spec.resolve import (
 )
 from sbt2.spec.risk import DrawdownLimitError, UnknownRiskKeyError
 from sbt2.spec.split import (
+    PARTS,
     DateSplit,
     FractionSplit,
     SplitDateError,
@@ -24,6 +25,7 @@ from sbt2.spec.split import (
 )
 
 __all__ = [
+    "PARTS",
     "CandleBarError",
     "DateSplit",
     "DrawdownLimitError",

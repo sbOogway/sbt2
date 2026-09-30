@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import IO
 
 from sbt2.data import Gap
-from sbt2.results import ResultStore
+from sbt2.results import ResultStore, RunIds
 from sbt2.run.execute import RunSettings, execute
 from sbt2.spec import ResolvedRunSpec
 
@@ -23,6 +23,7 @@ LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 @dataclass(frozen=True)
 class Order:
     run_id: str
+    batch_id: str
     spec: ResolvedRunSpec
     known_gaps: tuple[Gap, ...]
     store: ResultStore
@@ -48,7 +49,8 @@ def _receive(stream: IO[bytes]) -> Order:
 def _run(order: Order) -> None:
     logging.basicConfig(format=LOG_FORMAT, level=order.settings.log_level.name)
     try:
-        sink = order.store.new_run(order.spec, order.known_gaps, order.run_id)
+        ids = RunIds(order.run_id, order.batch_id)
+        sink = order.store.new_run(order.spec, order.known_gaps, ids)
         execute(order.spec, sink, order.settings)
     except BaseException as error:
         order.error_file.write_text(_described(error))
