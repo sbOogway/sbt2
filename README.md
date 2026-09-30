@@ -42,7 +42,7 @@ bar = "1-HOUR-LAST"
 quantity = "0.100"
 ```
 
-Results are stored under `data/results`; list them with `uv run sbt2 runs list`.
+`sbt2 run` ends with the headline metrics of each part. Results are stored under `data/results`; list them with `uv run sbt2 runs list`, and write a run's tearsheet with `uv run sbt2 report tearsheet <run_id>`.
 
 ## License
 
