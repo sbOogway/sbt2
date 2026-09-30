@@ -26,9 +26,16 @@ from rich.progress import (
     TimeElapsedColumn,
 )
 
-from sbt2 import data, spec
+from sbt2 import data, results, spec
 from sbt2.config import ROOT, SOURCES, Root
-from sbt2.results import MissingTableError, ParquetResultStore, ResultStore
+from sbt2.results import (
+    Benchmark,
+    MissingTableError,
+    ParquetResultStore,
+    ResultStore,
+    StoredRun,
+    build_benchmark,
+)
 from sbt2.run import (
     BatchSetup,
     DataFolders,
@@ -37,6 +44,7 @@ from sbt2.run import (
     SystemdScope,
     batch,
 )
+from sbt2.strategy import import_strategy
 
 DAY = ["%Y-%m-%d"]
 SIZE = re.compile(r"(\d+)([KMGT]?)")
@@ -48,6 +56,8 @@ data_app = typer.Typer(no_args_is_help=True, help="Inspect the catalog.")
 app.add_typer(data_app, name="data")
 runs_app = typer.Typer(no_args_is_help=True, help="Query and manage stored runs.")
 app.add_typer(runs_app, name="runs")
+report_app = typer.Typer(no_args_is_help=True, help="Report on stored runs.")
+app.add_typer(report_app, name="report")
 logger = logging.getLogger("sbt2")
 
 
@@ -460,6 +470,44 @@ def _text(value: object) -> str:
 
 def _missing(value: object) -> bool:
     return value is None or (isinstance(value, float) and math.isnan(value))
+
+
+@report_app.command("tearsheet")
+def report_tearsheet(
+    run_id: Annotated[str, typer.Argument(help="The run's id.")],
+    data_root: Annotated[
+        Path, typer.Option("--data", help="Reads PATH/results and PATH/catalog.")
+    ] = ROOT,
+    benchmark: Annotated[
+        str | None,
+        typer.Option(
+            metavar="NAME[:ARG]",
+            help="buy-and-hold[:INSTRUMENT], equal-weight, external:FILE or none. "
+            "Default: the strategy's.",
+        ),
+    ] = None,
+    output: Annotated[
+        Path | None,
+        typer.Option(help="Default: tearsheet.html in the run's folder."),
+    ] = None,
+) -> None:
+    """Write a run's tearsheet, against a benchmark."""
+    root = Root(data_root)
+    with _failing("tearsheet of run %s", run_id):
+        store = ParquetResultStore(root.results)
+        stored = store.stored_run(run_id)
+        path = output or store.folder(run_id) / "tearsheet.html"
+        priced = stored.priced(data.Catalog(root.catalog))
+        results.tearsheet(priced, path, _benchmark(benchmark, stored))
+    logger.info("wrote the tearsheet of run %s to %s", run_id, path)
+
+
+def _benchmark(option: str | None, stored: StoredRun) -> Benchmark | None:
+    """The benchmark ``NAME[:ARG]`` names, the strategy's own without one."""
+    if option is None:
+        return import_strategy(stored.spec.strategy.strategy).benchmark
+    name, _, argument = option.partition(":")
+    return build_benchmark(name, argument or None)
 
 
 class _Bar:
