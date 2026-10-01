@@ -64,7 +64,6 @@ def _arrow_schema(data_type: type) -> pa.Schema:
 
 def _funding_table(fundings: Sequence[FundingRateUpdate]) -> pa.Table:
     columns = {
-        "instrument_id": [str(funding.instrument_id) for funding in fundings],
         "rate": [str(funding.rate) for funding in fundings],
         "interval": [funding.interval for funding in fundings],
         "next_funding_ns": [funding.next_funding_ns for funding in fundings],
@@ -72,4 +71,10 @@ def _funding_table(fundings: Sequence[FundingRateUpdate]) -> pa.Table:
         "ts_init": [funding.ts_init for funding in fundings],
         "identifier": [str(funding.instrument_id) for funding in fundings],
     }
-    return pa.table(columns, schema=_arrow_schema(FundingRateUpdate))
+    metadata = {
+        **(_arrow_schema(FundingRateUpdate).metadata or {}),
+        "instrument_id": str(fundings[0].instrument_id),
+    }
+    return pa.table(
+        columns, schema=_arrow_schema(FundingRateUpdate).with_metadata(metadata)
+    )
