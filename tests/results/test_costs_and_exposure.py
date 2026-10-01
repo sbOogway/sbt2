@@ -1,3 +1,4 @@
+import re
 from dataclasses import astuple, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -210,7 +211,7 @@ def test_missing_valuation_prices_fail(prices: PriceCatalog) -> None:
 
     with pytest.raises(
         MissingPricesError,
-        match="MarkPriceUpdate for BTCUSDT-LINEAR.BYBIT on 2024-01-02",
+        match=re.escape("MarkPriceUpdate for BTCUSDT-LINEAR.BYBIT on 2024-01-02"),
     ):
         exposure_of(run, prices, end)
 
@@ -227,7 +228,7 @@ def test_an_inverse_instrument_fails(prices: PriceCatalog) -> None:
     prices.add_marks(inverse, {START: 50_000.0})
     run = tables(flat(10_000.0, end), [of(inverse, fill(START, 1, 50_000.0))], [])
 
-    with pytest.raises(InverseInstrumentError, match="BTCUSD-INVERSE.BYBIT"):
+    with pytest.raises(InverseInstrumentError, match=re.escape("BTCUSD-INVERSE.BYBIT")):
         costs_and_exposure(
             PricedRun(run_on([inverse], START, end), run, prices.catalog)
         )
