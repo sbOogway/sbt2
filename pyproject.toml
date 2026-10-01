@@ -53,7 +53,11 @@ dev = [
 include = ["src", "tests"]
 
 [tool.ruff.lint]
-extend-select = ["B", "C90", "ERA", "FBT", "PLR0913", "PLR0915", "PLR0917", "PT", "RUF", "SIM", "UP"]
+extend-select = [
+    "B", "C4", "C90", "DTZ", "ERA", "FBT", "FURB", "G", "LOG", "PERF", "PGH", "PIE",
+    "PLR0913", "PLR0915", "PLR0917", "PLR2004", "PT", "PTH", "RET", "RUF", "SIM",
+    "SLF", "T20", "TID", "UP",
+]
 ignore = [
     # nautilus constructors take their flags positionally
     "FBT003",
@@ -67,6 +71,8 @@ ignore = [
 # pytest hands fixtures in as arguments
 "**/test_*.py" = ["PLR0913", "PLR0917"]
 "**/conftest.py" = ["PLR0913", "PLR0917"]
+# a test spells out its expected values
+"tests/**" = ["PLR2004"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 8
