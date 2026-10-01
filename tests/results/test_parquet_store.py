@@ -394,6 +394,25 @@ def test_runs_filter_by_batch(store: ParquetResultStore, output: RunOutput) -> N
 
 
 @pytest.mark.unit
+def test_runs_filter_by_run_ids(store: ParquetResultStore, output: RunOutput) -> None:
+    first, _, third = (finished_run(store, output) for _ in range(3))
+
+    assert listed(store.runs(RunFilter(run_ids=(third, first)))) == [first, third]
+
+
+@pytest.mark.unit
+def test_runs_with_no_run_ids_match_none(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    finished_run(store, output)
+
+    runs = store.runs(RunFilter(run_ids=()))
+
+    assert runs.empty
+    assert {"run_id", "spec_hash", "net_return"} <= set(runs.columns)
+
+
+@pytest.mark.unit
 def test_listing_runs_writes_nothing_to_the_store(
     store: ParquetResultStore, output: RunOutput, tmp_path: Path
 ) -> None:

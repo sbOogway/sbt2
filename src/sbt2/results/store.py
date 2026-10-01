@@ -23,11 +23,15 @@ class RunIds:
 
 @dataclass(frozen=True)
 class RunFilter:
-    """Keeps the runs matching every field given; None matches any run."""
+    """Keeps the runs matching every field given; None matches any run.
+
+    ``run_ids`` keeps the runs it lists, so an empty one keeps none.
+    """
 
     strategy: str | None = None
     part: str | None = None
     batch: str | None = None
+    run_ids: tuple[str, ...] | None = None
 
 
 _EVERY_RUN = RunFilter()
