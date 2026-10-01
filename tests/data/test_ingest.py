@@ -7,8 +7,8 @@ from local_source import (
     INSTRUMENT_ID,
     SYMBOL,
     LocalSource,
+    RawFolder,
     start_of,
-    write_day,
     write_snapshot,
 )
 from nautilus_trader.model import (
@@ -97,7 +97,7 @@ def test_each_day_is_one_file_named_with_the_whole_days_bounds(
     raw: Path, catalog_path: Path
 ) -> None:
     for day in (DAY, NEXT_DAY):
-        write_day(raw, TradeTick, day, hourly(day)[3:5])
+        RawFolder(raw).write_day(TradeTick, day, hourly(day)[3:5])
 
     run(raw, catalog_path, request(NEXT_DAY, "TradeTick"))
 
@@ -112,10 +112,10 @@ def test_each_day_is_one_file_named_with_the_whole_days_bounds(
 def test_every_served_data_type_is_ingested_by_default(
     raw: Path, catalog_path: Path
 ) -> None:
-    write_day(raw, TradeTick, DAY, hourly(DAY))
-    write_day(raw, MarkPriceUpdate, DAY, hourly(DAY))
-    write_day(raw, FundingRateUpdate, DAY, [start_of(DAY) + 8 * HOUR])
-    write_day(raw, Bar, DAY, hourly(DAY))
+    RawFolder(raw).write_day(TradeTick, DAY, hourly(DAY))
+    RawFolder(raw).write_day(MarkPriceUpdate, DAY, hourly(DAY))
+    RawFolder(raw).write_day(FundingRateUpdate, DAY, [start_of(DAY) + 8 * HOUR])
+    RawFolder(raw).write_day(Bar, DAY, hourly(DAY))
 
     tally = run(raw, catalog_path, request())
 
@@ -139,7 +139,7 @@ def test_a_raw_file_without_rows_becomes_a_covered_empty_day(
     raw: Path, catalog_path: Path, data_type: type
 ) -> None:
     name = data_type.__name__
-    write_day(raw, data_type, DAY, [])
+    RawFolder(raw).write_day(data_type, DAY, [])
 
     tally = run(raw, catalog_path, request(DAY, name))
 
@@ -153,7 +153,7 @@ def test_a_raw_file_without_rows_becomes_a_covered_empty_day(
 def test_candles_are_written_under_their_bar_type_with_the_whole_days_bounds(
     raw: Path, catalog_path: Path
 ) -> None:
-    write_day(raw, Bar, DAY, hourly(DAY)[:2])
+    RawFolder(raw).write_day(Bar, DAY, hourly(DAY)[:2])
 
     run(raw, catalog_path, request(DAY, "Bar"))
 
@@ -173,7 +173,7 @@ def test_candles_are_written_under_their_bar_type_with_the_whole_days_bounds(
 def test_a_day_without_candles_is_a_covered_empty_bar_file(
     raw: Path, catalog_path: Path
 ) -> None:
-    write_day(raw, Bar, DAY, [])
+    RawFolder(raw).write_day(Bar, DAY, [])
 
     tally = run(raw, catalog_path, request(DAY, "Bar"))
 
@@ -189,7 +189,7 @@ def test_a_day_without_candles_is_a_covered_empty_bar_file(
 def test_a_day_without_a_raw_file_is_missing_and_not_written(
     raw: Path, catalog_path: Path
 ) -> None:
-    write_day(raw, TradeTick, DAY, hourly(DAY))
+    RawFolder(raw).write_day(TradeTick, DAY, hourly(DAY))
 
     tally = run(raw, catalog_path, request(NEXT_DAY, "TradeTick"))
 
@@ -200,7 +200,7 @@ def test_a_day_without_a_raw_file_is_missing_and_not_written(
 @pytest.mark.unit
 def test_known_gap_days_are_left_out(raw: Path, catalog_path: Path) -> None:
     source = LocalSource(frozenset({Gap(INSTRUMENT_ID, TradeTick, NEXT_DAY)}))
-    write_day(raw, TradeTick, DAY, hourly(DAY))
+    RawFolder(raw).write_day(TradeTick, DAY, hourly(DAY))
 
     tally = run(raw, catalog_path, request(NEXT_DAY, "TradeTick"), source)
 
@@ -211,10 +211,10 @@ def test_known_gap_days_are_left_out(raw: Path, catalog_path: Path) -> None:
 def test_a_rerun_skips_the_days_already_in_the_catalog(
     raw: Path, catalog_path: Path
 ) -> None:
-    write_day(raw, TradeTick, DAY, hourly(DAY))
+    RawFolder(raw).write_day(TradeTick, DAY, hourly(DAY))
     run(raw, catalog_path, request(DAY, "TradeTick"))
-    write_day(raw, TradeTick, DAY, hourly(DAY)[:1])
-    write_day(raw, TradeTick, NEXT_DAY, hourly(NEXT_DAY))
+    RawFolder(raw).write_day(TradeTick, DAY, hourly(DAY)[:1])
+    RawFolder(raw).write_day(TradeTick, NEXT_DAY, hourly(NEXT_DAY))
 
     tally = run(raw, catalog_path, request(NEXT_DAY, "TradeTick"))
 
@@ -230,7 +230,7 @@ def test_a_rerun_skips_the_days_already_in_the_catalog(
 def test_a_record_outside_its_day_fails_and_writes_nothing(
     raw: Path, catalog_path: Path
 ) -> None:
-    write_day(raw, TradeTick, DAY, [start_of(DAY), start_of(NEXT_DAY)])
+    RawFolder(raw).write_day(TradeTick, DAY, [start_of(DAY), start_of(NEXT_DAY)])
 
     with pytest.raises(OutsideDayError, match="1 records outside its UTC day"):
         run(raw, catalog_path, request(DAY, "TradeTick"))
@@ -243,7 +243,9 @@ def test_a_record_outside_its_day_fails_and_writes_nothing(
 def test_a_file_sbt2_writes_leaves_no_partial_file_behind(
     raw: Path, catalog_path: Path, rows: list[int]
 ) -> None:
-    write_day(raw, FundingRateUpdate, DAY, [start_of(DAY) + each for each in rows])
+    RawFolder(raw).write_day(
+        FundingRateUpdate, DAY, [start_of(DAY) + each for each in rows]
+    )
 
     run(raw, catalog_path, request(DAY, "FundingRateUpdate"))
 
@@ -258,7 +260,7 @@ def test_a_partial_file_left_by_a_crash_is_not_a_covered_day(
     leftover = catalog_path / "data" / "funding_rates" / str(INSTRUMENT_ID)
     leftover.mkdir(parents=True)
     (leftover / (_day_file_name(DAY) + "#sbt2")).write_bytes(b"trunc")
-    write_day(raw, FundingRateUpdate, DAY, [start_of(DAY) + 8 * HOUR])
+    RawFolder(raw).write_day(FundingRateUpdate, DAY, [start_of(DAY) + 8 * HOUR])
 
     tally = run(raw, catalog_path, request(DAY, "FundingRateUpdate"))
 
@@ -275,7 +277,7 @@ def _day_file_name(day: date) -> str:
 
 @pytest.mark.unit
 def test_progress_hears_of_every_planned_day(raw: Path, catalog_path: Path) -> None:
-    write_day(raw, TradeTick, DAY, hourly(DAY))
+    RawFolder(raw).write_day(TradeTick, DAY, hourly(DAY))
     recorder = Recorder()
 
     ingest(

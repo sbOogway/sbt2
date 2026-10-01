@@ -69,9 +69,13 @@ def write_snapshot(raw: Path, taken_on: date, margin_init: str = "0.01") -> Path
     return _write(raw, LocalSource().instrument_snapshot(SYMBOL, taken_on), fields)
 
 
-def write_day(raw: Path, data_type: type, day: date, timestamps: Iterable[int]) -> Path:
-    raw_file = LocalSource().day_file(SYMBOL, data_type, day)
-    return _write(raw, raw_file, list(timestamps))
+class RawFolder:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+
+    def write_day(self, data_type: type, day: date, timestamps: Iterable[int]) -> Path:
+        raw_file = LocalSource().day_file(SYMBOL, data_type, day)
+        return _write(self.path, raw_file, list(timestamps))
 
 
 def perpetual() -> CryptoPerpetual:

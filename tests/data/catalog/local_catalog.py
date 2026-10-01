@@ -8,8 +8,8 @@ from local_source import (
     INSTRUMENT_ID,
     SYMBOL,
     LocalSource,
+    RawFolder,
     start_of,
-    write_day,
 )
 from local_source import write_snapshot as write_raw_snapshot
 from nautilus_trader.model import Bar, FundingRateUpdate, MarkPriceUpdate, TradeTick
@@ -38,7 +38,7 @@ class LocalCatalog:
             self.write(data_type, each, _hourly(each, rows))
 
     def write(self, data_type: type, day: date, timestamps: list[int]) -> None:
-        write_day(self.raw, data_type, day, timestamps)
+        RawFolder(self.raw).write_day(data_type, day, timestamps)
         self._ingest(
             IngestRequest(DayRange((SYMBOL,), day, day, (data_type.__name__,)))
         )

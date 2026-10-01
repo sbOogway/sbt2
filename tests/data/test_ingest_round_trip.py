@@ -7,8 +7,8 @@ from local_source import (
     INSTRUMENT_ID,
     SYMBOL,
     LocalSource,
+    RawFolder,
     start_of,
-    write_day,
     write_snapshot,
 )
 from nautilus_trader.backtest import (
@@ -62,9 +62,9 @@ def ingest_one_day(tmp_path: Path) -> Path:
     raw, catalog = tmp_path / "raw", tmp_path / "catalog"
     write_snapshot(raw, DAY)
     hours = [start_of(DAY) + hour * HOUR for hour in range(24)]
-    write_day(raw, TradeTick, DAY, hours)
-    write_day(raw, MarkPriceUpdate, DAY, hours)
-    write_day(raw, FundingRateUpdate, DAY, [hours[8], hours[16]])
+    RawFolder(raw).write_day(TradeTick, DAY, hours)
+    RawFolder(raw).write_day(MarkPriceUpdate, DAY, hours)
+    RawFolder(raw).write_day(FundingRateUpdate, DAY, [hours[8], hours[16]])
     request = IngestRequest(DayRange((SYMBOL,), DAY, DAY))
     ingest(LocalSource(), request, IngestOptions(raw, catalog))
     return catalog
