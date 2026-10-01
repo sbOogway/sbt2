@@ -64,8 +64,6 @@ ignore = [
     "FBT003",
     # concatenation splits a long CLI argument list into rows of related options
     "RUF005",
-    # the run child's order arrives pickled; off until #136 sends it as JSON
-    "S301",
     # the systemd launcher builds its systemd-run arguments; off until #137 moves it to D-Bus
     "S603",
 ]
