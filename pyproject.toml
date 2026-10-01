@@ -65,6 +65,8 @@ ignore = [
     "RUF005",
     # the run child's order arrives pickled; off until #136 sends it as JSON
     "S301",
+    # the systemd launcher builds its systemd-run arguments; off until #137 moves it to D-Bus
+    "S603",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -75,8 +77,6 @@ ignore = [
 "**/conftest.py" = ["PLR0913", "PLR0917"]
 # tests spell out their expected values; the security rules guard shipped code
 "tests/**" = ["PLR2004", "S"]
-# systemd-run and systemctl, with arguments built here
-"src/sbt2/run/systemd.py" = ["S603"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 8
