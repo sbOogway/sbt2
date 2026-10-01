@@ -2,7 +2,7 @@ import json
 import shutil
 import uuid
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -57,13 +57,10 @@ _SUMMARY_SCHEMA = pa.schema(
         ("part", pa.string()),
         ("known_gaps", pa.list_(pa.string())),
         ("currency", pa.string()),
-        ("net_return", pa.float64()),
-        ("annualized_return", pa.float64()),
-        ("sharpe", pa.float64()),
-        ("max_drawdown", pa.float64()),
-        ("trade_count", pa.int64()),
-        ("total_fees", pa.float64()),
-        ("total_carry", pa.float64()),
+        *(
+            (each.name, pa.int64() if each.type is int else pa.float64())
+            for each in fields(HeadlineMetrics)
+        ),
         ("drawdown_tripped_at", _UTC),
     ]
 )

@@ -5,7 +5,7 @@ import re
 import sys
 from collections.abc import Generator, Hashable, Mapping
 from contextlib import contextmanager
-from dataclasses import replace
+from dataclasses import fields, replace
 from datetime import UTC, date, datetime, time, timedelta
 from enum import StrEnum
 from pathlib import Path
@@ -157,17 +157,8 @@ def _run(spec_file: Path, setup: BatchSetup) -> None:
     typer.echo(_headline_tables(setup.store, run_ids))
 
 
-_HEADLINE_HEADER = (
-    "run_id",
-    "strategy",
-    "net_return",
-    "annualized_return",
-    "sharpe",
-    "max_drawdown",
-    "trade_count",
-    "total_fees",
-    "total_carry",
-)
+_HEADLINE = tuple(each.name for each in fields(results.HeadlineMetrics))
+_HEADLINE_HEADER = ("run_id", "strategy", *_HEADLINE)
 
 
 def _headline_tables(store: ResultStore, run_ids: tuple[str, ...]) -> str:
@@ -535,19 +526,7 @@ def report_tearsheet(
     logger.info("wrote the tearsheet of run %s to %s", run_id, path)
 
 
-_PARTS_HEADER = (
-    "part",
-    "run_id",
-    "start",
-    "end",
-    "net_return",
-    "annualized_return",
-    "sharpe",
-    "max_drawdown",
-    "trade_count",
-    "total_fees",
-    "total_carry",
-)
+_PARTS_HEADER = ("part", "run_id", "start", "end", *_HEADLINE)
 
 
 @report_app.command("parts")
