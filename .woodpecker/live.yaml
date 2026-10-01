@@ -27,3 +27,22 @@ steps:
     commands:
       - uv sync --locked
       - uv run --locked pytest -m live
+
+  # runs even when the live tests fail: an expiring pin must not wait on a flaky source
+  - name: nautilus-bump
+    image: *image
+    environment:
+      <<: *env
+      DEBIAN_FRONTEND: noninteractive
+      GIT_AUTHOR_NAME: woodpecker
+      GIT_AUTHOR_EMAIL: woodpecker@mattiapapaccioli.com
+      GIT_COMMITTER_NAME: woodpecker
+      GIT_COMMITTER_EMAIL: woodpecker@mattiapapaccioli.com
+      GH_TOKEN:
+        from_secret: github_token
+    commands:
+      - apt-get update -qq && apt-get install -y -qq --no-install-recommends gh
+      - gh auth setup-git
+      - scripts/bump-nautilus.sh
+    when:
+      - status: [success, failure]
