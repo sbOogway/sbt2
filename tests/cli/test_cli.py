@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import pytest
@@ -7,9 +8,11 @@ from served_source import INSTRUMENT_ID, ServedSource
 from served_spec import DAY, NEXT_DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
 
+from sbt2 import cli
 from sbt2.cli import app
 from sbt2.data.sources import Gap
 from sbt2.results import ParquetResultStore
+from sbt2.run import launcher_for
 
 runner = CliRunner()
 FAILING = """
@@ -253,4 +256,23 @@ def test_a_budget_below_the_per_run_cap_fails_the_run(
 
     assert result.exit_code == 1
     assert "memory budget" in log.read_text()
+    assert not (tmp_path / "data" / "results").exists()
+
+
+@pytest.mark.e2e
+def test_run_on_an_unserved_platform_starts_no_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+    spec = served(tmp_path, monkeypatch, source)
+    log = tmp_path / "sbt2.log"
+    monkeypatch.setattr(cli, "launcher_for", launcher_for)
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    result = runner.invoke(app, ["--log-file", str(log), "run", str(spec)])
+
+    assert result.exit_code == 1
+    assert "UnsupportedPlatformError" in log.read_text()
+    assert "win32" in log.read_text()
     assert not (tmp_path / "data" / "results").exists()
