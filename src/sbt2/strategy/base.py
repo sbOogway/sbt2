@@ -125,7 +125,7 @@ class Strategy[P](NautilusStrategy, ABC):
         )
 
     @classmethod
-    def warmup(cls, params: P) -> timedelta:
+    def warmup(cls, params: P) -> timedelta:  # noqa: ARG003
         return timedelta(0)
 
     @classmethod

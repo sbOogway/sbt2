@@ -54,7 +54,7 @@ include = ["src", "tests"]
 
 [tool.ruff.lint]
 extend-select = [
-    "B", "C4", "C90", "DTZ", "ERA", "FBT", "FURB", "G", "LOG", "PERF", "PGH", "PIE",
+    "ARG", "B", "C4", "C90", "DTZ", "ERA", "FBT", "FURB", "G", "LOG", "PERF", "PGH", "PIE",
     "PLR0913", "PLR0915", "PLR0917", "PLR2004", "PT", "PTH", "RET", "RUF", "SIM",
     "SLF", "T20", "TID", "UP",
 ]
