@@ -27,6 +27,7 @@ from sbt2.results import (
     OutputSink,
     ParquetResultStore,
     Reports,
+    RunFilter,
     RunIds,
     RunTables,
     Segment,
@@ -361,7 +362,7 @@ def test_runs_filter_by_strategy(store: ParquetResultStore, output: RunOutput) -
     finished(store, output, spec())
     run_id = finished(store, output, other("toy:Other", "train"))
 
-    assert listed(store.runs(strategy="toy:Other")) == [run_id]
+    assert listed(store.runs(RunFilter(strategy="toy:Other"))) == [run_id]
 
 
 @pytest.mark.unit
@@ -369,7 +370,7 @@ def test_runs_filter_by_part(store: ParquetResultStore, output: RunOutput) -> No
     finished(store, output, spec())
     run_id = finished(store, output, other("toy:RoundTrip", "validation"))
 
-    assert listed(store.runs(part="validation")) == [run_id]
+    assert listed(store.runs(RunFilter(part="validation"))) == [run_id]
 
 
 @pytest.mark.unit
@@ -378,7 +379,7 @@ def test_runs_filters_combine(store: ParquetResultStore, output: RunOutput) -> N
     finished(store, output, other("toy:Other", "validation"))
     run_id = finished(store, output, other("toy:Other", "train"))
 
-    assert listed(store.runs(strategy="toy:Other", part="train")) == [run_id]
+    assert listed(store.runs(RunFilter(strategy="toy:Other", part="train"))) == [run_id]
 
 
 @pytest.mark.unit
@@ -389,7 +390,26 @@ def test_runs_filter_by_batch(store: ParquetResultStore, output: RunOutput) -> N
     write(sink, output)
     sink.finalize()
 
-    assert listed(store.runs(batch=batch_id)) == [sink.run_id]
+    assert listed(store.runs(RunFilter(batch=batch_id))) == [sink.run_id]
+
+
+@pytest.mark.unit
+def test_runs_filter_by_run_ids(store: ParquetResultStore, output: RunOutput) -> None:
+    first, _, third = (finished_run(store, output) for _ in range(3))
+
+    assert listed(store.runs(RunFilter(run_ids=(third, first)))) == [first, third]
+
+
+@pytest.mark.unit
+def test_runs_with_no_run_ids_match_none(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    finished_run(store, output)
+
+    runs = store.runs(RunFilter(run_ids=()))
+
+    assert runs.empty
+    assert {"run_id", "spec_hash", "net_return"} <= set(runs.columns)
 
 
 @pytest.mark.unit

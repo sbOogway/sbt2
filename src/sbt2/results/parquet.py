@@ -18,6 +18,7 @@ from sbt2.results.metrics import HeadlineMetrics, RunTables, Segment, headline_m
 from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
 from sbt2.results.store import (
     MissingTableError,
+    RunFilter,
     RunIds,
     StoredRun,
     Table,
@@ -39,8 +40,10 @@ SELECT * FROM (
 WHERE ($2 IS NULL OR strategy = $2)
     AND ($3 IS NULL OR part = $3)
     AND ($4 IS NULL OR batch_id = $4)
+    AND ($5 IS NULL OR list_contains($5::VARCHAR[], run_id))
 ORDER BY run_id
 """
+_EVERY_RUN = RunFilter()
 
 _UTC = pa.timestamp("ns", tz="UTC")
 _SUMMARY_SCHEMA = pa.schema(
@@ -86,19 +89,14 @@ class ParquetResultStore:
         (folder / _SPEC).write_text(spec.to_json())
         return _ParquetSink(folder, run)
 
-    def runs(
-        self,
-        strategy: str | None = None,
-        part: str | None = None,
-        batch: str | None = None,
-    ) -> pd.DataFrame:
+    def runs(self, where: RunFilter = _EVERY_RUN) -> pd.DataFrame:
         if not any(self._runs.glob(_SUMMARIES)):
             return _SUMMARY_SCHEMA.empty_table().to_pandas()
         summaries = str(self._runs / _SUMMARIES)
         with duckdb.connect() as db:
             db.execute("SET TimeZone = 'UTC'")
             db.register("summary_schema", _SUMMARY_SCHEMA.empty_table())
-            found = db.execute(_RUNS, [summaries, strategy, part, batch])
+            found = db.execute(_RUNS, [summaries, *_parameters(where)])
             return found.arrow().read_all().to_pandas()
 
     def load(self, run_id: str, table: Table) -> pd.DataFrame:
@@ -222,6 +220,11 @@ def _summary(
         **asdict(metrics),
         "drawdown_tripped_at": drawdown_tripped_at,
     }
+
+
+def _parameters(where: RunFilter) -> list[object]:
+    run_ids = None if where.run_ids is None else list(where.run_ids)
+    return [where.strategy, where.part, where.batch, run_ids]
 
 
 def _canonical_uuid(run_id: str) -> str:

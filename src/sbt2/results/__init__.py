@@ -40,6 +40,7 @@ from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
 from sbt2.results.store import (
     MissingTableError,
     ResultStore,
+    RunFilter,
     RunIds,
     StoredRun,
     Table,
@@ -71,6 +72,7 @@ __all__ = [
     "PricedRun",
     "Reports",
     "ResultStore",
+    "RunFilter",
     "RunIds",
     "RunTables",
     "Segment",
