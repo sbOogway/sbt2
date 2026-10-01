@@ -1,11 +1,11 @@
 import json
 import shutil
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Self, override
 
 import duckdb
 import pandas as pd
@@ -18,6 +18,7 @@ from sbt2.results.metrics import HeadlineMetrics, RunTables, Segment, headline_m
 from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
 from sbt2.results.store import (
     MissingTableError,
+    ResultStore,
     RunFilter,
     RunIds,
     StoredRun,
@@ -69,12 +70,25 @@ _SUMMARY_SCHEMA = pa.schema(
 )
 
 
-class ParquetResultStore:
+class ParquetResultStore(ResultStore):
     """Each run is a folder of parquet tables under ``root/runs/{run_id}``."""
 
+    kind = "parquet"
+
     def __init__(self, root: Path) -> None:
+        self._root = root
         self._runs = root / "runs"
 
+    @classmethod
+    @override
+    def from_location(cls, location: Mapping[str, Any]) -> Self:
+        return cls(Path(location["root"]))
+
+    @override
+    def _location(self) -> dict[str, Any]:
+        return {"root": str(self._root)}
+
+    @override
     def new_run(
         self,
         spec: ResolvedRunSpec,
@@ -89,6 +103,7 @@ class ParquetResultStore:
         (folder / _SPEC).write_text(spec.to_json())
         return _ParquetSink(folder, run)
 
+    @override
     def runs(self, where: RunFilter = _EVERY_RUN) -> pd.DataFrame:
         if not any(self._runs.glob(_SUMMARIES)):
             return _SUMMARY_SCHEMA.empty_table().to_pandas()
@@ -99,12 +114,14 @@ class ParquetResultStore:
             found = db.execute(_RUNS, [summaries, *_parameters(where)])
             return found.arrow().read_all().to_pandas()
 
+    @override
     def load(self, run_id: str, table: Table) -> pd.DataFrame:
         path = self._folder(run_id) / f"{table}.parquet"
         if not path.exists():
             raise MissingTableError(f"run {run_id} has no {table} table")
         return read_table(path)
 
+    @override
     def stored_run(self, run_id: str) -> StoredRun:
         [summary] = self.load(run_id, "summary").to_dict("records")
         return StoredRun(
@@ -119,12 +136,15 @@ class ParquetResultStore:
             known_gaps=frozenset(Gap.from_str(each) for each in summary["known_gaps"]),
         )
 
+    @override
     def spec(self, run_id: str) -> dict[str, Any]:
         return json.loads((self._folder(run_id) / _SPEC).read_text())
 
+    @override
     def delete(self, run_id: str) -> None:
         shutil.rmtree(self._folder(run_id))
 
+    @override
     def folder(self, run_id: str) -> Path:
         return self._runs / run_id
 

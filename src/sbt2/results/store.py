@@ -1,6 +1,8 @@
+from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import Any, ClassVar, Literal, Self
 
 import pandas as pd
 
@@ -50,7 +52,29 @@ class StoredRun:
         return PricedRun(self.spec, self.tables, catalog, self.known_gaps)
 
 
-class ResultStore(Protocol):
+class ResultStore(ABC):
+    """Where runs are written and read back.
+
+    ``kind`` names the store in its locator, the JSON a run child reopens the
+    store from with ``open_store``.
+    """
+
+    kind: ClassVar[str]
+
+    def locator(self) -> dict[str, Any]:
+        """Where the store lives, as JSON with its ``kind``."""
+        return {"kind": self.kind, **self._location()}
+
+    @classmethod
+    @abstractmethod
+    def from_location(cls, location: Mapping[str, Any]) -> Self:
+        """The store at ``location``, a locator without its kind."""
+
+    @abstractmethod
+    def _location(self) -> dict[str, Any]:
+        """Where the store lives, as JSON."""
+
+    @abstractmethod
     def new_run(
         self,
         spec: ResolvedRunSpec,
@@ -62,30 +86,31 @@ class ResultStore(Protocol):
 
         ``known_gaps`` are the days of the run's data the source confirmed it lacks.
         """
-        ...
 
+    @abstractmethod
     def runs(self, where: RunFilter = _EVERY_RUN) -> pd.DataFrame:
         """The summaries of the finished runs ``where`` keeps, oldest first."""
-        ...
 
-    def load(self, run_id: str, table: Table) -> pd.DataFrame: ...
+    @abstractmethod
+    def load(self, run_id: str, table: Table) -> pd.DataFrame:
+        """One table of the run."""
 
+    @abstractmethod
     def stored_run(self, run_id: str) -> StoredRun:
         """The finished run, its spec rebuilt from its document; a run without a
         summary raises ``MissingTableError``."""
-        ...
 
+    @abstractmethod
     def spec(self, run_id: str) -> dict[str, Any]:
         """The resolved spec document of a run, finished or not."""
-        ...
 
+    @abstractmethod
     def delete(self, run_id: str) -> None:
         """Remove the run, a failed run's partial folder included."""
-        ...
 
+    @abstractmethod
     def folder(self, run_id: str) -> Path:
         """Where the run is written, whether or not it has started."""
-        ...
 
 
 class UnknownRunError(LookupError):

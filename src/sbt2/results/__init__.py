@@ -36,6 +36,7 @@ from sbt2.results.metrics import (
 from sbt2.results.money import CurrencyMismatchError
 from sbt2.results.parquet import ParquetResultStore
 from sbt2.results.pricing import MissingPricesError, PricedRun
+from sbt2.results.registry import UnknownStoreError, open_store
 from sbt2.results.sink import IncompleteRunError, OutputSink, Reports
 from sbt2.results.store import (
     MissingTableError,
@@ -81,6 +82,7 @@ __all__ = [
     "UnknownBatchError",
     "UnknownBenchmarkError",
     "UnknownRunError",
+    "UnknownStoreError",
     "batch_table",
     "benchmark_statistics",
     "build_benchmark",
@@ -90,5 +92,6 @@ __all__ = [
     "equity_curve",
     "full_metrics",
     "headline_metrics",
+    "open_store",
     "tearsheet",
 ]
