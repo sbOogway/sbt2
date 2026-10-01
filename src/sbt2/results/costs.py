@@ -9,7 +9,7 @@ import pandas as pd
 from nautilus_trader.model import InstrumentId
 
 from sbt2.data import Catalog
-from sbt2.results.metrics import Segment, equity_curve
+from sbt2.results.metrics import Segment
 from sbt2.results.money import total
 from sbt2.results.pricing import MissingPricesError, PricedRun, on_grid
 from sbt2.results.trades import closed_trades
@@ -93,7 +93,7 @@ class _Book:
     def __init__(self, run: PricedRun) -> None:
         self.run = run
         self.segment = Segment.of_run(run.spec)
-        self.equity = equity_curve(run.tables.equity, run.tables.currency, self.segment)
+        self.equity = run.equity
 
     @property
     def currency(self) -> str:

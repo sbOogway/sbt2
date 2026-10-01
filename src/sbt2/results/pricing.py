@@ -6,7 +6,7 @@ import pandas as pd
 from nautilus_trader.model import InstrumentId
 
 from sbt2.data import Catalog, Gap, Selection, Window
-from sbt2.results.metrics import RunTables, Segment
+from sbt2.results.metrics import RunTables, Segment, equity_curve
 from sbt2.spec import ResolvedRunSpec
 
 
@@ -75,6 +75,12 @@ class PricedRun:
     @cached_property
     def market(self) -> Market:
         return Market(self.spec, self.catalog, self.known_gaps)
+
+    @cached_property
+    def equity(self) -> pd.Series:
+        """The run's equity curve on its grid."""
+        tables = self.tables
+        return equity_curve(tables.equity, tables.currency, Segment.of_run(self.spec))
 
 
 def on_grid(prices: pd.Series, grid: pd.DatetimeIndex) -> pd.Series:

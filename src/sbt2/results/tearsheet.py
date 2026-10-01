@@ -63,7 +63,7 @@ class _Sheet:
 
     @cached_property
     def metrics(self) -> FullMetrics:
-        return full_metrics(self.run.tables, self.segment)
+        return full_metrics(self.run.tables, self.segment, self.run.equity)
 
     @cached_property
     def costs(self) -> CostsAndExposure:
@@ -71,7 +71,7 @@ class _Sheet:
 
     @cached_property
     def returns(self) -> pd.Series:
-        return daily_returns(self.run.tables, self.segment)
+        return daily_returns(self.run.equity)
 
     @cached_property
     def benchmark_returns(self) -> pd.Series | None:
