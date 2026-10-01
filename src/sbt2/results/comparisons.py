@@ -81,8 +81,7 @@ def _comparable(value: Any) -> str:
 
 
 def _summary(store: ResultStore, run_id: str) -> dict[str, Any]:
-    runs = store.runs()
-    found = runs.loc[runs["run_id"] == run_id].to_dict("records")
+    found = store.runs(RunFilter(run_ids=(run_id,))).to_dict("records")
     if not found:
         raise UnknownRunError(f"no finished run {run_id}")
     return found[0]

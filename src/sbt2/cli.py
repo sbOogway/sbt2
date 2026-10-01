@@ -163,8 +163,7 @@ _HEADLINE_HEADER = ("run_id", "strategy", *_HEADLINE)
 
 def _headline_tables(store: ResultStore, run_ids: tuple[str, ...]) -> str:
     """One table of the runs' headline metrics per part, in split order."""
-    runs = store.runs()
-    runs = runs.loc[runs["run_id"].isin(run_ids)]
+    runs = store.runs(results.RunFilter(run_ids=run_ids))
     return "\n\n".join(
         f"{part}\n{_frame_table(runs.loc[runs['part'] == part], _HEADLINE_HEADER)}"
         for part in spec.PARTS
