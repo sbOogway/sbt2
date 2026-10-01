@@ -128,7 +128,7 @@ class FailOnQuote(Strategy):
         raise RuntimeError("strategy failed")
 
 
-def failing_run(path: Path, shutdown_on_error: bool) -> BacktestResult:
+def failing_run(path: Path, *, shutdown_on_error: bool) -> BacktestResult:
     build_one_day_catalog(path)
     start, end = day_bounds(0)
     config = BacktestRunConfig(
