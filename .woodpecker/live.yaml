@@ -10,6 +10,14 @@ variables:
     UV_PYTHON_DOWNLOADS: never
 
 steps:
+  # first, so a failing live test can't skip it; it skips nautilus-trader, which isn't on PyPI
+  - name: audit
+    image: *image
+    environment: *env
+    commands:
+      - uv export --locked --no-hashes --no-emit-project --quiet --output-file requirements.txt
+      - uvx pip-audit==2.10.0 --requirement requirements.txt --disable-pip --no-deps
+
   - name: bybit-latency
     image: curlimages/curl
     commands:
