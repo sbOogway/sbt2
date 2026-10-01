@@ -6,7 +6,7 @@ from typing import Any
 import pandas as pd
 
 from sbt2.results.metrics import HeadlineMetrics
-from sbt2.results.store import ResultStore, UnknownRunError
+from sbt2.results.store import ResultStore, RunFilter, UnknownRunError
 from sbt2.spec import PARTS
 
 _HEADLINE = [each.name for each in fields(HeadlineMetrics)]
@@ -19,7 +19,7 @@ def compare_parts(store: ResultStore, run_id: str) -> pd.DataFrame:
     A rerun part shows its latest run; a part never run is absent.
     """
     run = _summary(store, run_id)
-    runs = store.runs(strategy=run["strategy"])
+    runs = store.runs(RunFilter(strategy=run["strategy"]))
     same = runs.loc[_same_parameters_as(runs, run)]
     latest = same.drop_duplicates(subset=["part"], keep="last").set_index("part")
     return latest.loc[[part for part in PARTS if part in latest.index]]
@@ -53,7 +53,7 @@ class UnknownBatchError(LookupError):
 def batch_table(store: ResultStore, batch_id: str) -> pd.DataFrame:
     """One row per run of the batch, by run_id: the strategy, parameter and
     instrument columns whose values vary across it, then the headline metrics."""
-    runs = store.runs(batch=batch_id)
+    runs = store.runs(RunFilter(batch=batch_id))
     if runs.empty:
         raise UnknownBatchError(f"no batch {batch_id} in the store")
     described = _described(runs)

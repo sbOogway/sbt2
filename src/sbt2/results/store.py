@@ -22,6 +22,18 @@ class RunIds:
 
 
 @dataclass(frozen=True)
+class RunFilter:
+    """Keeps the runs matching every field given; None matches any run."""
+
+    strategy: str | None = None
+    part: str | None = None
+    batch: str | None = None
+
+
+_EVERY_RUN = RunFilter()
+
+
+@dataclass(frozen=True)
 class StoredRun:
     """A finished run as the store holds it, with the days its data skipped."""
 
@@ -48,17 +60,8 @@ class ResultStore(Protocol):
         """
         ...
 
-    def runs(
-        self,
-        strategy: str | None = None,
-        part: str | None = None,
-        batch: str | None = None,
-    ) -> pd.DataFrame:
-        """The summaries of every finished run, oldest first.
-
-        ``strategy``, ``part`` and ``batch``, when given, keep only the runs that
-        match them.
-        """
+    def runs(self, where: RunFilter = _EVERY_RUN) -> pd.DataFrame:
+        """The summaries of the finished runs ``where`` keeps, oldest first."""
         ...
 
     def load(self, run_id: str, table: Table) -> pd.DataFrame: ...

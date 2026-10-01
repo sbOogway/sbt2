@@ -399,7 +399,7 @@ def list_runs(
 ) -> None:
     """Show one row per finished run, oldest first."""
     with _failing("listing the runs in %s", Root(data_root).results):
-        runs = _store(data_root).runs(strategy, part)
+        runs = _store(data_root).runs(results.RunFilter(strategy=strategy, part=part))
     typer.echo(_runs_table(runs))
 
 
