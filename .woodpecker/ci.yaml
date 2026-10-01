@@ -26,13 +26,25 @@ steps:
         from_secret: codecov_token
     commands:
       - uv sync --locked
-      # the tests have no use for the token
-      - env -u CODECOV_TOKEN uv run --locked pytest --cov --cov-report=term --cov-report=xml -m "not live and not characterization and not realdata and not systemd"
-      - uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --file coverage.xml
+      # the test results go up even when tests fail, so Test Analytics sees the failures
+      - |
+        status=0
+        # the tests have no use for the token
+        env -u CODECOV_TOKEN uv run --locked pytest --cov --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag tests --file junit.xml --disable-search
+        uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --file coverage.xml
+        exit $status
 
   - name: characterization
     image: *image
-    environment: *env
+    environment:
+      <<: *env
+      CODECOV_TOKEN:
+        from_secret: codecov_token
     commands:
       - uv sync --locked
-      - uv run --locked pytest -m "characterization and not systemd"
+      - |
+        status=0
+        env -u CODECOV_TOKEN uv run --locked pytest --junitxml=junit.xml -o junit_family=legacy -m "characterization and not systemd" || status=$?
+        uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag characterization --file junit.xml --disable-search
+        exit $status
