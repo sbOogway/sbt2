@@ -16,7 +16,7 @@ from nautilus_trader.analysis import (
 )
 
 from sbt2.results.benchmarks import Benchmark
-from sbt2.results.costs import CostsAndExposure, PricedRun, costs_and_exposure
+from sbt2.results.costs import CostsAndExposure, costs_and_exposure
 from sbt2.results.metrics import (
     FullMetrics,
     Segment,
@@ -26,6 +26,7 @@ from sbt2.results.metrics import (
     full_metrics,
 )
 from sbt2.results.panels import cost_waterfall, instrument_breakdown, rolling_sharpe
+from sbt2.results.pricing import PricedRun
 
 type Statistics = dict[str, float | None]
 

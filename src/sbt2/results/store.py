@@ -5,8 +5,8 @@ from typing import Any, Literal, Protocol
 import pandas as pd
 
 from sbt2.data import Catalog, Gap
-from sbt2.results.costs import PricedRun
 from sbt2.results.metrics import RunTables
+from sbt2.results.pricing import PricedRun
 from sbt2.results.sink import OutputSink
 from sbt2.spec import ResolvedRunSpec
 

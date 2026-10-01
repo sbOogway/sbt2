@@ -6,7 +6,7 @@ import pandas as pd
 from nautilus_trader.model import InstrumentId
 
 from sbt2.data import Catalog, Gap, Selection, Window
-from sbt2.results.metrics import Segment
+from sbt2.results.metrics import RunTables, Segment
 from sbt2.spec import ResolvedRunSpec
 
 
@@ -46,6 +46,19 @@ class Market:
         [coverage] = self.catalog.coverage(selection, self.known_gaps)
         if coverage.missing:
             raise _no_prices(instrument, price_type, coverage.missing)
+
+
+@dataclass(frozen=True)
+class PricedRun:
+    """A stored run with the catalog its positions are valued from.
+
+    Prices are carried across ``known_gaps``, the days the run skipped.
+    """
+
+    spec: ResolvedRunSpec
+    tables: RunTables
+    catalog: Catalog
+    known_gaps: frozenset[Gap] = frozenset()
 
 
 def on_grid(prices: pd.Series, grid: pd.DatetimeIndex) -> pd.Series:
