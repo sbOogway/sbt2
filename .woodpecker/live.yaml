@@ -39,7 +39,7 @@ steps:
       GIT_COMMITTER_NAME: woodpecker
       GIT_COMMITTER_EMAIL: woodpecker@mattiapapaccioli.com
       GH_TOKEN:
-        from_secret: bump_token
+        from_secret: github_token
     commands:
       - apt-get update -qq && apt-get install -y -qq --no-install-recommends gh
       - gh auth setup-git
