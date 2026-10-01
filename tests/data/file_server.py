@@ -2,7 +2,7 @@
 
 import threading
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -66,7 +66,7 @@ def _handler(server: FileServer) -> type[BaseHTTPRequestHandler]:
 
 
 @contextmanager
-def file_server() -> Iterator[FileServer]:
+def file_server() -> Generator[FileServer]:
     files = FileServer("")
     http = ThreadingHTTPServer(("127.0.0.1", 0), _handler(files))
     files.base_url = f"http://127.0.0.1:{http.server_port}"
