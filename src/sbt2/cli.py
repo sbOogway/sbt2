@@ -3,7 +3,7 @@ import logging
 import math
 import re
 import sys
-from collections.abc import Hashable, Iterator, Mapping
+from collections.abc import Generator, Hashable, Mapping
 from contextlib import contextmanager
 from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
@@ -82,7 +82,7 @@ def main(
 
 
 @contextmanager
-def _failing(action: str, *args: object) -> Iterator[None]:
+def _failing(action: str, *args: object) -> Generator[None]:
     """Logs an exception as the action failing, and exits with code 1."""
     try:
         yield
@@ -625,20 +625,20 @@ class _DownloadBar(_Bar):
 
 
 @contextmanager
-def _bar(description: str) -> Iterator[_Bar]:
+def _bar(description: str) -> Generator[_Bar]:
     with _progress() as progress:
         yield _Bar(progress, progress.add_task(description, total=None))
 
 
 @contextmanager
-def _download_bar() -> Iterator[_DownloadBar]:
+def _download_bar() -> Generator[_DownloadBar]:
     with _progress(TextColumn("{task.fields[size]}")) as progress:
         task = progress.add_task("download", total=None, size="")
         yield _DownloadBar(progress, task)
 
 
 @contextmanager
-def _progress(*extra: TextColumn) -> Iterator[Progress]:
+def _progress(*extra: TextColumn) -> Generator[Progress]:
     with Progress(
         TextColumn("{task.description}"),
         BarColumn(),

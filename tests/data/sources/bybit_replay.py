@@ -2,7 +2,7 @@
 
 import json
 import threading
-from collections.abc import Iterator, Mapping
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -47,7 +47,7 @@ def _handler(responses: Mapping[Key, Any]) -> type[BaseHTTPRequestHandler]:
 
 
 @contextmanager
-def bybit_replay() -> Iterator[str]:
+def bybit_replay() -> Generator[str]:
     """Serve the recorded responses; yields the base URL to use as Bybit's API."""
     server = ThreadingHTTPServer(("127.0.0.1", 0), _handler(_recorded()))
     thread = threading.Thread(target=server.serve_forever, args=(0.05,), daemon=True)
