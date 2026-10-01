@@ -92,7 +92,7 @@ def test_a_registered_tearsheet_chart_draws_in_its_own_panel() -> None:
 @pytest.mark.unit
 @pytest.mark.characterization
 def test_a_register_chart_figure_cannot_be_placed_in_the_tearsheet() -> None:
-    register_chart("sbt2_standalone", lambda returns: go.Figure())
+    register_chart("sbt2_standalone", lambda _returns: go.Figure())
     config = TearsheetConfig(charts=[TearsheetCustomChart(chart="sbt2_standalone")])
 
     with pytest.raises(KeyError, match="No tearsheet chart registered"):

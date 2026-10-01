@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import override
 
 import pytest
 from catalog_kit import day_bounds, new_catalog, write_funding
@@ -124,6 +125,7 @@ class FailOnQuote(Strategy):
     def on_start(self) -> None:
         self.subscribe_quotes(INSTRUMENT_ID)
 
+    @override
     def on_quote(self, quote: QuoteTick) -> None:
         raise RuntimeError("strategy failed")
 

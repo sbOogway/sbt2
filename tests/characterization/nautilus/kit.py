@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from decimal import Decimal
-from typing import Any
+from typing import Any, override
 
 from nautilus_trader.backtest import (
     BacktestEngine,
@@ -125,6 +125,7 @@ class BuyOneOnFirstQuote(Strategy):
         self.bought = False
         self.subscribe_quotes(INSTRUMENT_ID)
 
+    @override
     def on_quote(self, quote: QuoteTick) -> None:
         if self.bought:
             return

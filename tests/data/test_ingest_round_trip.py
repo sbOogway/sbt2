@@ -1,6 +1,7 @@
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from typing import override
 
 import pytest
 from local_source import (
@@ -48,6 +49,7 @@ class BuyOneOnFirstTrade(Strategy):
         self.bought = False
         self.subscribe_trades(INSTRUMENT_ID)
 
+    @override
     def on_trade(self, trade: TradeTick) -> None:
         if self.bought:
             return

@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from decimal import Decimal
-from typing import Any
+from typing import Any, override
 
 import pytest
 from kit import (
@@ -39,6 +39,7 @@ class BuyOneOnFirstTrade(Strategy):
         self.bought = False
         self.subscribe_trades(INSTRUMENT_ID)
 
+    @override
     def on_trade(self, trade: TradeTick) -> None:
         if self.bought:
             return

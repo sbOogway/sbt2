@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from decimal import Decimal
-from typing import Any
+from typing import Any, override
 
 from nautilus_trader.model import Bar, BarSpecification, BarType, OrderSide, Quantity
 
@@ -27,6 +27,7 @@ class BuyEveryBar(Strategy[StepParams]):
         return timedelta(minutes=params.lookback)
 
     @classmethod
+    @override
     def inputs(cls, params: StepParams) -> Sequence[BarSpecification]:
         return (MINUTE_BARS,)
 
@@ -42,6 +43,7 @@ class BuyOnce(Strategy[NoParams]):
     """Buys 1 on the first bar after warm-up and holds it."""
 
     @classmethod
+    @override
     def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
         return (MINUTE_BARS,)
 
@@ -66,9 +68,11 @@ class CountWarmupBars(Strategy[NoParams]):
         self.trading_bars = 0
 
     @classmethod
+    @override
     def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
         return (MINUTE_BARS,)
 
+    @override
     def on_bar(self, bar: Bar) -> None:
         if self.warming_up:
             self.warmup_bars += 1
@@ -86,9 +90,11 @@ class FailOnSecondBar(Strategy[NoParams]):
         self.bars = 0
 
     @classmethod
+    @override
     def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
         return (MINUTE_BARS,)
 
+    @override
     def on_bar(self, bar: Bar) -> None:
         self.bars += 1
         if self.bars == 2:
