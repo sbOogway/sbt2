@@ -21,7 +21,6 @@ from sbt2.spec import ResolvedRunSpec
 logger = logging.getLogger(__name__)
 
 GiB = 2**30
-_CHILD = ("-m", "sbt2.run")
 _POLL_SECONDS = 0.05
 _GRACE_SECONDS = 5
 
@@ -38,17 +37,15 @@ class OutOfMemoryError(RunFailedError):
 
 
 class Launcher(Protocol):
-    """Starts each child of a batch."""
+    """Caps the memory of each child of a batch."""
 
     def check(self) -> None:
-        """Raise if no child can be started here."""
+        """Raise if no child can be capped here."""
         ...
 
-    def start(
-        self, run_id: str, command: Sequence[str], memory_max: int
-    ) -> subprocess.Popen[bytes]:
-        """Start ``command`` as the child running ``run_id``, its stdin a pipe,
-        capped at ``memory_max`` bytes."""
+    def cap(self, run_id: str, pid: int, memory_max: int) -> None:
+        """Cap the running child ``pid``, which runs ``run_id``, at ``memory_max``
+        bytes; it does no work until this returns."""
         ...
 
     def out_of_memory(self, run_id: str) -> bool:
@@ -177,14 +174,12 @@ class _Children:
                 time.sleep(_POLL_SECONDS)
 
     def _start(self, order: Order) -> None:
-        command = [sys.executable, *_CHILD]
-        child = self._launcher.start(order.run_id, command, self._memory.per_run)
+        child = _spawn()
         self._running[order.run_id] = (child, order)
-        logger.info("started run %s", order.run_id)
         if child.stdin is None:
-            raise ValueError(
-                f"the launcher started run {order.run_id} without a stdin pipe"
-            )
+            raise ValueError(f"run {order.run_id} was started without a stdin pipe")
+        self._launcher.cap(order.run_id, child.pid, self._memory.per_run)
+        logger.info("started run %s", order.run_id)
         try:
             send(order, child.stdin)
             child.stdin.close()
@@ -227,6 +222,11 @@ class _Children:
                 child.kill()
                 child.wait()
         self._running.clear()
+
+
+def _spawn() -> subprocess.Popen[bytes]:
+    """Start a child, which waits on stdin for its order."""
+    return subprocess.Popen([sys.executable, "-m", "sbt2.run"], stdin=subprocess.PIPE)
 
 
 def _size(size: int) -> str:

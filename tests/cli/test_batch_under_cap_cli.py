@@ -1,11 +1,12 @@
 import json
 import subprocess
 import time
-from collections.abc import Sequence
 from datetime import timedelta
 from pathlib import Path
+from typing import override
 
 import pytest
+from launchers import spawned
 from served_source import ServedSource
 from served_spec import DAY, NEXT_DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
@@ -61,25 +62,22 @@ PARTS = {
 class CountingScope(SystemdScope):
     """Records each child's cap and the most children alive at once."""
 
-    def __init__(self) -> None:
-        self.started: list[subprocess.Popen[bytes]] = []
+    def __init__(self, started: list[subprocess.Popen[bytes]]) -> None:
+        self.started = started
         self.caps: list[int] = []
         self.most_alive = 0
 
-    def start(
-        self, run_id: str, command: Sequence[str], memory_max: int
-    ) -> subprocess.Popen[bytes]:
-        child = super().start(run_id, command, memory_max)
-        self.started.append(child)
+    @override
+    def cap(self, run_id: str, pid: int, memory_max: int) -> None:
+        super().cap(run_id, pid, memory_max)
         self.caps.append(memory_max)
         alive = sum(each.poll() is None for each in self.started)
         self.most_alive = max(self.most_alive, alive)
-        return child
 
 
 @pytest.fixture(autouse=True)
 def launcher(monkeypatch: pytest.MonkeyPatch) -> CountingScope:
-    scope = CountingScope()
+    scope = CountingScope(spawned(monkeypatch))
     monkeypatch.setattr(cli, "SystemdScope", lambda: scope)
     return scope
 

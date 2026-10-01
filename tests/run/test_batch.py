@@ -40,25 +40,20 @@ class CountingLauncher(ScriptedLauncher):
 
     most_alive = 0
 
-    def start(
-        self, run_id: str, command: Sequence[str], memory_max: int
-    ) -> subprocess.Popen[bytes]:
-        child = super().start(run_id, command, memory_max)
+    @override
+    def cap(self, run_id: str, pid: int, memory_max: int) -> None:
+        super().cap(run_id, pid, memory_max)
         alive = sum(each.poll() is None for each in self.started)
         self.most_alive = max(self.most_alive, alive)
-        return child
 
 
 class PipelessLauncher(ScriptedLauncher):
-    """Starts each child without the stdin pipe its order goes through."""
+    """Has the batch spawn each child without the stdin pipe its order goes
+    through."""
 
     @override
-    def start(
-        self, run_id: str, command: Sequence[str], memory_max: int
-    ) -> subprocess.Popen[bytes]:
-        child = subprocess.Popen(self._command(command))
-        self.started.append(child)
-        return child
+    def _popen(self, command: Sequence[str]) -> subprocess.Popen[bytes]:
+        return subprocess.Popen(command)
 
 
 @pytest.mark.integration
@@ -116,7 +111,7 @@ def test_each_run_executes_in_its_own_fresh_process(tmp_path: Path) -> None:
 
     batch(specs, setup(tmp_path, launcher))
 
-    pids = {each.pid for each in launcher.started}
+    pids = set(launcher.pids)
     assert len(pids) == 2
     assert os.getpid() not in pids
 
@@ -145,31 +140,37 @@ def test_a_run_failing_preflight_starts_no_run(tmp_path: Path) -> None:
     with pytest.raises(MissingDataError):
         batch(specs, setup(tmp_path, launcher))
 
-    assert launcher.started == []
+    assert launcher.pids == []
     assert not (tmp_path / "results").exists()
 
 
 @pytest.mark.integration
-def test_the_parent_writes_nothing_to_the_store(tmp_path: Path) -> None:
+def test_the_parent_writes_nothing_to_the_store(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     specs = [
         resolved(tmp_path, params={"hold_bars": 2}),
         resolved(tmp_path, params={"hold_bars": 3}),
     ]
 
-    batch(specs, setup(tmp_path, ScriptedLauncher([EXIT, EXIT])))
+    batch(specs, setup(tmp_path, ScriptedLauncher(monkeypatch, [EXIT, EXIT])))
 
     assert not (tmp_path / "results").exists()
 
 
 @pytest.mark.integration
-def test_progress_counts_the_runs_planned_and_finished(tmp_path: Path) -> None:
+def test_progress_counts_the_runs_planned_and_finished(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     progress = RecordedProgress()
     specs = [
         resolved(tmp_path, params={"hold_bars": 2}),
         resolved(tmp_path, params={"hold_bars": 3}),
     ]
 
-    run_ids = batch(specs, setup(tmp_path, ScriptedLauncher([EXIT, EXIT])), progress)
+    run_ids = batch(
+        specs, setup(tmp_path, ScriptedLauncher(monkeypatch, [EXIT, EXIT])), progress
+    )
 
     assert progress.runs == [2]
     assert sorted(progress.done) == sorted(run_ids)
@@ -195,9 +196,11 @@ def test_a_failed_run_raises_naming_its_run_its_folder_and_its_error(
 
 
 @pytest.mark.integration
-def test_a_failure_stops_the_running_runs_and_starts_no_more(tmp_path: Path) -> None:
+def test_a_failure_stops_the_running_runs_and_starts_no_more(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     specs = [resolved(tmp_path, params={"hold_bars": each}) for each in (2, 3, 4)]
-    launcher = ScriptedLauncher([FAIL, SLEEP, EXIT])
+    launcher = ScriptedLauncher(monkeypatch, [FAIL, SLEEP, EXIT])
     started = time.monotonic()
 
     with pytest.raises(RunFailedError):
@@ -211,9 +214,11 @@ def test_a_failure_stops_the_running_runs_and_starts_no_more(tmp_path: Path) -> 
 
 
 @pytest.mark.integration
-def test_at_most_budget_over_per_run_runs_go_at_once(tmp_path: Path) -> None:
+def test_at_most_budget_over_per_run_runs_go_at_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     specs = [resolved(tmp_path, params={"hold_bars": each}) for each in (2, 3, 4, 5)]
-    launcher = CountingLauncher([NAP] * 4)
+    launcher = CountingLauncher(monkeypatch, [NAP] * 4)
 
     batch(specs, setup(tmp_path, launcher))
 
@@ -229,9 +234,9 @@ def test_a_budget_below_the_per_run_cap_is_refused() -> None:
 
 @pytest.mark.integration
 def test_a_child_started_without_a_stdin_pipe_is_refused_and_stopped(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    launcher = PipelessLauncher([SLEEP])
+    launcher = PipelessLauncher(monkeypatch, [SLEEP])
 
     with pytest.raises(ValueError, match="without a stdin pipe"):
         batch([resolved(tmp_path)], setup(tmp_path, launcher))
