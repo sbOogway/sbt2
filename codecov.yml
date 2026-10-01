@@ -1,1 +1,5 @@
 comment: false
+
+# The -m systemd tests cover it on a host with a systemd user session; CI's container has none.
+ignore:
+  - "src/sbt2/run/systemd.py"
