@@ -11,7 +11,7 @@ from nautilus_trader.model import InstrumentId
 from sbt2.data import Catalog
 from sbt2.results.metrics import Segment, equity_curve
 from sbt2.results.money import total
-from sbt2.results.pricing import Market, MissingPricesError, PricedRun, on_grid
+from sbt2.results.pricing import MissingPricesError, PricedRun, on_grid
 from sbt2.results.trades import closed_trades
 
 
@@ -124,7 +124,7 @@ class _Book:
     @cached_property
     def unit_values(self) -> pd.DataFrame:
         """Valuation price times contract multiplier: the value of one unit held."""
-        market = Market(self.run.spec, self.run.catalog, self.run.known_gaps)
+        market = self.run.market
         price_type = self.run.spec.asset.valuation_price
         return pd.DataFrame(
             {

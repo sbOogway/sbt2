@@ -77,9 +77,7 @@ class _Sheet:
     def benchmark_returns(self) -> pd.Series | None:
         if self.benchmark is None:
             return None
-        run = self.run
-        grid = self.benchmark.returns(run.spec, run.catalog, run.known_gaps)
-        return compounded_daily(grid)
+        return compounded_daily(self.benchmark.returns(self.run))
 
     @property
     def benchmark_name(self) -> str:

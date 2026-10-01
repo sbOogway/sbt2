@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 
 import pandas as pd
@@ -16,11 +16,17 @@ class MissingPricesError(LookupError):
 
 @dataclass(frozen=True)
 class Market:
-    """The catalog a run is priced from, with the days the run skipped."""
+    """The catalog a run is priced from, with the days the run skipped.
+
+    Each instrument's prices of a type are read from the catalog once.
+    """
 
     run: ResolvedRunSpec
     catalog: Catalog
     known_gaps: frozenset[Gap]
+    _read: dict[tuple[InstrumentId, type], pd.Series] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
 
     @cached_property
     def grid(self) -> pd.DatetimeIndex:
@@ -35,6 +41,12 @@ class Market:
 
         Grid times before the first price take that first price.
         """
+        key = (instrument, price_type)
+        if key not in self._read:
+            self._read[key] = self._read_prices(instrument, price_type)
+        return self._read[key]
+
+    def _read_prices(self, instrument: InstrumentId, price_type: type) -> pd.Series:
         self._check_coverage(instrument, price_type)
         frame = self.catalog.frame(instrument, price_type, self.window)
         if frame.empty:
@@ -59,6 +71,10 @@ class PricedRun:
     tables: RunTables
     catalog: Catalog
     known_gaps: frozenset[Gap] = frozenset()
+
+    @cached_property
+    def market(self) -> Market:
+        return Market(self.spec, self.catalog, self.known_gaps)
 
 
 def on_grid(prices: pd.Series, grid: pd.DatetimeIndex) -> pd.Series:
