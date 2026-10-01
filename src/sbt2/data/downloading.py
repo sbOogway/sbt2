@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 INSTRUMENT = "instrument"
 _TIMEOUT = httpx.Timeout(30.0)
+_JITTER = random.SystemRandom()
 
 
 class Outcome(StrEnum):
@@ -201,4 +202,4 @@ def _check_status(response: httpx.Response) -> None:
 
 def _backoff(base: float, attempt: int) -> float:
     """Exponential backoff with full jitter, so retries from many files spread out."""
-    return random.uniform(0, base * 2 ** (attempt - 1))  # noqa: S311
+    return _JITTER.uniform(0, base * 2 ** (attempt - 1))
