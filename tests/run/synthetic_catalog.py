@@ -112,7 +112,6 @@ def _file_timestamp(ts: int) -> str:
 def _funding_table(fundings: Sequence[FundingRateUpdate]) -> pa.Table:
     schema = pa.ipc.read_schema(pa.py_buffer(get_arrow_schema_bytes(FundingRateUpdate)))
     columns = {
-        "instrument_id": [str(each.instrument_id) for each in fundings],
         "rate": [str(each.rate) for each in fundings],
         "interval": [each.interval for each in fundings],
         "next_funding_ns": [each.next_funding_ns for each in fundings],
@@ -120,4 +119,8 @@ def _funding_table(fundings: Sequence[FundingRateUpdate]) -> pa.Table:
         "ts_init": [each.ts_init for each in fundings],
         "identifier": [str(each.instrument_id) for each in fundings],
     }
-    return pa.table(columns, schema=schema)
+    metadata = {
+        **(schema.metadata or {}),
+        "instrument_id": str(fundings[0].instrument_id),
+    }
+    return pa.table(columns, schema=schema.with_metadata(metadata))

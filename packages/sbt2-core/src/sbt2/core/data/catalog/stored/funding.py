@@ -26,11 +26,10 @@ class Funding(StoredType):
         self, root: CatalogRoot, day: DayFile, records: Sequence[Any]
     ) -> None:
         # Nautilus has no Python writer for funding.
-        root.write_table(self._relative_path(day), self._table(records))
+        root.write_table(self._relative_path(day), self._table(day, records))
 
-    def _table(self, fundings: Sequence[FundingRateUpdate]) -> pa.Table:
+    def _table(self, day: DayFile, fundings: Sequence[FundingRateUpdate]) -> pa.Table:
         columns = {
-            "instrument_id": [str(each.instrument_id) for each in fundings],
             "rate": [str(each.rate) for each in fundings],
             "interval": [each.interval for each in fundings],
             "next_funding_ns": [each.next_funding_ns for each in fundings],
@@ -38,4 +37,6 @@ class Funding(StoredType):
             "ts_init": [each.ts_init for each in fundings],
             "identifier": [str(each.instrument_id) for each in fundings],
         }
-        return pa.table(columns, schema=self._arrow_schema())
+        schema = self._arrow_schema()
+        metadata = {**(schema.metadata or {}), **self.metadata(day)}
+        return pa.table(columns, schema=schema.with_metadata(metadata))
