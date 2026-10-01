@@ -4,6 +4,7 @@ import subprocess
 import sys
 import time
 import uuid
+from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
@@ -36,21 +37,21 @@ class OutOfMemoryError(RunFailedError):
     pass
 
 
-class Launcher(Protocol):
+class Launcher(ABC):
     """Caps the memory of each child of a batch."""
 
+    @abstractmethod
     def check(self) -> None:
         """Raise if no child can be capped here."""
-        ...
 
+    @abstractmethod
     def cap(self, run_id: str, pid: int, memory_max: int) -> None:
         """Cap the running child ``pid``, which runs ``run_id``, at ``memory_max``
         bytes; it does no work until this returns."""
-        ...
 
+    @abstractmethod
     def out_of_memory(self, run_id: str) -> bool:
         """Whether the exited child running ``run_id`` was killed over its cap."""
-        ...
 
 
 class BatchProgress(Protocol):

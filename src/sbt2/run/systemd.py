@@ -1,9 +1,11 @@
-from typing import Any
+from typing import Any, override
 
 from jeepney import DBusAddress, MatchRule, Message, Properties, new_method_call
 from jeepney.bus_messages import message_bus
 from jeepney.io.blocking import DBusConnection, open_dbus_connection
 from jeepney.wrappers import DBusErrorResponse, unwrap_msg
+
+from sbt2.run.batching import Launcher
 
 _SYSTEMD = "org.freedesktop.systemd1"
 _MANAGER = DBusAddress(
@@ -17,10 +19,11 @@ class NoUserSessionError(RuntimeError):
     pass
 
 
-class SystemdScope:
+class SystemdScope(Launcher):
     """Caps each child in its own transient systemd scope, ``sbt2-{run_id}``,
     with swap off so that a child over its cap is killed rather than swapped."""
 
+    @override
     def check(self) -> None:
         with _session() as bus:
             try:
@@ -30,6 +33,7 @@ class SystemdScope:
                     f"no systemd user manager to cap each run's memory in: {error}"
                 ) from None
 
+    @override
     def cap(self, run_id: str, pid: int, memory_max: int) -> None:
         """Return once the process ``pid`` is in the scope of ``run_id``, or at
         once if it has already exited, for the batch to reap it by its exit code."""
@@ -54,6 +58,7 @@ class SystemdScope:
         if result != "done":
             raise RuntimeError(f"systemd could not cap run {run_id}: {result}")
 
+    @override
     def out_of_memory(self, run_id: str) -> bool:
         """A killed scope stays loaded until it is reset, so it is reset here."""
         scope = _scope(run_id)
