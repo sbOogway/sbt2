@@ -35,7 +35,6 @@ _TRADE_COLUMNS = {
 }
 _TRADE_FIELDS = ("ts", "side", "size", "price", "trdMatchID")
 _NANOS_PER_SECOND = pa.scalar(1_000_000_000, pa.decimal128(10, 0))
-_BATCH_ROWS = 100_000
 
 
 def instrument(path: Path) -> Any:
@@ -45,8 +44,7 @@ def instrument(path: Path) -> Any:
 
 
 def trades(path: Path, instrument: Any) -> Iterator[TradeTick]:
-    for batch in _trade_rows(path).to_batches(_BATCH_ROWS):
-        yield from _ticks(batch, instrument)
+    yield from _ticks(_trade_rows(path), instrument)
 
 
 def funding(path: Path, instrument: Any) -> Iterator[FundingRateUpdate]:
@@ -91,8 +89,8 @@ def _snapshot_day_nanos(path: Path) -> int:
     return pd.Timestamp(taken_on, tz="UTC").value
 
 
-def _ticks(batch: pa.RecordBatch, instrument: Any) -> Iterator[TradeTick]:
-    columns = (batch[each].to_pylist() for each in _TRADE_FIELDS)
+def _ticks(rows: pa.Table, instrument: Any) -> Iterator[TradeTick]:
+    columns = (rows[each].to_pylist() for each in _TRADE_FIELDS)
     for ts, side, size, price, match_id in zip(*columns, strict=True):
         yield TradeTick(
             instrument.id,
