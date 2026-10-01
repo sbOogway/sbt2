@@ -8,9 +8,9 @@ import pytest
 from nautilus_trader.model import Money
 from synthetic_catalog import START, build_catalog
 
-from sbt2.results import ParquetResultStore
-from sbt2.run import BacktestError, RunSettings, execute
-from sbt2.spec import ResolvedRunSpec, load
+from sbt2.core.results import ParquetResultStore
+from sbt2.core.run import BacktestError, RunSettings, execute
+from sbt2.core.spec import ResolvedRunSpec, load
 
 SPEC = """
 strategy = "run_strategies:BuyThenSell"
@@ -167,7 +167,7 @@ def test_invalid_strategy_params_fail_the_run(tmp_path: Path, catalog: Path) -> 
 def test_the_run_is_logged(
     tmp_path: Path, catalog: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    with caplog.at_level(logging.INFO, logger="sbt2.run"):
+    with caplog.at_level(logging.INFO, logger="sbt2.core.run"):
         _, run_id = run(tmp_path, catalog)
 
     assert f"run {run_id} finished" in caplog.messages

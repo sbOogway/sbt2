@@ -1,6 +1,6 @@
 import pytest
 
-from sbt2.results import UnknownStoreError, open_store
+from sbt2.core.results import UnknownStoreError, open_store
 
 
 @pytest.mark.unit

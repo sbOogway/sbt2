@@ -5,7 +5,13 @@ from pathlib import Path
 import pytest
 from batch_kit import GiB, resolved, setup, summaries
 
-from sbt2.run import Memory, NoUserSessionError, OutOfMemoryError, SystemdScope, batch
+from sbt2.core.run import (
+    Memory,
+    NoUserSessionError,
+    OutOfMemoryError,
+    SystemdScope,
+    batch,
+)
 
 MiB = 2**20
 

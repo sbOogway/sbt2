@@ -1,4 +1,4 @@
-strategy = "strategies.bracket_risk:BracketRisk"
+strategy = "sbt2.strategies.bracket_risk:BracketRisk"
 instruments = ["BTCUSDT-LINEAR.BYBIT", "ETHUSDT-LINEAR.BYBIT"]
 period = [2024-01-02, 2024-01-10]
 split = { validation_start = 2024-01-06, test_start = 2024-01-08 }

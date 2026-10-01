@@ -12,7 +12,7 @@ from nautilus_trader.model import InstrumentId
 from plotted import Plotted, plotted
 from price_catalog import BTC, ETH, PriceCatalog, run_on
 
-from sbt2.results import (
+from sbt2.core.results import (
     BuyAndHold,
     PricedRun,
     RunTables,

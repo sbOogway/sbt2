@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pandas as pd
 import pytest
 
-from sbt2.results import (
+from sbt2.core.results import (
     CurrencyMismatchError,
     RunTables,
     Segment,

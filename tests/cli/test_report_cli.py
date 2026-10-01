@@ -11,21 +11,21 @@ from served_source import ServedSource, perpetual
 from served_spec import DAY, NEXT_DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
 
-from sbt2.cli import app
-from sbt2.data.catalog import CatalogWriter, DayFile
-from sbt2.results import ParquetResultStore
+from sbt2.core.cli import app
+from sbt2.core.data.catalog import CatalogWriter, DayFile
+from sbt2.core.results import ParquetResultStore
 
 runner = CliRunner()
 ETH = "ETHUSDT-LINEAR.BYBIT"
 BENCHMARKED = """
-from sbt2.results import BuyAndHold
-from strategies.ma_cross import MovingAverageCross
+from sbt2.core.results import BuyAndHold
+from sbt2.strategies.ma_cross import MovingAverageCross
 
 
 class BenchmarkedCross(MovingAverageCross):
     benchmark = BuyAndHold()
 """
-MA_CROSS = "strategies.ma_cross:MovingAverageCross"
+MA_CROSS = "sbt2.strategies.ma_cross:MovingAverageCross"
 HOUR_NS = 3_600_000_000_000
 DAY_NS = 24 * HOUR_NS
 

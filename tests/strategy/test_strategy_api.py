@@ -5,8 +5,8 @@ import pytest
 from nautilus_trader.model import BarSpecification
 from toy_strategies import BuyEveryBar, BuyOnce, CountWarmupBars, StepParams
 
-from sbt2.results import BuyAndHold
-from sbt2.strategy import (
+from sbt2.core.results import BuyAndHold
+from sbt2.core.strategy import (
     InvalidParameterError,
     NoParams,
     UnknownParameterError,

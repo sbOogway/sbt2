@@ -19,7 +19,7 @@ from nautilus_trader.model import (
     Symbol,
 )
 
-from sbt2.assets import (
+from sbt2.core.assets import (
     AssetProfile,
     NoTakerRateError,
     UnknownAssetClassError,

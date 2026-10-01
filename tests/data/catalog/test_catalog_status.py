@@ -6,7 +6,7 @@ from local_catalog import DAY, LocalCatalog, days, gap
 from local_source import INSTRUMENT_ID
 from nautilus_trader.model import Bar, FundingRateUpdate, TradeTick
 
-from sbt2.data import Catalog, Holding
+from sbt2.core.data import Catalog, Holding
 
 DAY_2 = DAY + timedelta(days=1)
 DAY_3 = DAY + timedelta(days=2)

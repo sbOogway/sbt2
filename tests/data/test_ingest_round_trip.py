@@ -33,7 +33,7 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.trading import Strategy
 
-from sbt2.data import DayRange, IngestOptions, IngestRequest, ingest
+from sbt2.core.data import DayRange, IngestOptions, IngestRequest, ingest
 
 DAY = date(2024, 1, 1)
 HOUR = 3_600_000_000_000

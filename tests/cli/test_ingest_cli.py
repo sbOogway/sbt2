@@ -17,7 +17,7 @@ from nautilus_trader.model import (
 from nautilus_trader.persistence import ParquetDataCatalog
 from typer.testing import CliRunner
 
-from sbt2.cli import app
+from sbt2.core.cli import app
 
 runner = CliRunner()
 

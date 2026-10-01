@@ -33,7 +33,7 @@ from toy_strategies import (
     RecordBars,
 )
 
-from sbt2.strategy import RunConfig, StrategyRun, build_strategy, importable_config
+from sbt2.core.strategy import RunConfig, StrategyRun, build_strategy, importable_config
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 TRADE_START = START + timedelta(minutes=3)

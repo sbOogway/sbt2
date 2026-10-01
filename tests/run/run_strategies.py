@@ -5,7 +5,7 @@ from typing import override
 
 from nautilus_trader.model import Bar, BarSpecification, OrderSide, Quantity
 
-from sbt2.strategy import NoParams, Strategy
+from sbt2.core.strategy import NoParams, Strategy
 
 HOURLY_BARS = BarSpecification.from_str("1-HOUR-LAST")
 

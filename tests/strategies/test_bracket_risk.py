@@ -13,7 +13,7 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.risk import FixedRiskSizer
 
-from strategies.bracket_risk import BracketParams, Entry, plan_bracket
+from sbt2.strategies.bracket_risk import BracketParams, Entry, plan_bracket
 
 
 def perpetual() -> CryptoPerpetual:

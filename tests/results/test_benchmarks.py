@@ -8,8 +8,8 @@ import pytest
 from nautilus_trader.model import MarkPriceUpdate
 from price_catalog import BTC, ETH, TAKER_RATE, PriceCatalog, run_on
 
-from sbt2.data import Gap
-from sbt2.results import (
+from sbt2.core.data import Gap
+from sbt2.core.results import (
     BenchmarkArgumentError,
     BenchmarkCoverageError,
     BuyAndHold,
@@ -21,7 +21,7 @@ from sbt2.results import (
     benchmark_statistics,
     build_benchmark,
 )
-from sbt2.spec import ResolvedRunSpec
+from sbt2.core.spec import ResolvedRunSpec
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 HOUR = timedelta(hours=1)

@@ -3,7 +3,7 @@ from datetime import UTC, date, datetime, timedelta, timezone
 import pytest
 from nautilus_trader.model import AssetClass, InstrumentClass
 
-from sbt2.assets import asset_profile
+from sbt2.core.assets import asset_profile
 
 CALENDAR = asset_profile(AssetClass.CRYPTOCURRENCY, InstrumentClass.SWAP).calendar
 

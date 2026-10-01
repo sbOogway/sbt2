@@ -6,8 +6,8 @@ import pandas as pd
 import pytest
 from nautilus_trader.analysis import CAGR, SharpeRatio
 
-from sbt2.results import CurrencyMismatchError, RunTables, Segment, full_metrics
-from sbt2.results.metrics import compounded_daily
+from sbt2.core.results import CurrencyMismatchError, RunTables, Segment, full_metrics
+from sbt2.core.results.metrics import compounded_daily
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 DAY = timedelta(days=1)

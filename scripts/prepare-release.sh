@@ -17,6 +17,6 @@ fi
 
 git tag "$next"
 "${cliff[@]}" --latest --strip all --output "$out/notes.md" 2>/dev/null
-uv build --out-dir "$out/dist"
+uv build --all-packages --out-dir "$out/dist"
 echo "$next" >"$out/tag"
 echo "prepare-release: prepared $next"

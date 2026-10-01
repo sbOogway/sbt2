@@ -6,7 +6,7 @@ from typing import Any, override
 
 from nautilus_trader.model import Bar, BarSpecification, BarType, OrderSide, Quantity
 
-from sbt2.strategy import NoParams, Strategy
+from sbt2.core.strategy import NoParams, Strategy
 
 MINUTE_BARS = BarSpecification.from_str("1-MINUTE-LAST")
 

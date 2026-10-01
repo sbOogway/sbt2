@@ -4,6 +4,6 @@ import pytest
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("name", ["sbt2", "strategies"])
+@pytest.mark.parametrize("name", ["sbt2.core", "sbt2.strategies", "sbt2.papers"])
 def test_package_imports(name: str) -> None:
     importlib.import_module(name)

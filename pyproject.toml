@@ -1,22 +1,10 @@
 [project]
 name = "sbt2"
-dynamic = ["version"]
+dynamic = ["version", "dependencies", "optional-dependencies"]
 description = "Backtesting framework on nautilus_trader"
 license = "LGPL-3.0-or-later"
 license-files = ["COPYING", "COPYING.LESSER"]
 requires-python = ">=3.14"
-dependencies = [
-    "duckdb>=1.5.6",
-    "httpx>=0.28.1",
-    "jeepney>=0.9.0",
-    "nautilus-trader[visualization]==2.0.0rc6.dev20260927",
-    "pandas>=3.0.6",
-    "pyarrow>=25.0.1",
-    "typer>=0.27.2",
-]
-
-[project.scripts]
-sbt2 = "sbt2.cli:app"
 
 [build-system]
 requires = ["hatchling>=1.27", "uv-dynamic-versioning>=0.8"]
@@ -25,11 +13,19 @@ build-backend = "hatchling.build"
 [tool.hatch.version]
 source = "uv-dynamic-versioning"
 
+[tool.hatch.metadata.hooks.uv-dynamic-versioning]
+dependencies = ["sbt2-core=={{ version }}", "sbt2-strategies=={{ version }}"]
+
+[tool.hatch.metadata.hooks.uv-dynamic-versioning.optional-dependencies]
+papers = ["sbt2-papers=={{ version }}"]
+all = ["sbt2-papers=={{ version }}"]
+
+# a meta distribution: it only pulls in the members
 [tool.hatch.build.targets.wheel]
-packages = ["src/sbt2", "src/strategies"]
+bypass-selection = true
 
 [tool.hatch.build.targets.sdist]
-include = ["/src"]
+include = ["/pyproject.toml", "/README.md", "/COPYING", "/COPYING.LESSER"]
 
 [tool.uv]
 environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
@@ -39,8 +35,14 @@ name = "nautech"
 url = "https://packages.nautechsystems.io/simple"
 explicit = true
 
+[tool.uv.workspace]
+members = ["packages/*"]
+
 [tool.uv.sources]
 nautilus-trader = { index = "nautech" }
+sbt2-core = { workspace = true }
+sbt2-strategies = { workspace = true }
+sbt2-papers = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -48,11 +50,15 @@ dev = [
     "pyright[nodejs]>=1.1.414",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
+    "sbt2-papers",
 ]
 
 [tool.pyright]
-include = ["src", "tests"]
+include = ["packages", "tests"]
 reportDeprecated = "error"
+
+[tool.ruff]
+src = ["packages/*/src"]
 
 [tool.ruff.lint]
 extend-select = [
@@ -69,7 +75,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 # Typer reads each command option from a parameter of its own
-"src/sbt2/cli.py" = ["FBT001", "FBT002", "PLR0913", "PLR0917"]
+"packages/sbt2-core/src/sbt2/core/cli.py" = ["FBT001", "FBT002", "PLR0913", "PLR0917"]
 # pytest hands fixtures in as arguments
 "**/test_*.py" = ["PLR0913", "PLR0917"]
 "**/conftest.py" = ["PLR0913", "PLR0917"]
@@ -84,55 +90,67 @@ max-args = 3
 max-positional-args = 3
 
 [tool.importlinter]
-root_package = "sbt2"
+root_packages = ["sbt2.core", "sbt2.strategies", "sbt2.papers"]
 exclude_type_checking_imports = true
 
 [[tool.importlinter.contracts]]
 name = "Higher packages may import lower ones, never the reverse"
 type = "layers"
 layers = [
-    "sbt2.cli",
-    "sbt2.run",
-    "sbt2.results",
-    "sbt2.spec",
-    "sbt2.data | sbt2.strategy | sbt2.assets | sbt2.config",
+    "sbt2.core.cli",
+    "sbt2.core.run",
+    "sbt2.core.results",
+    "sbt2.core.spec",
+    "sbt2.core.data | sbt2.core.strategy | sbt2.core.assets | sbt2.core.config",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.assets imports its own internals"
+name = "Only sbt2.core.assets imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.assets.*"]
-allowed_importers = ["sbt2.assets"]
+protected_modules = ["sbt2.core.assets.*"]
+allowed_importers = ["sbt2.core.assets"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.data imports its own internals"
+name = "Only sbt2.core.data imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.data.*"]
-allowed_importers = ["sbt2.data"]
+protected_modules = ["sbt2.core.data.*"]
+allowed_importers = ["sbt2.core.data"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.results imports its own internals"
+name = "Only sbt2.core.results imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.results.*"]
-allowed_importers = ["sbt2.results"]
+protected_modules = ["sbt2.core.results.*"]
+allowed_importers = ["sbt2.core.results"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.run imports its own internals"
+name = "Only sbt2.core.run imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.run.*"]
-allowed_importers = ["sbt2.run"]
+protected_modules = ["sbt2.core.run.*"]
+allowed_importers = ["sbt2.core.run"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.spec imports its own internals"
+name = "Only sbt2.core.spec imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.spec.*"]
-allowed_importers = ["sbt2.spec"]
+protected_modules = ["sbt2.core.spec.*"]
+allowed_importers = ["sbt2.core.spec"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.strategy imports its own internals"
+name = "Only sbt2.core.strategy imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.strategy.*"]
-allowed_importers = ["sbt2.strategy"]
+protected_modules = ["sbt2.core.strategy.*"]
+allowed_importers = ["sbt2.core.strategy"]
+
+[[tool.importlinter.contracts]]
+name = "sbt2 never imports the paper pipeline"
+type = "forbidden"
+source_modules = ["sbt2.core", "sbt2.strategies"]
+forbidden_modules = ["sbt2.papers"]
+
+[[tool.importlinter.contracts]]
+name = "The paper pipeline never imports sbt2"
+type = "forbidden"
+source_modules = ["sbt2.papers"]
+forbidden_modules = ["sbt2.core", "sbt2.strategies"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -150,7 +168,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["sbt2", "strategies"]
+source_pkgs = ["sbt2.core", "sbt2.strategies", "sbt2.papers"]
 branch = true
 patch = ["subprocess"]
 

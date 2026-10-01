@@ -32,10 +32,10 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.trading import Strategy
 
-from sbt2.assets import asset_profile
-from sbt2.results import Reports
-from sbt2.spec import FractionSplit, ResolvedRunSpec
-from sbt2.strategy import StrategyRun
+from sbt2.core.assets import asset_profile
+from sbt2.core.results import Reports
+from sbt2.core.spec import FractionSplit, ResolvedRunSpec
+from sbt2.core.strategy import StrategyRun
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 END = START + timedelta(days=1)

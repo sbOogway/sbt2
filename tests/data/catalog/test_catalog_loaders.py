@@ -17,7 +17,7 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.persistence import ParquetDataCatalog
 
-from sbt2.data import Catalog, Window
+from sbt2.core.data import Catalog, Window
 
 MINUTE = 60_000_000_000
 HALF_MINUTE = MINUTE // 2

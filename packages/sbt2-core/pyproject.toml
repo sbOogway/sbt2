@@ -1,0 +1,29 @@
+[project]
+name = "sbt2-core"
+dynamic = ["version"]
+description = "Backtesting framework on nautilus_trader"
+license = "LGPL-3.0-or-later"
+license-files = ["COPYING", "COPYING.LESSER"]
+requires-python = ">=3.14"
+dependencies = [
+    "duckdb>=1.5.6",
+    "httpx>=0.28.1",
+    "jeepney>=0.9.0",
+    "nautilus-trader[visualization]==2.0.0rc6.dev20260927",
+    "pandas>=3.0.6",
+    "pyarrow>=25.0.1",
+    "typer>=0.27.2",
+]
+
+[project.scripts]
+sbt2 = "sbt2.core.cli:app"
+
+[build-system]
+requires = ["hatchling>=1.27", "uv-dynamic-versioning>=0.8"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sbt2"]

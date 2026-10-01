@@ -15,7 +15,7 @@ from local_source import (
 from nautilus_trader.model import Bar, MarkPriceUpdate, NautilusDataType, TradeTick
 from nautilus_trader.persistence import ParquetDataCatalog
 
-from sbt2.data import (
+from sbt2.core.data import (
     DayRange,
     DayResult,
     IngestOptions,
