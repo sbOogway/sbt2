@@ -52,6 +52,29 @@ dev = [
 [tool.pyright]
 include = ["src", "tests"]
 
+[tool.ruff.lint]
+extend-select = ["B", "C90", "ERA", "FBT", "PLR0913", "PLR0915", "PLR0917", "PT", "RUF", "SIM", "UP"]
+ignore = [
+    # nautilus constructors take their flags positionally
+    "FBT003",
+    # concatenation splits a long CLI argument list into rows of related options
+    "RUF005",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Typer reads each command option from a parameter of its own
+"src/sbt2/cli.py" = ["FBT001", "FBT002", "PLR0913", "PLR0917"]
+# pytest hands fixtures in as arguments
+"**/test_*.py" = ["PLR0913", "PLR0917"]
+"**/conftest.py" = ["PLR0913", "PLR0917"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.ruff.lint.pylint]
+max-args = 3
+max-positional-args = 3
+
 [tool.importlinter]
 root_package = "sbt2"
 exclude_type_checking_imports = true
