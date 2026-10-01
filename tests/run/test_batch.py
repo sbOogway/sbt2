@@ -193,7 +193,8 @@ def test_a_failure_stops_the_running_runs_and_starts_no_more(tmp_path: Path) -> 
     assert time.monotonic() - started < 30
     failed, sleeper = launcher.started
     assert failed.returncode == 1
-    assert sleeper.returncode is not None and sleeper.returncode < 0
+    assert sleeper.returncode is not None
+    assert sleeper.returncode < 0
 
 
 @pytest.mark.integration

@@ -354,8 +354,10 @@ def test_exposure_holding_time_and_turnover_are_split_per_instrument(
     assert list(eth.exposure.net_leverage) == pytest.approx([-1.0, -1.0, -1.0])
     assert btc.exposure.time_in_market == pytest.approx(0.5)
     assert eth.exposure.time_in_market == pytest.approx(1.0)
-    assert btc.holding_time is not None and btc.holding_time.mean == HOUR
-    assert eth.holding_time is not None and eth.holding_time.mean == 3 * HOUR
+    assert btc.holding_time is not None
+    assert btc.holding_time.mean == HOUR
+    assert eth.holding_time is not None
+    assert eth.holding_time.mean == 3 * HOUR
     years_of_the_part = 2 / (365 * 24)
     assert btc.turnover == pytest.approx(0.5 / years_of_the_part)
     assert eth.turnover == pytest.approx(1.0 / years_of_the_part)
