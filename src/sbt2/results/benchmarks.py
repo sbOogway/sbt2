@@ -140,7 +140,7 @@ def build_benchmark(name: str, argument: str | None = None) -> Benchmark | None:
     return builder(name, argument)
 
 
-def _buy_and_hold(name: str, argument: str | None) -> Benchmark:
+def _buy_and_hold(_name: str, argument: str | None) -> Benchmark:
     return BuyAndHold(None if argument is None else InstrumentId.from_str(argument))
 
 

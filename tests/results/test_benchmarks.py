@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -161,7 +162,7 @@ def test_missing_valuation_prices_fail(prices: PriceCatalog) -> None:
 
     with pytest.raises(
         BenchmarkCoverageError,
-        match="MarkPriceUpdate for BTCUSDT-LINEAR.BYBIT on 2024-01-02",
+        match=re.escape("MarkPriceUpdate for BTCUSDT-LINEAR.BYBIT on 2024-01-02"),
     ):
         BuyAndHold().returns(run, prices.catalog)
 

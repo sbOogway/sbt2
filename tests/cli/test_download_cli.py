@@ -2,7 +2,7 @@ from collections.abc import Iterator, Mapping
 from datetime import date
 from functools import partial
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, override
 
 import pytest
 from nautilus_trader.model import InstrumentId, TradeTick
@@ -37,9 +37,11 @@ class ApiSource(Source):
     def symbol(self, instrument_id: InstrumentId) -> str:
         return instrument_id.symbol.value
 
+    @override
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         return self._raw(f"{symbol}/trades/{day.isoformat()}.csv")
 
+    @override
     def instrument_snapshot(self, symbol: str, taken_on: date) -> RawFile:
         return self._raw(f"{symbol}/instrument.json")
 
@@ -129,8 +131,9 @@ def test_a_failed_file_fails_the_command_after_the_rest_are_done(
 
 
 @pytest.mark.e2e
+@pytest.mark.usefixtures("answers")
 def test_a_data_type_the_source_does_not_serve_fails_before_any_fetch(
-    tmp_path: Path, answers: dict[str, bytes | Exception]
+    tmp_path: Path,
 ) -> None:
     result = download(tmp_path, "--type", "OrderBookDelta")
 

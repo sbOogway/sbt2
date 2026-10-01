@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import override
 
 from nautilus_trader.model import Bar, BarSpecification, OrderSide, Quantity
 
@@ -20,10 +21,12 @@ class BuyThenSell(Strategy[HoldParams]):
     Params = HoldParams
 
     @classmethod
+    @override
     def warmup(cls, params: HoldParams) -> timedelta:
         return timedelta(hours=2)
 
     @classmethod
+    @override
     def inputs(cls, params: HoldParams) -> Sequence[BarSpecification]:
         return (HOURLY_BARS,)
 
@@ -51,10 +54,12 @@ class BuyThenReverse(Strategy[HoldParams]):
     Params = HoldParams
 
     @classmethod
+    @override
     def warmup(cls, params: HoldParams) -> timedelta:
         return timedelta(hours=2)
 
     @classmethod
+    @override
     def inputs(cls, params: HoldParams) -> Sequence[BarSpecification]:
         return (HOURLY_BARS,)
 
@@ -81,14 +86,17 @@ class BuyThenReverse(Strategy[HoldParams]):
 
 class FailOnBar(Strategy[NoParams]):
     @classmethod
+    @override
     def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
         return (HOURLY_BARS,)
 
+    @override
     def on_bar(self, bar: Bar) -> None:
         raise RuntimeError("strategy blew up")
 
 
 class HoldOnQuoteBars(Strategy[NoParams]):
     @classmethod
+    @override
     def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
         return (BarSpecification.from_str("1-HOUR-BID"),)

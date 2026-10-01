@@ -94,7 +94,8 @@ def test_annualized_statistics_use_the_asset_calendar_year() -> None:
 
     crypto, stock = metrics(run_equity), metrics(run_equity, stock_year)
 
-    assert crypto.sharpe is not None and stock.sharpe is not None
+    assert crypto.sharpe is not None
+    assert stock.sharpe is not None
     assert crypto.sharpe / stock.sharpe == pytest.approx((365 / 252) ** 0.5)
     assert crypto.annualized_return != stock.annualized_return
 

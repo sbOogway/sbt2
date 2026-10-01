@@ -2,20 +2,24 @@
 
 import subprocess
 from collections.abc import Sequence
+from typing import override
 
 import pytest
 
 from sbt2 import cli
+from sbt2.run import Launcher
 
 
-class PlainLauncher:
+class PlainLauncher(Launcher):
     def __init__(self) -> None:
         self.started: list[subprocess.Popen[bytes]] = []
         self.caps: list[int] = []
 
+    @override
     def check(self) -> None:
         pass
 
+    @override
     def start(
         self, run_id: str, command: Sequence[str], memory_max: int
     ) -> subprocess.Popen[bytes]:
@@ -24,6 +28,7 @@ class PlainLauncher:
         self.caps.append(memory_max)
         return child
 
+    @override
     def out_of_memory(self, run_id: str) -> bool:
         return False
 
@@ -38,6 +43,7 @@ class ScriptedLauncher(PlainLauncher):
         super().__init__()
         self._commands = list(commands)
 
+    @override
     def _command(self, command: Sequence[str]) -> Sequence[str]:
         return self._commands[len(self.started)]
 

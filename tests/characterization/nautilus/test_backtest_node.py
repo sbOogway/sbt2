@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import override
 
 import pytest
 from catalog_kit import day_bounds, new_catalog, write_funding
@@ -124,11 +125,12 @@ class FailOnQuote(Strategy):
     def on_start(self) -> None:
         self.subscribe_quotes(INSTRUMENT_ID)
 
+    @override
     def on_quote(self, quote: QuoteTick) -> None:
         raise RuntimeError("strategy failed")
 
 
-def failing_run(path: Path, shutdown_on_error: bool) -> BacktestResult:
+def failing_run(path: Path, *, shutdown_on_error: bool) -> BacktestResult:
     build_one_day_catalog(path)
     start, end = day_bounds(0)
     config = BacktestRunConfig(

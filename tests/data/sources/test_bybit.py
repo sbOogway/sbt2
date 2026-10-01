@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 from collections.abc import Callable
 from datetime import date
 from pathlib import PurePosixPath
@@ -46,7 +47,7 @@ def test_the_symbol_of_an_instrument_id_is_its_bybit_symbol(bybit: Source) -> No
 
 @pytest.mark.unit
 def test_an_instrument_id_of_another_venue_has_no_bybit_symbol(bybit: Source) -> None:
-    with pytest.raises(ValueError, match="BTCUSDT-PERP.BINANCE"):
+    with pytest.raises(ValueError, match=re.escape("BTCUSDT-PERP.BINANCE")):
         bybit.symbol(InstrumentId.from_str("BTCUSDT-PERP.BINANCE"))
 
 

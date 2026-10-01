@@ -76,7 +76,7 @@ def mark_prices(path: Path, instrument: Any) -> Iterator[MarkPriceUpdate]:
         yield MarkPriceUpdate(instrument.id, price, ts, ts)
 
 
-def candles(path: Path, instrument: Any) -> Iterator[Bar]:
+def candles(path: Path, _instrument: Any) -> Iterator[Bar]:
     """Each candle 1 ns before its close, as mark prices are, so a day's last
     candle stays inside the day's catalog file bounds."""
     for record in sorted(

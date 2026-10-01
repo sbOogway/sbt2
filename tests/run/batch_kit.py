@@ -54,7 +54,7 @@ def setup(
     data = DataFolders(tmp_path / "raw", tmp_path / "catalog")
     return BatchSetup(
         store=ParquetResultStore(tmp_path / "results"),
-        sources=lambda name: source or served(),
+        sources=lambda _name: source or served(),
         folders=data,
         settings=RunSettings(data.catalog),
         launcher=launcher,

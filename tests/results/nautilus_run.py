@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from typing import override
 
 from nautilus_trader.analysis import PortfolioStatistics, ReportProvider
 from nautilus_trader.backtest import BacktestEngine, BacktestEngineConfig
@@ -118,6 +119,7 @@ class _RoundTrip(Strategy):
         self.quotes = 0
         self.subscribe_quotes(INSTRUMENT_ID)
 
+    @override
     def on_quote(self, quote: QuoteTick) -> None:
         self.quotes += 1
         if self.quotes <= len(self.SIDES):

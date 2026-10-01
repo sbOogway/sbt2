@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any
+from typing import Any, override
 
 from kit import INSTRUMENT_ID, START, run_engine
 from nautilus_trader.backtest import BacktestEngine
@@ -110,9 +110,11 @@ class StepStrategy(Strategy):
         self.step = 0
         self.feed.subscribe(self)
 
+    @override
     def on_bar(self, bar: Bar) -> None:
         self.advance()
 
+    @override
     def on_trade(self, trade: TradeTick) -> None:
         self.advance()
 

@@ -87,7 +87,7 @@ def _failing(action: str, *args: object) -> Iterator[None]:
     try:
         yield
     except Exception:
-        logger.exception(f"{action} failed", *args)
+        logger.exception("%s failed", action % args)
         raise typer.Exit(1) from None
 
 
@@ -608,7 +608,7 @@ class _Bar:
     def planned(self, count: int) -> None:
         self._progress.update(self._task, total=count)
 
-    def finished(self, result: object) -> None:
+    def finished(self, _result: object, /) -> None:
         self._progress.advance(self._task)
 
 

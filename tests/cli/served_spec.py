@@ -41,7 +41,7 @@ def served(
     spec = tmp_path / "spec.toml"
     spec.write_text(SPEC)
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(data, "source", lambda name, config: source)
+    monkeypatch.setattr(data, "source", lambda _name, _config: source)
     return spec
 
 

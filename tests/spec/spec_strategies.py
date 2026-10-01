@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from decimal import Decimal
+from typing import override
 
 from nautilus_trader.model import BarSpecification
 
@@ -22,6 +23,7 @@ class MinuteLookback(Strategy[LookbackParams]):
         return timedelta(minutes=params.lookback)
 
     @classmethod
+    @override
     def inputs(cls, params: LookbackParams) -> Sequence[BarSpecification]:
         return (BarSpecification.from_str("1-MINUTE-LAST"),)
 

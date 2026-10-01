@@ -1,3 +1,4 @@
+import re
 from dataclasses import astuple, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -210,7 +211,7 @@ def test_missing_valuation_prices_fail(prices: PriceCatalog) -> None:
 
     with pytest.raises(
         MissingPricesError,
-        match="MarkPriceUpdate for BTCUSDT-LINEAR.BYBIT on 2024-01-02",
+        match=re.escape("MarkPriceUpdate for BTCUSDT-LINEAR.BYBIT on 2024-01-02"),
     ):
         exposure_of(run, prices, end)
 
@@ -227,7 +228,7 @@ def test_an_inverse_instrument_fails(prices: PriceCatalog) -> None:
     prices.add_marks(inverse, {START: 50_000.0})
     run = tables(flat(10_000.0, end), [of(inverse, fill(START, 1, 50_000.0))], [])
 
-    with pytest.raises(InverseInstrumentError, match="BTCUSD-INVERSE.BYBIT"):
+    with pytest.raises(InverseInstrumentError, match=re.escape("BTCUSD-INVERSE.BYBIT")):
         costs_and_exposure(
             PricedRun(run_on([inverse], START, end), run, prices.catalog)
         )
@@ -353,8 +354,10 @@ def test_exposure_holding_time_and_turnover_are_split_per_instrument(
     assert list(eth.exposure.net_leverage) == pytest.approx([-1.0, -1.0, -1.0])
     assert btc.exposure.time_in_market == pytest.approx(0.5)
     assert eth.exposure.time_in_market == pytest.approx(1.0)
-    assert btc.holding_time is not None and btc.holding_time.mean == HOUR
-    assert eth.holding_time is not None and eth.holding_time.mean == 3 * HOUR
+    assert btc.holding_time is not None
+    assert btc.holding_time.mean == HOUR
+    assert eth.holding_time is not None
+    assert eth.holding_time.mean == 3 * HOUR
     years_of_the_part = 2 / (365 * 24)
     assert btc.turnover == pytest.approx(0.5 / years_of_the_part)
     assert eth.turnover == pytest.approx(1.0 / years_of_the_part)

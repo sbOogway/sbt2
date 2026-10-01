@@ -36,7 +36,7 @@ def test_params_are_filled_in_from_the_defaults() -> None:
 @pytest.mark.unit
 def test_unknown_params_fail_listing_the_valid_ones() -> None:
     with pytest.raises(
-        UnknownParameterError, match="loopback .* valid: lookback, step"
+        UnknownParameterError, match=r"loopback .* valid: lookback, step"
     ):
         resolve_params(BuyEveryBar, {"loopback": 5})
 

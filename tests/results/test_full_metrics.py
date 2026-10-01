@@ -197,7 +197,8 @@ def test_probabilistic_sharpe_ratio_follows_bailey_and_lopez_de_prado() -> None:
 
     result = full_metrics(run_on(compounded(returns)), segment_of(len(returns)))
 
-    assert skew > 1 and kurtosis > 3
+    assert skew > 1
+    assert kurtosis > 3
     assert result.probabilistic_sharpe == pytest.approx(expected)
 
 

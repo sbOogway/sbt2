@@ -1,6 +1,7 @@
 import hashlib
 import json
 import pickle
+import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -169,7 +170,7 @@ def test_a_venue_profile_without_a_source_fails(paths: tuple[Path, Path]) -> Non
     spec, venues = paths
     venues.write_text(SOURCELESS)
 
-    with pytest.raises(InvalidVenueProfileError, match="sourceless.* source"):
+    with pytest.raises(InvalidVenueProfileError, match=r"sourceless.* source"):
         load(spec, {"venue": "sourceless"}, venues)
 
 
@@ -475,7 +476,7 @@ def test_an_unknown_risk_key_fails_listing_the_valid_ones(
 ) -> None:
     with pytest.raises(
         UnknownRiskKeyError,
-        match="max_position .* valid: drawdown_limit, max_notional_per_order, "
+        match=r"max_position .* valid: drawdown_limit, max_notional_per_order, "
         "max_order_modify_rate, max_order_submit_rate",
     ):
         resolved(paths, risk={"max_position": 1})
@@ -499,7 +500,7 @@ def test_unknown_venue_profile_fails_listing_the_known_ones(
 
 @pytest.mark.unit
 def test_instrument_on_another_venue_fails(paths: tuple[Path, Path]) -> None:
-    with pytest.raises(InstrumentVenueError, match="BTCUSDT-LINEAR.BINANCE"):
+    with pytest.raises(InstrumentVenueError, match=re.escape("BTCUSDT-LINEAR.BINANCE")):
         resolved(paths, instruments=[BTC, "BTCUSDT-LINEAR.BINANCE"])
 
 
@@ -508,7 +509,7 @@ def test_unknown_spec_key_fails_listing_the_valid_ones(
     paths: tuple[Path, Path],
 ) -> None:
     with pytest.raises(
-        UnknownSpecKeyError, match="symbols .* valid: bars, capital, equity_interval"
+        UnknownSpecKeyError, match=r"symbols .* valid: bars, capital, equity_interval"
     ):
         resolved(paths, symbols=["BTCUSDT"])
 
@@ -705,7 +706,7 @@ def test_a_repeated_value_fails_as_a_duplicate_run(paths: tuple[Path, Path]) -> 
 def test_values_that_resolve_to_the_same_run_fail_as_duplicates(
     paths: tuple[Path, Path],
 ) -> None:
-    with pytest.raises(DuplicateRunError, match="stop='0.02' .* stop=0.02"):
+    with pytest.raises(DuplicateRunError, match=r"stop='0.02' .* stop=0.02"):
         loaded(with_params(paths, 'stop = ["0.02", 0.02]\n'))
 
 
@@ -725,7 +726,7 @@ def test_an_empty_list_of_parts_fails(paths: tuple[Path, Path]) -> None:
 def test_start_and_end_are_no_longer_spec_keys(paths: tuple[Path, Path]) -> None:
     with pytest.raises(
         UnknownSpecKeyError,
-        match="start .* valid: .*params, part, period, risk, seed, split",
+        match=r"start .* valid: .*params, part, period, risk, seed, split",
     ):
         resolved(paths, start="2024-01-01")
 
@@ -760,7 +761,7 @@ def test_a_list_of_parts_expands_into_one_run_per_part(
 
 @pytest.mark.unit
 def test_an_unknown_part_fails_listing_the_parts(paths: tuple[Path, Path]) -> None:
-    with pytest.raises(UnknownPartError, match="holdout.* train, validation, test"):
+    with pytest.raises(UnknownPartError, match=r"holdout.* train, validation, test"):
         resolved(paths, part="holdout")
 
 

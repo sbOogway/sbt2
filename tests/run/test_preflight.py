@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time
 from pathlib import Path
@@ -152,7 +153,7 @@ def test_days_still_missing_after_the_fetch_fail_naming_each(
     stock(source, folders, DAY, NEXT_DAY)
 
     with pytest.raises(
-        MissingDataError, match="BTCUSDT-LINEAR.BYBIT TradeTick 2024-01-02"
+        MissingDataError, match=re.escape("BTCUSDT-LINEAR.BYBIT TradeTick 2024-01-02")
     ):
         preflight(spec(tmp_path), source, folders)
     assert source.day_file(SYMBOL, TradeTick, NEXT_DAY).path in source.fetched
@@ -213,7 +214,7 @@ def test_an_instrument_the_source_lacks_fails_as_missing_data(
     source = ServedSource()
     source.serve_days(DAY, NEXT_DAY)
 
-    with pytest.raises(MissingDataError, match="BTCUSDT-LINEAR.BYBIT"):
+    with pytest.raises(MissingDataError, match=re.escape("BTCUSDT-LINEAR.BYBIT")):
         preflight(spec(tmp_path), source, folders)
 
 
@@ -226,7 +227,7 @@ def test_an_instrument_of_another_asset_class_fails(
 
     with pytest.raises(
         InstrumentAssetClassError,
-        match="BTCUSDT-LINEAR.BYBIT is CRYPTOCURRENCY/SPOT, not .* CRYPTOCURRENCY/SWAP",
+        match=r"BTCUSDT-LINEAR.BYBIT is CRYPTOCURRENCY/SPOT, not .* CRYPTOCURRENCY/SWAP",
     ):
         preflight(spec(tmp_path), source, folders)
 

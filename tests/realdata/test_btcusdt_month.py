@@ -4,7 +4,6 @@ The run reuses the repo's ``data/`` raw files and catalog, fetching the days
 they lack, and stores its result in a throwaway folder.
 """
 
-from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -43,14 +42,14 @@ class MonthRun:
 @pytest.fixture(scope="module", params=["btcusdt_month", "btcusdt_month_candles"])
 def month(
     tmp_path_factory: pytest.TempPathFactory, request: pytest.FixtureRequest
-) -> Iterator[MonthRun]:
+) -> MonthRun:
     spec = HERE / f"{request.param}.toml"
     data = _data_folder(tmp_path_factory.mktemp("data"))
     with pytest.MonkeyPatch.context() as patch:
         patch.chdir(REPO)
         result = CliRunner().invoke(app, ["run", str(spec), "--data", str(data)])
     assert result.exit_code == 0, result.output
-    yield _month_run(data)
+    return _month_run(data)
 
 
 def _data_folder(root: Path) -> Path:

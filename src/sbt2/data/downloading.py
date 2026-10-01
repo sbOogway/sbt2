@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 
 INSTRUMENT = "instrument"
 _TIMEOUT = httpx.Timeout(30.0)
+_JITTER = random.SystemRandom()
 
 
 class Outcome(StrEnum):
@@ -148,7 +149,6 @@ class _Fetcher:
         error: Exception | None = None
         for attempt in range(self._options.retries + 1):
             if error is not None:
-                logger.debug("retrying %s after %r", item.raw.path, error)
                 await asyncio.sleep(_backoff(self._options.backoff, attempt))
             try:
                 await self._fetch(item.raw.origin, target)
@@ -158,7 +158,8 @@ class _Fetcher:
             except _PermanentError as permanent:
                 return FileResult(item, Outcome.FAILED, str(permanent))
             # A source's fetch raises whatever its client does; all of it is retried.
-            except Exception as transient:  # noqa: BLE001
+            except Exception as transient:
+                logger.debug("fetching %s failed", item.raw.path, exc_info=True)
                 error = transient
         return FileResult(item, Outcome.FAILED, repr(error))
 
@@ -201,4 +202,4 @@ def _check_status(response: httpx.Response) -> None:
 
 def _backoff(base: float, attempt: int) -> float:
     """Exponential backoff with full jitter, so retries from many files spread out."""
-    return random.uniform(0, base * 2 ** (attempt - 1))
+    return _JITTER.uniform(0, base * 2 ** (attempt - 1))

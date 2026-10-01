@@ -10,7 +10,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from functools import partial
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, override
 
 import nautilus_trader.model
 from nautilus_trader.model import (
@@ -81,10 +81,12 @@ class ServedSource(Source):
     def symbol(self, instrument_id: InstrumentId) -> str:
         return instrument_id.symbol.value.removesuffix("-LINEAR")
 
+    @override
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         path = self._day_path(data_type, day)
         return RawFile(path, partial(self._fetch, path))
 
+    @override
     def instrument_snapshot(self, symbol: str, taken_on: date) -> RawFile:
         path = PurePosixPath("served", SYMBOL, "instrument", f"{taken_on}.json")
         return RawFile(path, partial(self._fetch, self._instrument_key()))

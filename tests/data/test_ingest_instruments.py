@@ -8,8 +8,8 @@ from local_source import (
     INSTRUMENT_ID,
     SYMBOL,
     LocalSource,
+    RawFolder,
     start_of,
-    write_day,
     write_snapshot,
 )
 from nautilus_trader.model import Bar, MarkPriceUpdate, NautilusDataType, TradeTick
@@ -56,7 +56,7 @@ def trade_days(catalog: Path) -> list[tuple[int, int]]:
 def raw(tmp_path: Path) -> Path:
     path = tmp_path / "raw"
     write_snapshot(path, DAY)
-    write_day(path, TradeTick, DAY, [start_of(DAY) + HOUR])
+    RawFolder(path).write_day(TradeTick, DAY, [start_of(DAY) + HOUR])
     return path
 
 
@@ -116,7 +116,7 @@ def test_reingest_replaces_the_instrument_and_rebuilds_its_days(
     raw: Path, catalog: Path
 ) -> None:
     write_snapshot(raw, LATER, margin_init="0.02")
-    write_day(raw, TradeTick, DAY, [start_of(DAY) + 2 * HOUR])
+    RawFolder(raw).write_day(TradeTick, DAY, [start_of(DAY) + 2 * HOUR])
 
     run(raw, catalog, REINGEST)
 
@@ -131,7 +131,7 @@ def test_reingest_removes_days_outside_the_requested_range(
     raw: Path, catalog: Path
 ) -> None:
     other_day = DAY + timedelta(days=1)
-    write_day(raw, TradeTick, other_day, [start_of(other_day)])
+    RawFolder(raw).write_day(TradeTick, other_day, [start_of(other_day)])
     run(
         raw, catalog, IngestRequest(DayRange((SYMBOL,), DAY, other_day, ("TradeTick",)))
     )
@@ -158,7 +158,7 @@ def test_reingest_removes_every_data_type_of_the_instrument(
     raw: Path, catalog: Path, data_type: type, identifier: object
 ) -> None:
     name = data_type.__name__
-    write_day(raw, data_type, DAY, [start_of(DAY)])
+    RawFolder(raw).write_day(data_type, DAY, [start_of(DAY)])
     run(raw, catalog, IngestRequest(DayRange((SYMBOL,), DAY, DAY, (name,))))
     write_snapshot(raw, LATER, margin_init="0.02")
 

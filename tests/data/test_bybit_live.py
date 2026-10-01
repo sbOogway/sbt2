@@ -60,7 +60,8 @@ def test_the_trades_dump_parses_into_the_days_trades(raw: tuple[Source, Path]) -
     ]
 
     assert len(stamps) > 100_000
-    assert DAY_START <= stamps[0] and stamps[-1] < DAY_END
+    assert stamps[0] >= DAY_START
+    assert stamps[-1] < DAY_END
     assert stamps == sorted(stamps)
 
 
