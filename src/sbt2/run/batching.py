@@ -10,7 +10,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Protocol
+from typing import ClassVar, Protocol
 
 from sbt2.data import Gap, Source
 from sbt2.results import ResultStore
@@ -38,7 +38,12 @@ class OutOfMemoryError(RunFailedError):
 
 
 class Launcher(ABC):
-    """Caps the memory of each child of a batch."""
+    """Caps the memory of each child of a batch.
+
+    ``platforms`` are the values of ``sys.platform`` it serves.
+    """
+
+    platforms: ClassVar[frozenset[str]]
 
     @abstractmethod
     def check(self) -> None:

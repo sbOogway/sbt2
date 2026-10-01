@@ -41,8 +41,8 @@ from sbt2.run import (
     DataFolders,
     Memory,
     RunSettings,
-    SystemdScope,
     batch,
+    launcher_for,
 )
 from sbt2.strategy import import_strategy
 
@@ -142,7 +142,7 @@ def _setup(root: Root, settings: RunSettings, memory: Memory) -> BatchSetup:
         sources=lambda name: data.source(name, SOURCES),
         folders=DataFolders(root.raw, root.catalog),
         settings=settings,
-        launcher=SystemdScope(),
+        launcher=launcher_for(sys.platform),
         memory=memory,
     )
 

@@ -23,6 +23,8 @@ class SystemdScope(Launcher):
     """Caps each child in its own transient systemd scope, ``sbt2-{run_id}``,
     with swap off so that a child over its cap is killed rather than swapped."""
 
+    platforms = frozenset({"linux"})
+
     @override
     def check(self) -> None:
         with _session() as bus:
