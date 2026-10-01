@@ -9,3 +9,4 @@ htmlcov/
 .claude/worktrees/
 .release/
 coverage.xml
+junit.xml
