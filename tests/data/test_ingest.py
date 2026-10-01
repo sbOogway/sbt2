@@ -296,7 +296,7 @@ def test_progress_hears_of_every_planned_day(raw: Path, catalog_path: Path) -> N
 @pytest.mark.unit
 def test_progress_plans_only_the_days_it_ingests(raw: Path, catalog_path: Path) -> None:
     source = LocalSource(frozenset({Gap(INSTRUMENT_ID, TradeTick, NEXT_DAY)}))
-    write_day(raw, TradeTick, DAY, hourly(DAY))
+    RawFolder(raw).write_day(TradeTick, DAY, hourly(DAY))
     recorder = Recorder()
 
     ingest(
