@@ -99,7 +99,7 @@ class Memory:
 
 @dataclass(frozen=True)
 class BatchSetup:
-    """``store`` must pickle: each child opens its own sink from it."""
+    """Each child reopens ``store`` from its locator and opens its own sink."""
 
     store: ResultStore
     sources: Callable[[str], Source]
