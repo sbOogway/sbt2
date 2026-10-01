@@ -7,10 +7,10 @@ from typing import override
 
 import pytest
 
-from sbt2 import cli
-from sbt2.run import Launcher, batching
+from sbt2.core import cli
+from sbt2.core.run import Launcher, batching
 
-CHILD = [sys.executable, "-m", "sbt2.run"]
+CHILD = [sys.executable, "-m", "sbt2.core.run"]
 
 
 class PlainLauncher(Launcher):

@@ -7,9 +7,9 @@ from served_source import ServedSource
 from served_spec import DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
 
-from sbt2 import spec
-from sbt2.cli import app
-from sbt2.results import ParquetResultStore
+from sbt2.core import spec
+from sbt2.core.cli import app
+from sbt2.core.results import ParquetResultStore
 
 runner = CliRunner()
 LIST_HEADER = [
@@ -23,7 +23,7 @@ LIST_HEADER = [
     "max_drawdown",
     "trade_count",
 ]
-MA_CROSS = "strategies.ma_cross:MovingAverageCross"
+MA_CROSS = "sbt2.strategies.ma_cross:MovingAverageCross"
 
 
 def stored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ParquetResultStore:

@@ -15,7 +15,7 @@ from fake_source import (
 from file_server import FileServer
 from nautilus_trader.model import TradeTick
 
-from sbt2.data import (
+from sbt2.core.data import (
     INSTRUMENT,
     DayRange,
     DownloadOptions,
@@ -25,7 +25,7 @@ from sbt2.data import (
     Tally,
     download,
 )
-from sbt2.data.sources import Gap, UnsupportedDataTypeError
+from sbt2.core.data.sources import Gap, UnsupportedDataTypeError
 
 DAY = date(2025, 1, 1)
 NEXT_DAY = DAY + timedelta(days=1)

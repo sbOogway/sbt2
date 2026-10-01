@@ -20,8 +20,8 @@ from nautilus_run import (
 from nautilus_trader.core import UUID4
 from nautilus_trader.model import FundingRateUpdate, InstrumentId, PositionAdjusted
 
-from sbt2.data.sources import Gap
-from sbt2.results import (
+from sbt2.core.data.sources import Gap
+from sbt2.core.results import (
     IncompleteRunError,
     MissingTableError,
     OutputSink,
@@ -34,8 +34,8 @@ from sbt2.results import (
     UnknownRunError,
     full_metrics,
 )
-from sbt2.spec import ResolvedRunSpec
-from strategies.ma_cross import CrossParams
+from sbt2.core.spec import ResolvedRunSpec
+from sbt2.strategies.ma_cross import CrossParams
 
 
 @pytest.fixture(scope="module")
@@ -579,7 +579,7 @@ def importable() -> ResolvedRunSpec:
     run_spec = spec()
     strategy = replace(
         run_spec.strategy,
-        strategy="strategies.ma_cross:MovingAverageCross",
+        strategy="sbt2.strategies.ma_cross:MovingAverageCross",
         params=asdict(CrossParams()),
     )
     return replace(run_spec, strategy=strategy)

@@ -6,7 +6,7 @@ from typing import override
 
 from nautilus_trader.model import BarSpecification
 
-from sbt2.strategy import Strategy
+from sbt2.core.strategy import Strategy
 
 
 @dataclass(frozen=True)

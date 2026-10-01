@@ -8,7 +8,7 @@ import pytest
 from nautilus_run import RunOutput, round_trip_with_funding, spec
 from nautilus_trader.model import InstrumentId
 
-from sbt2.results import (
+from sbt2.core.results import (
     ParquetResultStore,
     RunIds,
     UnknownBatchError,
@@ -17,7 +17,7 @@ from sbt2.results import (
     compare_parts,
     degradation,
 )
-from sbt2.spec import ResolvedRunSpec
+from sbt2.core.spec import ResolvedRunSpec
 
 
 @pytest.fixture(scope="module")

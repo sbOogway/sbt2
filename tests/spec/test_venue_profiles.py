@@ -4,7 +4,7 @@ import pytest
 from nautilus_trader.execution import MakerTakerFeeModel
 from nautilus_trader.model import OmsType
 
-from sbt2.spec import load
+from sbt2.core.spec import load
 
 REPO = Path(__file__).parents[2]
 SPEC = """

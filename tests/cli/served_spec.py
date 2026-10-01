@@ -4,10 +4,10 @@ from pathlib import Path
 import pytest
 from served_source import ServedSource
 
-from sbt2 import data
+from sbt2.core import data
 
 SPEC = """
-strategy = "strategies.ma_cross:MovingAverageCross"
+strategy = "sbt2.strategies.ma_cross:MovingAverageCross"
 instruments = ["BTCUSDT-LINEAR.BYBIT"]
 period = [2024-01-01T02:00:00, 2024-01-05]
 split = { validation_start = 2024-01-03, test_start = 2024-01-04 }

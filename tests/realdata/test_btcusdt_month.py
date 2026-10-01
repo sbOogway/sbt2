@@ -18,9 +18,9 @@ from nautilus_trader.model import (
 )
 from typer.testing import CliRunner
 
-from sbt2.cli import app
-from sbt2.data import Catalog, Window
-from sbt2.results import ParquetResultStore
+from sbt2.core.cli import app
+from sbt2.core.data import Catalog, Window
+from sbt2.core.results import ParquetResultStore
 
 HERE = Path(__file__).parent
 REPO = HERE.parents[1]

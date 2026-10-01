@@ -8,17 +8,17 @@ from served_source import INSTRUMENT_ID, ServedSource
 from served_spec import DAY, NEXT_DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
 
-from sbt2 import cli
-from sbt2.cli import app
-from sbt2.data.sources import Gap
-from sbt2.results import ParquetResultStore
-from sbt2.run import launcher_for
+from sbt2.core import cli
+from sbt2.core.cli import app
+from sbt2.core.data.sources import Gap
+from sbt2.core.results import ParquetResultStore
+from sbt2.core.run import launcher_for
 
 runner = CliRunner()
 FAILING = """
 from nautilus_trader.model import Bar, BarSpecification
 
-from sbt2.strategy import NoParams, Strategy
+from sbt2.core.strategy import NoParams, Strategy
 
 
 class FailOnBar(Strategy[NoParams]):
@@ -106,7 +106,7 @@ def failing(spec: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.syspath_prepend(spec.parent)
     text = spec.read_text().split("[params]")[0]
     spec.write_text(
-        text.replace("strategies.ma_cross:MovingAverageCross", "failing:FailOnBar")
+        text.replace("sbt2.strategies.ma_cross:MovingAverageCross", "failing:FailOnBar")
     )
     return spec
 

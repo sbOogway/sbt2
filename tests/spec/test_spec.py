@@ -19,8 +19,8 @@ from nautilus_trader.model import (
     OmsType,
 )
 
-import sbt2.spec
-from sbt2.spec import (
+import sbt2.core.spec
+from sbt2.core.spec import (
     CandleBarError,
     DateSplit,
     DrawdownLimitError,
@@ -40,7 +40,7 @@ from sbt2.spec import (
     UnknownVenueProfileError,
     load,
 )
-from sbt2.strategy import UnknownParameterError
+from sbt2.core.strategy import UnknownParameterError
 
 BTC = "BTCUSDT-LINEAR.BYBIT"
 ETH = "ETHUSDT-LINEAR.BYBIT"
@@ -852,7 +852,7 @@ def test_a_spec_is_rebuilt_whatever_its_venue_and_bars(
 def test_every_spec_error_is_a_spec_error() -> None:
     errors = [
         each
-        for each in vars(sbt2.spec).values()
+        for each in vars(sbt2.core.spec).values()
         if isinstance(each, type) and issubclass(each, Exception)
     ]
 

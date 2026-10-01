@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from sbt2.spec import DateSplit, FractionSplit, SplitDateError, SplitFractionError
+from sbt2.core.spec import DateSplit, FractionSplit, SplitDateError, SplitFractionError
 
 
 def day(month: int, day: int, hour: int = 0) -> datetime:

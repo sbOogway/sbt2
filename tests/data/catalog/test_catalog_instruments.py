@@ -5,7 +5,7 @@ from local_catalog import DAY, LocalCatalog
 from local_source import INSTRUMENT_ID, perpetual
 from nautilus_trader.model import CryptoPerpetual, InstrumentId, TradeTick
 
-from sbt2.data import Catalog
+from sbt2.core.data import Catalog
 
 
 @pytest.mark.unit

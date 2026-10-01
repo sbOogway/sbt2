@@ -8,8 +8,8 @@ import pandas as pd
 import pytest
 from nautilus_trader.model import Bar, FundingRateUpdate, MarkPriceUpdate, TradeTick
 
-from sbt2.data import DayRange, DownloadOptions, DownloadRequest, Outcome, download
-from sbt2.data.sources import Source, source
+from sbt2.core.data import DayRange, DownloadOptions, DownloadRequest, Outcome, download
+from sbt2.core.data.sources import Source, source
 
 REPO_CONFIG = Path(__file__).parents[2] / "config" / "sources.toml"
 DAY = date(2025, 1, 1)

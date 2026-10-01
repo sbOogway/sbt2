@@ -20,7 +20,7 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.persistence import ParquetDataCatalog
 
-from sbt2.data import (
+from sbt2.core.data import (
     DayRange,
     DayResult,
     IngestOptions,
@@ -30,7 +30,7 @@ from sbt2.data import (
     Tally,
     ingest,
 )
-from sbt2.data.sources import Gap, UnsupportedDataTypeError
+from sbt2.core.data.sources import Gap, UnsupportedDataTypeError
 
 DAY = date(2024, 1, 1)
 NEXT_DAY = DAY + timedelta(days=1)

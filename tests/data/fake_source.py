@@ -10,7 +10,7 @@ from typing import Any
 from file_server import FileServer
 from nautilus_trader.model import FundingRateUpdate, InstrumentId, TradeTick
 
-from sbt2.data.sources import Gap, MissingAtSourceError, RawFile, Source
+from sbt2.core.data.sources import Gap, MissingAtSourceError, RawFile, Source
 
 
 class FakeApi:

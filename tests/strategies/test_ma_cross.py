@@ -3,9 +3,9 @@ from datetime import timedelta
 import pytest
 from nautilus_trader.model import BarSpecification
 
-from sbt2.strategy import import_strategy, resolve_params
+from sbt2.core.strategy import import_strategy, resolve_params
 
-PATH = "strategies.ma_cross:MovingAverageCross"
+PATH = "sbt2.strategies.ma_cross:MovingAverageCross"
 
 
 @pytest.mark.unit

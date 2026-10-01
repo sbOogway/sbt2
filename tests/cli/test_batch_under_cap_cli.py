@@ -11,14 +11,14 @@ from served_source import ServedSource
 from served_spec import DAY, NEXT_DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
 
-from sbt2 import cli
-from sbt2.cli import app
-from sbt2.results import ParquetResultStore
-from sbt2.run import SystemdScope
+from sbt2.core import cli
+from sbt2.core.cli import app
+from sbt2.core.results import ParquetResultStore
+from sbt2.core.run import SystemdScope
 
 runner = CliRunner()
 GiB = 2**30
-MA_CROSS = "strategies.ma_cross:MovingAverageCross"
+MA_CROSS = "sbt2.strategies.ma_cross:MovingAverageCross"
 CAPPED = ["--memory-budget", "2G", "--memory-per-run", "1G"]
 PAIRS = {(1, 3), (1, 4), (2, 3), (2, 4)}
 HOG = """
@@ -27,7 +27,7 @@ from dataclasses import dataclass
 
 from nautilus_trader.model import Bar, BarSpecification
 
-from sbt2.strategy import Strategy
+from sbt2.core.strategy import Strategy
 
 
 @dataclass(frozen=True)

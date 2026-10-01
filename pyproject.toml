@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-sbt2 = "sbt2.cli:app"
+sbt2 = "sbt2.core.cli:app"
 
 [build-system]
 requires = ["hatchling>=1.27", "uv-dynamic-versioning>=0.8"]
@@ -26,7 +26,7 @@ build-backend = "hatchling.build"
 source = "uv-dynamic-versioning"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/sbt2", "src/strategies"]
+packages = ["src/sbt2"]
 
 [tool.hatch.build.targets.sdist]
 include = ["/src"]
@@ -69,7 +69,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 # Typer reads each command option from a parameter of its own
-"src/sbt2/cli.py" = ["FBT001", "FBT002", "PLR0913", "PLR0917"]
+"src/sbt2/core/cli.py" = ["FBT001", "FBT002", "PLR0913", "PLR0917"]
 # pytest hands fixtures in as arguments
 "**/test_*.py" = ["PLR0913", "PLR0917"]
 "**/conftest.py" = ["PLR0913", "PLR0917"]
@@ -84,55 +84,55 @@ max-args = 3
 max-positional-args = 3
 
 [tool.importlinter]
-root_package = "sbt2"
+root_packages = ["sbt2.core", "sbt2.strategies"]
 exclude_type_checking_imports = true
 
 [[tool.importlinter.contracts]]
 name = "Higher packages may import lower ones, never the reverse"
 type = "layers"
 layers = [
-    "sbt2.cli",
-    "sbt2.run",
-    "sbt2.results",
-    "sbt2.spec",
-    "sbt2.data | sbt2.strategy | sbt2.assets | sbt2.config",
+    "sbt2.core.cli",
+    "sbt2.core.run",
+    "sbt2.core.results",
+    "sbt2.core.spec",
+    "sbt2.core.data | sbt2.core.strategy | sbt2.core.assets | sbt2.core.config",
 ]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.assets imports its own internals"
+name = "Only sbt2.core.assets imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.assets.*"]
-allowed_importers = ["sbt2.assets"]
+protected_modules = ["sbt2.core.assets.*"]
+allowed_importers = ["sbt2.core.assets"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.data imports its own internals"
+name = "Only sbt2.core.data imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.data.*"]
-allowed_importers = ["sbt2.data"]
+protected_modules = ["sbt2.core.data.*"]
+allowed_importers = ["sbt2.core.data"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.results imports its own internals"
+name = "Only sbt2.core.results imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.results.*"]
-allowed_importers = ["sbt2.results"]
+protected_modules = ["sbt2.core.results.*"]
+allowed_importers = ["sbt2.core.results"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.run imports its own internals"
+name = "Only sbt2.core.run imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.run.*"]
-allowed_importers = ["sbt2.run"]
+protected_modules = ["sbt2.core.run.*"]
+allowed_importers = ["sbt2.core.run"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.spec imports its own internals"
+name = "Only sbt2.core.spec imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.spec.*"]
-allowed_importers = ["sbt2.spec"]
+protected_modules = ["sbt2.core.spec.*"]
+allowed_importers = ["sbt2.core.spec"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.strategy imports its own internals"
+name = "Only sbt2.core.strategy imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.strategy.*"]
-allowed_importers = ["sbt2.strategy"]
+protected_modules = ["sbt2.core.strategy.*"]
+allowed_importers = ["sbt2.core.strategy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -150,7 +150,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["sbt2", "strategies"]
+source_pkgs = ["sbt2.core", "sbt2.strategies"]
 branch = true
 patch = ["subprocess"]
 

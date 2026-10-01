@@ -1,6 +1,6 @@
 import pytest
 
-from sbt2.run import SystemdScope, UnsupportedPlatformError, launcher_for
+from sbt2.core.run import SystemdScope, UnsupportedPlatformError, launcher_for
 
 
 @pytest.mark.unit
