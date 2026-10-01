@@ -10,6 +10,7 @@ _MANAGER = DBusAddress(
     "/org/freedesktop/systemd1", bus_name=_SYSTEMD, interface=f"{_SYSTEMD}.Manager"
 )
 _START_SECONDS = 30
+_PROCESS_GONE = "org.freedesktop.DBus.Error.UnixProcessIdUnknown"
 
 
 class NoUserSessionError(RuntimeError):
@@ -30,7 +31,15 @@ class SystemdScope:
                 ) from None
 
     def cap(self, run_id: str, pid: int, memory_max: int) -> None:
-        """Return once the process ``pid`` is in the scope of ``run_id``."""
+        """Return once the process ``pid`` is in the scope of ``run_id``, or at
+        once if it has already exited, for the batch to reap it by its exit code."""
+        try:
+            self._start_scope(run_id, pid, memory_max)
+        except DBusErrorResponse as error:
+            if error.name != _PROCESS_GONE:
+                raise
+
+    def _start_scope(self, run_id: str, pid: int, memory_max: int) -> None:
         scope = _scope(run_id)
         properties = [
             ("PIDs", ("au", [pid])),
