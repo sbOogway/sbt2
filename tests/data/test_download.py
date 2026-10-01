@@ -1,3 +1,4 @@
+import logging
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -230,6 +231,29 @@ def test_source_errors_are_retried(
 
     assert outcomes(tally)[("FundingRateUpdate", DAY)] is Outcome.FETCHED
     assert api.calls[funding_key("BTCUSDT", DAY)] == 2
+
+
+@pytest.mark.unit
+def test_every_failed_attempt_is_logged_with_its_traceback(
+    tmp_path: Path, files: FileServer, api: FakeApi, caplog: pytest.LogCaptureFixture
+) -> None:
+    serve_day(files, api)
+    api.fail(funding_key("BTCUSDT", DAY), *[RuntimeError("rate limited")] * 2)
+    caplog.set_level(logging.DEBUG, logger="sbt2")
+
+    download(
+        FakeSource(files, api),
+        request(),
+        DownloadOptions(tmp_path, retries=1, backoff=0.0),
+    )
+
+    failures = [
+        (each.getMessage(), str(each.exc_info[1]))
+        for each in caplog.records
+        if each.exc_info
+    ]
+    message = f"fetching fake/{funding_key('BTCUSDT', DAY)} failed"
+    assert failures == [(message, "rate limited")] * 2
 
 
 @pytest.mark.unit
