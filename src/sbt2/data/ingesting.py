@@ -113,9 +113,7 @@ def ingest(
 
 
 def _planned_days(source: Source, days: DayRange) -> int:
-    """Every day of the range, known gaps included."""
-    types = source.served(days.data)
-    return len(days.symbols) * len(types) * ((days.end - days.start).days + 1)
+    return sum(1 for _ in days.plan(source))
 
 
 def _ingest_symbol(job: _Job, symbol: str) -> Iterator[DayResult]:
