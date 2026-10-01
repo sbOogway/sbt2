@@ -12,6 +12,7 @@ supported-markers = [
 members = [
     "sbt2",
     "sbt2-core",
+    "sbt2-papers",
     "sbt2-strategies",
 ]
 
@@ -466,19 +467,31 @@ dependencies = [
     { name = "sbt2-strategies", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 
+[package.optional-dependencies]
+all = [
+    { name = "sbt2-papers", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+]
+papers = [
+    { name = "sbt2-papers", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "import-linter", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pyright", extra = ["nodejs"], marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pytest", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pytest-cov", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "sbt2-papers", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "sbt2-core", editable = "packages/sbt2-core" },
+    { name = "sbt2-papers", marker = "extra == 'all'", editable = "packages/sbt2-papers" },
+    { name = "sbt2-papers", marker = "extra == 'papers'", editable = "packages/sbt2-papers" },
     { name = "sbt2-strategies", editable = "packages/sbt2-strategies" },
 ]
+provides-extras = ["all", "papers"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -486,6 +499,7 @@ dev = [
     { name = "pyright", extras = ["nodejs"], specifier = ">=1.1.414" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "sbt2-papers", editable = "packages/sbt2-papers" },
 ]
 
 [[package]]
@@ -511,6 +525,10 @@ requires-dist = [
     { name = "pyarrow", specifier = ">=25.0.1" },
     { name = "typer", specifier = ">=0.27.2" },
 ]
+
+[[package]]
+name = "sbt2-papers"
+source = { editable = "packages/sbt2-papers" }
 
 [[package]]
 name = "sbt2-strategies"
