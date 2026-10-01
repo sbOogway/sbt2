@@ -211,7 +211,7 @@ def test_runs_show_gives_each_run_its_params_split_and_spec_hash(
         assert resolved_spec(result.output) == store.spec(run["run_id"])
         shown[fields["part"]].add(pair(json.loads(fields["params"])))
 
-    assert shown == {part: PAIRS for part in PARTS}
+    assert shown == dict.fromkeys(PARTS, PAIRS)
 
 
 @pytest.mark.e2e

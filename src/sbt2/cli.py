@@ -87,7 +87,7 @@ def _failing(action: str, *args: object) -> Iterator[None]:
     try:
         yield
     except Exception:
-        logger.exception(f"{action} failed", *args)
+        logger.exception("%s failed", action % args)
         raise typer.Exit(1) from None
 
 
