@@ -294,6 +294,22 @@ def test_progress_hears_of_every_planned_day(raw: Path, catalog_path: Path) -> N
 
 
 @pytest.mark.unit
+def test_progress_plans_only_the_days_it_ingests(raw: Path, catalog_path: Path) -> None:
+    source = LocalSource(frozenset({Gap(INSTRUMENT_ID, TradeTick, NEXT_DAY)}))
+    write_day(raw, TradeTick, DAY, hourly(DAY))
+    recorder = Recorder()
+
+    ingest(
+        source,
+        request(NEXT_DAY, "TradeTick"),
+        IngestOptions(raw, catalog_path, recorder),
+    )
+
+    assert recorder.days == 1
+    assert len(recorder.results) == 1
+
+
+@pytest.mark.unit
 def test_an_unserved_data_type_is_refused(raw: Path, catalog_path: Path) -> None:
     with pytest.raises(UnsupportedDataTypeError, match="OrderBookDelta"):
         run(raw, catalog_path, request(DAY, "OrderBookDelta"))
