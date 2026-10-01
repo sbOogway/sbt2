@@ -39,7 +39,7 @@ repos:
     hooks:
       - id: pyright
         name: pyright
-        entry: uv run --locked pyright
+        entry: uv run --locked pyright --warnings
         language: system
         types: [python]
         pass_filenames: false
