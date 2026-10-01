@@ -16,7 +16,7 @@ from nautilus_trader.analysis import (
 )
 
 from sbt2.results.benchmarks import Benchmark
-from sbt2.results.costs import CostsAndExposure, PricedRun, costs_and_exposure
+from sbt2.results.costs import CostsAndExposure, costs_and_exposure
 from sbt2.results.metrics import (
     FullMetrics,
     Segment,
@@ -26,6 +26,7 @@ from sbt2.results.metrics import (
     full_metrics,
 )
 from sbt2.results.panels import cost_waterfall, instrument_breakdown, rolling_sharpe
+from sbt2.results.pricing import PricedRun
 
 type Statistics = dict[str, float | None]
 
@@ -62,7 +63,7 @@ class _Sheet:
 
     @cached_property
     def metrics(self) -> FullMetrics:
-        return full_metrics(self.run.tables, self.segment)
+        return full_metrics(self.run.tables, self.segment, self.run.equity)
 
     @cached_property
     def costs(self) -> CostsAndExposure:
@@ -70,15 +71,13 @@ class _Sheet:
 
     @cached_property
     def returns(self) -> pd.Series:
-        return daily_returns(self.run.tables, self.segment)
+        return daily_returns(self.run.equity)
 
     @cached_property
     def benchmark_returns(self) -> pd.Series | None:
         if self.benchmark is None:
             return None
-        run = self.run
-        grid = self.benchmark.returns(run.spec, run.catalog, run.known_gaps)
-        return compounded_daily(grid)
+        return compounded_daily(self.benchmark.returns(self.run))
 
     @property
     def benchmark_name(self) -> str:

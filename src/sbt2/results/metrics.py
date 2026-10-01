@@ -127,14 +127,19 @@ def headline_metrics(run: RunTables, segment: Segment) -> HeadlineMetrics:
     )
 
 
-def full_metrics(run: RunTables, segment: Segment) -> FullMetrics:
+def full_metrics(
+    run: RunTables, segment: Segment, curve: pd.Series | None = None
+) -> FullMetrics:
     """Nautilus's full statistic set over the segment, annualized by its calendar.
 
     Return statistics come from mark-to-market equity on the segment's grid,
-    trade statistics from the closed positions and position snapshots.
+    ``curve`` when it is already built, trade statistics from the closed
+    positions and position snapshots.
     """
+    if curve is None:
+        curve = equity_curve(run.equity, run.currency, segment)
     trades = closed_trades(run.positions, run.currency)
-    returns = _returns(equity_curve(run.equity, run.currency, segment))
+    returns = _returns(curve)
     return FullMetrics(
         pnls=_trade_statistics(trades, run.currency),
         returns=_return_statistics(returns, segment.days_per_year),
@@ -176,10 +181,9 @@ def benchmark_statistics(
     return _finite_values(statistics)
 
 
-def daily_returns(run: RunTables, segment: Segment) -> pd.Series:
-    """The returns of the run's equity on the segment's grid, compounded to
-    one per UTC day."""
-    return compounded_daily(_returns(equity_curve(run.equity, run.currency, segment)))
+def daily_returns(curve: pd.Series) -> pd.Series:
+    """The returns of an equity curve, compounded to one per UTC day."""
+    return compounded_daily(_returns(curve))
 
 
 def _relative_analyzer(days_per_year: int) -> PortfolioAnalyzer:

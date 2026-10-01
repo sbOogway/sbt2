@@ -1,12 +1,12 @@
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cached_property
 
 import pandas as pd
 from nautilus_trader.model import InstrumentId
 
 from sbt2.data import Catalog, Gap, Selection, Window
-from sbt2.results.metrics import Segment
+from sbt2.results.metrics import RunTables, Segment, equity_curve
 from sbt2.spec import ResolvedRunSpec
 
 
@@ -16,11 +16,17 @@ class MissingPricesError(LookupError):
 
 @dataclass(frozen=True)
 class Market:
-    """The catalog a run is priced from, with the days the run skipped."""
+    """The catalog a run is priced from, with the days the run skipped.
+
+    Each instrument's prices of a type are read from the catalog once.
+    """
 
     run: ResolvedRunSpec
     catalog: Catalog
     known_gaps: frozenset[Gap]
+    _read: dict[tuple[InstrumentId, type], pd.Series] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
 
     @cached_property
     def grid(self) -> pd.DatetimeIndex:
@@ -35,6 +41,12 @@ class Market:
 
         Grid times before the first price take that first price.
         """
+        key = (instrument, price_type)
+        if key not in self._read:
+            self._read[key] = self._read_prices(instrument, price_type)
+        return self._read[key]
+
+    def _read_prices(self, instrument: InstrumentId, price_type: type) -> pd.Series:
         self._check_coverage(instrument, price_type)
         frame = self.catalog.frame(instrument, price_type, self.window)
         if frame.empty:
@@ -46,6 +58,29 @@ class Market:
         [coverage] = self.catalog.coverage(selection, self.known_gaps)
         if coverage.missing:
             raise _no_prices(instrument, price_type, coverage.missing)
+
+
+@dataclass(frozen=True)
+class PricedRun:
+    """A stored run with the catalog its positions are valued from.
+
+    Prices are carried across ``known_gaps``, the days the run skipped.
+    """
+
+    spec: ResolvedRunSpec
+    tables: RunTables
+    catalog: Catalog
+    known_gaps: frozenset[Gap] = frozenset()
+
+    @cached_property
+    def market(self) -> Market:
+        return Market(self.spec, self.catalog, self.known_gaps)
+
+    @cached_property
+    def equity(self) -> pd.Series:
+        """The run's equity curve on its grid."""
+        tables = self.tables
+        return equity_curve(tables.equity, tables.currency, Segment.of_run(self.spec))
 
 
 def on_grid(prices: pd.Series, grid: pd.DatetimeIndex) -> pd.Series:

@@ -8,29 +8,15 @@ import numpy as np
 import pandas as pd
 from nautilus_trader.model import InstrumentId
 
-from sbt2.data import Catalog, Gap
-from sbt2.results.metrics import RunTables, Segment, equity_curve
+from sbt2.data import Catalog
+from sbt2.results.metrics import Segment
 from sbt2.results.money import total
-from sbt2.results.pricing import Market, MissingPricesError, on_grid
+from sbt2.results.pricing import MissingPricesError, PricedRun, on_grid
 from sbt2.results.trades import closed_trades
-from sbt2.spec import ResolvedRunSpec
 
 
 class InverseInstrumentError(ValueError):
     pass
-
-
-@dataclass(frozen=True)
-class PricedRun:
-    """A stored run with the catalog its positions are valued from.
-
-    Prices are carried across ``known_gaps``, the days the run skipped.
-    """
-
-    spec: ResolvedRunSpec
-    tables: RunTables
-    catalog: Catalog
-    known_gaps: frozenset[Gap] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -107,7 +93,7 @@ class _Book:
     def __init__(self, run: PricedRun) -> None:
         self.run = run
         self.segment = Segment.of_run(run.spec)
-        self.equity = equity_curve(run.tables.equity, run.tables.currency, self.segment)
+        self.equity = run.equity
 
     @property
     def currency(self) -> str:
@@ -138,7 +124,7 @@ class _Book:
     @cached_property
     def unit_values(self) -> pd.DataFrame:
         """Valuation price times contract multiplier: the value of one unit held."""
-        market = Market(self.run.spec, self.run.catalog, self.run.known_gaps)
+        market = self.run.market
         price_type = self.run.spec.asset.valuation_price
         return pd.DataFrame(
             {

@@ -7,9 +7,7 @@ from pathlib import Path
 import pandas as pd
 from nautilus_trader.model import InstrumentId
 
-from sbt2.data import Catalog, Gap
-from sbt2.results.pricing import Market, MissingPricesError, on_grid
-from sbt2.spec import ResolvedRunSpec
+from sbt2.results.pricing import Market, MissingPricesError, PricedRun, on_grid
 
 
 class BenchmarkCoverageError(LookupError):
@@ -27,18 +25,12 @@ class BenchmarkArgumentError(ValueError):
 class Benchmark(ABC):
     """What a run is compared against, as returns on the run's equity grid."""
 
-    def returns(
-        self,
-        run: ResolvedRunSpec,
-        catalog: Catalog,
-        known_gaps: frozenset[Gap] = frozenset(),
-    ) -> pd.Series:
+    def returns(self, run: PricedRun) -> pd.Series:
         """One return per step of the run's grid, indexed by its end.
 
-        Prices are carried across ``known_gaps``, the days the run skipped.
+        Prices are carried across the run's known gaps, the days it skipped.
         """
-        market = Market(run, catalog, known_gaps)
-        return self._value(market).pct_change().iloc[1:]
+        return self._value(run.market).pct_change().iloc[1:]
 
     @abstractmethod
     def _value(self, market: Market) -> pd.Series:

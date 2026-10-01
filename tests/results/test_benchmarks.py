@@ -15,15 +15,25 @@ from sbt2.results import (
     BuyAndHold,
     EqualWeight,
     External,
+    PricedRun,
+    RunTables,
     UnknownBenchmarkError,
     benchmark_statistics,
     build_benchmark,
 )
+from sbt2.spec import ResolvedRunSpec
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 HOUR = timedelta(hours=1)
 MINUTE = timedelta(minutes=1)
 KEPT = 1 - float(TAKER_RATE)
+NO_TABLES = RunTables(pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), "USDT")
+
+
+def priced(
+    run: ResolvedRunSpec, prices: PriceCatalog, gaps: frozenset[Gap] = frozenset()
+) -> PricedRun:
+    return PricedRun(run, NO_TABLES, prices.catalog, gaps)
 
 
 @pytest.fixture
@@ -41,7 +51,7 @@ def test_buy_and_hold_follows_the_valuation_price_after_the_entry_fee(
     prices.add_funding(BTC, {START: Decimal("0.01"), START + HOUR: Decimal("0.01")})
 
     returns = BuyAndHold().returns(
-        run_on([BTC], START, START + 2 * HOUR), prices.catalog
+        priced(run_on([BTC], START, START + 2 * HOUR), prices)
     )
 
     assert list(returns.index) == [START + HOUR, START + 2 * HOUR]
@@ -57,10 +67,10 @@ def test_buy_and_hold_defaults_to_the_run_first_instrument(
     prices.add_marks(ETH, {START: 100.0, START + 30 * MINUTE: 50.0})
     run = run_on([BTC, ETH], START, START + HOUR)
 
-    held = BuyAndHold().returns(run, prices.catalog)
+    held = BuyAndHold().returns(priced(run, prices))
 
-    assert held.equals(BuyAndHold(BTC).returns(run, prices.catalog))
-    assert not held.equals(BuyAndHold(ETH).returns(run, prices.catalog))
+    assert held.equals(BuyAndHold(BTC).returns(priced(run, prices)))
+    assert not held.equals(BuyAndHold(ETH).returns(priced(run, prices)))
 
 
 @pytest.mark.unit
@@ -68,7 +78,7 @@ def test_prices_are_forward_filled_onto_the_run_grid(prices: PriceCatalog) -> No
     prices.add_marks(BTC, {START: 100.0, START + 150 * MINUTE: 120.0})
 
     returns = BuyAndHold().returns(
-        run_on([BTC], START, START + 4 * HOUR), prices.catalog
+        priced(run_on([BTC], START, START + 4 * HOUR), prices)
     )
 
     assert list(returns.index) == [START + k * HOUR for k in range(1, 5)]
@@ -82,7 +92,7 @@ def test_known_gap_days_are_carried_across(prices: PriceCatalog) -> None:
     gap = Gap(BTC, MarkPriceUpdate, (START + timedelta(days=1)).date())
     run = run_on([BTC], START, START + timedelta(days=3))
 
-    returns = BuyAndHold().returns(run, prices.catalog, frozenset({gap}))
+    returns = BuyAndHold().returns(priced(run, prices, frozenset({gap})))
 
     assert len(returns) == 72
     assert (returns[START + 2 * HOUR : last_day] == 0.0).all()
@@ -98,7 +108,7 @@ def test_equal_weight_basket_is_bought_at_the_start_and_held(
     prices.add_marks(ETH, {START: 50.0, later: 100.0})
     run = run_on([BTC, ETH], START, START + 2 * HOUR)
 
-    returns = EqualWeight().returns(run, prices.catalog)
+    returns = EqualWeight().returns(priced(run, prices))
 
     value = (1 + returns).cumprod()
     assert list(value) == pytest.approx([KEPT * 1.5, KEPT * (3 + 2) / 2])
@@ -124,7 +134,7 @@ def test_external_series_is_read_from_prices_in_a_file(
     )
 
     returns = External(path).returns(
-        run_on([BTC], START, START + 2 * HOUR), prices.catalog
+        priced(run_on([BTC], START, START + 2 * HOUR), prices)
     )
 
     assert list(returns.index) == [START + HOUR, START + 2 * HOUR]
@@ -140,7 +150,7 @@ def test_an_external_series_starting_after_the_part_fails(
     with pytest.raises(
         BenchmarkCoverageError, match=r"late\.csv has no price at 2024-01-01 00:00:00"
     ):
-        External(path).returns(run_on([BTC], START, START + 2 * HOUR), prices.catalog)
+        External(path).returns(priced(run_on([BTC], START, START + 2 * HOUR), prices))
 
 
 @pytest.mark.unit
@@ -152,7 +162,7 @@ def test_an_external_series_ending_before_the_part_fails(
     with pytest.raises(
         BenchmarkCoverageError, match=r"early\.csv ends at 2024-01-01 01:00:00"
     ):
-        External(path).returns(run_on([BTC], START, START + 3 * HOUR), prices.catalog)
+        External(path).returns(priced(run_on([BTC], START, START + 3 * HOUR), prices))
 
 
 @pytest.mark.unit
@@ -164,7 +174,7 @@ def test_missing_valuation_prices_fail(prices: PriceCatalog) -> None:
         BenchmarkCoverageError,
         match=re.escape("MarkPriceUpdate for BTCUSDT-LINEAR.BYBIT on 2024-01-02"),
     ):
-        BuyAndHold().returns(run, prices.catalog)
+        BuyAndHold().returns(priced(run, prices))
 
 
 @pytest.mark.unit
