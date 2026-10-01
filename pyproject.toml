@@ -56,7 +56,7 @@ include = ["src", "tests"]
 extend-select = [
     "ARG", "B", "C4", "C90", "DTZ", "ERA", "FBT", "FURB", "G", "LOG", "PERF", "PGH", "PIE",
     "PLR0913", "PLR0915", "PLR0917", "PLR2004", "PT", "PTH", "RET", "RUF", "SIM",
-    "SLF", "T20", "TID", "UP",
+    "S", "SLF", "T20", "TID", "UP",
 ]
 ignore = [
     # nautilus constructors take their flags positionally
@@ -71,8 +71,12 @@ ignore = [
 # pytest hands fixtures in as arguments
 "**/test_*.py" = ["PLR0913", "PLR0917"]
 "**/conftest.py" = ["PLR0913", "PLR0917"]
-# a test spells out its expected values
-"tests/**" = ["PLR2004"]
+# tests spell out their expected values; the security rules guard shipped code
+"tests/**" = ["PLR2004", "S"]
+# the parent process pickles the order it pipes to its own child
+"src/sbt2/run/child.py" = ["S301"]
+# systemd-run and systemctl, with arguments built here
+"src/sbt2/run/systemd.py" = ["S603"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 8

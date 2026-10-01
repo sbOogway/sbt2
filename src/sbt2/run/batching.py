@@ -181,7 +181,7 @@ class _Children:
         child = self._launcher.start(order.run_id, command, self._memory.per_run)
         self._running[order.run_id] = (child, order)
         logger.info("started run %s", order.run_id)
-        assert child.stdin is not None
+        assert child.stdin is not None  # noqa: S101
         try:
             send(order, child.stdin)
             child.stdin.close()
