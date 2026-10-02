@@ -22,7 +22,7 @@ from sbt2.core.data import (
     download,
     ingest,
 )
-from sbt2.core.run.preflight.errors import MissingDataError
+from sbt2.core.run.preflighting.errors import MissingDataError
 from sbt2.core.spec import ResolvedRunSpec
 
 logger = logging.getLogger(__name__)

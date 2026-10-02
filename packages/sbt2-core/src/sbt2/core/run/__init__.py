@@ -15,7 +15,7 @@ from sbt2.core.run.launchers import (
     UnknownLauncherError,
     launcher_named,
 )
-from sbt2.core.run.preflight import (
+from sbt2.core.run.preflighting import (
     DataFolders,
     InstrumentAssetClassError,
     LiquidationWithoutQuotesError,

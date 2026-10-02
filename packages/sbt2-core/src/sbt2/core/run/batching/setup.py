@@ -7,7 +7,7 @@ from sbt2.core.results import ResultStore
 from sbt2.core.run.batching.memory import Memory
 from sbt2.core.run.execute import RunSettings
 from sbt2.core.run.launchers import Launcher
-from sbt2.core.run.preflight import DataFolders
+from sbt2.core.run.preflighting import DataFolders
 
 
 class BatchProgress(Protocol):

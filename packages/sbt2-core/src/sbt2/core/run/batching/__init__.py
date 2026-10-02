@@ -9,7 +9,7 @@ from sbt2.core.run.batching.errors import OutOfMemoryError, RunFailedError
 from sbt2.core.run.batching.memory import Memory
 from sbt2.core.run.batching.setup import BatchProgress, BatchSetup
 from sbt2.core.run.child import Order
-from sbt2.core.run.preflight import preflight
+from sbt2.core.run.preflighting import preflight
 from sbt2.core.spec import ResolvedRunSpec
 
 
