@@ -5,7 +5,7 @@ import re
 import sys
 from collections.abc import Generator, Hashable, Mapping
 from contextlib import contextmanager
-from dataclasses import fields, replace
+from dataclasses import dataclass, fields, replace
 from datetime import UTC, date, datetime, time, timedelta
 from enum import StrEnum
 from pathlib import Path
@@ -39,6 +39,7 @@ from sbt2.core.results import (
 from sbt2.core.run import (
     BatchSetup,
     DataFolders,
+    Launcher,
     Memory,
     RunSettings,
     batch,
@@ -120,30 +121,46 @@ def run(
         typer.Option(
             parser=_size,
             metavar="SIZE",
-            help="The memory cap of each run, e.g. 4G. Default: 4G.",
+            help="The memory cap of each run, e.g. 4G, enforced only by "
+            "--launcher systemd. Default: 4G.",
         ),
     ] = None,
+    launcher: Annotated[
+        str,
+        typer.Option(
+            help="uncapped leaves each run's memory to the machine or container; "
+            "systemd caps each run in its own systemd scope.",
+        ),
+    ] = "uncapped",
 ) -> None:
     """Run the backtests a spec file describes and store their results."""
     with _failing("run of %s", spec_file):
         root = Root(data.resolve())
         level = LogLevel.from_str(context.obj)
         settings = RunSettings(root.catalog, log_level=level)
-        _run(spec_file, _setup(root, settings, _memory(memory_budget, memory_per_run)))
+        memory = _memory(memory_budget, memory_per_run)
+        launch = _Launch(launcher_named(launcher), memory)
+        _run(spec_file, _setup(root, settings, launch))
 
 
 def _memory(budget: int | None, per_run: int | None) -> Memory:
     return Memory(budget) if per_run is None else Memory(budget, per_run)
 
 
-def _setup(root: Root, settings: RunSettings, memory: Memory) -> BatchSetup:
+@dataclass(frozen=True)
+class _Launch:
+    launcher: Launcher
+    memory: Memory
+
+
+def _setup(root: Root, settings: RunSettings, launch: _Launch) -> BatchSetup:
     return BatchSetup(
         store=ParquetResultStore(root.results),
         sources=lambda name: data.source(name, SOURCES),
         folders=DataFolders(root.raw, root.catalog),
         settings=settings,
-        launcher=launcher_named("systemd"),
-        memory=memory,
+        launcher=launch.launcher,
+        memory=launch.memory,
     )
 
 
