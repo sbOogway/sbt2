@@ -61,7 +61,7 @@ dev = [
 [tool.pyright]
 include = ["packages", "tests"]
 # the core tests share helpers with the root tests
-extraPaths = ["tests"]
+extraPaths = ["tests", "packages/sbt2-core/tests/results"]
 reportDeprecated = "error"
 
 # mypy-protobuf's stubs narrow Message.DESCRIPTOR, which typeshed declares as a union;
@@ -232,6 +232,12 @@ protected_modules = ["sbt2.server.transport.*"]
 allowed_importers = ["sbt2.server.transport"]
 
 [[tool.importlinter.contracts]]
+name = "Only sbt2.server.results imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.server.results.*"]
+allowed_importers = ["sbt2.server.results"]
+
+[[tool.importlinter.contracts]]
 name = "sbt2 never imports the server or its protocol"
 type = "forbidden"
 source_modules = ["sbt2.core", "sbt2.strategies", "sbt2.papers"]
@@ -277,6 +283,7 @@ pythonpath = [
     "packages/sbt2-core/tests/spec",
     "packages/sbt2-core/tests/strategy",
     "packages/sbt2-strategies/tests",
+    "packages/sbt2-server/tests",
 ]
 addopts = [
     "--import-mode=importlib",
