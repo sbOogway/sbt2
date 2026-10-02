@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-VENUE_PROFILES = Path("config/venues.toml")
-
 
 @dataclass(frozen=True)
 class Root:
