@@ -24,12 +24,12 @@ from sbt2.core.results.metrics import (
     daily_returns,
     full_metrics,
 )
-from sbt2.core.results.panels import (
+from sbt2.core.results.pricing import Benchmark, PricedRun
+from sbt2.core.results.report.panels import (
     cost_waterfall,
     instrument_breakdown,
     rolling_sharpe,
 )
-from sbt2.core.results.pricing import Benchmark, PricedRun
 
 type Statistics = dict[str, float | None]
 

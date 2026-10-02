@@ -36,6 +36,7 @@ from sbt2.core.results.pricing import (
     UnknownBenchmarkError,
     build_benchmark,
 )
+from sbt2.core.results.report import tearsheet
 from sbt2.core.results.store import (
     IncompleteRunError,
     MissingTableError,
@@ -51,7 +52,6 @@ from sbt2.core.results.store import (
     UnknownStoreError,
     open_store,
 )
-from sbt2.core.results.tearsheet import tearsheet
 
 __all__ = [
     "Activity",
