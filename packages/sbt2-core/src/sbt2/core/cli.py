@@ -123,7 +123,7 @@ def run(
             show_envvar=True,
             help="The config folder; reads PATH/venues.toml.",
         ),
-    ] = Path("config"),
+    ],
     memory_budget: Annotated[
         int | None,
         typer.Option(

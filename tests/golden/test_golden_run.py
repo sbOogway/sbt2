@@ -5,13 +5,13 @@ from typing import Any
 import pandas as pd
 import pytest
 from golden_catalog import build_catalog
-from typer.testing import CliRunner
+from typer.testing import CliRunner, Result
 
 from sbt2.core.cli import app
 from sbt2.core.results import ParquetResultStore
 
 HERE = Path(__file__).parent
-REPO = HERE.parents[1]
+CONFIG = HERE.parent / "config"
 METRICS = [
     "net_return",
     "annualized_return",
@@ -61,6 +61,12 @@ def _rows(frame: pd.DataFrame, columns: list[str]) -> list[list[str]]:
     ]
 
 
+def run(spec: Path, data: Path) -> Result:
+    return CliRunner().invoke(
+        app, ["run", str(spec), "--data", str(data), "--config", str(CONFIG)]
+    )
+
+
 @pytest.fixture
 def data(tmp_path: Path) -> Path:
     build_catalog(tmp_path / "catalog")
@@ -75,13 +81,11 @@ def data(tmp_path: Path) -> Path:
 def test_the_spec_keeps_producing_its_golden_numbers(
     name: str,
     data: Path,
-    monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
 ) -> None:
-    monkeypatch.chdir(REPO)
     spec, golden = HERE / f"{name}.toml", HERE / f"{name}.json"
 
-    result = CliRunner().invoke(app, ["run", str(spec), "--data", str(data)])
+    result = run(spec, data)
 
     assert result.exit_code == 0, result.output
     numbers = golden_numbers(ParquetResultStore(data / "results"))
@@ -100,13 +104,9 @@ def test_the_spec_keeps_producing_its_golden_numbers(
 @pytest.mark.e2e
 @pytest.mark.parametrize("name", ["bracket_risk", "bracket_risk_candles"])
 def test_the_bracket_golden_run_exercises_brackets_and_the_guard(
-    name: str, data: Path, monkeypatch: pytest.MonkeyPatch
+    name: str, data: Path
 ) -> None:
-    monkeypatch.chdir(REPO)
-
-    result = CliRunner().invoke(
-        app, ["run", str(HERE / f"{name}.toml"), "--data", str(data)]
-    )
+    result = run(HERE / f"{name}.toml", data)
 
     assert result.exit_code == 0, result.output
     store = ParquetResultStore(data / "results")

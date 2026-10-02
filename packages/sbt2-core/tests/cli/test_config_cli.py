@@ -93,3 +93,19 @@ def test_run_with_a_config_folder_without_venues_fails_naming_it(
     assert result.exit_code == 1, result.output
     assert str(empty / "venues.toml") in log.read_text()
     assert not (tmp_path / "data" / "results").exists()
+
+
+@pytest.mark.e2e
+def test_run_fails_without_a_config_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    spec = run_spec(tmp_path, monkeypatch)
+    config_folder(tmp_path / "config", TAKER_RATE)
+    monkeypatch.delenv("SBT2_CONFIG", raising=False)
+
+    result = runner.invoke(app, ["run", str(spec)])
+
+    assert result.exit_code == 2, result.output
+    assert "--config" in result.output
+    assert "SBT2_CONFIG" in result.output
+    assert not (tmp_path / "data" / "results").exists()
