@@ -40,6 +40,11 @@ class Connection(Outbox):
             self._closing = True
             self._spawn(self._channel.close(TRY_AGAIN_LATER))
 
+    async def send(self, message: ServerMessage) -> None:
+        if self._closing:
+            raise asyncio.CancelledError
+        await self._outgoing.put(message)
+
     async def serve(self) -> None:
         """Handle the connection until it closes."""
         writer = asyncio.create_task(self._write())
@@ -47,9 +52,12 @@ class Connection(Outbox):
             async for frame in self._channel.frames():
                 self._receive(frame)
         finally:
-            writer.cancel()
-            for task in self._tasks:
+            self._closing = True
+            tasks = [writer, *self._tasks]
+            for task in tasks:
                 task.cancel()
+            self._outgoing.shutdown(immediate=True)
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     def _receive(self, frame: bytes | str) -> None:
         request = _decoded(frame)
@@ -66,7 +74,7 @@ class Connection(Outbox):
         self._spawn(self._answer(request))
 
     async def _answer(self, request: ClientMessage) -> None:
-        self.push(await self._router.answer(request, self))
+        await self.send(await self._router.answer(request, self))
 
     async def _write(self) -> None:
         while True:

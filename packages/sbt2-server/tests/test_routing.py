@@ -14,6 +14,9 @@ class KeptOutbox(Outbox):
     def push(self, message: ServerMessage) -> None:
         self.pushed.append(message)
 
+    async def send(self, message: ServerMessage) -> None:
+        self.pushed.append(message)
+
 
 def hello(request_id: int) -> ClientMessage:
     return ClientMessage(request_id=request_id, hello=Hello(client_version="test"))
