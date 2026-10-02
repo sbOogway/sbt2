@@ -45,6 +45,13 @@ with Path(__file__).with_name("imports.txt").open("a") as imports:
 class Fresh(BuyThenSell):
     pass
 """
+HERE = """
+from run_strategies import BuyThenSell
+
+
+class Here(BuyThenSell):
+    pass
+"""
 
 
 def fresh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, version: str) -> str:
@@ -61,6 +68,13 @@ def imported(tmp_path: Path) -> dict[int, str]:
     return {
         int(pid): version for pid, version in (each.split(maxsplit=1) for each in lines)
     }
+
+
+def here(folder: Path) -> str:
+    """The import path of a strategy whose module lives in ``folder``."""
+    folder.mkdir()
+    (folder / "here.py").write_text(HERE)
+    return "here:Here"
 
 
 class RecordedProgress:
@@ -201,6 +215,24 @@ def test_each_run_imports_its_strategy_afresh(
     assert len(set(first.pids)) == 2
     assert [versions[each] for each in first.pids] == ["first", "first"]
     assert [versions[each] for each in second.pids] == ["the edited one"]
+
+
+@pytest.mark.integration
+def test_a_child_runs_in_the_batch_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "b").mkdir()
+    monkeypatch.chdir(tmp_path / "b")
+    batch([resolved(tmp_path)], setup(tmp_path, PlainLauncher()))
+    strategy = here(tmp_path / "a")
+    monkeypatch.chdir(tmp_path / "a")
+    monkeypatch.syspath_prepend("")
+
+    [run_id] = batch(
+        [resolved(tmp_path, strategy=strategy)], setup(tmp_path, PlainLauncher())
+    )
+
+    assert run_id in summaries(tmp_path)
 
 
 @pytest.mark.integration
