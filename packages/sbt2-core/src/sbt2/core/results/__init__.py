@@ -24,6 +24,7 @@ from sbt2.core.results.costs import (
     costs_and_exposure,
 )
 from sbt2.core.results.metrics import (
+    CurrencyMismatchError,
     FullMetrics,
     HeadlineMetrics,
     RunTables,
@@ -33,7 +34,6 @@ from sbt2.core.results.metrics import (
     full_metrics,
     headline_metrics,
 )
-from sbt2.core.results.money import CurrencyMismatchError
 from sbt2.core.results.parquet import ParquetResultStore
 from sbt2.core.results.pricing import MissingPricesError, PricedRun
 from sbt2.core.results.registry import UnknownStoreError, open_store

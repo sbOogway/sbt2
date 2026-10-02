@@ -1,6 +1,6 @@
 import pandas as pd
 
-from sbt2.core.results.money import amounts
+from sbt2.core.results.metrics.money import amounts
 
 
 def closed_trades(positions: pd.DataFrame, currency: str) -> pd.DataFrame:

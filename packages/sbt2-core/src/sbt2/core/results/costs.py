@@ -9,10 +9,8 @@ import pandas as pd
 from nautilus_trader.model import InstrumentId
 
 from sbt2.core.data import Catalog
-from sbt2.core.results.metrics import Segment
-from sbt2.core.results.money import total
+from sbt2.core.results.metrics import Segment, closed_trades, total
 from sbt2.core.results.pricing import MissingPricesError, PricedRun, on_grid
-from sbt2.core.results.trades import closed_trades
 
 
 class InverseInstrumentError(ValueError):
