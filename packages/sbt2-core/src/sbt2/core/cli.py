@@ -27,7 +27,7 @@ from rich.progress import (
 )
 
 from sbt2.core import data, results, spec
-from sbt2.core.config import ROOT, Root
+from sbt2.core.config import Root
 from sbt2.core.results import (
     Benchmark,
     MissingTableError,
@@ -64,7 +64,9 @@ logger = logging.getLogger("sbt2")
 
 
 def _data_option(help_text: str) -> Any:
-    return typer.Option("--data", envvar=DATA_ROOT_ENV, help=help_text)
+    return typer.Option(
+        "--data", envvar=DATA_ROOT_ENV, show_envvar=True, help=help_text
+    )
 
 
 class Level(StrEnum):
@@ -112,7 +114,7 @@ def run(
     spec_file: Annotated[Path, typer.Argument(help="The run spec, a TOML file.")],
     data: Annotated[
         Path, _data_option("Holds raw/, catalog/, results/ and known_gaps.toml.")
-    ] = ROOT,
+    ],
     memory_budget: Annotated[
         int | None,
         typer.Option(
@@ -201,6 +203,9 @@ def download(
     end: Annotated[
         datetime, typer.Option(formats=DAY, help="The last UTC day, included.")
     ],
+    data_root: Annotated[
+        Path, _data_option("Reads PATH/known_gaps.toml, writes PATH/raw.")
+    ],
     data_type: Annotated[
         list[str] | None,
         typer.Option(
@@ -209,9 +214,6 @@ def download(
             "Default: all of them.",
         ),
     ] = None,
-    data_root: Annotated[
-        Path, _data_option("Reads PATH/known_gaps.toml, writes PATH/raw.")
-    ] = ROOT,
     concurrency: Annotated[int, typer.Option(min=1)] = 8,
     retries: Annotated[int, typer.Option(min=0, help="Per file.")] = 5,
 ) -> None:
@@ -257,6 +259,10 @@ def ingest(
     end: Annotated[
         datetime, typer.Option(formats=DAY, help="The last UTC day, included.")
     ],
+    data_root: Annotated[
+        Path,
+        _data_option("Reads PATH/raw and PATH/known_gaps.toml, writes PATH/catalog."),
+    ],
     data_type: Annotated[
         list[str] | None,
         typer.Option(
@@ -265,10 +271,6 @@ def ingest(
             "Default: all of them.",
         ),
     ] = None,
-    data_root: Annotated[
-        Path,
-        _data_option("Reads PATH/raw and PATH/known_gaps.toml, writes PATH/catalog."),
-    ] = ROOT,
     reingest: Annotated[
         bool,
         typer.Option(
@@ -310,7 +312,7 @@ def _log_ingest_summary(tally: data.Tally[data.DayResult]) -> None:
 def status(
     data_root: Annotated[
         Path, _data_option("Reads PATH/catalog and PATH/known_gaps.toml.")
-    ] = ROOT,
+    ],
     start: Annotated[
         datetime | None,
         typer.Option(formats=DAY, help="Check every day from this UTC day."),
@@ -409,7 +411,7 @@ _RUNS_HEADER = (
 
 @runs_app.command("list")
 def list_runs(
-    data_root: Annotated[Path, _data_option("Reads PATH/results.")] = ROOT,
+    data_root: Annotated[Path, _data_option("Reads PATH/results.")],
     strategy: Annotated[
         str | None, typer.Option(help="Only this strategy's import path.")
     ] = None,
@@ -453,7 +455,7 @@ def _cell(value: object) -> str:
 @runs_app.command()
 def show(
     run_id: Annotated[str, typer.Argument(help="The run's id.")],
-    data_root: Annotated[Path, _data_option("Reads PATH/results.")] = ROOT,
+    data_root: Annotated[Path, _data_option("Reads PATH/results.")],
 ) -> None:
     """Show a run's summary and its resolved spec."""
     with _failing("showing run %s", run_id):
@@ -464,7 +466,7 @@ def show(
 @runs_app.command()
 def delete(
     run_id: Annotated[str, typer.Argument(help="The run's id.")],
-    data_root: Annotated[Path, _data_option("Deletes from PATH/results.")] = ROOT,
+    data_root: Annotated[Path, _data_option("Deletes from PATH/results.")],
     yes: Annotated[bool, typer.Option("--yes", help="Don't ask first.")] = False,
 ) -> None:
     """Delete a run's folder, a failed run's partial one included."""
@@ -513,9 +515,7 @@ def _missing(value: object) -> bool:
 @report_app.command("tearsheet")
 def report_tearsheet(
     run_id: Annotated[str, typer.Argument(help="The run's id.")],
-    data_root: Annotated[
-        Path, _data_option("Reads PATH/results and PATH/catalog.")
-    ] = ROOT,
+    data_root: Annotated[Path, _data_option("Reads PATH/results and PATH/catalog.")],
     benchmark: Annotated[
         str | None,
         typer.Option(
@@ -546,7 +546,7 @@ _PARTS_HEADER = ("part", "run_id", "start", "end", *_HEADLINE)
 @report_app.command("parts")
 def report_parts(
     run_id: Annotated[str, typer.Argument(help="The run's id.")],
-    data_root: Annotated[Path, _data_option("Reads PATH/results.")] = ROOT,
+    data_root: Annotated[Path, _data_option("Reads PATH/results.")],
 ) -> None:
     """Show each part a run's parameters were run on, then how the headline
     metrics change from one part to the next."""
@@ -569,7 +569,7 @@ def _change_table(change: pd.DataFrame) -> str:
 @report_app.command("batch")
 def report_batch(
     batch_id: Annotated[str, typer.Argument(help="The batch's id.")],
-    data_root: Annotated[Path, _data_option("Reads PATH/results.")] = ROOT,
+    data_root: Annotated[Path, _data_option("Reads PATH/results.")],
 ) -> None:
     """Show one row per run of a batch: the parameters that vary across it,
     then the headline metrics."""

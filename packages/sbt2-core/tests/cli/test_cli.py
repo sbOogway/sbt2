@@ -55,7 +55,9 @@ def test_a_missing_spec_fails_the_run_and_logs_why(tmp_path: Path) -> None:
     log = tmp_path / "sbt2.log"
 
     result = runner.invoke(
-        app, ["--log-file", str(log), "run", str(tmp_path / "missing.toml")]
+        app,
+        ["--log-file", str(log), "run", str(tmp_path / "missing.toml")]
+        + ["--data", str(tmp_path)],
     )
 
     assert result.exit_code == 1
@@ -248,7 +250,9 @@ def test_without_memory_options_each_run_is_capped_at_4g(
 @pytest.mark.e2e
 def test_an_unreadable_memory_size_is_refused(tmp_path: Path) -> None:
     result = runner.invoke(
-        app, ["run", str(tmp_path / "spec.toml"), "--memory-per-run", "lots"]
+        app,
+        ["run", str(tmp_path / "spec.toml"), "--memory-per-run", "lots"]
+        + ["--data", str(tmp_path)],
     )
 
     assert result.exit_code == 2

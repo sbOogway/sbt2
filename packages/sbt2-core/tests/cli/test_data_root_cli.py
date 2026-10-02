@@ -48,3 +48,44 @@ def test_the_data_option_wins_over_sbt2_data(
     assert result.exit_code == 0, result.output
     assert len(run_ids(b)) == 1
     assert not a.exists()
+
+
+DAYS = ["--start", "2025-01-01", "--end", "2025-01-01"]
+SOURCED = ["--source", "bybit", "--symbol", "BTCUSDT", *DAYS]
+
+
+def tree(folder: Path) -> list[Path]:
+    return sorted(folder.rglob("*"))
+
+
+@pytest.mark.e2e
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["run", "spec.toml"],
+        ["download", *SOURCED],
+        ["ingest", *SOURCED],
+        ["data", "status"],
+        ["runs", "list"],
+        ["runs", "show", "a-run"],
+        ["runs", "delete", "a-run", "--yes"],
+        ["report", "tearsheet", "a-run"],
+        ["report", "parts", "a-run"],
+        ["report", "batch", "a-batch"],
+    ],
+    ids=" ".join,
+)
+def test_every_data_command_fails_without_a_data_root(
+    command: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("SBT2_DATA", raising=False)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "data").mkdir()
+    before = tree(tmp_path)
+
+    result = runner.invoke(app, command)
+
+    assert result.exit_code == 2, result.output
+    assert "--data" in result.output
+    assert "SBT2_DATA" in result.output
+    assert tree(tmp_path) == before

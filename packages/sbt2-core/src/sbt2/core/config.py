@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
 
-ROOT = Path("data")
 VENUE_PROFILES = Path("config/venues.toml")
 
 
@@ -9,7 +8,7 @@ VENUE_PROFILES = Path("config/venues.toml")
 class Root:
     """The folder holding raw files, the catalog, results and the known gaps."""
 
-    path: Path = ROOT
+    path: Path
 
     @property
     def raw(self) -> Path:
