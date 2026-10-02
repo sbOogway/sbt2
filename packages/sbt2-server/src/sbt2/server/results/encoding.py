@@ -1,8 +1,9 @@
 import math
 from collections.abc import Iterator, Mapping
-from typing import Any
+from typing import Any, BinaryIO
 
 import pandas as pd
+import pyarrow as pa
 from google.protobuf.timestamp_pb2 import Timestamp
 
 from sbt2.core import results as core
@@ -86,3 +87,20 @@ def _statistics(
         if value is not None and math.isfinite(value):
             metric.value = str(value)
         yield metric
+
+
+def equity(curve: pd.Series, currency: str) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "ts_event": curve.index,
+            "currency": currency,
+            "total_equity": curve.to_numpy(),
+        }
+    )
+
+
+def write_arrow(frame: pd.DataFrame, sink: BinaryIO) -> None:
+    """``frame`` as one Arrow IPC stream; a meaningful index is kept with it."""
+    table = pa.Table.from_pandas(frame)
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table)

@@ -9,7 +9,13 @@ from results_kit import ask, stored, summary_record
 from sbt2.core import results as core
 from sbt2.core.config import Root
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage
-from sbt2.protocol.v1.results_pb2 import GetRun, ListRuns, RunFilter, RunIds
+from sbt2.protocol.v1.results_pb2 import (
+    GetRun,
+    GetSeries,
+    ListRuns,
+    RunFilter,
+    RunIds,
+)
 from sbt2.protocol.v1.types_pb2 import ErrorCode
 from sbt2.server.results import routes
 
@@ -104,6 +110,11 @@ def test_result_errors_use_protocol_codes(tmp_path: Path) -> None:
         handlers, ClientMessage(request_id=2, get_run=GetRun(run_id=run.run_id))
     )
     assert reply.error.code == ErrorCode.ERROR_CODE_NOT_FOUND
+    [reply] = ask(
+        handlers,
+        ClientMessage(request_id=3, get_series=GetSeries(run_id=str(uuid.uuid7()))),
+    )
+    assert reply.error.code == ErrorCode.ERROR_CODE_INVALID_ARGUMENT
 
 
 @pytest.mark.unit

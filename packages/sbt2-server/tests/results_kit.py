@@ -4,10 +4,10 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from nautilus_run import round_trip_with_funding, spec
+from nautilus_run import RunOutput, round_trip_with_funding, spec
 
 from sbt2.core.config import Root
-from sbt2.core.results import ParquetResultStore, ResultStore, RunIds
+from sbt2.core.results import ParquetResultStore, Reports, ResultStore, RunIds
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
 from sbt2.server import Handler, Outbox, Router
 
@@ -40,9 +40,19 @@ class StoredResults:
 
 
 def stored(path: Path) -> StoredResults:
+    output = round_trip_with_funding()
+    return _stored(path, output.reports, output)
+
+
+def stored_without_fills(path: Path) -> StoredResults:
+    output = round_trip_with_funding()
+    reports = replace(output.reports, fills=output.reports.fills.iloc[0:0])
+    return _stored(path, reports, output)
+
+
+def _stored(path: Path, reports: Reports, output: RunOutput) -> StoredResults:
     root = Root(path)
     store = ParquetResultStore(root.results)
-    output = round_trip_with_funding()
     run = spec()
     run = replace(
         run,
@@ -53,7 +63,7 @@ def stored(path: Path) -> StoredResults:
     sink = store.new_run(run, ids=RunIds(batch_id="batch-1"))
     sink.write_equity(output.snapshots)
     sink.write_carry(output.carry)
-    sink.write_reports(output.reports)
+    sink.write_reports(reports)
     sink.finalize()
     return StoredResults(root, store, sink.run_id)
 

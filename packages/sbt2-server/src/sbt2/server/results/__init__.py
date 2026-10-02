@@ -1,15 +1,37 @@
+import tempfile
 from collections.abc import Iterator
 from dataclasses import dataclass
 from functools import wraps
+from typing import BinaryIO
+
+import pandas as pd
 
 from sbt2.core import results as core
 from sbt2.core.config import Root
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
-from sbt2.protocol.v1.results_pb2 import Metrics, RunList
+from sbt2.protocol.v1.results_pb2 import (
+    GetSeries,
+    Metrics,
+    RunList,
+    Series,
+    SeriesKind,
+)
 from sbt2.protocol.v1.types_pb2 import Error, ErrorCode
 from sbt2.server import Handler, Outbox, offloaded
-from sbt2.server.results.encoding import metrics, run_filter, summary
-from sbt2.server.results.streaming import TooLargeError, checked, deliver, records
+from sbt2.server.results.encoding import (
+    equity,
+    metrics,
+    run_filter,
+    summary,
+    write_arrow,
+)
+from sbt2.server.results.streaming import (
+    TooLargeError,
+    checked,
+    deliver,
+    pieces,
+    records,
+)
 
 
 def routes(root: Root) -> dict[str, Handler]:
@@ -19,7 +41,12 @@ def routes(root: Root) -> dict[str, Handler]:
         "list_runs": _guard(results.list_runs),
         "get_run": _guard(results.get_run),
         "get_metrics": _guard(results.get_metrics),
+        "get_series": _guard(results.get_series),
     }
+
+
+class _InvalidArgumentError(ValueError):
+    pass
 
 
 @dataclass
@@ -59,6 +86,32 @@ class _Results:
         )
         return records(template, "entries", metrics(measured))
 
+    async def get_series(self, request: ClientMessage, outbox: Outbox) -> ServerMessage:
+        """Equity has the columns ts_event, currency and total_equity; fills are
+        the stored rows, indexed by client_order_id."""
+        with tempfile.TemporaryFile() as staged:
+            await offloaded(self._stage_series)(request.get_series, staged)
+            template = ServerMessage(request_id=request.request_id, series=Series())
+            return await deliver(pieces(template, staged), outbox)
+
+    def _stage_series(self, selected: GetSeries, staged: BinaryIO) -> None:
+        write_arrow(self._series(selected), staged)
+        staged.seek(0)
+
+    def _series(self, selected: GetSeries) -> pd.DataFrame:
+        match selected.kind:
+            case SeriesKind.SERIES_KIND_EQUITY:
+                run = self.store.stored_run(selected.run_id)
+                segment = core.Segment.of_run(run.spec)
+                curve = core.equity_curve(
+                    run.tables.equity, run.tables.currency, segment
+                )
+                return equity(curve, run.tables.currency)
+            case SeriesKind.SERIES_KIND_FILLS:
+                return self.store.load(selected.run_id, "fills")
+            case _:
+                raise _InvalidArgumentError
+
 
 def _guard(handler: Handler) -> Handler:
     @wraps(handler)
@@ -69,6 +122,10 @@ def _guard(handler: Handler) -> Handler:
             return _error(
                 ErrorCode.ERROR_CODE_NOT_FOUND,
                 "The run or required data was not found.",
+            )
+        except _InvalidArgumentError:
+            return _error(
+                ErrorCode.ERROR_CODE_INVALID_ARGUMENT, "The selection is not valid."
             )
         except TooLargeError:
             return _error(
