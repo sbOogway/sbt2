@@ -15,7 +15,6 @@ from nautilus_trader.analysis import (
     create_tearsheet_from_stats,
 )
 
-from sbt2.core.results.benchmarks import Benchmark
 from sbt2.core.results.costs import CostsAndExposure, costs_and_exposure
 from sbt2.core.results.metrics import (
     FullMetrics,
@@ -30,7 +29,7 @@ from sbt2.core.results.panels import (
     instrument_breakdown,
     rolling_sharpe,
 )
-from sbt2.core.results.pricing import PricedRun
+from sbt2.core.results.pricing import Benchmark, PricedRun
 
 type Statistics = dict[str, float | None]
 

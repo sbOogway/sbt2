@@ -1,13 +1,3 @@
-from sbt2.core.results.benchmarks import (
-    Benchmark,
-    BenchmarkArgumentError,
-    BenchmarkCoverageError,
-    BuyAndHold,
-    EqualWeight,
-    External,
-    UnknownBenchmarkError,
-    build_benchmark,
-)
 from sbt2.core.results.comparisons import (
     UnknownBatchError,
     batch_table,
@@ -35,7 +25,18 @@ from sbt2.core.results.metrics import (
     headline_metrics,
 )
 from sbt2.core.results.parquet import ParquetResultStore
-from sbt2.core.results.pricing import MissingPricesError, PricedRun
+from sbt2.core.results.pricing import (
+    Benchmark,
+    BenchmarkArgumentError,
+    BenchmarkCoverageError,
+    BuyAndHold,
+    EqualWeight,
+    External,
+    MissingPricesError,
+    PricedRun,
+    UnknownBenchmarkError,
+    build_benchmark,
+)
 from sbt2.core.results.registry import UnknownStoreError, open_store
 from sbt2.core.results.sink import IncompleteRunError, OutputSink, Reports
 from sbt2.core.results.store import (

@@ -7,7 +7,12 @@ from pathlib import Path
 import pandas as pd
 from nautilus_trader.model import InstrumentId
 
-from sbt2.core.results.pricing import Market, MissingPricesError, PricedRun, on_grid
+from sbt2.core.results.pricing.market import (
+    Market,
+    MissingPricesError,
+    PricedRun,
+    on_grid,
+)
 
 
 class BenchmarkCoverageError(LookupError):
