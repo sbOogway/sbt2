@@ -1,4 +1,5 @@
 import asyncio
+import time
 import urllib.request
 from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
@@ -11,7 +12,7 @@ from websockets.typing import Subprotocol
 
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, Hello, ServerMessage, Welcome
 from sbt2.protocol.v1.types_pb2 import ErrorCode
-from sbt2.server import Address, Server, Settings
+from sbt2.server import Address, Outbox, Server, Settings, offloaded
 
 TOKEN = "s3cret-token"
 SUBPROTOCOL = Subprotocol("sbt2.v1")
@@ -38,8 +39,10 @@ def client(url: str) -> connect:
     return connect(url, subprotocols=[SUBPROTOCOL], additional_headers=AUTHORIZATION)
 
 
-def hello(request_id: int) -> ClientMessage:
-    return ClientMessage(request_id=request_id, hello=Hello(client_version="test"))
+def hello(request_id: int, client_version: str = "test") -> ClientMessage:
+    return ClientMessage(
+        request_id=request_id, hello=Hello(client_version=client_version)
+    )
 
 
 async def ask(connection: ClientConnection, frame: bytes | str) -> ServerMessage:
@@ -140,3 +143,46 @@ def test_health_answers_ok_without_a_token() -> None:
         assert await asyncio.to_thread(get, url) == (200, "OK")
 
     run(scenario)
+
+
+@pytest.mark.e2e
+def test_a_client_that_does_not_read_is_closed_with_1013() -> None:
+    async def flood(_request: ClientMessage, outbox: Outbox) -> ServerMessage:
+        for _ in range(100):
+            outbox.push(ServerMessage(welcome=Welcome()))
+        return ServerMessage(welcome=Welcome())
+
+    async def scenario(url: str) -> None:
+        async with client(url) as connection:
+            await connection.send(hello(1).SerializeToString())
+            await connection.wait_closed()
+
+        assert connection.close_code == 1013
+
+    run(scenario, Server(Settings(TOKEN, queue_size=4), {"hello": flood}))
+
+
+@pytest.mark.e2e
+def test_a_blocking_handler_does_not_hold_up_other_connections() -> None:
+    async def welcome(request: ClientMessage, _outbox: Outbox) -> ServerMessage:
+        if request.hello.client_version == "slow":
+            await offloaded(time.sleep)(1)
+        return ServerMessage(welcome=Welcome())
+
+    async def scenario(url: str) -> None:
+        async with client(url) as slow, client(url) as quick:
+            await slow.send(hello(1, "slow").SerializeToString())
+            started = time.monotonic()
+            await greet(quick)
+            waited = time.monotonic() - started
+            await slow.recv()
+
+        assert waited < 0.5
+
+    run(scenario, Server(Settings(TOKEN), {"hello": welcome}))
+
+
+@pytest.mark.unit
+def test_an_outgoing_queue_of_no_messages_is_refused() -> None:
+    with pytest.raises(ValueError, match="queue_size"):
+        Settings(TOKEN, queue_size=0)

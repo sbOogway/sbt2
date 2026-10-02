@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import Coroutine
 from typing import Any
 
@@ -9,20 +10,35 @@ from sbt2.protocol.v1.types_pb2 import ErrorCode
 from sbt2.server.routing import Outbox, Router, error
 from sbt2.server.transport import Channel
 
+TRY_AGAIN_LATER = 1013
+
+logger = logging.getLogger("sbt2.server")
+
 
 class Connection(Outbox):
     """One client's session: it answers each request in a task of its own and
-    sends every message through a queue."""
+    sends every message through a queue of ``queue_size``, closing the connection
+    with 1013 when the client falls that far behind."""
 
-    def __init__(self, channel: Channel, router: Router) -> None:
+    def __init__(self, channel: Channel, router: Router, queue_size: int) -> None:
         self._channel = channel
         self._router = router
-        self._outgoing: asyncio.Queue[ServerMessage] = asyncio.Queue()
+        self._outgoing: asyncio.Queue[ServerMessage] = asyncio.Queue(queue_size)
         self._tasks: set[asyncio.Task[None]] = set()
         self._greeted = False
+        self._closing = False
 
     def push(self, message: ServerMessage) -> None:
-        self._outgoing.put_nowait(message)
+        if self._closing:
+            return
+        try:
+            self._outgoing.put_nowait(message)
+        except asyncio.QueueFull:
+            logger.warning(
+                "closing a client that fell %d messages behind", self._outgoing.maxsize
+            )
+            self._closing = True
+            self._spawn(self._channel.close(TRY_AGAIN_LATER))
 
     async def serve(self) -> None:
         """Handle the connection until it closes."""

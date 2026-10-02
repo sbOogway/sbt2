@@ -24,10 +24,17 @@ HEALTH = "/health"
 
 @dataclass(frozen=True)
 class Settings:
-    """``token`` is the API token every client must present."""
+    """``token`` is the API token every client must present; ``queue_size`` the
+    messages a connection may fall behind before it is closed."""
 
     token: str
+    queue_size: int = 256
     transport: Transport = field(default_factory=WebsocketsTransport)
+
+    def __post_init__(self) -> None:
+        # asyncio.Queue takes a size of 0 for no bound at all
+        if self.queue_size < 1:
+            raise ValueError(f"queue_size must be at least 1, not {self.queue_size}")
 
 
 class Server:
@@ -58,6 +65,7 @@ class _Endpoint(Endpoint):
 
     def __init__(self, settings: Settings, router: Router) -> None:
         self._token = BearerToken(settings.token)
+        self._queue_size = settings.queue_size
         self._router = router
 
     def respond(self, request: HttpRequest) -> HttpResponse | None:
@@ -68,7 +76,7 @@ class _Endpoint(Endpoint):
         return None
 
     async def connected(self, channel: Channel) -> None:
-        await Connection(channel, self._router).serve()
+        await Connection(channel, self._router, self._queue_size).serve()
 
 
 async def _welcome(_request: ClientMessage, _outbox: Outbox) -> ServerMessage:

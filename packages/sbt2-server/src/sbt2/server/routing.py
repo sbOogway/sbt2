@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Awaitable, Callable, Mapping
@@ -22,6 +23,16 @@ type Handler = Callable[[ClientMessage, Outbox], Awaitable[ServerMessage]]
 
 class UnknownBodyError(ValueError):
     pass
+
+
+def offloaded[**P, R](fn: Callable[P, R]) -> Callable[P, Awaitable[R]]:
+    """``fn`` run in a worker thread, so that a handler's file, store or CPU-heavy
+    work leaves the event loop free for the other connections."""
+
+    async def run(*args: P.args, **kwargs: P.kwargs) -> R:
+        return await asyncio.to_thread(fn, *args, **kwargs)
+
+    return run
 
 
 def error(code: ErrorCode.ValueType, message: str) -> ServerMessage:
