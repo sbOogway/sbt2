@@ -4,6 +4,8 @@ from sbt2.core.run.batching import (
     Memory,
     OutOfMemoryError,
     RunFailedError,
+    StudyContextError,
+    StudyError,
     batch,
 )
 from sbt2.core.run.execute import BacktestError, NoAccountError, RunSettings, execute
@@ -42,6 +44,8 @@ __all__ = [
     "RunFailedError",
     "RunSettings",
     "SnapshotBufferError",
+    "StudyContextError",
+    "StudyError",
     "SystemdScope",
     "Uncapped",
     "UnknownLauncherError",

@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pytest
@@ -7,7 +8,7 @@ from batch_kit import resolved, setup, summaries
 from launchers import PlainLauncher
 
 from sbt2.core.results import ParquetResultStore, RunFilter
-from sbt2.core.run import batch
+from sbt2.core.run import StudyContextError, batch
 from sbt2.core.spec import ResolvedRunSpec
 
 STUDY = "studied"
@@ -31,14 +32,37 @@ def studied(
     return "studied:Studied"
 
 
-def in_study(tmp_path: Path, strategy: str, hold_bars: int) -> ResolvedRunSpec:
+def in_study(
+    tmp_path: Path, strategy: str, hold_bars: int, **overrides: Any
+) -> ResolvedRunSpec:
     return resolved(
-        tmp_path, strategy=strategy, study=STUDY, params={"hold_bars": hold_bars}
+        tmp_path,
+        strategy=strategy,
+        study=STUDY,
+        params={"hold_bars": hold_bars},
+        **overrides,
     )
 
 
 def study_runs(tmp_path: Path) -> pd.DataFrame:
     return ParquetResultStore(tmp_path / "results").runs(RunFilter(study=STUDY))
+
+
+@pytest.mark.integration
+def test_a_run_with_another_context_is_refused_naming_the_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    strategy = studied(tmp_path, monkeypatch)
+    first = batch([in_study(tmp_path, strategy, 2)], setup(tmp_path, PlainLauncher()))
+    later = ["2024-01-01T03:00:00", "2024-01-05"]
+    elsewhere = in_study(tmp_path, strategy, 3, period=later)
+    launcher = PlainLauncher()
+
+    with pytest.raises(StudyContextError, match=r"\bperiod\b"):
+        batch([elsewhere], setup(tmp_path, launcher))
+
+    assert launcher.pids == []
+    assert list(study_runs(tmp_path)["run_id"]) == list(first)
 
 
 @pytest.mark.integration
