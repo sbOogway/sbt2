@@ -16,8 +16,10 @@ from sbt2.core.results.store.base import (
     RunFilter,
     RunIds,
     StoredRun,
+    StoredStudy,
     Table,
     UnknownRunError,
+    UnknownStudyError,
 )
 from sbt2.core.results.store.parquet.sink import (
     SUMMARY,
@@ -31,6 +33,8 @@ from sbt2.core.spec import ResolvedRunSpec
 
 _SUMMARIES = f"*/{SUMMARY}.parquet"
 _SPEC = "spec.json"
+_CONTEXT = "context.json"
+_SOURCE = "strategy.py"
 _RUNS = """
 SELECT * FROM (
     SELECT * FROM summary_schema
@@ -41,19 +45,23 @@ WHERE ($2 IS NULL OR strategy = $2)
     AND ($3 IS NULL OR part = $3)
     AND ($4 IS NULL OR batch_id = $4)
     AND ($5 IS NULL OR list_contains($5::VARCHAR[], run_id))
+    AND ($6 IS NULL OR study = $6)
 ORDER BY run_id
 """
 _EVERY_RUN = RunFilter()
 
 
 class ParquetResultStore(ResultStore):
-    """Each run is a folder of parquet tables under ``root/runs/{run_id}``."""
+    """Each run is a folder of parquet tables under ``root/runs/{run_id}``; each
+    study a folder under ``root/studies/{name}`` holding its context and its
+    strategy module's source."""
 
     kind = "parquet"
 
     def __init__(self, root: Path) -> None:
         self._root = root
         self._runs = root / "runs"
+        self._studies = root / "studies"
 
     @classmethod
     @override
@@ -124,6 +132,30 @@ class ParquetResultStore(ResultStore):
     def folder(self, run_id: str) -> Path:
         return self._runs / run_id
 
+    @override
+    def new_study(self, study: StoredStudy) -> None:
+        folder = self._studies / study.name
+        folder.mkdir(parents=True)
+        (folder / _CONTEXT).write_text(json.dumps(study.context, indent=2))
+        (folder / _SOURCE).write_text(study.source)
+
+    @override
+    def study(self, name: str) -> StoredStudy:
+        known = self.studies()
+        if name not in known:
+            raise UnknownStudyError(
+                f"no study {name} in {self._studies}; known: {', '.join(known) or 'none'}"
+            )
+        folder = self._studies / name
+        context = json.loads((folder / _CONTEXT).read_text())
+        return StoredStudy(name, context, (folder / _SOURCE).read_text())
+
+    @override
+    def studies(self) -> tuple[str, ...]:
+        if not self._studies.is_dir():
+            return ()
+        return tuple(sorted(each.name for each in self._studies.iterdir()))
+
     def _folder(self, run_id: str) -> Path:
         folder = self._runs / _canonical_uuid(run_id)
         if not folder.is_dir():
@@ -133,7 +165,7 @@ class ParquetResultStore(ResultStore):
 
 def _parameters(where: RunFilter) -> list[object]:
     run_ids = None if where.run_ids is None else list(where.run_ids)
-    return [where.strategy, where.part, where.batch, run_ids]
+    return [where.strategy, where.part, where.batch, run_ids, where.study]
 
 
 def _canonical_uuid(run_id: str) -> str:

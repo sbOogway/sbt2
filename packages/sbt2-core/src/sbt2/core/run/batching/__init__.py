@@ -8,6 +8,7 @@ from sbt2.core.run.batching.children import Children
 from sbt2.core.run.batching.errors import OutOfMemoryError, RunFailedError
 from sbt2.core.run.batching.memory import Memory
 from sbt2.core.run.batching.setup import BatchProgress, BatchSetup
+from sbt2.core.run.batching.studies import new_studies
 from sbt2.core.run.child import Order
 from sbt2.core.run.preflighting import preflight
 from sbt2.core.spec import ResolvedRunSpec
@@ -27,9 +28,16 @@ def batch(
     progress: BatchProgress | None = None,
 ) -> tuple[str, ...]:
     """Pre-flight every run, then execute each in a fresh process, all under one
-    fresh batch id; returns their run_ids, in the order of ``specs``."""
+    fresh batch id; returns their run_ids, in the order of ``specs``.
+
+    A study the store lacks is kept, fixed by its first run, once every run
+    has passed pre-flight.
+    """
     setup.launcher.check()
+    studies = new_studies(specs, setup.store)
     known_gaps = [_preflight(each, setup) for each in specs]
+    for study in studies:
+        setup.store.new_study(study)
     progress = progress or _NoProgress()
     progress.planned(len(specs))
     with TemporaryDirectory(prefix="sbt2-batch-") as errors:

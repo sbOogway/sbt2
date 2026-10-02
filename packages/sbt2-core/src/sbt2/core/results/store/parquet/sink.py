@@ -31,6 +31,7 @@ SUMMARY_SCHEMA = pa.schema(
     [
         ("run_id", pa.string()),
         ("batch_id", pa.string()),
+        ("study", pa.string()),
         ("spec_hash", pa.string()),
         ("strategy", pa.string()),
         ("params", pa.string()),
@@ -122,6 +123,7 @@ def _summary(
     return {
         "run_id": run.run_id,
         "batch_id": run.batch_id,
+        "study": None if run.spec.study is None else run.spec.study.name,
         "spec_hash": run.spec.hash,
         "strategy": strategy.strategy,
         "params": json.dumps(dict(strategy.params), sort_keys=True, default=str),
