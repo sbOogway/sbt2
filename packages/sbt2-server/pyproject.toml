@@ -24,3 +24,14 @@ source = "uv-dynamic-versioning"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sbt2"]
+
+[dependency-groups]
+dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0"]
+
+[tool.coverage.run]
+source_pkgs = ["sbt2.server"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
