@@ -18,10 +18,13 @@ Backtesting framework on [nautilus_trader](https://nautilustrader.io).
 
 ```sh
 uv sync
+export SBT2_DATA=~/sbt2-data
 uv run sbt2 download --source bybit --symbol BTCUSDT --start 2025-01-01 --end 2025-03-01
 uv run sbt2 ingest   --source bybit --symbol BTCUSDT --start 2025-01-01 --end 2025-03-01
 uv run sbt2 run spec.toml
 ```
+
+Every command reads and writes the data root `SBT2_DATA` names, or the folder `--data` gives: raw files in `raw/`, the catalog in `catalog/`, results in `results/`, and in `known_gaps.toml` the days a source confirmed it lacks.
 
 A spec describes the backtests to run:
 
@@ -42,7 +45,7 @@ bar = "1-HOUR-LAST"
 quantity = "0.100"
 ```
 
-`sbt2 run` ends with the headline metrics of each part. Results are stored under `data/results`; list them with `uv run sbt2 runs list`, and write a run's tearsheet with `uv run sbt2 report tearsheet <run_id>`.
+`sbt2 run` ends with the headline metrics of each part. Results are stored under `$SBT2_DATA/results`; list them with `uv run sbt2 runs list`, and write a run's tearsheet with `uv run sbt2 report tearsheet <run_id>`.
 
 ## License
 
