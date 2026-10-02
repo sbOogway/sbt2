@@ -17,7 +17,40 @@ steps:
       - uv sync --locked
       - uvx pre-commit run --all-files --show-diff-on-failure
 
-  # one step, because this agent doesn't let a step read files another step's container wrote
+  # one step per job, because this agent doesn't let a step read files another step's container wrote
+  - name: test-sbt2-core
+    image: *image
+    environment:
+      <<: *env
+      CODECOV_TOKEN:
+        from_secret: codecov_token
+    commands:
+      # only the member and what it declares, so an undeclared dependency fails here
+      - uv sync --locked --package sbt2-core
+      - |
+        status=0
+        env -u CODECOV_TOKEN uv run --locked --package sbt2-core pytest packages/sbt2-core/tests --cov --cov-config=packages/sbt2-core/pyproject.toml --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag sbt2-core --file junit.xml --disable-search
+        uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-core --file coverage.xml
+        exit $status
+
+  - name: test-sbt2-strategies
+    image: *image
+    environment:
+      <<: *env
+      CODECOV_TOKEN:
+        from_secret: codecov_token
+    commands:
+      # only the member and what it declares, so an undeclared dependency fails here
+      - uv sync --locked --package sbt2-strategies
+      - |
+        status=0
+        env -u CODECOV_TOKEN uv run --locked --package sbt2-strategies pytest packages/sbt2-strategies/tests --cov --cov-config=packages/sbt2-strategies/pyproject.toml --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag sbt2-strategies --file junit.xml --disable-search
+        uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-strategies --file coverage.xml
+        exit $status
+
+  # the root tests span the members, so they run with the whole workspace
   - name: test
     image: *image
     environment:
@@ -30,9 +63,8 @@ steps:
       - |
         status=0
         # the tests have no use for the token
-        env -u CODECOV_TOKEN uv run --locked pytest --cov --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        env -u CODECOV_TOKEN uv run --locked pytest tests --junitxml=junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag tests --file junit.xml --disable-search
-        uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --file coverage.xml
         exit $status
 
   - name: characterization

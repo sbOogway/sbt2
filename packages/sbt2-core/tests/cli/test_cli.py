@@ -105,9 +105,7 @@ def failing(spec: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (spec.parent / "failing.py").write_text(FAILING)
     monkeypatch.syspath_prepend(spec.parent)
     text = spec.read_text().split("[params]")[0]
-    spec.write_text(
-        text.replace("sbt2.strategies.ma_cross:MovingAverageCross", "failing:FailOnBar")
-    )
+    spec.write_text(text.replace("crossover:MovingAverageCross", "failing:FailOnBar"))
     return spec
 
 

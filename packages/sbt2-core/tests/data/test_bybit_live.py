@@ -11,7 +11,7 @@ from nautilus_trader.model import Bar, FundingRateUpdate, MarkPriceUpdate, Trade
 from sbt2.core.data import DayRange, DownloadOptions, DownloadRequest, Outcome, download
 from sbt2.core.data.sources import Source, source
 
-REPO_CONFIG = Path(__file__).parents[2] / "config" / "sources.toml"
+REPO_CONFIG = Path(__file__).parents[4] / "config" / "sources.toml"
 DAY = date(2025, 1, 1)
 DAY_START = pd.Timestamp(DAY, tz="UTC").value
 DAY_END = DAY_START + pd.Timedelta(days=1).value

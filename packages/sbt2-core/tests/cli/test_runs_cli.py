@@ -23,7 +23,7 @@ LIST_HEADER = [
     "max_drawdown",
     "trade_count",
 ]
-MA_CROSS = "sbt2.strategies.ma_cross:MovingAverageCross"
+MA_CROSS = "crossover:MovingAverageCross"
 
 
 def stored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ParquetResultStore:

@@ -8,6 +8,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
+from crossover import CrossParams
 from nautilus_run import (
     END,
     INSTRUMENT_ID,
@@ -35,7 +36,6 @@ from sbt2.core.results import (
     full_metrics,
 )
 from sbt2.core.spec import ResolvedRunSpec
-from sbt2.strategies.ma_cross import CrossParams
 
 
 @pytest.fixture(scope="module")
@@ -579,7 +579,7 @@ def importable() -> ResolvedRunSpec:
     run_spec = spec()
     strategy = replace(
         run_spec.strategy,
-        strategy="sbt2.strategies.ma_cross:MovingAverageCross",
+        strategy="crossover:MovingAverageCross",
         params=asdict(CrossParams()),
     )
     return replace(run_spec, strategy=strategy)

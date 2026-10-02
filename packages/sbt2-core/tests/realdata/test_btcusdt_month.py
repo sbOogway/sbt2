@@ -23,7 +23,7 @@ from sbt2.core.data import Catalog, Window
 from sbt2.core.results import ParquetResultStore
 
 HERE = Path(__file__).parent
-REPO = HERE.parents[1]
+REPO = HERE.parents[3]
 INSTRUMENT_ID = InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT")
 START = datetime(2025, 1, 1, tzinfo=UTC)
 END = datetime(2025, 2, 1, tzinfo=UTC)

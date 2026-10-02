@@ -6,7 +6,7 @@ from nautilus_trader.model import OmsType
 
 from sbt2.core.spec import load
 
-REPO = Path(__file__).parents[2]
+REPO = Path(__file__).parents[4]
 SPEC = """
 strategy = "spec_strategies:MinuteLookback"
 instruments = ["BTCUSDT-LINEAR.BYBIT"]
