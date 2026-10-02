@@ -34,6 +34,8 @@ class _ErrorCodeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_ErrorCode.V
     """The server does not handle this body."""
     ERROR_CODE_UNSUPPORTED_VERSION: _ErrorCode.ValueType  # 5
     ERROR_CODE_INTERNAL: _ErrorCode.ValueType  # 6
+    ERROR_CODE_RESOURCE_EXHAUSTED: _ErrorCode.ValueType  # 7
+    """One indivisible response record exceeds the maximum envelope size."""
 
 class ErrorCode(_ErrorCode, metaclass=_ErrorCodeEnumTypeWrapper): ...
 
@@ -46,6 +48,8 @@ ERROR_CODE_UNIMPLEMENTED: ErrorCode.ValueType  # 4
 """The server does not handle this body."""
 ERROR_CODE_UNSUPPORTED_VERSION: ErrorCode.ValueType  # 5
 ERROR_CODE_INTERNAL: ErrorCode.ValueType  # 6
+ERROR_CODE_RESOURCE_EXHAUSTED: ErrorCode.ValueType  # 7
+"""One indivisible response record exceeds the maximum envelope size."""
 Global___ErrorCode: _TypeAlias = ErrorCode  # noqa: Y015
 
 @_typing.final

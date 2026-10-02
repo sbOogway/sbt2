@@ -22,24 +22,25 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from sbt2.protocol.v1 import results_pb2 as sbt2_dot_protocol_dot_v1_dot_results__pb2
 from sbt2.protocol.v1 import types_pb2 as sbt2_dot_protocol_dot_v1_dot_types__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1fsbt2/protocol/v1/envelope.proto\x12\x10sbt2.protocol.v1\x1a\x1csbt2/protocol/v1/types.proto\"U\n\rClientMessage\x12\x12\n\nrequest_id\x18\x01 \x01(\x04\x12(\n\x05hello\x18\x02 \x01(\x0b\x32\x17.sbt2.protocol.v1.HelloH\x00\x42\x06\n\x04\x62ody\"\x9c\x01\n\rServerMessage\x12\x12\n\nrequest_id\x18\x01 \x01(\x04\x12\x17\n\x0fsubscription_id\x18\x02 \x01(\x04\x12(\n\x05\x65rror\x18\x03 \x01(\x0b\x32\x17.sbt2.protocol.v1.ErrorH\x00\x12,\n\x07welcome\x18\x04 \x01(\x0b\x32\x19.sbt2.protocol.v1.WelcomeH\x00\x42\x06\n\x04\x62ody\"\x1f\n\x05Hello\x12\x16\n\x0e\x63lient_version\x18\x01 \x01(\t\"U\n\x07Welcome\x12\x16\n\x0eserver_version\x18\x01 \x01(\t\x12\x32\n\x0c\x63\x61pabilities\x18\x02 \x03(\x0e\x32\x1c.sbt2.protocol.v1.Capability*(\n\nCapability\x12\x1a\n\x16\x43\x41PABILITY_UNSPECIFIED\x10\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1fsbt2/protocol/v1/envelope.proto\x12\x10sbt2.protocol.v1\x1a\x1esbt2/protocol/v1/results.proto\x1a\x1csbt2/protocol/v1/types.proto\"\xd4\x02\n\rClientMessage\x12\x12\n\nrequest_id\x18\x01 \x01(\x04\x12(\n\x05hello\x18\x02 \x01(\x0b\x32\x17.sbt2.protocol.v1.HelloH\x00\x12/\n\tlist_runs\x18\x03 \x01(\x0b\x32\x1a.sbt2.protocol.v1.ListRunsH\x00\x12+\n\x07get_run\x18\x04 \x01(\x0b\x32\x18.sbt2.protocol.v1.GetRunH\x00\x12\x33\n\x0bget_metrics\x18\x05 \x01(\x0b\x32\x1c.sbt2.protocol.v1.GetMetricsH\x00\x12\x31\n\nget_series\x18\x06 \x01(\x0b\x32\x1b.sbt2.protocol.v1.GetSeriesH\x00\x12\x37\n\rget_tearsheet\x18\x07 \x01(\x0b\x32\x1e.sbt2.protocol.v1.GetTearsheetH\x00\x42\x06\n\x04\x62ody\"\x8c\x03\n\rServerMessage\x12\x12\n\nrequest_id\x18\x01 \x01(\x04\x12\x17\n\x0fsubscription_id\x18\x02 \x01(\x04\x12(\n\x05\x65rror\x18\x03 \x01(\x0b\x32\x17.sbt2.protocol.v1.ErrorH\x00\x12,\n\x07welcome\x18\x04 \x01(\x0b\x32\x19.sbt2.protocol.v1.WelcomeH\x00\x12-\n\x08run_list\x18\x05 \x01(\x0b\x32\x19.sbt2.protocol.v1.RunListH\x00\x12\x33\n\x0brun_summary\x18\x06 \x01(\x0b\x32\x1c.sbt2.protocol.v1.RunSummaryH\x00\x12,\n\x07metrics\x18\x07 \x01(\x0b\x32\x19.sbt2.protocol.v1.MetricsH\x00\x12*\n\x06series\x18\x08 \x01(\x0b\x32\x18.sbt2.protocol.v1.SeriesH\x00\x12\x30\n\ttearsheet\x18\t \x01(\x0b\x32\x1b.sbt2.protocol.v1.TearsheetH\x00\x42\x06\n\x04\x62ody\"\x1f\n\x05Hello\x12\x16\n\x0e\x63lient_version\x18\x01 \x01(\t\"U\n\x07Welcome\x12\x16\n\x0eserver_version\x18\x01 \x01(\t\x12\x32\n\x0c\x63\x61pabilities\x18\x02 \x03(\x0e\x32\x1c.sbt2.protocol.v1.Capability*@\n\nCapability\x12\x1a\n\x16\x43\x41PABILITY_UNSPECIFIED\x10\x00\x12\x16\n\x12\x43\x41PABILITY_RESULTS\x10\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'sbt2.protocol.v1.envelope_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_CAPABILITY']._serialized_start=449
-  _globals['_CAPABILITY']._serialized_end=489
-  _globals['_CLIENTMESSAGE']._serialized_start=83
-  _globals['_CLIENTMESSAGE']._serialized_end=168
-  _globals['_SERVERMESSAGE']._serialized_start=171
-  _globals['_SERVERMESSAGE']._serialized_end=327
-  _globals['_HELLO']._serialized_start=329
-  _globals['_HELLO']._serialized_end=360
-  _globals['_WELCOME']._serialized_start=362
-  _globals['_WELCOME']._serialized_end=447
+  _globals['_CAPABILITY']._serialized_start=977
+  _globals['_CAPABILITY']._serialized_end=1041
+  _globals['_CLIENTMESSAGE']._serialized_start=116
+  _globals['_CLIENTMESSAGE']._serialized_end=456
+  _globals['_SERVERMESSAGE']._serialized_start=459
+  _globals['_SERVERMESSAGE']._serialized_end=855
+  _globals['_HELLO']._serialized_start=857
+  _globals['_HELLO']._serialized_end=888
+  _globals['_WELCOME']._serialized_start=890
+  _globals['_WELCOME']._serialized_end=975
 # @@protoc_insertion_point(module_scope)

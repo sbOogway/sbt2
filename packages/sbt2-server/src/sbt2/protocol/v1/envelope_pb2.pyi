@@ -8,6 +8,7 @@ from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+from sbt2.protocol.v1 import results_pb2 as _results_pb2
 from sbt2.protocol.v1 import types_pb2 as _types_pb2
 import builtins as _builtins
 import sys
@@ -27,10 +28,12 @@ class _Capability:
 class _CapabilityEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_Capability.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     CAPABILITY_UNSPECIFIED: _Capability.ValueType  # 0
+    CAPABILITY_RESULTS: _Capability.ValueType  # 1
 
 class Capability(_Capability, metaclass=_CapabilityEnumTypeWrapper): ...
 
 CAPABILITY_UNSPECIFIED: Capability.ValueType  # 0
+CAPABILITY_RESULTS: Capability.ValueType  # 1
 Global___Capability: _TypeAlias = Capability  # noqa: Y015
 
 @_typing.final
@@ -41,21 +44,41 @@ class ClientMessage(_message.Message):
 
     REQUEST_ID_FIELD_NUMBER: _builtins.int
     HELLO_FIELD_NUMBER: _builtins.int
+    LIST_RUNS_FIELD_NUMBER: _builtins.int
+    GET_RUN_FIELD_NUMBER: _builtins.int
+    GET_METRICS_FIELD_NUMBER: _builtins.int
+    GET_SERIES_FIELD_NUMBER: _builtins.int
+    GET_TEARSHEET_FIELD_NUMBER: _builtins.int
     request_id: _builtins.int
     """Chosen by the client and never 0; the server's answers carry it back."""
     @_builtins.property
     def hello(self) -> Global___Hello: ...
+    @_builtins.property
+    def list_runs(self) -> _results_pb2.ListRuns: ...
+    @_builtins.property
+    def get_run(self) -> _results_pb2.GetRun: ...
+    @_builtins.property
+    def get_metrics(self) -> _results_pb2.GetMetrics: ...
+    @_builtins.property
+    def get_series(self) -> _results_pb2.GetSeries: ...
+    @_builtins.property
+    def get_tearsheet(self) -> _results_pb2.GetTearsheet: ...
     def __init__(
         self,
         *,
         request_id: _builtins.int = ...,
         hello: Global___Hello | None = ...,
+        list_runs: _results_pb2.ListRuns | None = ...,
+        get_run: _results_pb2.GetRun | None = ...,
+        get_metrics: _results_pb2.GetMetrics | None = ...,
+        get_series: _results_pb2.GetSeries | None = ...,
+        get_tearsheet: _results_pb2.GetTearsheet | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "hello", b"hello"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "get_metrics", b"get_metrics", "get_run", b"get_run", "get_series", b"get_series", "get_tearsheet", b"get_tearsheet", "hello", b"hello", "list_runs", b"list_runs"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "hello", b"hello", "request_id", b"request_id"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "get_metrics", b"get_metrics", "get_run", b"get_run", "get_series", b"get_series", "get_tearsheet", b"get_tearsheet", "hello", b"hello", "list_runs", b"list_runs", "request_id", b"request_id"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_body: _TypeAlias = _typing.Literal["hello"]  # noqa: Y015
+    _WhichOneofReturnType_body: _TypeAlias = _typing.Literal["hello", "list_runs", "get_run", "get_metrics", "get_series", "get_tearsheet"]  # noqa: Y015
     _WhichOneofArgType_body: _TypeAlias = _typing.Literal["body", b"body"]  # noqa: Y015
     def WhichOneof(self, oneof_group: _WhichOneofArgType_body) -> _WhichOneofReturnType_body | None: ...
 
@@ -71,6 +94,11 @@ class ServerMessage(_message.Message):
     SUBSCRIPTION_ID_FIELD_NUMBER: _builtins.int
     ERROR_FIELD_NUMBER: _builtins.int
     WELCOME_FIELD_NUMBER: _builtins.int
+    RUN_LIST_FIELD_NUMBER: _builtins.int
+    RUN_SUMMARY_FIELD_NUMBER: _builtins.int
+    METRICS_FIELD_NUMBER: _builtins.int
+    SERIES_FIELD_NUMBER: _builtins.int
+    TEARSHEET_FIELD_NUMBER: _builtins.int
     request_id: _builtins.int
     """0 on a push, which carries the subscription it belongs to instead."""
     subscription_id: _builtins.int
@@ -79,6 +107,16 @@ class ServerMessage(_message.Message):
     def error(self) -> _types_pb2.Error: ...
     @_builtins.property
     def welcome(self) -> Global___Welcome: ...
+    @_builtins.property
+    def run_list(self) -> _results_pb2.RunList: ...
+    @_builtins.property
+    def run_summary(self) -> _results_pb2.RunSummary: ...
+    @_builtins.property
+    def metrics(self) -> _results_pb2.Metrics: ...
+    @_builtins.property
+    def series(self) -> _results_pb2.Series: ...
+    @_builtins.property
+    def tearsheet(self) -> _results_pb2.Tearsheet: ...
     def __init__(
         self,
         *,
@@ -86,12 +124,17 @@ class ServerMessage(_message.Message):
         subscription_id: _builtins.int = ...,
         error: _types_pb2.Error | None = ...,
         welcome: Global___Welcome | None = ...,
+        run_list: _results_pb2.RunList | None = ...,
+        run_summary: _results_pb2.RunSummary | None = ...,
+        metrics: _results_pb2.Metrics | None = ...,
+        series: _results_pb2.Series | None = ...,
+        tearsheet: _results_pb2.Tearsheet | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "error", b"error", "welcome", b"welcome"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "error", b"error", "metrics", b"metrics", "run_list", b"run_list", "run_summary", b"run_summary", "series", b"series", "tearsheet", b"tearsheet", "welcome", b"welcome"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "error", b"error", "request_id", b"request_id", "subscription_id", b"subscription_id", "welcome", b"welcome"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "error", b"error", "metrics", b"metrics", "request_id", b"request_id", "run_list", b"run_list", "run_summary", b"run_summary", "series", b"series", "subscription_id", b"subscription_id", "tearsheet", b"tearsheet", "welcome", b"welcome"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_body: _TypeAlias = _typing.Literal["error", "welcome"]  # noqa: Y015
+    _WhichOneofReturnType_body: _TypeAlias = _typing.Literal["error", "welcome", "run_list", "run_summary", "metrics", "series", "tearsheet"]  # noqa: Y015
     _WhichOneofArgType_body: _TypeAlias = _typing.Literal["body", b"body"]  # noqa: Y015
     def WhichOneof(self, oneof_group: _WhichOneofArgType_body) -> _WhichOneofReturnType_body | None: ...
 
