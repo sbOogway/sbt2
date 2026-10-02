@@ -39,7 +39,7 @@ repos:
 
   - repo: local
     hooks:
-      # proto/ is the sbt2-protocol submodule, which formats, lints and checks itself;
+      # sbt2-protocol/ is the submodule of that repo, which formats, lints and checks itself;
       # here its pinned commit only drives the generated code
       - id: generate-protocol
         name: generate protocol

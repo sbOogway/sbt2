@@ -60,7 +60,7 @@ quantity = "0.100"
 
 ## Development
 
-The server's protobuf messages live in [sbt2-protocol](https://github.com/sbOogway/sbt2-protocol), pinned as the `proto/` submodule; clone with `--recurse-submodules`, or run `git submodule update --init` in a clone. The `generate-protocol` hook regenerates `sbt2-server`'s Python from the pinned commit, offline with the locked `protoc` and `mypy-protobuf`, and fails when the committed code is stale.
+The server's protobuf messages live in [sbt2-protocol](https://github.com/sbOogway/sbt2-protocol), pinned as the `sbt2-protocol/` submodule; clone with `--recurse-submodules`, or run `git submodule update --init` in a clone. The `generate-protocol` hook regenerates `sbt2-server`'s Python from the pinned commit, offline with the locked `protoc` and `mypy-protobuf`, and fails when the committed code is stale.
 
 ## License
 
