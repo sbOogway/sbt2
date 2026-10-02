@@ -116,3 +116,21 @@ steps:
         env -u CODECOV_TOKEN uv run --locked pytest --junitxml=/cache/junit.xml -o junit_family=legacy -m "characterization and not systemd" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag characterization --file /cache/junit.xml --disable-search
         exit $status
+
+  # checks that the server's image builds; it is pushed nowhere
+  - name: image
+    image: quay.io/buildah/stable:v1.43.4
+    environment:
+      # an unprivileged step can neither mount overlays nor set up namespaces
+      STORAGE_DRIVER: vfs
+      BUILDAH_ISOLATION: chroot
+      # buildah keeps the RUN --mount=type=cache folders, uv's cache among them, under it
+      TMPDIR: /cache/tmp
+      XDG_CACHE_HOME: /cache
+    volumes: [sbt2-cache-image:/cache:z]
+    depends_on: []
+    commands:
+      - mkdir -p /cache/tmp
+      - buildah --root=/cache/storage build --format=docker --tag=sbt2-server:ci --file=Containerfile .
+      # the base images stay cached; vfs keeps a full copy of every layer, so the build goes
+      - buildah --root=/cache/storage rmi sbt2-server:ci
