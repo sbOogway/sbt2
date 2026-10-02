@@ -42,12 +42,20 @@ repos:
     hooks:
       - id: buf-format
         args: [proto]
+        types: [file]
+        files: ^proto/
       - id: buf-lint
         args: [proto]
+        types: [file]
+        files: ^proto/
       - id: buf-breaking
         entry: scripts/buf-breaking.sh
+        types: [file]
+        files: ^(proto/|scripts/buf-breaking\.sh$)
       - id: buf-generate
         entry: scripts/buf-generate.sh
+        types: [file]
+        files: ^(proto/|buf\.gen\.yaml$|scripts/buf-generate\.sh$)
 
   - repo: local
     hooks:
