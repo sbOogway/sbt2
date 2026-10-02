@@ -1,6 +1,6 @@
 default_install_hook_types: [pre-commit, commit-msg, post-merge]
 default_stages: [pre-commit]
-# buf generate writes these; the buf-generate hook fails when they are stale
+# generate-protocol writes these, and fails when they are stale
 exclude: ^packages/sbt2-server/src/sbt2/protocol/
 
 repos:
@@ -37,18 +37,17 @@ repos:
       - id: shfmt
         args: [-w, -i, "4"]
 
-  - repo: https://github.com/bufbuild/buf
-    rev: v1.73.0
+  - repo: local
     hooks:
       # proto/ is the sbt2-protocol submodule, which formats, lints and checks itself;
       # here its pinned commit only drives the generated code
-      - id: buf-generate
-        entry: scripts/buf-generate.sh
+      - id: generate-protocol
+        name: generate protocol
+        entry: scripts/generate-protocol.sh
+        language: script
         always_run: true
         pass_filenames: false
 
-  - repo: local
-    hooks:
       - id: pyright
         name: pyright
         entry: uv run --locked pyright --warnings

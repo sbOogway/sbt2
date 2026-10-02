@@ -48,7 +48,9 @@ sbt2-server = { workspace = true }
 
 [dependency-groups]
 dev = [
+    "grpcio-tools>=1.84.0",
     "import-linter>=2.15",
+    "mypy-protobuf>=5.1.0",
     "pyright[nodejs]>=1.1.414",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
