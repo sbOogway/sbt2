@@ -35,6 +35,16 @@ repos:
       - id: shfmt
         args: [-w, -i, "4"]
 
+  - repo: https://github.com/bufbuild/buf
+    rev: v1.73.0
+    hooks:
+      - id: buf-format
+        args: [proto]
+      - id: buf-lint
+        args: [proto]
+      - id: buf-breaking
+        entry: scripts/buf-breaking.sh
+
   - repo: local
     hooks:
       - id: pyright
