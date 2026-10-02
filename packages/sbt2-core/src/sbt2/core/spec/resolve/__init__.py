@@ -1,3 +1,4 @@
+from sbt2.core.spec.resolve.document import OutdatedRunError
 from sbt2.core.spec.resolve.models import (
     FeeModelKind,
     FillModelKind,
@@ -21,6 +22,7 @@ __all__ = [
     "InstrumentVenueError",
     "InvalidModelConfigError",
     "InvalidVenueProfileError",
+    "OutdatedRunError",
     "ResolvedRunSpec",
     "UnknownModelKindError",
     "UnknownPartError",

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ from nautilus_trader.execution import (
 from sbt2.core.spec import (
     InvalidModelConfigError,
     InvalidVenueProfileError,
+    OutdatedRunError,
     ResolvedRunSpec,
     UnknownModelKindError,
     load,
@@ -120,3 +122,19 @@ def test_a_model_config_its_model_does_not_take_fails_on_load(
         InvalidModelConfigError, match=r"fee_model maker_taker.*unexpected.*bogus"
     ):
         loaded(paths)
+
+
+@pytest.mark.unit
+def test_a_stored_spec_naming_a_model_by_path_predates_model_kinds(
+    paths: tuple[Path, Path],
+) -> None:
+    with_model(paths, "fee_model", f'{{ kind = "fixed", config = {CONFIGS["fixed"]} }}')
+    [spec] = loaded(paths)
+    document = json.loads(spec.to_json())
+    document["venue"]["fee_model"] = {
+        "path": "nautilus_trader.execution:MakerTakerFeeModel",
+        "config": {"maker_rate": "0.0002", "taker_rate": "0.00055"},
+    }
+
+    with pytest.raises(OutdatedRunError, match="predates model kinds"):
+        ResolvedRunSpec.from_document(document)

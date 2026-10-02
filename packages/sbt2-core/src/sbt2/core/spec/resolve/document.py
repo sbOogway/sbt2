@@ -12,11 +12,17 @@ from nautilus_trader.model import (
 
 from sbt2.core.assets import AssetProfile, asset_profile
 from sbt2.core.data import CANDLES
+from sbt2.core.spec.errors import SpecError
+from sbt2.core.spec.resolve.models import model_tables
 from sbt2.core.spec.risk import RiskLimits, risk_limits
 from sbt2.core.spec.split import Splitter, from_table
 from sbt2.core.strategy import StrategyRun, import_strategy, resolve_params
 
 type Document = Mapping[str, Any]
+
+
+class OutdatedRunError(SpecError):
+    pass
 
 
 def spec_fields(document: Document) -> dict[str, Any]:
@@ -69,10 +75,19 @@ def _aggregated_from(data: list[dict[str, Any]]) -> str | None:
 def _venue(document: Document, asset: AssetProfile) -> dict[str, Any]:
     """The venue arguments, with the asset defaults' objects in place of their
     names."""
+    _check_kinds(document)
     return {
         key: _default_or(value, asset.venue_defaults.get(key))
         for key, value in document.items()
     }
+
+
+def _check_kinds(venue: Document) -> None:
+    for argument, table in model_tables(venue):
+        if "kind" not in table:
+            raise OutdatedRunError(
+                f"the run predates model kinds: its {argument} is named by import path"
+            )
 
 
 def _default_or(value: Any, default: Any) -> Any:
