@@ -31,7 +31,6 @@ from sbt2.core.config import ConfigFolder, Root
 from sbt2.core.results import (
     Benchmark,
     MissingTableError,
-    ParquetResultStore,
     ResultStore,
     StoredRun,
     build_benchmark,
@@ -174,7 +173,7 @@ class _Launch:
 
 def _setup(root: Root, settings: RunSettings, launch: _Launch) -> BatchSetup:
     return BatchSetup(
-        store=ParquetResultStore(root.results),
+        store=results.store_at(root),
         sources=lambda name: data.source(name, root.known_gaps),
         folders=DataFolders(root.raw, root.catalog),
         settings=settings,
@@ -431,12 +430,10 @@ def list_runs(
 ) -> None:
     """Show one row per finished run, oldest first."""
     with _failing("listing the runs in %s", Root(data_root).results):
-        runs = _store(data_root).runs(results.RunFilter(strategy=strategy, part=part))
+        runs = results.store_at(Root(data_root)).runs(
+            results.RunFilter(strategy=strategy, part=part)
+        )
     typer.echo(_runs_table(runs))
-
-
-def _store(data_root: Path) -> ParquetResultStore:
-    return ParquetResultStore(Root(data_root).results)
 
 
 def _runs_table(runs: pd.DataFrame) -> str:
@@ -471,7 +468,7 @@ def show(
 ) -> None:
     """Show a run's summary and its resolved spec."""
     with _failing("showing run %s", run_id):
-        text = _shown(_store(data_root), run_id)
+        text = _shown(results.store_at(Root(data_root)), run_id)
     typer.echo(text)
 
 
@@ -485,7 +482,7 @@ def delete(
     if not yes:
         typer.confirm(f"delete run {run_id}?", abort=True)
     with _failing("deleting run %s", run_id):
-        _store(data_root).delete(run_id)
+        results.store_at(Root(data_root)).delete(run_id)
 
 
 def _shown(store: ResultStore, run_id: str) -> str:
@@ -544,7 +541,7 @@ def report_tearsheet(
     """Write a run's tearsheet, against a benchmark."""
     root = Root(data_root)
     with _failing("tearsheet of run %s", run_id):
-        store = ParquetResultStore(root.results)
+        store = results.store_at(root)
         stored = store.stored_run(run_id)
         path = output or store.folder(run_id) / "tearsheet.html"
         priced = stored.priced(data.Catalog(root.catalog))
@@ -563,7 +560,7 @@ def report_parts(
     """Show each part a run's parameters were run on, then how the headline
     metrics change from one part to the next."""
     with _failing("comparing the parts of run %s", run_id):
-        parts = results.compare_parts(_store(data_root), run_id)
+        parts = results.compare_parts(results.store_at(Root(data_root)), run_id)
         change = results.degradation(parts)
     typer.echo(f"{_parts_table(parts)}\n\n{_change_table(change)}")
 
@@ -586,7 +583,7 @@ def report_batch(
     """Show one row per run of a batch: the parameters that vary across it,
     then the headline metrics."""
     with _failing("reporting batch %s", batch_id):
-        table = results.batch_table(_store(data_root), batch_id)
+        table = results.batch_table(results.store_at(Root(data_root)), batch_id)
     columns = ("run_id", *(str(each) for each in table.columns))
     typer.echo(_frame_table(table.reset_index(), columns))
 
@@ -599,7 +596,9 @@ def report_study(
     """Show one table per part of a study's runs, a row per run: the parameters
     that vary across the study, then the headline metrics."""
     with _failing("reporting study %s", name):
-        table = results.study_table(_store(data_root), name).reset_index()
+        table = results.study_table(
+            results.store_at(Root(data_root)), name
+        ).reset_index()
     columns = tuple(str(each) for each in table.columns if each != "part")
     typer.echo(_part_tables(table, columns))
 
@@ -610,7 +609,7 @@ def list_studies(
 ) -> None:
     """Show one row per study: its strategy and how many runs it holds."""
     with _failing("listing the studies in %s", Root(data_root).results):
-        studies = results.study_list(_store(data_root))
+        studies = results.study_list(results.store_at(Root(data_root)))
     typer.echo(_studies_table(studies))
 
 
