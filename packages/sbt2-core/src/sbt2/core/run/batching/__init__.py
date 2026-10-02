@@ -35,11 +35,17 @@ def batch(
     progress: BatchProgress | None = None,
 ) -> tuple[str, ...]:
     """Check every run against its study and pre-flight it, then execute each
-    in a fresh process, all under one fresh batch id; returns their run_ids, in
-    the order of ``specs``.
+    in a process of its own, all under one fresh batch id; returns their run_ids,
+    in the order of ``specs``.
 
     A study the store lacks is kept, fixed by its first run, once every run
     has passed its checks.
+
+    Each run forks from a forkserver, which starts at the first batch with the
+    run modules loaded and imports no strategy; each child imports its strategy
+    afresh. A child re-imports the script that started the batch, so a script
+    must call ``batch`` under ``if __name__ == "__main__":``; without the guard,
+    Python refuses to start the children.
     """
     setup.launcher.check()
     studies = checked_studies(specs, setup.store)
