@@ -18,13 +18,24 @@ Backtesting framework on [nautilus_trader](https://nautilustrader.io).
 
 ```sh
 uv sync
-export SBT2_DATA=~/sbt2-data
+export SBT2_DATA=~/sbt2-data SBT2_CONFIG=~/sbt2-config
 uv run sbt2 download --source bybit --symbol BTCUSDT --start 2025-01-01 --end 2025-03-01
 uv run sbt2 ingest   --source bybit --symbol BTCUSDT --start 2025-01-01 --end 2025-03-01
 uv run sbt2 run spec.toml
 ```
 
 Every command reads and writes the data root `SBT2_DATA` names, or the folder `--data` gives: raw files in `raw/`, the catalog in `catalog/`, results in `results/`, and in `known_gaps.toml` the days a source confirmed it lacks.
+
+`sbt2 run` also reads the config folder `SBT2_CONFIG` names, or the folder `--config` gives, on every run. sbt2 ships no venue profiles: write them to `venues.toml` in that folder, for example Bybit's USDT perpetuals at its base rates:
+
+```toml
+[bybit_linear]
+name = "BYBIT"
+source = "bybit"
+asset_class = "CRYPTOCURRENCY"
+instrument_class = "SWAP"
+fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
+```
 
 A spec describes the backtests to run:
 

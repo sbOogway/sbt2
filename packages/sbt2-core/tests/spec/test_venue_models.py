@@ -50,7 +50,7 @@ def paths(tmp_path: Path) -> tuple[Path, Path]:
 
 def loaded(paths: tuple[Path, Path]) -> list[ResolvedRunSpec]:
     spec, venues = paths
-    return load(spec, {}, venues)
+    return load(spec, venues)
 
 
 def with_model(paths: tuple[Path, Path], argument: str, model: str) -> None:

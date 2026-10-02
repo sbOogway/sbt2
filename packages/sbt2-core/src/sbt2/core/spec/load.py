@@ -2,7 +2,6 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from sbt2.core.config import VENUE_PROFILES
 from sbt2.core.spec.errors import SpecError
 from sbt2.core.spec.file import Expanded, RunSpec, runs
 from sbt2.core.spec.resolve import ResolvedRunSpec, resolve
@@ -14,11 +13,12 @@ class DuplicateRunError(SpecError):
 
 def load(
     path: Path,
+    venue_profiles: Path,
     overrides: Mapping[str, Any] | None = None,
-    venue_profiles: Path = VENUE_PROFILES,
 ) -> list[ResolvedRunSpec]:
     """Read a spec file, apply top-level ``overrides`` and resolve every run it
-    expands into; one run that fails to resolve fails them all."""
+    expands into against the venue profiles file ``venue_profiles``; one run
+    that fails to resolve fails them all."""
     expanded = runs(path, overrides or {})
     resolved = [_resolved(each, venue_profiles) for each in expanded]
     _check_unique(expanded, resolved)

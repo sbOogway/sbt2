@@ -24,6 +24,7 @@ from sbt2.core.results import ParquetResultStore
 
 HERE = Path(__file__).parent
 REPO = HERE.parents[3]
+CONFIG = HERE.parent / "config"
 INSTRUMENT_ID = InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT")
 START = datetime(2025, 1, 1, tzinfo=UTC)
 END = datetime(2025, 2, 1, tzinfo=UTC)
@@ -47,7 +48,9 @@ def month(
     data = _data_folder(tmp_path_factory.mktemp("data"))
     with pytest.MonkeyPatch.context() as patch:
         patch.chdir(REPO)
-        result = CliRunner().invoke(app, ["run", str(spec), "--data", str(data)])
+        result = CliRunner().invoke(
+            app, ["run", str(spec), "--data", str(data), "--config", str(CONFIG)]
+        )
     assert result.exit_code == 0, result.output
     return _month_run(data)
 

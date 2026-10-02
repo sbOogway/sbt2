@@ -1,0 +1,7 @@
+[bybit_linear]
+name = "BYBIT"
+source = "bybit"
+asset_class = "CRYPTOCURRENCY"
+instrument_class = "SWAP"
+# Bybit's base (non-VIP) rates for USDT perpetuals.
+fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }

@@ -27,7 +27,7 @@ from rich.progress import (
 )
 
 from sbt2.core import data, results, spec
-from sbt2.core.config import Root
+from sbt2.core.config import ConfigFolder, Root
 from sbt2.core.results import (
     Benchmark,
     MissingTableError,
@@ -52,6 +52,7 @@ SIZE = re.compile(r"(\d+)([KMGT]?)")
 SIZE_UNITS = {"": 0, "K": 10, "M": 20, "G": 30, "T": 40}
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 DATA_ROOT_ENV = "SBT2_DATA"
+CONFIG_ENV = "SBT2_CONFIG"
 
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 data_app = typer.Typer(no_args_is_help=True, help="Inspect the catalog.")
@@ -115,6 +116,14 @@ def run(
     data: Annotated[
         Path, _data_option("Holds raw/, catalog/, results/ and known_gaps.toml.")
     ],
+    config: Annotated[
+        Path,
+        typer.Option(
+            envvar=CONFIG_ENV,
+            show_envvar=True,
+            help="The config folder; reads PATH/venues.toml.",
+        ),
+    ],
     memory_budget: Annotated[
         int | None,
         typer.Option(
@@ -147,7 +156,8 @@ def run(
         settings = RunSettings(root.catalog, log_level=level)
         memory = _memory(memory_budget, memory_per_run)
         launch = _Launch(launcher_named(launcher), memory)
-        _run(spec_file, _setup(root, settings, launch))
+        runs = spec.load(spec_file, ConfigFolder(config.resolve()).venues)
+        _run(runs, _setup(root, settings, launch))
 
 
 def _memory(budget: int | None, per_run: int | None) -> Memory:
@@ -171,9 +181,8 @@ def _setup(root: Root, settings: RunSettings, launch: _Launch) -> BatchSetup:
     )
 
 
-def _run(spec_file: Path, setup: BatchSetup) -> None:
-    """Pre-flight every run of the spec file, then execute them in a batch."""
-    runs = spec.load(spec_file)
+def _run(runs: list[spec.ResolvedRunSpec], setup: BatchSetup) -> None:
+    """Pre-flight every run, then execute them in a batch."""
     with _bar("runs") as bar:
         run_ids = batch(runs, setup, bar)
     for run_id in run_ids:

@@ -117,7 +117,7 @@ def resolved(paths: tuple[Path, Path], **overrides: Any) -> ResolvedRunSpec:
 
 def loaded(paths: tuple[Path, Path], **overrides: Any) -> list[ResolvedRunSpec]:
     spec, venues = paths
-    return load(spec, overrides, venues)
+    return load(spec, venues, overrides)
 
 
 def without(paths: tuple[Path, Path], key: str) -> tuple[Path, Path]:
@@ -171,7 +171,7 @@ def test_a_venue_profile_without_a_source_fails(paths: tuple[Path, Path]) -> Non
     venues.write_text(SOURCELESS)
 
     with pytest.raises(InvalidVenueProfileError, match=r"sourceless.* source"):
-        load(spec, {"venue": "sourceless"}, venues)
+        load(spec, venues, {"venue": "sourceless"})
 
 
 @pytest.mark.unit
