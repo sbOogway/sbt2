@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package sbt2.v1;
+package sbt2.protocol.v1;
 
 // Lives here rather than in envelope.proto so that area files can embed it without an import cycle.
 message Error {

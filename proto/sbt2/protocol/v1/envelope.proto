@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package sbt2.v1;
+package sbt2.protocol.v1;
 
-import "sbt2/v1/types.proto";
+import "sbt2/protocol/v1/types.proto";
 
 // Each binary WebSocket frame the client sends is one ClientMessage.
 message ClientMessage {

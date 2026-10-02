@@ -65,7 +65,7 @@ reportDeprecated = "error"
 # mypy-protobuf's stubs narrow Message.DESCRIPTOR, which typeshed declares as a union;
 # mypy-protobuf turns this rule off for generated code too
 [[tool.pyright.executionEnvironments]]
-root = "packages/sbt2-server/src/sbt2/v1"
+root = "packages/sbt2-server/src/sbt2/protocol"
 reportIncompatibleVariableOverride = false
 
 [tool.ruff]

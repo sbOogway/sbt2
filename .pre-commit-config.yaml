@@ -1,7 +1,7 @@
 default_install_hook_types: [pre-commit, commit-msg, post-merge]
 default_stages: [pre-commit]
 # buf generate writes these; the buf-generate hook fails when they are stale
-exclude: ^packages/sbt2-server/src/sbt2/v[0-9]+/
+exclude: ^packages/sbt2-server/src/sbt2/protocol/
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
