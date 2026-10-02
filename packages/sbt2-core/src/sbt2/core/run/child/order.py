@@ -1,15 +1,16 @@
 """The order a batch sends each child.
 
-The parent writes the child's order to stdin as one JSON document. It carries the
-parent's ``sys.path``, which must be in place before the spec can import the
-strategy's own classes.
+The parent sends the child its order through a one-way pipe, as one JSON document.
+It carries the parent's ``sys.path``, which must be in place before the spec can
+import the strategy's own classes.
 """
 
 import json
 import sys
 from dataclasses import asdict, dataclass, replace
+from multiprocessing.connection import Connection
 from pathlib import Path
-from typing import IO, Any
+from typing import Any
 
 from nautilus_trader.common import LogLevel
 
@@ -32,12 +33,12 @@ class Order:
     error_file: Path
 
 
-def send(order: Order, stream: IO[bytes]) -> None:
-    stream.write(json.dumps(_order_document(order)).encode())
+def send(order: Order, pipe: Connection) -> None:
+    pipe.send_bytes(json.dumps(_order_document(order)).encode())
 
 
-def receive(stream: IO[bytes]) -> Order:
-    document = json.load(stream)
+def receive(pipe: Connection) -> Order:
+    document = json.loads(pipe.recv_bytes())
     sys.path[:] = document["sys_path"]
     return _order(document)
 

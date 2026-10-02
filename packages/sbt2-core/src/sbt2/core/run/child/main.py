@@ -2,7 +2,7 @@
 
 import logging
 import traceback
-from typing import IO
+from multiprocessing.connection import Connection
 
 from sbt2.core.results import RunIds
 from sbt2.core.run.child.order import Order, receive
@@ -11,9 +11,9 @@ from sbt2.core.run.execute import execute
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 
 
-def run_child(stream: IO[bytes]) -> None:
-    """Run the order sent on ``stream``."""
-    _run(receive(stream))
+def run_child(pipe: Connection) -> None:
+    """Run the order sent on ``pipe``."""
+    _run(receive(pipe))
 
 
 def _run(order: Order) -> None:

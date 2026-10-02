@@ -2,6 +2,7 @@ import json
 import subprocess
 import time
 from datetime import timedelta
+from multiprocessing.process import BaseProcess
 from pathlib import Path
 from typing import override
 
@@ -62,7 +63,7 @@ PARTS = {
 class CountingScope(SystemdScope):
     """Records each child's cap and the most children alive at once."""
 
-    def __init__(self, started: list[subprocess.Popen[bytes]]) -> None:
+    def __init__(self, started: list[BaseProcess]) -> None:
         self.started = started
         self.caps: list[int] = []
         self.most_alive = 0
@@ -71,7 +72,7 @@ class CountingScope(SystemdScope):
     def cap(self, run_id: str, pid: int, memory_max: int) -> None:
         super().cap(run_id, pid, memory_max)
         self.caps.append(memory_max)
-        alive = sum(each.poll() is None for each in self.started)
+        alive = sum(each.is_alive() for each in self.started)
         self.most_alive = max(self.most_alive, alive)
 
 

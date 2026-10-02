@@ -1,16 +1,21 @@
+import contextlib
 import logging
-import subprocess
-import sys
+import multiprocessing
 import time
 from collections import deque
 from collections.abc import Sequence
+from multiprocessing.connection import Connection
+from multiprocessing.process import BaseProcess
 
 from sbt2.core.run.batching.errors import OutOfMemoryError, RunFailedError
 from sbt2.core.run.batching.memory import formatted_size
 from sbt2.core.run.batching.setup import BatchProgress, BatchSetup
-from sbt2.core.run.child import Order, send
+from sbt2.core.run.child import Order, run_child, send
 
 logger = logging.getLogger(__name__)
+
+_FORKSERVER = multiprocessing.get_context("forkserver")
+_PRELOADED = ["sbt2.core.run.child"]
 
 _POLL_SECONDS = 0.05
 _GRACE_SECONDS = 5
@@ -24,7 +29,7 @@ class Children:
         self._store = setup.store
         self._memory = setup.memory
         self._progress = progress
-        self._running: dict[str, tuple[subprocess.Popen[bytes], Order]] = {}
+        self._running: dict[str, tuple[BaseProcess, Order]] = {}
 
     def run(self, orders: Sequence[Order]) -> None:
         try:
@@ -40,23 +45,20 @@ class Children:
                 time.sleep(_POLL_SECONDS)
 
     def _start(self, order: Order) -> None:
-        child = _spawn()
+        child, pipe = _spawn()
         self._running[order.run_id] = (child, order)
-        if child.stdin is None:
-            raise ValueError(f"run {order.run_id} was started without a stdin pipe")
-        self._launcher.cap(order.run_id, child.pid, self._memory.per_run)
-        logger.info("started run %s", order.run_id)
-        try:
-            send(order, child.stdin)
-            child.stdin.close()
-        except BrokenPipeError:
-            pass  # the child exited before reading; its exit code tells why
+        with pipe:
+            self._launcher.cap(order.run_id, _pid(child), self._memory.per_run)
+            logger.info("started run %s", order.run_id)
+            # a child that exited before reading is reaped by its exit code
+            with contextlib.suppress(BrokenPipeError):
+                send(order, pipe)
 
     def _reap(self) -> bool:
         exited = [
-            (run_id, child.returncode)
+            (run_id, code)
             for run_id, (child, _) in self._running.items()
-            if child.poll() is not None
+            if (code := child.exitcode) is not None
         ]
         for run_id, code in exited:
             _, order = self._running.pop(run_id)
@@ -82,16 +84,25 @@ class Children:
         for child, _ in self._running.values():
             child.terminate()
         for child, _ in self._running.values():
-            try:
-                child.wait(_GRACE_SECONDS)
-            except subprocess.TimeoutExpired:
+            child.join(_GRACE_SECONDS)
+            if child.exitcode is None:
                 child.kill()
-                child.wait()
+                child.join()
         self._running.clear()
 
 
-def _spawn() -> subprocess.Popen[bytes]:
-    """Start a child, which waits on stdin for its order."""
-    return subprocess.Popen(
-        [sys.executable, "-m", "sbt2.core.run"], stdin=subprocess.PIPE
-    )
+def _spawn() -> tuple[BaseProcess, Connection]:
+    """Fork a child from the forkserver, which starts at the first child with the
+    run modules loaded; the child waits on the returned pipe for its order."""
+    _FORKSERVER.set_forkserver_preload(_PRELOADED)
+    reader, writer = _FORKSERVER.Pipe(duplex=False)
+    child = _FORKSERVER.Process(target=run_child, args=(reader,))
+    child.start()
+    reader.close()
+    return child, writer
+
+
+def _pid(child: BaseProcess) -> int:
+    if child.pid is None:
+        raise ValueError("the child was never started")
+    return child.pid
