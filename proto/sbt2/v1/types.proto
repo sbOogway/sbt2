@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package sbt2.v1;
+
+// Lives here rather than in envelope.proto so that area files can embed it without an import cycle.
+message Error {
+  ErrorCode code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0;
+  // The frame is not a ClientMessage, or its body is unset.
+  ERROR_CODE_INVALID_MESSAGE = 1;
+  ERROR_CODE_INVALID_ARGUMENT = 2;
+  ERROR_CODE_NOT_FOUND = 3;
+  // The server does not handle this body.
+  ERROR_CODE_UNIMPLEMENTED = 4;
+  ERROR_CODE_UNSUPPORTED_VERSION = 5;
+  ERROR_CODE_INTERNAL = 6;
+}
