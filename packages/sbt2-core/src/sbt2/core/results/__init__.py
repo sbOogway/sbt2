@@ -55,6 +55,7 @@ from sbt2.core.results.store import (
     UnknownStoreError,
     UnknownStudyError,
     open_store,
+    store_at,
 )
 
 __all__ = [
@@ -103,6 +104,7 @@ __all__ = [
     "full_metrics",
     "headline_metrics",
     "open_store",
+    "store_at",
     "study_list",
     "study_table",
     "tearsheet",
