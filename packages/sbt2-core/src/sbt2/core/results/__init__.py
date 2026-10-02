@@ -1,13 +1,3 @@
-from sbt2.core.results.benchmarks import (
-    Benchmark,
-    BenchmarkArgumentError,
-    BenchmarkCoverageError,
-    BuyAndHold,
-    EqualWeight,
-    External,
-    UnknownBenchmarkError,
-    build_benchmark,
-)
 from sbt2.core.results.comparisons import (
     UnknownBatchError,
     batch_table,
@@ -24,6 +14,7 @@ from sbt2.core.results.costs import (
     costs_and_exposure,
 )
 from sbt2.core.results.metrics import (
+    CurrencyMismatchError,
     FullMetrics,
     HeadlineMetrics,
     RunTables,
@@ -33,21 +24,34 @@ from sbt2.core.results.metrics import (
     full_metrics,
     headline_metrics,
 )
-from sbt2.core.results.money import CurrencyMismatchError
-from sbt2.core.results.parquet import ParquetResultStore
-from sbt2.core.results.pricing import MissingPricesError, PricedRun
-from sbt2.core.results.registry import UnknownStoreError, open_store
-from sbt2.core.results.sink import IncompleteRunError, OutputSink, Reports
+from sbt2.core.results.pricing import (
+    Benchmark,
+    BenchmarkArgumentError,
+    BenchmarkCoverageError,
+    BuyAndHold,
+    EqualWeight,
+    External,
+    MissingPricesError,
+    PricedRun,
+    UnknownBenchmarkError,
+    build_benchmark,
+)
+from sbt2.core.results.report import tearsheet
 from sbt2.core.results.store import (
+    IncompleteRunError,
     MissingTableError,
+    OutputSink,
+    ParquetResultStore,
+    Reports,
     ResultStore,
     RunFilter,
     RunIds,
     StoredRun,
     Table,
     UnknownRunError,
+    UnknownStoreError,
+    open_store,
 )
-from sbt2.core.results.tearsheet import tearsheet
 
 __all__ = [
     "Activity",

@@ -1,9 +1,7 @@
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
 from statistics import NormalDist
-from typing import Protocol
 
 import pandas as pd
 from nautilus_trader.analysis import (
@@ -43,56 +41,20 @@ from nautilus_trader.analysis import (
 )
 from nautilus_trader.model import Currency, Money, PositionId
 
-from sbt2.core.results.money import total
-from sbt2.core.results.trades import closed_trades
-from sbt2.core.spec import ResolvedRunSpec
-
-
-@dataclass(frozen=True)
-class Segment:
-    """The dates metrics are computed over, and how equity is sampled on them."""
-
-    start: datetime
-    end: datetime
-    interval: timedelta
-    days_per_year: int
-
-    @classmethod
-    def of_run(cls, run: ResolvedRunSpec) -> Segment:
-        return cls(
-            run.start,
-            run.end,
-            timedelta(milliseconds=run.equity_interval_ms),
-            run.asset.days_per_year,
-        )
-
-    @property
-    def grid(self) -> pd.DatetimeIndex:
-        """From the start at the equity interval, ending on the end."""
-        grid = pd.date_range(self.start, self.end, freq=self.interval)
-        return pd.DatetimeIndex(grid.union(pd.DatetimeIndex([self.end])))
-
-
-@dataclass(frozen=True)
-class RunTables:
-    """A run's stored tables, measured in its settlement ``currency``."""
-
-    equity: pd.DataFrame
-    fills: pd.DataFrame
-    carry: pd.DataFrame
-    currency: str
-    positions: pd.DataFrame = field(default_factory=pd.DataFrame)
-
-
-@dataclass(frozen=True)
-class HeadlineMetrics:
-    net_return: float | None
-    annualized_return: float | None
-    sharpe: float | None
-    max_drawdown: float | None
-    trade_count: int
-    total_fees: float
-    total_carry: float
+from sbt2.core.results.metrics.analyzers import (
+    finite,
+    finite_values,
+    nanos,
+    portfolio_analyzer,
+)
+from sbt2.core.results.metrics.curves import (
+    RunTables,
+    Segment,
+    compounded_daily,
+    curve_returns,
+    equity_curve,
+)
+from sbt2.core.results.metrics.trades import closed_trades
 
 
 @dataclass(frozen=True)
@@ -111,22 +73,6 @@ _ACCOUNT_STATISTICS = ("PnL (total)", "PnL% (total)")
 """Nautilus computes these from the account's balances, which trades alone lack."""
 
 
-def headline_metrics(run: RunTables, segment: Segment) -> HeadlineMetrics:
-    """Headline metrics from mark-to-market equity over the segment."""
-    curve = equity_curve(run.equity, run.currency, segment)
-    returns = _returns(curve)
-    period = segment.days_per_year
-    return HeadlineMetrics(
-        net_return=_finite(curve.iloc[-1] / curve.iloc[0] - 1),
-        annualized_return=_statistic(CAGR(period=period), returns),
-        sharpe=_statistic(SharpeRatio(period=period), returns),
-        max_drawdown=_statistic(MaxDrawdown(), returns),
-        trade_count=len(run.fills),
-        total_fees=total(run.fills, "commission", run.currency),
-        total_carry=total(run.carry, "pnl_change", run.currency),
-    )
-
-
 def full_metrics(
     run: RunTables, segment: Segment, curve: pd.Series | None = None
 ) -> FullMetrics:
@@ -139,7 +85,7 @@ def full_metrics(
     if curve is None:
         curve = equity_curve(run.equity, run.currency, segment)
     trades = closed_trades(run.positions, run.currency)
-    returns = _returns(curve)
+    returns = curve_returns(curve)
     return FullMetrics(
         pnls=_trade_statistics(trades, run.currency),
         returns=_return_statistics(returns, segment.days_per_year),
@@ -147,19 +93,6 @@ def full_metrics(
         pnls_by_instrument=_trade_statistics_by_instrument(trades, run.currency),
         probabilistic_sharpe=_probabilistic_sharpe(returns),
     )
-
-
-def equity_curve(equity: pd.DataFrame, currency: str, segment: Segment) -> pd.Series:
-    """Equity in ``currency`` forward-filled onto the segment's grid.
-
-    The grid runs from the segment start at the equity interval and ends on the
-    segment end; warm-up snapshots only set the starting value.
-    """
-    rows = equity.loc[equity["currency"] == currency]
-    last = rows.groupby("ts_event", sort=True)["total_equity"].last()
-    series = pd.Series(last.to_numpy(), index=pd.DatetimeIndex(last.index))
-    grid = segment.grid
-    return series.reindex(series.index.union(grid)).ffill().reindex(grid)
 
 
 def benchmark_statistics(
@@ -173,21 +106,16 @@ def benchmark_statistics(
     if benchmark is None:
         return {}
     analyzer = _relative_analyzer(days_per_year)
-    for ts, value in _nanos(compounded_daily(returns)).items():
+    for ts, value in nanos(compounded_daily(returns)).items():
         analyzer.add_return(ts, value)
     statistics = analyzer.get_performance_stats_returns_vs_benchmark(
-        _nanos(compounded_daily(benchmark))
+        nanos(compounded_daily(benchmark))
     )
-    return _finite_values(statistics)
-
-
-def daily_returns(curve: pd.Series) -> pd.Series:
-    """The returns of an equity curve, compounded to one per UTC day."""
-    return compounded_daily(_returns(curve))
+    return finite_values(statistics)
 
 
 def _relative_analyzer(days_per_year: int) -> PortfolioAnalyzer:
-    return _analyzer(
+    return portfolio_analyzer(
         Alpha(period=days_per_year),
         BetaRatio(),
         InformationRatio(period=days_per_year),
@@ -201,9 +129,9 @@ def _return_statistics(
     returns: pd.Series, days_per_year: int
 ) -> dict[str, float | None]:
     analyzer = _return_analyzer(days_per_year)
-    for ts, value in _nanos(returns).items():
+    for ts, value in nanos(returns).items():
         analyzer.add_return(ts, value)
-    return _finite_values(analyzer.get_performance_stats_returns())
+    return finite_values(analyzer.get_performance_stats_returns())
 
 
 def _probabilistic_sharpe(returns: pd.Series) -> float | None:
@@ -244,7 +172,7 @@ def _trade_statistics(trades: pd.DataFrame, currency: str) -> dict[str, float | 
 def _without_account(statistics: Mapping[str, float]) -> dict[str, float | None]:
     return {
         name: value
-        for name, value in _finite_values(statistics).items()
+        for name, value in finite_values(statistics).items()
         if name not in _ACCOUNT_STATISTICS
     }
 
@@ -261,7 +189,7 @@ def _trade_statistics_by_instrument(
 def _profit_factor(pnls: pd.Series) -> float | None:
     """Nautilus's ``ProfitFactor`` takes returns only, not realized PnLs."""
     losses = -pnls[pnls < 0].sum()
-    return _finite(pnls[pnls > 0].sum() / losses) if losses else None
+    return finite(pnls[pnls > 0].sum() / losses) if losses else None
 
 
 def _general_statistics(trades: pd.DataFrame) -> dict[str, float | None]:
@@ -276,7 +204,7 @@ def _general_statistics(trades: pd.DataFrame) -> dict[str, float | None]:
 
 
 def _return_analyzer(days_per_year: int) -> PortfolioAnalyzer:
-    return _analyzer(
+    return portfolio_analyzer(
         CAGR(period=days_per_year),
         CalmarRatio(period=days_per_year),
         ReturnsVolatility(period=days_per_year),
@@ -299,7 +227,7 @@ def _return_analyzer(days_per_year: int) -> PortfolioAnalyzer:
 
 
 def _trade_analyzer() -> PortfolioAnalyzer:
-    return _analyzer(
+    return portfolio_analyzer(
         AvgLoser(),
         AvgWinner(),
         Expectancy(),
@@ -309,50 +237,3 @@ def _trade_analyzer() -> PortfolioAnalyzer:
         MinWinner(),
         WinRate(),
     )
-
-
-def _analyzer(*statistics: object) -> PortfolioAnalyzer:
-    analyzer = PortfolioAnalyzer()
-    for statistic in statistics:
-        analyzer.register_statistic(statistic)
-    return analyzer
-
-
-class _ReturnsStatistic(Protocol):
-    def calculate_from_returns(
-        self, raw_returns: Mapping[int, float]
-    ) -> float | None: ...
-
-
-def _statistic(statistic: _ReturnsStatistic, returns: pd.Series) -> float | None:
-    return _finite(statistic.calculate_from_returns(_nanos(returns)))
-
-
-def _returns(curve: pd.Series) -> pd.Series:
-    return curve.pct_change().iloc[1:]
-
-
-def compounded_daily(returns: pd.Series) -> pd.Series:
-    """Returns compounded to one per UTC day, labelled by the day's start.
-
-    A return covers the step up to its time, so one at midnight belongs to
-    the day before.
-    """
-    ends = pd.Series(returns.index, index=returns.index).dt.tz_convert("UTC")
-    days = ends.dt.ceil("D") - pd.Timedelta(days=1)
-    return (1 + returns).groupby(days).prod() - 1
-
-
-def _nanos(returns: pd.Series) -> dict[int, float]:
-    index = pd.DatetimeIndex(returns.index)
-    return {
-        int(ts.value): float(value) for ts, value in zip(index, returns, strict=True)
-    }
-
-
-def _finite_values(statistics: Mapping[str, float]) -> dict[str, float | None]:
-    return {name: _finite(value) for name, value in statistics.items()}
-
-
-def _finite(value: float | None) -> float | None:
-    return float(value) if value is not None and math.isfinite(value) else None

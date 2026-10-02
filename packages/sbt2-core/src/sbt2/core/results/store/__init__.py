@@ -1,8 +1,17 @@
 from collections.abc import Mapping
 from typing import Any
 
-from sbt2.core.results.parquet import ParquetResultStore
-from sbt2.core.results.store import ResultStore
+from sbt2.core.results.store.base import (
+    MissingTableError,
+    ResultStore,
+    RunFilter,
+    RunIds,
+    StoredRun,
+    Table,
+    UnknownRunError,
+)
+from sbt2.core.results.store.parquet import ParquetResultStore
+from sbt2.core.results.store.sink import IncompleteRunError, OutputSink, Reports
 
 _STORES: tuple[type[ResultStore], ...] = (ParquetResultStore,)
 
@@ -23,3 +32,20 @@ def _store_class(kind: str) -> type[ResultStore]:
             return each
     known = ", ".join(sorted(each.kind for each in _STORES))
     raise UnknownStoreError(f"no result store {kind}; known: {known}")
+
+
+__all__ = [
+    "IncompleteRunError",
+    "MissingTableError",
+    "OutputSink",
+    "ParquetResultStore",
+    "Reports",
+    "ResultStore",
+    "RunFilter",
+    "RunIds",
+    "StoredRun",
+    "Table",
+    "UnknownRunError",
+    "UnknownStoreError",
+    "open_store",
+]
