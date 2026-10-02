@@ -1,0 +1,13 @@
+when:
+  - event: pull_request
+  - event: push
+    branch: main
+
+steps:
+  - name: lint
+    image: ghcr.io/astral-sh/uv:0.12.19-python3.14-trixie
+    environment:
+      XDG_CACHE_HOME: /cache
+    volumes: [sbt2-protocol-cache-lint:/cache:z]
+    commands:
+      - uvx prek@0.5.4 run --all-files --show-diff-on-failure

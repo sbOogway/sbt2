@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package sbt2.protocol.v1;
+
+import "sbt2/protocol/v1/types.proto";
+
+// Each binary WebSocket frame the client sends is one ClientMessage.
+message ClientMessage {
+  // Chosen by the client and never 0; the server's answers carry it back.
+  uint64 request_id = 1;
+  oneof body {
+    Hello hello = 2;
+  }
+}
+
+// Each binary WebSocket frame the server sends is one ServerMessage.
+message ServerMessage {
+  // 0 on a push, which carries the subscription it belongs to instead.
+  uint64 request_id = 1;
+  // 0 on an answer to a request.
+  uint64 subscription_id = 2;
+  oneof body {
+    Error error = 3;
+    Welcome welcome = 4;
+  }
+}
+
+// The client's first message on a connection.
+message Hello {
+  string client_version = 1;
+}
+
+// The answer to Hello.
+message Welcome {
+  string server_version = 1;
+  repeated Capability capabilities = 2;
+}
+
+enum Capability {
+  CAPABILITY_UNSPECIFIED = 0;
+}
