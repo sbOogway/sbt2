@@ -50,6 +50,23 @@ def test_the_data_option_wins_over_sbt2_data(
     assert not a.exists()
 
 
+@pytest.mark.e2e
+def test_runs_read_back_after_their_data_root_moves(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    spec = run_spec(tmp_path, monkeypatch)
+    a, b = tmp_path / "a", tmp_path / "b"
+    assert runner.invoke(app, ["run", str(spec), "--data", str(a)]).exit_code == 0
+    [run_id] = run_ids(a)
+    a.rename(b)
+
+    shown = runner.invoke(app, ["runs", "show", run_id, "--data", str(b)])
+    parts = runner.invoke(app, ["report", "parts", run_id, "--data", str(b)])
+
+    assert shown.exit_code == 0, shown.output
+    assert parts.exit_code == 0, parts.output
+
+
 DAYS = ["--start", "2025-01-01", "--end", "2025-01-01"]
 SOURCED = ["--source", "bybit", "--symbol", "BTCUSDT", *DAYS]
 
