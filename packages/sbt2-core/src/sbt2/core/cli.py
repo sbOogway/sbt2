@@ -33,7 +33,6 @@ from sbt2.core.results import (
     MissingTableError,
     ResultStore,
     StoredRun,
-    build_benchmark,
 )
 from sbt2.core.run import (
     BatchSetup,
@@ -44,7 +43,6 @@ from sbt2.core.run import (
     batch,
     launcher_named,
 )
-from sbt2.core.strategy import import_strategy
 
 DAY = ["%Y-%m-%d"]
 SIZE = re.compile(r"(\d+)([KMGT]?)")
@@ -622,9 +620,9 @@ def _studies_table(studies: pd.DataFrame) -> str:
 def _benchmark(option: str | None, stored: StoredRun) -> Benchmark | None:
     """The benchmark ``NAME[:ARG]`` names, the strategy's own without one."""
     if option is None:
-        return import_strategy(stored.spec.strategy.strategy).benchmark
+        return stored.benchmark()
     name, _, argument = option.partition(":")
-    return build_benchmark(name, argument or None)
+    return stored.benchmark(name, argument or None)
 
 
 class _Bar:
