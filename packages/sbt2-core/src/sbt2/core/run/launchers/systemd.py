@@ -5,7 +5,7 @@ from jeepney.bus_messages import message_bus
 from jeepney.io.blocking import DBusConnection, open_dbus_connection
 from jeepney.wrappers import DBusErrorResponse, unwrap_msg
 
-from sbt2.core.run.batching import Launcher
+from sbt2.core.run.launchers.base import Launcher
 
 _SYSTEMD = "org.freedesktop.systemd1"
 _MANAGER = DBusAddress(

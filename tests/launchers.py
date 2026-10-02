@@ -8,7 +8,8 @@ from typing import override
 import pytest
 
 from sbt2.core import cli
-from sbt2.core.run import Launcher, batching
+from sbt2.core.run import Launcher
+from sbt2.core.run.batching import children as batch_children
 
 CHILD = [sys.executable, "-m", "sbt2.core.run"]
 
@@ -40,7 +41,7 @@ def spawned(monkeypatch: pytest.MonkeyPatch) -> list[subprocess.Popen[bytes]]:
         children.append(subprocess.Popen(CHILD, stdin=subprocess.PIPE))
         return children[-1]
 
-    monkeypatch.setattr(batching, "_spawn", recorded)
+    monkeypatch.setattr(batch_children, "_spawn", recorded)
     return children
 
 
@@ -54,7 +55,7 @@ class ScriptedLauncher(PlainLauncher):
         super().__init__()
         self.started: list[subprocess.Popen[bytes]] = []
         self._commands = list(commands)
-        monkeypatch.setattr(batching, "_spawn", self._spawn)
+        monkeypatch.setattr(batch_children, "_spawn", self._spawn)
 
     def _spawn(self) -> subprocess.Popen[bytes]:
         command = self._commands[len(self.started)]
