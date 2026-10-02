@@ -6,7 +6,7 @@ from nautilus_trader.model import Bar, InstrumentId, TradeTick
 
 from sbt2.core.data.sources import Gap, UnknownSourceError, known_gaps, source
 
-REPO_CONFIG = Path(__file__).parents[3] / "config" / "sources.toml"
+REPO_CONFIG = Path(__file__).parents[5] / "config" / "sources.toml"
 
 
 @pytest.mark.unit

@@ -55,6 +55,8 @@ dev = [
 
 [tool.pyright]
 include = ["packages", "tests"]
+# the core tests share helpers with the root tests
+extraPaths = ["tests"]
 reportDeprecated = "error"
 
 [tool.ruff]
@@ -80,7 +82,7 @@ ignore = [
 "**/test_*.py" = ["PLR0913", "PLR0917"]
 "**/conftest.py" = ["PLR0913", "PLR0917"]
 # tests spell out their expected values; the security rules guard shipped code
-"tests/**" = ["PLR2004", "S"]
+"**/tests/**" = ["PLR2004", "S"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 8
@@ -153,21 +155,22 @@ source_modules = ["sbt2.papers"]
 forbidden_modules = ["sbt2.core", "sbt2.strategies"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["packages/sbt2-core/tests", "packages/sbt2-strategies/tests", "tests"]
 # importlib mode leaves sys.path alone, so the folders that hold helper modules are listed
 pythonpath = [
     "tests",
     "tests/characterization/nautilus",
-    "tests/cli",
-    "tests/data",
-    "tests/data/catalog",
-    "tests/data/sources",
     "tests/golden",
-    "tests/results",
-    "tests/run",
-    "tests/spec",
-    "tests/strategies",
-    "tests/strategy",
+    "packages/sbt2-core/tests",
+    "packages/sbt2-core/tests/cli",
+    "packages/sbt2-core/tests/data",
+    "packages/sbt2-core/tests/data/catalog",
+    "packages/sbt2-core/tests/data/sources",
+    "packages/sbt2-core/tests/results",
+    "packages/sbt2-core/tests/run",
+    "packages/sbt2-core/tests/spec",
+    "packages/sbt2-core/tests/strategy",
+    "packages/sbt2-strategies/tests",
 ]
 addopts = [
     "--import-mode=importlib",
