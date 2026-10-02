@@ -7,7 +7,12 @@ from nautilus_trader.execution import (
     MakerTakerFeeModel,
 )
 
-from sbt2.core.spec import ResolvedRunSpec, UnknownModelKindError, load
+from sbt2.core.spec import (
+    InvalidVenueProfileError,
+    ResolvedRunSpec,
+    UnknownModelKindError,
+    load,
+)
 
 SPEC = """
 strategy = "spec_strategies:MinuteLookback"
@@ -87,4 +92,17 @@ def test_a_model_argument_without_kinds_names_none(paths: tuple[Path, Path]) -> 
     with pytest.raises(
         UnknownModelKindError, match="latency_model kind static; known: none"
     ):
+        loaded(paths)
+
+
+@pytest.mark.unit
+def test_a_model_named_by_import_path_is_refused(paths: tuple[Path, Path]) -> None:
+    with_model(
+        paths,
+        "fee_model",
+        '{ path = "nautilus_trader.execution:MakerTakerFeeModel", '
+        f"config = {CONFIGS['maker_taker']} }}",
+    )
+
+    with pytest.raises(InvalidVenueProfileError, match=r"fee_model.*name a kind"):
         loaded(paths)

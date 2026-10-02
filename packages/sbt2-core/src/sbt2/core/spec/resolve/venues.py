@@ -43,12 +43,17 @@ def venue_profile(path: Path, name: str) -> VenueProfile:
         AssetClass.from_str(arguments.pop("asset_class")),
         InstrumentClass.from_str(arguments.pop("instrument_class")),
     )
-    _check_kinds(arguments)
+    _check_kinds(name, arguments)
     return VenueProfile(asset, source, {**asset.venue_defaults, **arguments})
 
 
-def _check_kinds(arguments: Mapping[str, Any]) -> None:
+def _check_kinds(name: str, arguments: Mapping[str, Any]) -> None:
     for argument, table in model_tables(arguments):
+        if "kind" not in table:
+            raise InvalidVenueProfileError(
+                f"the venue profile {name} names no {argument} kind; "
+                "models are not named by import path, name a kind"
+            )
         model_builder(argument, table["kind"])
 
 
