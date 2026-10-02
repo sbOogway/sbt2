@@ -5,17 +5,21 @@ from functools import wraps
 from sbt2.core import results as core
 from sbt2.core.config import Root
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
-from sbt2.protocol.v1.results_pb2 import RunList
+from sbt2.protocol.v1.results_pb2 import Metrics, RunList
 from sbt2.protocol.v1.types_pb2 import Error, ErrorCode
 from sbt2.server import Handler, Outbox, offloaded
-from sbt2.server.results.encoding import run_filter, summary
+from sbt2.server.results.encoding import metrics, run_filter, summary
 from sbt2.server.results.streaming import TooLargeError, checked, deliver, records
 
 
 def routes(root: Root) -> dict[str, Handler]:
     """Handlers for browsing the results under ``root`` through core's public API."""
     results = _Results(core.store_at(root))
-    return {"list_runs": _guard(results.list_runs), "get_run": _guard(results.get_run)}
+    return {
+        "list_runs": _guard(results.list_runs),
+        "get_run": _guard(results.get_run),
+        "get_metrics": _guard(results.get_metrics),
+    }
 
 
 @dataclass
@@ -40,6 +44,20 @@ class _Results:
         return checked(
             ServerMessage(request_id=request.request_id, run_summary=summary(row))
         )
+
+    async def get_metrics(
+        self, request: ClientMessage, outbox: Outbox
+    ) -> ServerMessage:
+        replies = await offloaded(self._metrics)(request)
+        return await deliver(replies, outbox)
+
+    def _metrics(self, request: ClientMessage) -> Iterator[ServerMessage]:
+        run = self.store.stored_run(request.get_metrics.run_id)
+        measured = core.full_metrics(run.tables, core.Segment.of_run(run.spec))
+        template = ServerMessage(
+            request_id=request.request_id, metrics=Metrics(currency=run.tables.currency)
+        )
+        return records(template, "entries", metrics(measured))
 
 
 def _guard(handler: Handler) -> Handler:

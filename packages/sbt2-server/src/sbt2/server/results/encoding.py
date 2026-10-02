@@ -1,5 +1,5 @@
 import math
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from typing import Any
 
 import pandas as pd
@@ -58,3 +58,31 @@ def _timestamp(value: Any) -> Timestamp:
     result = Timestamp()
     result.FromNanoseconds(pd.Timestamp(value).value)
     return result
+
+
+def metrics(measured: core.FullMetrics) -> Iterator[wire.Metric]:
+    groups = (
+        (wire.METRIC_GROUP_PNLS, measured.pnls),
+        (wire.METRIC_GROUP_RETURNS, measured.returns),
+        (wire.METRIC_GROUP_GENERAL, measured.general),
+    )
+    for group, statistics in groups:
+        yield from _statistics(group, statistics)
+    for instrument, statistics in measured.pnls_by_instrument.items():
+        for metric in _statistics(wire.METRIC_GROUP_INSTRUMENT_PNLS, statistics):
+            metric.instrument_id = instrument
+            yield metric
+    yield from _statistics(
+        wire.METRIC_GROUP_PROBABILISTIC_SHARPE,
+        {"Probabilistic Sharpe Ratio": measured.probabilistic_sharpe},
+    )
+
+
+def _statistics(
+    group: wire.MetricGroup.ValueType, values: Mapping[str, float | None]
+) -> Iterator[wire.Metric]:
+    for name, value in values.items():
+        metric = wire.Metric(group=group, name=name)
+        if value is not None and math.isfinite(value):
+            metric.value = str(value)
+        yield metric
