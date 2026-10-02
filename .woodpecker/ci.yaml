@@ -8,14 +8,21 @@ variables:
   - &env
     UV_LINK_MODE: copy
     UV_PYTHON_DOWNLOADS: never
+    # uv, prek, pyright's Node.js and codecov-cli all keep their caches under it
+    XDG_CACHE_HOME: /cache
+  # shared by every step and pipeline; :z gives it SELinux's shared label, so each step's container can use it
+  - &cache /home/mattia/.cache/woodpecker/sbt2:/cache:z
 
+# each step runs on its own, with no depends_on chain, so they all run at once
 steps:
   - name: lint
     image: *image
     environment: *env
+    volumes: [*cache]
+    depends_on: []
     commands:
       - uv sync --locked
-      - uvx pre-commit run --all-files --show-diff-on-failure
+      - uvx prek@0.5.4 run --all-files --show-diff-on-failure
 
   # one step per job, because this agent doesn't let a step read files another step's container wrote
   - name: test-sbt2-core
@@ -24,6 +31,8 @@ steps:
       <<: *env
       CODECOV_TOKEN:
         from_secret: codecov_token
+    volumes: [*cache]
+    depends_on: []
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
       - uv sync --locked --package sbt2-core
@@ -40,6 +49,8 @@ steps:
       <<: *env
       CODECOV_TOKEN:
         from_secret: codecov_token
+    volumes: [*cache]
+    depends_on: []
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
       - uv sync --locked --package sbt2-strategies
@@ -57,6 +68,8 @@ steps:
       <<: *env
       CODECOV_TOKEN:
         from_secret: codecov_token
+    volumes: [*cache]
+    depends_on: []
     commands:
       - uv sync --locked
       # the test results go up even when tests fail, so Test Analytics sees the failures
@@ -73,6 +86,8 @@ steps:
       <<: *env
       CODECOV_TOKEN:
         from_secret: codecov_token
+    volumes: [*cache]
+    depends_on: []
     commands:
       - uv sync --locked
       - |
