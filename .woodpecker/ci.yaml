@@ -10,15 +10,15 @@ variables:
     UV_PYTHON_DOWNLOADS: never
     # uv, prek, pyright's Node.js and codecov-cli all keep their caches under it
     XDG_CACHE_HOME: /cache
-  # shared by every step and pipeline; :z gives it SELinux's shared label, so each step's container can use it
-  - &cache /home/mattia/.cache/woodpecker/sbt2:/cache:z
 
-# each step runs on its own, with no depends_on chain, so they all run at once
+# each step runs on its own, with no depends_on chain, so they all run at once.
+# Each keeps its own cache folder: :z relabels a folder when a container starts, but what a
+# running container writes carries its own SELinux label, which a concurrent step cannot open.
 steps:
   - name: lint
     image: *image
     environment: *env
-    volumes: [*cache]
+    volumes: [/home/mattia/.cache/woodpecker/sbt2/lint:/cache:z]
     depends_on: []
     commands:
       - uv sync --locked
@@ -31,7 +31,7 @@ steps:
       <<: *env
       CODECOV_TOKEN:
         from_secret: codecov_token
-    volumes: [*cache]
+    volumes: [/home/mattia/.cache/woodpecker/sbt2/test-sbt2-core:/cache:z]
     depends_on: []
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
@@ -49,7 +49,7 @@ steps:
       <<: *env
       CODECOV_TOKEN:
         from_secret: codecov_token
-    volumes: [*cache]
+    volumes: [/home/mattia/.cache/woodpecker/sbt2/test-sbt2-strategies:/cache:z]
     depends_on: []
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
@@ -68,7 +68,7 @@ steps:
       <<: *env
       CODECOV_TOKEN:
         from_secret: codecov_token
-    volumes: [*cache]
+    volumes: [/home/mattia/.cache/woodpecker/sbt2/test:/cache:z]
     depends_on: []
     commands:
       - uv sync --locked
@@ -86,7 +86,7 @@ steps:
       <<: *env
       CODECOV_TOKEN:
         from_secret: codecov_token
-    volumes: [*cache]
+    volumes: [/home/mattia/.cache/woodpecker/sbt2/characterization:/cache:z]
     depends_on: []
     commands:
       - uv sync --locked

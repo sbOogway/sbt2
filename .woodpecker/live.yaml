@@ -9,7 +9,7 @@ variables:
     UV_LINK_MODE: copy
     UV_PYTHON_DOWNLOADS: never
     XDG_CACHE_HOME: /cache
-  - &cache /home/mattia/.cache/woodpecker/sbt2:/cache:z
+  - &cache /home/mattia/.cache/woodpecker/sbt2/live:/cache:z
 
 steps:
   - name: bybit-latency
