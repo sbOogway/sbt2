@@ -32,6 +32,35 @@ from sbt2.core.run import (
 from sbt2.core.run.batching import children as batch_children
 
 NAUTILUS_CORE = "_libnautilus"
+FRESH = """
+import os
+from pathlib import Path
+
+from run_strategies import BuyThenSell
+
+with Path(__file__).with_name("imports.txt").open("a") as imports:
+    imports.write(f"{os.getpid()} {VERSION}\\n")
+
+
+class Fresh(BuyThenSell):
+    pass
+"""
+
+
+def fresh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, version: str) -> str:
+    """The import path of a strategy whose module records the pid and
+    ``version`` of each process that imports it."""
+    (tmp_path / "fresh.py").write_text(f"VERSION = {version!r}\n{FRESH}")
+    monkeypatch.syspath_prepend(tmp_path)
+    return "fresh:Fresh"
+
+
+def imported(tmp_path: Path) -> dict[int, str]:
+    """The version of the strategy each process imported, by its pid."""
+    lines = (tmp_path / "imports.txt").read_text().splitlines()
+    return {
+        int(pid): version for pid, version in (each.split(maxsplit=1) for each in lines)
+    }
 
 
 class RecordedProgress:
@@ -150,6 +179,28 @@ def test_children_fork_from_one_forkserver_with_the_run_modules_loaded(
     [parent] = set(launcher.parents)
     assert parent != os.getpid()
     assert launcher.preloaded == [True, True]
+
+
+@pytest.mark.integration
+def test_each_run_imports_its_strategy_afresh(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    strategy = fresh(tmp_path, monkeypatch, "first")
+    first = PlainLauncher()
+    specs = [
+        resolved(tmp_path, strategy=strategy, params={"hold_bars": each})
+        for each in (2, 3)
+    ]
+    batch(specs, setup(tmp_path, first))
+    fresh(tmp_path, monkeypatch, "the edited one")
+    second = PlainLauncher()
+
+    batch(specs[:1], setup(tmp_path, second))
+
+    versions = imported(tmp_path)
+    assert len(set(first.pids)) == 2
+    assert [versions[each] for each in first.pids] == ["first", "first"]
+    assert [versions[each] for each in second.pids] == ["the edited one"]
 
 
 @pytest.mark.integration
