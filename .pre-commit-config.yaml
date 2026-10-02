@@ -40,22 +40,12 @@ repos:
   - repo: https://github.com/bufbuild/buf
     rev: v1.73.0
     hooks:
-      - id: buf-format
-        args: [proto]
-        types: [file]
-        files: ^proto/
-      - id: buf-lint
-        args: [proto]
-        types: [file]
-        files: ^proto/
-      - id: buf-breaking
-        entry: scripts/buf-breaking.sh
-        types: [file]
-        files: ^(proto/|scripts/buf-breaking\.sh$)
+      # proto/ is the sbt2-protocol submodule, which formats, lints and checks itself;
+      # here its pinned commit only drives the generated code
       - id: buf-generate
         entry: scripts/buf-generate.sh
-        types: [file]
-        files: ^(proto/|buf\.gen\.yaml$|scripts/buf-generate\.sh$)
+        always_run: true
+        pass_filenames: false
 
   - repo: local
     hooks:

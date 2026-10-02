@@ -58,6 +58,10 @@ quantity = "0.100"
 
 `sbt2 run` ends with the headline metrics of each part. Results are stored under `$SBT2_DATA/results`; list them with `uv run sbt2 runs list`, and write a run's tearsheet with `uv run sbt2 report tearsheet <run_id>`.
 
+## Development
+
+The server's protobuf messages live in [sbt2-protocol](https://github.com/sbOogway/sbt2-protocol), pinned as the `proto/` submodule; clone with `--recurse-submodules`, or run `git submodule update --init` in a clone. The `buf-generate` hook regenerates `sbt2-server`'s Python from the pinned commit and fails when the committed code is stale.
+
 ## License
 
 sbt2 is licensed under the [GNU Lesser General Public License v3.0 or later](COPYING.LESSER), which builds on the [GNU General Public License v3.0](COPYING).
