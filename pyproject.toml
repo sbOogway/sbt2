@@ -18,7 +18,8 @@ dependencies = ["sbt2-core=={{ version }}", "sbt2-strategies=={{ version }}"]
 
 [tool.hatch.metadata.hooks.uv-dynamic-versioning.optional-dependencies]
 papers = ["sbt2-papers=={{ version }}"]
-all = ["sbt2-papers=={{ version }}"]
+server = ["sbt2-server=={{ version }}"]
+all = ["sbt2-papers=={{ version }}", "sbt2-server=={{ version }}"]
 
 # a meta distribution: it only pulls in the members
 [tool.hatch.build.targets.wheel]
@@ -43,6 +44,7 @@ nautilus-trader = { index = "nautech" }
 sbt2-core = { workspace = true }
 sbt2-strategies = { workspace = true }
 sbt2-papers = { workspace = true }
+sbt2-server = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -51,6 +53,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "sbt2-papers",
+    "sbt2-server",
 ]
 
 [tool.pyright]
@@ -58,6 +61,12 @@ include = ["packages", "tests"]
 # the core tests share helpers with the root tests
 extraPaths = ["tests"]
 reportDeprecated = "error"
+
+# mypy-protobuf's stubs narrow Message.DESCRIPTOR, which typeshed declares as a union;
+# mypy-protobuf turns this rule off for generated code too
+[[tool.pyright.executionEnvironments]]
+root = "packages/sbt2-server/src/sbt2/protocol"
+reportIncompatibleVariableOverride = false
 
 [tool.ruff]
 src = ["packages/*/src"]

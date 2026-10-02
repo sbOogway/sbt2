@@ -1,5 +1,7 @@
 default_install_hook_types: [pre-commit, commit-msg, post-merge]
 default_stages: [pre-commit]
+# buf generate writes these; the buf-generate hook fails when they are stale
+exclude: ^packages/sbt2-server/src/sbt2/protocol/
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -34,6 +36,16 @@ repos:
     hooks:
       - id: shfmt
         args: [-w, -i, "4"]
+
+  - repo: https://github.com/bufbuild/buf
+    rev: v1.73.0
+    hooks:
+      # proto/ is the sbt2-protocol submodule, which formats, lints and checks itself;
+      # here its pinned commit only drives the generated code
+      - id: buf-generate
+        entry: scripts/buf-generate.sh
+        always_run: true
+        pass_filenames: false
 
   - repo: local
     hooks:

@@ -13,6 +13,7 @@ members = [
     "sbt2",
     "sbt2-core",
     "sbt2-papers",
+    "sbt2-server",
     "sbt2-strategies",
 ]
 
@@ -367,6 +368,16 @@ wheels = [
 ]
 
 [[package]]
+name = "protobuf"
+version = "7.36.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d9/89/5b8517baa72f84a67b8a307ba953c91057af618bf40bf676f3c03551f8f0/protobuf-7.36.2.tar.gz", hash = "sha256:497d0463ff3316681da6c0b9e8d06cb465d61abce00b613ab42226175644d1bb", size = 512737, upload-time = "2026-09-17T20:07:59.326Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/db/f3/3996583dd2906297a637af12114deddf7658af6e683fedb83be061983fb5/protobuf-7.36.2-cp310-abi3-manylinux2014_x86_64.whl", hash = "sha256:89f23aa53c24553a2416fd4fd1ec06f74fa42b14b546d8883128813f775bbfd2", size = 343223, upload-time = "2026-09-17T20:07:54.931Z" },
+    { url = "https://files.pythonhosted.org/packages/e4/04/d52c7016b04b6c5108f26691f9d33ec82a9b65d041f1a9c771137693d618/protobuf-7.36.2-py3-none-any.whl", hash = "sha256:bdb3a345d48db958e6ce1f18e508beb0cc981d64f24088427549c866cd039f1e", size = 179806, upload-time = "2026-09-17T20:07:58.211Z" },
+]
+
+[[package]]
 name = "pyarrow"
 version = "25.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -470,9 +481,13 @@ dependencies = [
 [package.optional-dependencies]
 all = [
     { name = "sbt2-papers" },
+    { name = "sbt2-server" },
 ]
 papers = [
     { name = "sbt2-papers" },
+]
+server = [
+    { name = "sbt2-server" },
 ]
 
 [package.dev-dependencies]
@@ -482,6 +497,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "sbt2-papers" },
+    { name = "sbt2-server" },
 ]
 
 [package.metadata]
@@ -489,9 +505,11 @@ requires-dist = [
     { name = "sbt2-core", editable = "packages/sbt2-core" },
     { name = "sbt2-papers", marker = "extra == 'all'", editable = "packages/sbt2-papers" },
     { name = "sbt2-papers", marker = "extra == 'papers'", editable = "packages/sbt2-papers" },
+    { name = "sbt2-server", marker = "extra == 'all'", editable = "packages/sbt2-server" },
+    { name = "sbt2-server", marker = "extra == 'server'", editable = "packages/sbt2-server" },
     { name = "sbt2-strategies", editable = "packages/sbt2-strategies" },
 ]
-provides-extras = ["all", "papers"]
+provides-extras = ["all", "papers", "server"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -500,6 +518,7 @@ dev = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "sbt2-papers", editable = "packages/sbt2-papers" },
+    { name = "sbt2-server", editable = "packages/sbt2-server" },
 ]
 
 [[package]]
@@ -541,6 +560,16 @@ dev = [
 [[package]]
 name = "sbt2-papers"
 source = { editable = "packages/sbt2-papers" }
+
+[[package]]
+name = "sbt2-server"
+source = { editable = "packages/sbt2-server" }
+dependencies = [
+    { name = "protobuf" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "protobuf", specifier = ">=7.36.2,<8" }]
 
 [[package]]
 name = "sbt2-strategies"
