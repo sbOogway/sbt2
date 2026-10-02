@@ -27,7 +27,7 @@ from rich.progress import (
 )
 
 from sbt2.core import data, results, spec
-from sbt2.core.config import ROOT, SOURCES, Root
+from sbt2.core.config import ROOT, Root
 from sbt2.core.results import (
     Benchmark,
     MissingTableError,
@@ -156,7 +156,7 @@ class _Launch:
 def _setup(root: Root, settings: RunSettings, launch: _Launch) -> BatchSetup:
     return BatchSetup(
         store=ParquetResultStore(root.results),
-        sources=lambda name: data.source(name, SOURCES),
+        sources=lambda name: data.source(name, root.known_gaps),
         folders=DataFolders(root.raw, root.catalog),
         settings=settings,
         launcher=launch.launcher,
@@ -190,7 +190,7 @@ def _headline_tables(store: ResultStore, run_ids: tuple[str, ...]) -> str:
 
 @app.command()
 def download(
-    source: Annotated[str, typer.Option(help="A source in config/sources.toml.")],
+    source: Annotated[str, typer.Option(help="The source to fetch from.")],
     symbol: Annotated[list[str], typer.Option(help="Repeat for several.")],
     start: Annotated[datetime, typer.Option(formats=DAY, help="The first UTC day.")],
     end: Annotated[
@@ -211,22 +211,22 @@ def download(
     retries: Annotated[int, typer.Option(min=0, help="Per file.")] = 5,
 ) -> None:
     """Fetch a source's raw files for a range of days, and today's instruments."""
-    options = data.DownloadOptions(Root(data_root).raw, concurrency, retries)
+    root = Root(data_root)
+    options = data.DownloadOptions(root.raw, concurrency, retries)
     with _failing("download from %s", source):
         days = data.DayRange(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ())
         )
         request = data.DownloadRequest(days)
-        tally = _download(source, request, options)
+        tally = _download(data.source(source, root.known_gaps), request, options)
     _log_summary(tally)
     if tally.having(data.Outcome.FAILED):
         raise typer.Exit(1)
 
 
 def _download(
-    name: str, request: data.DownloadRequest, options: data.DownloadOptions
+    adapter: data.Source, request: data.DownloadRequest, options: data.DownloadOptions
 ) -> data.Tally[data.FileResult]:
-    adapter = data.source(name, SOURCES)
     with _download_bar() as bar:
         return data.download(adapter, request, replace(options, progress=bar))
 
@@ -246,7 +246,7 @@ def _described(item: data.Item) -> str:
 
 @app.command()
 def ingest(
-    source: Annotated[str, typer.Option(help="A source in config/sources.toml.")],
+    source: Annotated[str, typer.Option(help="The source the raw files came from.")],
     symbol: Annotated[list[str], typer.Option(help="Repeat for several.")],
     start: Annotated[datetime, typer.Option(formats=DAY, help="The first UTC day.")],
     end: Annotated[
@@ -280,14 +280,13 @@ def ingest(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ())
         )
         request = data.IngestRequest(days, reingest)
-        tally = _ingest(source, request, options)
+        tally = _ingest(data.source(source, root.known_gaps), request, options)
     _log_ingest_summary(tally)
 
 
 def _ingest(
-    name: str, request: data.IngestRequest, options: data.IngestOptions
+    adapter: data.Source, request: data.IngestRequest, options: data.IngestOptions
 ) -> data.Tally[data.DayResult]:
-    adapter = data.source(name, SOURCES)
     with _bar("ingest") as bar:
         return data.ingest(adapter, request, replace(options, progress=bar))
 
@@ -317,11 +316,11 @@ def status(
     ] = None,
 ) -> None:
     """Show the symbols, data types and days in the catalog, and flag gaps."""
-    folder = Root(data_root).catalog
-    with _failing("status of %s", folder):
+    root = Root(data_root)
+    with _failing("status of %s", root.catalog):
         window = _window(start, end)
-        catalog = data.Catalog(folder)
-        holdings = catalog.status(data.known_gaps(SOURCES), window)
+        catalog = data.Catalog(root.catalog)
+        holdings = catalog.status(data.known_gaps(root.known_gaps), window)
     typer.echo(_status_table(holdings))
 
 

@@ -6,58 +6,56 @@ from nautilus_trader.model import Bar, InstrumentId, TradeTick
 
 from sbt2.core.data.sources import Gap, UnknownSourceError, known_gaps, source
 
-REPO_CONFIG = Path(__file__).parents[5] / "config" / "sources.toml"
+
+@pytest.mark.unit
+def test_a_missing_known_gaps_file_means_none(tmp_path: Path) -> None:
+    file = tmp_path / "known_gaps.toml"
+
+    assert source("bybit", file).known_gaps == frozenset()
+    assert known_gaps(file) == frozenset()
 
 
 @pytest.mark.unit
-def test_repo_config_builds_bybit_without_known_gaps() -> None:
-    assert source("bybit", REPO_CONFIG).known_gaps == frozenset()
-
-
-@pytest.mark.unit
-def test_known_gaps_come_from_the_config(tmp_path: Path) -> None:
-    config = tmp_path / "sources.toml"
-    config.write_text(
-        "[bybit]\n"
-        'known_gaps = [{ symbol = "BTCUSDT", data = "trades", day = 2020-03-25 }]\n'
+def test_known_gaps_come_from_the_data_roots_file(tmp_path: Path) -> None:
+    file = tmp_path / "known_gaps.toml"
+    file.write_text(
+        'bybit = [{ symbol = "BTCUSDT", data = "trades", day = 2020-03-25 }]\n'
     )
 
-    assert source("bybit", config).known_gaps == {
+    assert source("bybit", file).known_gaps == {
         Gap(InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT"), TradeTick, date(2020, 3, 25))
     }
 
 
 @pytest.mark.unit
 def test_known_gaps_can_name_candles(tmp_path: Path) -> None:
-    config = tmp_path / "sources.toml"
-    config.write_text(
-        "[bybit]\n"
-        'known_gaps = [{ symbol = "BTCUSDT", data = "candles", day = 2020-03-25 }]\n'
+    file = tmp_path / "known_gaps.toml"
+    file.write_text(
+        'bybit = [{ symbol = "BTCUSDT", data = "candles", day = 2020-03-25 }]\n'
     )
 
-    assert source("bybit", config).known_gaps == {
+    assert source("bybit", file).known_gaps == {
         Gap(InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT"), Bar, date(2020, 3, 25))
     }
 
 
 @pytest.mark.unit
-def test_unknown_source_is_refused() -> None:
+def test_unknown_source_is_refused(tmp_path: Path) -> None:
     with pytest.raises(UnknownSourceError, match="known: bybit"):
-        source("nope", REPO_CONFIG)
+        source("nope", tmp_path / "known_gaps.toml")
 
 
 @pytest.mark.unit
 def test_known_gaps_combine_every_configured_source(tmp_path: Path) -> None:
-    config = tmp_path / "sources.toml"
-    config.write_text(
-        "[bybit]\n"
-        "known_gaps = [\n"
+    file = tmp_path / "known_gaps.toml"
+    file.write_text(
+        "bybit = [\n"
         '  { symbol = "BTCUSDT", data = "trades", day = 2020-03-25 },\n'
         '  { symbol = "ETHUSDT", data = "trades", day = 2020-03-26 },\n'
         "]\n"
     )
 
-    assert known_gaps(config) == {
+    assert known_gaps(file) == {
         Gap(
             InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT"), TradeTick, date(2020, 3, 25)
         ),
@@ -69,7 +67,7 @@ def test_known_gaps_combine_every_configured_source(tmp_path: Path) -> None:
 
 @pytest.mark.unit
 def test_a_config_without_sources_has_no_known_gaps(tmp_path: Path) -> None:
-    config = tmp_path / "sources.toml"
-    config.write_text("")
+    file = tmp_path / "known_gaps.toml"
+    file.write_text("")
 
-    assert known_gaps(config) == frozenset()
+    assert known_gaps(file) == frozenset()

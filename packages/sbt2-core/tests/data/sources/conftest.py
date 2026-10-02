@@ -7,13 +7,11 @@ from bybit_replay import bybit_replay
 from sbt2.core.data.sources import Source, source
 from sbt2.core.data.sources.bybit import BybitSource, Endpoints
 
-REPO_CONFIG = Path(__file__).parents[5] / "config" / "sources.toml"
-
 
 @pytest.fixture
-def bybit() -> Source:
-    """Bybit as configured in the repo."""
-    return source("bybit", REPO_CONFIG)
+def bybit(tmp_path: Path) -> Source:
+    """Bybit, without known gaps."""
+    return source("bybit", tmp_path / "known_gaps.toml")
 
 
 @pytest.fixture

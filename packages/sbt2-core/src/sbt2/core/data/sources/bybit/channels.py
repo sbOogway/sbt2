@@ -28,7 +28,7 @@ class Remote:
 class Channel(ABC):
     """One data type as Bybit serves it: one raw file per symbol and UTC day.
 
-    ``name`` is the data type's name in ``config/sources.toml``.
+    ``name`` is the data type's name in the data root's ``known_gaps.toml``.
     """
 
     data_type: type
@@ -92,7 +92,7 @@ def channel(data_type: type) -> Channel:
 
 
 def named(name: str) -> Channel:
-    """The channel called ``name`` in ``config/sources.toml``."""
+    """The channel called ``name`` in the data root's ``known_gaps.toml``."""
     return {each.name: each for each in CHANNELS}[name]
 
 

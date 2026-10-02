@@ -1,4 +1,0 @@
-[bybit]
-# Days confirmed as unavailable at Bybit, added deliberately, e.g.
-# { symbol = "BTCUSDT", data = "trades", day = 2020-03-25 }
-known_gaps = []
