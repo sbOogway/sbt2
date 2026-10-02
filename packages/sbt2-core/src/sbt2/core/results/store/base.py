@@ -9,7 +9,7 @@ import pandas as pd
 from sbt2.core.data import Catalog, Gap
 from sbt2.core.results.metrics import RunTables
 from sbt2.core.results.pricing import PricedRun
-from sbt2.core.results.sink import OutputSink
+from sbt2.core.results.store.sink import OutputSink
 from sbt2.core.spec import ResolvedRunSpec
 
 Table = Literal["equity", "carry", "fills", "positions", "account", "orders", "summary"]
