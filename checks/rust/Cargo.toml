@@ -1,0 +1,19 @@
+[package]
+name = "sbt2-protocol-checks"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Decodes and re-encodes the golden fixtures with prost"
+license = "LGPL-3.0-or-later"
+
+[dependencies]
+# the version the GUI pins
+prost = "=0.14.4"
+prost-types = "=0.14.4"
+prost-reflect = { version = "0.16.5", features = ["text-format"] }
+
+[build-dependencies]
+prost = "=0.14.4"
+prost-build = "=0.14.4"
+# compiles the .proto files in Rust, so this check needs neither buf nor protoc
+protox = "0.9.1"
