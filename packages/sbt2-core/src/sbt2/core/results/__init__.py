@@ -3,6 +3,8 @@ from sbt2.core.results.comparisons import (
     batch_table,
     compare_parts,
     degradation,
+    study_list,
+    study_table,
 )
 from sbt2.core.results.costs import (
     Activity,
@@ -47,9 +49,11 @@ from sbt2.core.results.store import (
     RunFilter,
     RunIds,
     StoredRun,
+    StoredStudy,
     Table,
     UnknownRunError,
     UnknownStoreError,
+    UnknownStudyError,
     open_store,
 )
 
@@ -82,11 +86,13 @@ __all__ = [
     "RunTables",
     "Segment",
     "StoredRun",
+    "StoredStudy",
     "Table",
     "UnknownBatchError",
     "UnknownBenchmarkError",
     "UnknownRunError",
     "UnknownStoreError",
+    "UnknownStudyError",
     "batch_table",
     "benchmark_statistics",
     "build_benchmark",
@@ -97,5 +103,7 @@ __all__ = [
     "full_metrics",
     "headline_metrics",
     "open_store",
+    "study_list",
+    "study_table",
     "tearsheet",
 ]

@@ -10,3 +10,19 @@ class RunFailedError(RuntimeError):
 
 class OutOfMemoryError(RunFailedError):
     pass
+
+
+class StudyError(RuntimeError):
+    """A run that does not fit the study it names."""
+
+
+class StudyContextError(StudyError):
+    pass
+
+
+class StudyCodeError(StudyError):
+    pass
+
+
+class DuplicateStudyRunError(StudyError):
+    pass

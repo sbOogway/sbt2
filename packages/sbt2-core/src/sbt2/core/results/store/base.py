@@ -34,6 +34,7 @@ class RunFilter:
     part: str | None = None
     batch: str | None = None
     run_ids: tuple[str, ...] | None = None
+    study: str | None = None
 
 
 _EVERY_RUN = RunFilter()
@@ -50,6 +51,20 @@ class StoredRun:
     def priced(self, catalog: Catalog) -> PricedRun:
         """The run valued from ``catalog``."""
         return PricedRun(self.spec, self.tables, catalog, self.known_gaps)
+
+
+@dataclass(frozen=True)
+class StoredStudy:
+    """A study as the store holds it: the context its first run fixed, and the
+    source of its strategy's module."""
+
+    name: str
+    context: Mapping[str, Any]
+    source: str
+
+    @property
+    def strategy(self) -> str:
+        return self.context["strategy"]
 
 
 class ResultStore(ABC):
@@ -112,10 +127,27 @@ class ResultStore(ABC):
     def folder(self, run_id: str) -> Path:
         """Where the run is written, whether or not it has started."""
 
+    @abstractmethod
+    def new_study(self, study: StoredStudy) -> None:
+        """Keep a new study; its runs record its name in their summaries."""
+
+    @abstractmethod
+    def study(self, name: str) -> StoredStudy:
+        """The study called ``name``; an unknown one raises ``UnknownStudyError``
+        naming the known ones."""
+
+    @abstractmethod
+    def studies(self) -> tuple[str, ...]:
+        """The names of the studies kept, sorted."""
+
 
 class UnknownRunError(LookupError):
     pass
 
 
 class MissingTableError(LookupError):
+    pass
+
+
+class UnknownStudyError(LookupError):
     pass

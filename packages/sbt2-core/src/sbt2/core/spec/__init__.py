@@ -2,6 +2,7 @@ from sbt2.core.spec.bars import CandleBarError, UnknownBarSourceError
 from sbt2.core.spec.errors import SpecError
 from sbt2.core.spec.file import (
     EmptyListError,
+    InvalidStudyNameError,
     MissingSplitError,
     UnknownSpecKeyError,
 )
@@ -15,6 +16,7 @@ from sbt2.core.spec.resolve import (
     MissingConfigError,
     OutdatedRunError,
     ResolvedRunSpec,
+    Study,
     UnknownModelKindError,
     UnknownPartError,
     UnknownVenueProfileError,
@@ -42,6 +44,7 @@ __all__ = [
     "FractionSplit",
     "InstrumentVenueError",
     "InvalidModelConfigError",
+    "InvalidStudyNameError",
     "InvalidVenueProfileError",
     "MissingConfigError",
     "MissingSplitError",
@@ -51,6 +54,7 @@ __all__ = [
     "SplitDateError",
     "SplitFractionError",
     "Splitter",
+    "Study",
     "UnknownBarSourceError",
     "UnknownModelKindError",
     "UnknownPartError",

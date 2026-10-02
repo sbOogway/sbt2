@@ -22,6 +22,15 @@ from sbt2.core.strategy import StrategyRun
 
 
 @dataclass(frozen=True)
+class Study:
+    """The study a run belongs to, and the context it fixes: every key of the
+    spec file but ``params``, ``part`` and ``study``, as JSON."""
+
+    name: str
+    context: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
 class ResolvedRunSpec:
     """A run spec with every name replaced by what it stands for.
 
@@ -33,6 +42,8 @@ class ResolvedRunSpec:
     ``risk`` holds nautilus's ``RiskEngineConfig`` arguments. With the
     strategy's drawdown limit it enters the hashed document only when set, so
     a run without either keeps its hash.
+    ``study``, like ``source``, is neither hashed nor compared: the same
+    backtest has the same hash in or out of a study.
     """
 
     strategy: StrategyRun
@@ -46,6 +57,7 @@ class ResolvedRunSpec:
     start: datetime
     end: datetime
     risk: Mapping[str, Any] = field(default_factory=dict)
+    study: Study | None = field(default=None, compare=False)
 
     @classmethod
     def from_document(cls, document: Mapping[str, Any]) -> ResolvedRunSpec:

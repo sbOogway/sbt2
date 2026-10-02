@@ -7,7 +7,7 @@ strategy's own classes.
 
 import json
 import sys
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import IO, Any
 
@@ -16,7 +16,7 @@ from nautilus_trader.common import LogLevel
 from sbt2.core.data import Gap
 from sbt2.core.results import ResultStore, open_store
 from sbt2.core.run.execute import RunSettings
-from sbt2.core.spec import ResolvedRunSpec
+from sbt2.core.spec import ResolvedRunSpec, Study
 
 type Document = dict[str, Any]
 
@@ -68,13 +68,18 @@ def _order(document: Document) -> Order:
 
 
 def _spec_document(spec: ResolvedRunSpec) -> Document:
-    """The spec's hashed document, with the source it leaves out."""
-    return {"document": json.loads(spec.to_json()), "source": spec.source}
+    """The spec's hashed document, with the source and study it leaves out."""
+    return {
+        "document": json.loads(spec.to_json()),
+        "source": spec.source,
+        "study": None if spec.study is None else asdict(spec.study),
+    }
 
 
 def _spec(document: Document) -> ResolvedRunSpec:
     spec = ResolvedRunSpec.from_document(document["document"])
-    return replace(spec, source=document["source"])
+    study = document["study"]
+    return replace(spec, source=document["source"], study=study and Study(**study))
 
 
 def _settings_document(settings: RunSettings) -> Document:

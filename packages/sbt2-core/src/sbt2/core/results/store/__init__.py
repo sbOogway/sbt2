@@ -7,8 +7,10 @@ from sbt2.core.results.store.base import (
     RunFilter,
     RunIds,
     StoredRun,
+    StoredStudy,
     Table,
     UnknownRunError,
+    UnknownStudyError,
 )
 from sbt2.core.results.store.parquet import ParquetResultStore
 from sbt2.core.results.store.sink import IncompleteRunError, OutputSink, Reports
@@ -44,8 +46,10 @@ __all__ = [
     "RunFilter",
     "RunIds",
     "StoredRun",
+    "StoredStudy",
     "Table",
     "UnknownRunError",
     "UnknownStoreError",
+    "UnknownStudyError",
     "open_store",
 ]

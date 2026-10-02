@@ -1,9 +1,13 @@
 from sbt2.core.run.batching import (
     BatchProgress,
     BatchSetup,
+    DuplicateStudyRunError,
     Memory,
     OutOfMemoryError,
     RunFailedError,
+    StudyCodeError,
+    StudyContextError,
+    StudyError,
     batch,
 )
 from sbt2.core.run.execute import BacktestError, NoAccountError, RunSettings, execute
@@ -30,6 +34,7 @@ __all__ = [
     "BatchProgress",
     "BatchSetup",
     "DataFolders",
+    "DuplicateStudyRunError",
     "InstrumentAssetClassError",
     "Launcher",
     "LiquidationWithoutQuotesError",
@@ -42,6 +47,9 @@ __all__ = [
     "RunFailedError",
     "RunSettings",
     "SnapshotBufferError",
+    "StudyCodeError",
+    "StudyContextError",
+    "StudyError",
     "SystemdScope",
     "Uncapped",
     "UnknownLauncherError",

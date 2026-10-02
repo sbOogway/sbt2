@@ -10,7 +10,7 @@ from sbt2.core.spec.resolve.resolve import (
     UnknownPartError,
     resolve,
 )
-from sbt2.core.spec.resolve.resolved import ResolvedRunSpec
+from sbt2.core.spec.resolve.resolved import ResolvedRunSpec, Study
 from sbt2.core.spec.resolve.venues import (
     InvalidVenueProfileError,
     MissingConfigError,
@@ -26,6 +26,7 @@ __all__ = [
     "MissingConfigError",
     "OutdatedRunError",
     "ResolvedRunSpec",
+    "Study",
     "UnknownModelKindError",
     "UnknownPartError",
     "UnknownVenueProfileError",

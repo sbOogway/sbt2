@@ -61,6 +61,8 @@ runs_app = typer.Typer(no_args_is_help=True, help="Query and manage stored runs.
 app.add_typer(runs_app, name="runs")
 report_app = typer.Typer(no_args_is_help=True, help="Report on stored runs.")
 app.add_typer(report_app, name="report")
+studies_app = typer.Typer(no_args_is_help=True, help="Query stored studies.")
+app.add_typer(studies_app, name="studies")
 logger = logging.getLogger("sbt2")
 
 
@@ -197,10 +199,16 @@ _HEADLINE_HEADER = ("run_id", "strategy", *_HEADLINE)
 def _headline_tables(store: ResultStore, run_ids: tuple[str, ...]) -> str:
     """One table of the runs' headline metrics per part, in split order."""
     runs = store.runs(results.RunFilter(run_ids=run_ids))
+    return _part_tables(runs, _HEADLINE_HEADER)
+
+
+def _part_tables(frame: pd.DataFrame, columns: tuple[str, ...]) -> str:
+    """One table of the frame's ``columns`` per part, in split order, each under
+    its part's name."""
     return "\n\n".join(
-        f"{part}\n{_frame_table(runs.loc[runs['part'] == part], _HEADLINE_HEADER)}"
+        f"{part}\n{_frame_table(frame.loc[frame['part'] == part], columns)}"
         for part in spec.PARTS
-        if (runs["part"] == part).any()
+        if (frame["part"] == part).any()
     )
 
 
@@ -586,6 +594,35 @@ def report_batch(
         table = results.batch_table(_store(data_root), batch_id)
     columns = ("run_id", *(str(each) for each in table.columns))
     typer.echo(_frame_table(table.reset_index(), columns))
+
+
+@report_app.command("study")
+def report_study(
+    name: Annotated[str, typer.Argument(help="The study's name.")],
+    data_root: Annotated[Path, _data_option("Reads PATH/results.")],
+) -> None:
+    """Show one table per part of a study's runs, a row per run: the parameters
+    that vary across the study, then the headline metrics."""
+    with _failing("reporting study %s", name):
+        table = results.study_table(_store(data_root), name).reset_index()
+    columns = tuple(str(each) for each in table.columns if each != "part")
+    typer.echo(_part_tables(table, columns))
+
+
+@studies_app.command("list")
+def list_studies(
+    data_root: Annotated[Path, _data_option("Reads PATH/results.")],
+) -> None:
+    """Show one row per study: its strategy and how many runs it holds."""
+    with _failing("listing the studies in %s", Root(data_root).results):
+        studies = results.study_list(_store(data_root))
+    typer.echo(_studies_table(studies))
+
+
+def _studies_table(studies: pd.DataFrame) -> str:
+    if studies.empty:
+        return "no studies"
+    return _frame_table(studies, tuple(str(each) for each in studies.columns))
 
 
 def _benchmark(option: str | None, stored: StoredRun) -> Benchmark | None:
