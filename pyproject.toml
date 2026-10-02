@@ -131,6 +131,30 @@ protected_modules = ["sbt2.core.run.*"]
 allowed_importers = ["sbt2.core.run"]
 
 [[tool.importlinter.contracts]]
+name = "Only sbt2.core.run.batching imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.core.run.batching.*"]
+allowed_importers = ["sbt2.core.run.batching"]
+
+[[tool.importlinter.contracts]]
+name = "Only sbt2.core.run.child imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.core.run.child.*"]
+allowed_importers = ["sbt2.core.run.child"]
+
+[[tool.importlinter.contracts]]
+name = "Only sbt2.core.run.launchers imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.core.run.launchers.*"]
+allowed_importers = ["sbt2.core.run.launchers"]
+
+[[tool.importlinter.contracts]]
+name = "Only sbt2.core.run.preflighting imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.core.run.preflighting.*"]
+allowed_importers = ["sbt2.core.run.preflighting"]
+
+[[tool.importlinter.contracts]]
 name = "Only sbt2.core.spec imports its own internals"
 type = "protected"
 protected_modules = ["sbt2.core.spec.*"]
