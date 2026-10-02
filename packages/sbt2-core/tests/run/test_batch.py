@@ -15,12 +15,21 @@ from served_source import INSTRUMENT_ID
 
 from sbt2.core.data.sources import Gap
 from sbt2.core.results import ParquetResultStore
-from sbt2.core.run import Memory, MissingDataError, RunFailedError, batch
+from sbt2.core.run import (
+    Memory,
+    MissingDataError,
+    OutOfMemoryError,
+    RunFailedError,
+    Uncapped,
+    batch,
+    batching,
+)
 
 EXIT = [sys.executable, "-c", "pass"]
 FAIL = [sys.executable, "-c", "raise SystemExit(1)"]
 NAP = [sys.executable, "-c", "import time; time.sleep(0.5)"]
 SLEEP = [sys.executable, "-c", "import time; time.sleep(60)"]
+KILLED = [sys.executable, "-c", "import os; os.kill(os.getpid(), 9)"]
 
 
 class RecordedProgress:
@@ -243,3 +252,30 @@ def test_a_child_started_without_a_stdin_pipe_is_refused_and_stopped(
 
     [child] = launcher.started
     assert child.returncode is not None
+
+
+@pytest.mark.integration
+def test_an_uncapped_batch_runs_without_a_systemd_session(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("DBUS_SESSION_BUS_ADDRESS", raising=False)
+    monkeypatch.delenv("XDG_RUNTIME_DIR", raising=False)
+
+    [run_id] = batch([resolved(tmp_path)], setup(tmp_path, Uncapped()))
+
+    assert run_id in summaries(tmp_path)
+
+
+@pytest.mark.integration
+def test_an_uncapped_child_killed_by_a_signal_fails_with_its_exit_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        batching, "_spawn", lambda: subprocess.Popen(KILLED, stdin=subprocess.PIPE)
+    )
+
+    with pytest.raises(RunFailedError) as failure:
+        batch([resolved(tmp_path)], setup(tmp_path, Uncapped()))
+
+    assert not isinstance(failure.value, OutOfMemoryError)
+    assert "exited with code -9" in str(failure.value)
