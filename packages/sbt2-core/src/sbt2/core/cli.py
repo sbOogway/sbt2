@@ -9,7 +9,7 @@ from dataclasses import dataclass, fields, replace
 from datetime import UTC, date, datetime, time, timedelta
 from enum import StrEnum
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import numpy as np
 import pandas as pd
@@ -27,7 +27,7 @@ from rich.progress import (
 )
 
 from sbt2.core import data, results, spec
-from sbt2.core.config import ROOT, SOURCES, Root
+from sbt2.core.config import Root
 from sbt2.core.results import (
     Benchmark,
     MissingTableError,
@@ -51,6 +51,7 @@ DAY = ["%Y-%m-%d"]
 SIZE = re.compile(r"(\d+)([KMGT]?)")
 SIZE_UNITS = {"": 0, "K": 10, "M": 20, "G": 30, "T": 40}
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+DATA_ROOT_ENV = "SBT2_DATA"
 
 app = typer.Typer(no_args_is_help=True, pretty_exceptions_enable=False)
 data_app = typer.Typer(no_args_is_help=True, help="Inspect the catalog.")
@@ -60,6 +61,12 @@ app.add_typer(runs_app, name="runs")
 report_app = typer.Typer(no_args_is_help=True, help="Report on stored runs.")
 app.add_typer(report_app, name="report")
 logger = logging.getLogger("sbt2")
+
+
+def _data_option(help_text: str) -> Any:
+    return typer.Option(
+        "--data", envvar=DATA_ROOT_ENV, show_envvar=True, help=help_text
+    )
 
 
 class Level(StrEnum):
@@ -106,8 +113,8 @@ def run(
     context: typer.Context,
     spec_file: Annotated[Path, typer.Argument(help="The run spec, a TOML file.")],
     data: Annotated[
-        Path, typer.Option(help="Holds raw/, catalog/ and results/.")
-    ] = ROOT,
+        Path, _data_option("Holds raw/, catalog/, results/ and known_gaps.toml.")
+    ],
     memory_budget: Annotated[
         int | None,
         typer.Option(
@@ -156,7 +163,7 @@ class _Launch:
 def _setup(root: Root, settings: RunSettings, launch: _Launch) -> BatchSetup:
     return BatchSetup(
         store=ParquetResultStore(root.results),
-        sources=lambda name: data.source(name, SOURCES),
+        sources=lambda name: data.source(name, root.known_gaps),
         folders=DataFolders(root.raw, root.catalog),
         settings=settings,
         launcher=launch.launcher,
@@ -190,11 +197,14 @@ def _headline_tables(store: ResultStore, run_ids: tuple[str, ...]) -> str:
 
 @app.command()
 def download(
-    source: Annotated[str, typer.Option(help="A source in config/sources.toml.")],
+    source: Annotated[str, typer.Option(help="The source to fetch from.")],
     symbol: Annotated[list[str], typer.Option(help="Repeat for several.")],
     start: Annotated[datetime, typer.Option(formats=DAY, help="The first UTC day.")],
     end: Annotated[
         datetime, typer.Option(formats=DAY, help="The last UTC day, included.")
+    ],
+    data_root: Annotated[
+        Path, _data_option("Reads PATH/known_gaps.toml, writes PATH/raw.")
     ],
     data_type: Annotated[
         list[str] | None,
@@ -204,29 +214,26 @@ def download(
             "Default: all of them.",
         ),
     ] = None,
-    data_root: Annotated[
-        Path, typer.Option("--data", help="Raw files go to PATH/raw.")
-    ] = ROOT,
     concurrency: Annotated[int, typer.Option(min=1)] = 8,
     retries: Annotated[int, typer.Option(min=0, help="Per file.")] = 5,
 ) -> None:
     """Fetch a source's raw files for a range of days, and today's instruments."""
-    options = data.DownloadOptions(Root(data_root).raw, concurrency, retries)
+    root = Root(data_root)
+    options = data.DownloadOptions(root.raw, concurrency, retries)
     with _failing("download from %s", source):
         days = data.DayRange(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ())
         )
         request = data.DownloadRequest(days)
-        tally = _download(source, request, options)
+        tally = _download(data.source(source, root.known_gaps), request, options)
     _log_summary(tally)
     if tally.having(data.Outcome.FAILED):
         raise typer.Exit(1)
 
 
 def _download(
-    name: str, request: data.DownloadRequest, options: data.DownloadOptions
+    adapter: data.Source, request: data.DownloadRequest, options: data.DownloadOptions
 ) -> data.Tally[data.FileResult]:
-    adapter = data.source(name, SOURCES)
     with _download_bar() as bar:
         return data.download(adapter, request, replace(options, progress=bar))
 
@@ -246,11 +253,15 @@ def _described(item: data.Item) -> str:
 
 @app.command()
 def ingest(
-    source: Annotated[str, typer.Option(help="A source in config/sources.toml.")],
+    source: Annotated[str, typer.Option(help="The source the raw files came from.")],
     symbol: Annotated[list[str], typer.Option(help="Repeat for several.")],
     start: Annotated[datetime, typer.Option(formats=DAY, help="The first UTC day.")],
     end: Annotated[
         datetime, typer.Option(formats=DAY, help="The last UTC day, included.")
+    ],
+    data_root: Annotated[
+        Path,
+        _data_option("Reads PATH/raw and PATH/known_gaps.toml, writes PATH/catalog."),
     ],
     data_type: Annotated[
         list[str] | None,
@@ -260,10 +271,6 @@ def ingest(
             "Default: all of them.",
         ),
     ] = None,
-    data_root: Annotated[
-        Path,
-        typer.Option("--data", help="Reads PATH/raw, writes PATH/catalog."),
-    ] = ROOT,
     reingest: Annotated[
         bool,
         typer.Option(
@@ -280,14 +287,13 @@ def ingest(
             tuple(symbol), start.date(), end.date(), tuple(data_type or ())
         )
         request = data.IngestRequest(days, reingest)
-        tally = _ingest(source, request, options)
+        tally = _ingest(data.source(source, root.known_gaps), request, options)
     _log_ingest_summary(tally)
 
 
 def _ingest(
-    name: str, request: data.IngestRequest, options: data.IngestOptions
+    adapter: data.Source, request: data.IngestRequest, options: data.IngestOptions
 ) -> data.Tally[data.DayResult]:
-    adapter = data.source(name, SOURCES)
     with _bar("ingest") as bar:
         return data.ingest(adapter, request, replace(options, progress=bar))
 
@@ -305,8 +311,8 @@ def _log_ingest_summary(tally: data.Tally[data.DayResult]) -> None:
 @data_app.command()
 def status(
     data_root: Annotated[
-        Path, typer.Option("--data", help="Reads PATH/catalog.")
-    ] = ROOT,
+        Path, _data_option("Reads PATH/catalog and PATH/known_gaps.toml.")
+    ],
     start: Annotated[
         datetime | None,
         typer.Option(formats=DAY, help="Check every day from this UTC day."),
@@ -317,11 +323,11 @@ def status(
     ] = None,
 ) -> None:
     """Show the symbols, data types and days in the catalog, and flag gaps."""
-    folder = Root(data_root).catalog
-    with _failing("status of %s", folder):
+    root = Root(data_root)
+    with _failing("status of %s", root.catalog):
         window = _window(start, end)
-        catalog = data.Catalog(folder)
-        holdings = catalog.status(data.known_gaps(SOURCES), window)
+        catalog = data.Catalog(root.catalog)
+        holdings = catalog.status(data.known_gaps(root.known_gaps), window)
     typer.echo(_status_table(holdings))
 
 
@@ -405,9 +411,7 @@ _RUNS_HEADER = (
 
 @runs_app.command("list")
 def list_runs(
-    data_root: Annotated[
-        Path, typer.Option("--data", help="Reads PATH/results.")
-    ] = ROOT,
+    data_root: Annotated[Path, _data_option("Reads PATH/results.")],
     strategy: Annotated[
         str | None, typer.Option(help="Only this strategy's import path.")
     ] = None,
@@ -451,9 +455,7 @@ def _cell(value: object) -> str:
 @runs_app.command()
 def show(
     run_id: Annotated[str, typer.Argument(help="The run's id.")],
-    data_root: Annotated[
-        Path, typer.Option("--data", help="Reads PATH/results.")
-    ] = ROOT,
+    data_root: Annotated[Path, _data_option("Reads PATH/results.")],
 ) -> None:
     """Show a run's summary and its resolved spec."""
     with _failing("showing run %s", run_id):
@@ -464,9 +466,7 @@ def show(
 @runs_app.command()
 def delete(
     run_id: Annotated[str, typer.Argument(help="The run's id.")],
-    data_root: Annotated[
-        Path, typer.Option("--data", help="Deletes from PATH/results.")
-    ] = ROOT,
+    data_root: Annotated[Path, _data_option("Deletes from PATH/results.")],
     yes: Annotated[bool, typer.Option("--yes", help="Don't ask first.")] = False,
 ) -> None:
     """Delete a run's folder, a failed run's partial one included."""
@@ -515,9 +515,7 @@ def _missing(value: object) -> bool:
 @report_app.command("tearsheet")
 def report_tearsheet(
     run_id: Annotated[str, typer.Argument(help="The run's id.")],
-    data_root: Annotated[
-        Path, typer.Option("--data", help="Reads PATH/results and PATH/catalog.")
-    ] = ROOT,
+    data_root: Annotated[Path, _data_option("Reads PATH/results and PATH/catalog.")],
     benchmark: Annotated[
         str | None,
         typer.Option(
@@ -548,9 +546,7 @@ _PARTS_HEADER = ("part", "run_id", "start", "end", *_HEADLINE)
 @report_app.command("parts")
 def report_parts(
     run_id: Annotated[str, typer.Argument(help="The run's id.")],
-    data_root: Annotated[
-        Path, typer.Option("--data", help="Reads PATH/results.")
-    ] = ROOT,
+    data_root: Annotated[Path, _data_option("Reads PATH/results.")],
 ) -> None:
     """Show each part a run's parameters were run on, then how the headline
     metrics change from one part to the next."""
@@ -573,9 +569,7 @@ def _change_table(change: pd.DataFrame) -> str:
 @report_app.command("batch")
 def report_batch(
     batch_id: Annotated[str, typer.Argument(help="The batch's id.")],
-    data_root: Annotated[
-        Path, typer.Option("--data", help="Reads PATH/results.")
-    ] = ROOT,
+    data_root: Annotated[Path, _data_option("Reads PATH/results.")],
 ) -> None:
     """Show one row per run of a batch: the parameters that vary across it,
     then the headline metrics."""

@@ -118,3 +118,17 @@ def test_status_of_an_empty_catalog_says_so(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "the catalog is empty" in result.stdout
+
+
+@pytest.mark.e2e
+def test_data_status_reads_the_known_gaps_from_the_data_root(tmp_path: Path) -> None:
+    data = ingested(tmp_path, date(2025, 1, 1), date(2025, 1, 3))
+    (data / "known_gaps.toml").write_text(
+        'bybit = [{ symbol = "BTCUSDT", data = "trades", day = 2025-01-02 }]\n'
+    )
+
+    result = status(data)
+
+    assert result.exit_code == 0, result.output
+    (row,) = [line for line in result.stdout.splitlines() if "TradeTick" in line]
+    assert row.split()[-2:] == ["-", "2025-01-02"]

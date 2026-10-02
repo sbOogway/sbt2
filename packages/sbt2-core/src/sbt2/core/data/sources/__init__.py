@@ -37,15 +37,19 @@ class UnknownSourceError(LookupError):
     pass
 
 
-def source(name: str, config: Path) -> Source:
-    """The source adapter called ``name``, built from its table in ``config``."""
-    return _source_class(name).from_config(_tables(config).get(name, {}))
+def source(name: str, known_gaps_file: Path) -> Source:
+    """The source adapter called ``name``, with the known gaps
+    ``known_gaps_file`` lists for it."""
+    return _source_class(name).listing(_lists(known_gaps_file).get(name, ()))
 
 
-def known_gaps(config: Path) -> frozenset[Gap]:
-    """The known gaps of every source with a table in ``config``."""
-    names = _tables(config)
-    return frozenset().union(*(source(name, config).known_gaps for name in names))
+def known_gaps(known_gaps_file: Path) -> frozenset[Gap]:
+    """The known gaps of every source ``known_gaps_file`` lists; none when the
+    file is missing."""
+    names = _lists(known_gaps_file)
+    return frozenset().union(
+        *(source(name, known_gaps_file).known_gaps for name in names)
+    )
 
 
 def _source_class(name: str) -> type[Source]:
@@ -56,6 +60,8 @@ def _source_class(name: str) -> type[Source]:
     raise UnknownSourceError(f"no source {name}; known: {known}")
 
 
-def _tables(config: Path) -> dict[str, Any]:
-    with config.open("rb") as file:
+def _lists(known_gaps_file: Path) -> dict[str, Any]:
+    if not known_gaps_file.exists():
+        return {}
+    with known_gaps_file.open("rb") as file:
         return tomllib.load(file)

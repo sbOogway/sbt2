@@ -10,7 +10,6 @@ from typer.testing import CliRunner
 
 from sbt2.core import data
 from sbt2.core.cli import app
-from sbt2.core.config import SOURCES
 from sbt2.core.data.sources import MissingAtSourceError, RawFile, Source
 
 runner = CliRunner()
@@ -62,12 +61,15 @@ class ApiSource(Source):
 
 
 @pytest.fixture
-def answers(monkeypatch: pytest.MonkeyPatch) -> dict[str, bytes | Exception]:
-    """What the source named ``fake`` answers, when looked up in the repo's config."""
+def answers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> dict[str, bytes | Exception]:
+    """What the source named ``fake`` answers, when looked up with the known gaps
+    of the data root ``tmp_path``."""
     served: dict[str, bytes | Exception] = {}
 
     def source(name: str, config: Path) -> ApiSource:
-        assert (name, config) == ("fake", SOURCES)
+        assert (name, config) == ("fake", tmp_path / "known_gaps.toml")
         return ApiSource(served)
 
     monkeypatch.setattr(data, "source", source)

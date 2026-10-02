@@ -69,7 +69,7 @@ class BybitSource(Source):
     def parse_instrument(self, path: Path) -> Any:
         return parse.instrument(path)
 
-    def _config_data_type(self, name: str) -> type:
+    def _listed_data_type(self, name: str) -> type:
         return named(name).data_type
 
 

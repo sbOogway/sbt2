@@ -11,7 +11,6 @@ from nautilus_trader.model import Bar, FundingRateUpdate, MarkPriceUpdate, Trade
 from sbt2.core.data import DayRange, DownloadOptions, DownloadRequest, Outcome, download
 from sbt2.core.data.sources import Source, source
 
-REPO_CONFIG = Path(__file__).parents[4] / "config" / "sources.toml"
 DAY = date(2025, 1, 1)
 DAY_START = pd.Timestamp(DAY, tz="UTC").value
 DAY_END = DAY_START + pd.Timedelta(days=1).value
@@ -21,8 +20,8 @@ HOUR = pd.Timedelta(hours=1).value
 
 @pytest.fixture(scope="module")
 def raw(tmp_path_factory: pytest.TempPathFactory) -> tuple[Source, Path]:
-    bybit = source("bybit", REPO_CONFIG)
     root = tmp_path_factory.mktemp("raw")
+    bybit = source("bybit", root / "known_gaps.toml")
     tally = download(
         bybit, DownloadRequest(DayRange(("BTCUSDT",), DAY, DAY)), DownloadOptions(root)
     )

@@ -35,12 +35,14 @@ VALIDATION_DAY = date(2024, 1, 3)
 def served(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: ServedSource
 ) -> Path:
-    """A spec run from ``tmp_path``, whose venue's data comes from ``source``."""
+    """A spec run from ``tmp_path`` on the data root ``tmp_path/data``, whose
+    venue's data comes from ``source``."""
     (tmp_path / "config").mkdir()
     (tmp_path / "config" / "venues.toml").write_text(VENUES)
     spec = tmp_path / "spec.toml"
     spec.write_text(SPEC)
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("SBT2_DATA", str(tmp_path / "data"))
     monkeypatch.setattr(data, "source", lambda _name, _config: source)
     return spec
 
