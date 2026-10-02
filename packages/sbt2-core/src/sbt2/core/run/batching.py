@@ -38,12 +38,13 @@ class OutOfMemoryError(RunFailedError):
 
 
 class Launcher(ABC):
-    """Caps the memory of each child of a batch.
+    """Starts each child of a batch under its memory cap, if it enforces one:
+    a launcher that does not leaves memory to the machine or container.
 
-    ``platforms`` are the values of ``sys.platform`` it serves.
+    ``name`` is the name it is picked by.
     """
 
-    platforms: ClassVar[frozenset[str]]
+    name: ClassVar[str]
 
     @abstractmethod
     def check(self) -> None:

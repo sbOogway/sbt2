@@ -8,7 +8,11 @@ from sbt2.core.run.batching import (
     batch,
 )
 from sbt2.core.run.execute import BacktestError, NoAccountError, RunSettings, execute
-from sbt2.core.run.launchers import UnsupportedPlatformError, launcher_for
+from sbt2.core.run.launchers import (
+    Uncapped,
+    UnknownLauncherError,
+    launcher_named,
+)
 from sbt2.core.run.preflight import (
     DataFolders,
     InstrumentAssetClassError,
@@ -38,9 +42,10 @@ __all__ = [
     "RunSettings",
     "SnapshotBufferError",
     "SystemdScope",
-    "UnsupportedPlatformError",
+    "Uncapped",
+    "UnknownLauncherError",
     "batch",
     "execute",
-    "launcher_for",
+    "launcher_named",
     "preflight",
 ]

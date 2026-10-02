@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 
 import pytest
@@ -12,7 +11,7 @@ from sbt2.core import cli
 from sbt2.core.cli import app
 from sbt2.core.data.sources import Gap
 from sbt2.core.results import ParquetResultStore
-from sbt2.core.run import launcher_for
+from sbt2.core.run import Launcher, launcher_named
 
 runner = CliRunner()
 FAILING = """
@@ -30,6 +29,25 @@ class FailOnBar(Strategy[NoParams]):
         raise RuntimeError("strategy blew up")
 """
 GiB = 2**30
+
+
+def launchers_asked(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Records each name ``sbt2 run`` asks a launcher for, and has the run
+    start its children with a ``PlainLauncher``."""
+    names: list[str] = []
+
+    def spy(name: str) -> Launcher:
+        names.append(name)
+        return PlainLauncher()
+
+    monkeypatch.setattr(cli, "launcher_named", spy)
+    return names
+
+
+def run_spec(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    source = ServedSource()
+    source.serve(DAY, NEXT_DAY)
+    return served(tmp_path, monkeypatch, source)
 
 
 @pytest.mark.e2e
@@ -258,19 +276,44 @@ def test_a_budget_below_the_per_run_cap_fails_the_run(
 
 
 @pytest.mark.e2e
-def test_run_on_an_unserved_platform_starts_no_run(
+def test_run_uses_the_uncapped_launcher_by_default(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    source = ServedSource()
-    source.serve(DAY, NEXT_DAY)
-    spec = served(tmp_path, monkeypatch, source)
-    log = tmp_path / "sbt2.log"
-    monkeypatch.setattr(cli, "launcher_for", launcher_for)
-    monkeypatch.setattr(sys, "platform", "win32")
+    spec = run_spec(tmp_path, monkeypatch)
+    asked = launchers_asked(monkeypatch)
 
-    result = runner.invoke(app, ["--log-file", str(log), "run", str(spec)])
+    result = runner.invoke(app, ["run", str(spec)])
+
+    assert result.exit_code == 0, result.output
+    assert asked == ["uncapped"]
+
+
+@pytest.mark.e2e
+def test_the_launcher_option_picks_the_systemd_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    spec = run_spec(tmp_path, monkeypatch)
+    asked = launchers_asked(monkeypatch)
+
+    result = runner.invoke(app, ["run", str(spec), "--launcher", "systemd"])
+
+    assert result.exit_code == 0, result.output
+    assert asked == ["systemd"]
+
+
+@pytest.mark.e2e
+def test_run_with_an_unknown_launcher_starts_no_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    spec = run_spec(tmp_path, monkeypatch)
+    log = tmp_path / "sbt2.log"
+    monkeypatch.setattr(cli, "launcher_named", launcher_named)
+
+    result = runner.invoke(
+        app, ["--log-file", str(log), "run", str(spec), "--launcher", "cgroup"]
+    )
 
     assert result.exit_code == 1
-    assert "UnsupportedPlatformError" in log.read_text()
-    assert "win32" in log.read_text()
+    assert "UnknownLauncherError" in log.read_text()
+    assert "cgroup" in log.read_text()
     assert not (tmp_path / "data" / "results").exists()
