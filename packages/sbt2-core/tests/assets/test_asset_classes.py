@@ -121,7 +121,7 @@ def test_crypto_perp_portfolio_uses_mark_prices() -> None:
 def test_crypto_perp_buy_and_hold_uses_the_mark_price_and_the_entry_fee_only() -> None:
     convention = crypto_perp().buy_and_hold
     fee_model = {
-        "path": "nautilus_trader.execution:MakerTakerFeeModel",
+        "kind": "maker_taker",
         "config": {"maker_rate": "0.0002", "taker_rate": "0.00055"},
     }
 
@@ -132,9 +132,9 @@ def test_crypto_perp_buy_and_hold_uses_the_mark_price_and_the_entry_fee_only() -
 
 @pytest.mark.unit
 def test_an_entry_fee_needs_a_fee_model_with_a_taker_rate() -> None:
-    fixed = {"path": "nautilus_trader.execution:FixedFeeModel", "config": {}}
+    fixed = {"kind": "fixed", "config": {}}
 
-    with pytest.raises(NoTakerRateError, match="FixedFeeModel has no taker rate"):
+    with pytest.raises(NoTakerRateError, match="fixed has no taker rate"):
         crypto_perp().buy_and_hold.entry_fee({"fee_model": fixed})
 
 

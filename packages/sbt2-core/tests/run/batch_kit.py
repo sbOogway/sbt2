@@ -27,7 +27,7 @@ source = "served"
 asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 default_leverage = "10"
-fee_model = { path = "nautilus_trader.execution:MakerTakerFeeModel", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
+fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
 """
 DAY = date(2024, 1, 1)
 NEXT_DAY = date(2024, 1, 2)

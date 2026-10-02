@@ -16,7 +16,7 @@ from nautilus_trader.risk import RiskEngineConfig
 from sbt2.core.assets import AssetProfile
 from sbt2.core.spec.resolve.canonical import canonical_hash, canonical_json
 from sbt2.core.spec.resolve.document import spec_fields
-from sbt2.core.spec.resolve.venues import venue_objects
+from sbt2.core.spec.resolve.models import venue_objects
 from sbt2.core.spec.split import Splitter
 from sbt2.core.strategy import StrategyRun
 

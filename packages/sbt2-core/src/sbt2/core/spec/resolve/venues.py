@@ -1,4 +1,3 @@
-import importlib
 import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -9,8 +8,7 @@ from nautilus_trader.model import AssetClass, InstrumentClass
 
 from sbt2.core.assets import AssetProfile, asset_profile
 from sbt2.core.spec.errors import SpecError
-
-_MODEL_ARGUMENTS = ("fee_model", "fill_model", "latency_model", "margin_model")
+from sbt2.core.spec.resolve.models import built_model, model_tables
 
 
 class UnknownVenueProfileError(SpecError, LookupError):
@@ -35,7 +33,7 @@ def venue_profile(path: Path, name: str) -> VenueProfile:
     """The venue profile called ``name``.
 
     The arguments start from the asset profile's venue defaults. Model arguments stay
-    as ``{path, config}`` tables until ``venue_objects`` imports them.
+    as ``{kind, config}`` tables until the run config builds them.
     """
     arguments = _profile_table(path, name)
     if "source" not in arguments:
@@ -45,18 +43,18 @@ def venue_profile(path: Path, name: str) -> VenueProfile:
         AssetClass.from_str(arguments.pop("asset_class")),
         InstrumentClass.from_str(arguments.pop("instrument_class")),
     )
+    _check_models(name, arguments)
     return VenueProfile(asset, source, {**asset.venue_defaults, **arguments})
 
 
-def venue_objects(arguments: Mapping[str, Any]) -> dict[str, Any]:
-    """Venue arguments with each ``{path, config}`` model table imported and built."""
-    built = dict(arguments)
-    for name in _MODEL_ARGUMENTS:
-        if name in built:
-            built[name] = _built(built[name])
-    if "modules" in built:
-        built["modules"] = [_built(each) for each in built["modules"]]
-    return built
+def _check_models(name: str, arguments: Mapping[str, Any]) -> None:
+    for argument, table in model_tables(arguments):
+        if "kind" not in table:
+            raise InvalidVenueProfileError(
+                f"the venue profile {name} names no {argument} kind; "
+                "models are not named by import path, name a kind"
+            )
+        built_model(argument, table)
 
 
 def _profile_table(path: Path, name: str) -> dict[str, Any]:
@@ -68,9 +66,3 @@ def _profile_table(path: Path, name: str) -> dict[str, Any]:
         raise UnknownVenueProfileError(
             f"no venue profile {name} in {path}; known: {', '.join(sorted(profiles))}"
         ) from None
-
-
-def _built(model: Mapping[str, Any]) -> Any:
-    module_name, _, class_name = model["path"].partition(":")
-    kind = getattr(importlib.import_module(module_name), class_name)
-    return kind(**model.get("config", {}))
