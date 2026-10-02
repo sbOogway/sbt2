@@ -7,7 +7,7 @@ depends_on:
 
 variables:
   - &image ghcr.io/astral-sh/uv:0.12.19-python3.14-trixie
-  - &cache /home/mattia/.cache/woodpecker/sbt2/release:/cache:z
+  - &cache sbt2-cache-release:/cache:z
 
 steps:
   # one step, because this agent doesn't let a step read files another step's container wrote
