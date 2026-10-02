@@ -1,9 +1,9 @@
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from functools import cached_property
 from pathlib import Path
-from typing import Any
+from typing import Any, Self
 
 import pandas as pd
 from nautilus_trader.model import InstrumentId, NautilusDataType
@@ -34,6 +34,11 @@ class Window:
             raise ValueError(f"the window {self.start} to {self.end} has no time zone")
         if self.end <= self.start:
             raise ValueError(f"the window ends on {self.end}, before {self.start}")
+
+    @classmethod
+    def of_days(cls, first: date, last: date) -> Self:
+        """The UTC days from ``first`` to ``last``, both included."""
+        return cls(_midnight(first), _midnight(last + timedelta(days=1)))
 
     @property
     def nanos(self) -> Interval:
@@ -242,3 +247,7 @@ def _days_of(intervals: Iterable[Interval]) -> list[date]:
 
 def _overlaps(one: Interval, other: Interval) -> bool:
     return one[0] <= other[1] and other[0] <= one[1]
+
+
+def _midnight(day: date) -> datetime:
+    return datetime.combine(day, time(), UTC)

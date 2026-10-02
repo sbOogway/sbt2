@@ -6,7 +6,7 @@ import sys
 from collections.abc import Generator, Hashable, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, fields, replace
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import date, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any
@@ -353,12 +353,7 @@ def _window(start: datetime | None, end: datetime | None) -> data.Window | None:
         return None
     if start is None or end is None:
         raise ValueError("give both --start and --end, or neither")
-    last = end.date() + timedelta(days=1)
-    return data.Window(_midnight(start.date()), _midnight(last))
-
-
-def _midnight(day: date) -> datetime:
-    return datetime.combine(day, time(), UTC)
+    return data.Window.of_days(start.date(), end.date())
 
 
 _STATUS_HEADER = ("instrument", "type", "first", "last", "days", "gaps", "known gaps")
