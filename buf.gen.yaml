@@ -1,0 +1,8 @@
+version: v2
+inputs:
+  - directory: proto
+plugins:
+  - remote: buf.build/protocolbuffers/python:v36.2
+    out: packages/sbt2-server/src
+  - remote: buf.build/community/nipunn1313-mypy:v5.1.0
+    out: packages/sbt2-server/src
