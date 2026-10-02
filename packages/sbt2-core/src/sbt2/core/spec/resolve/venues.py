@@ -19,6 +19,10 @@ class InvalidVenueProfileError(SpecError):
     pass
 
 
+class MissingConfigError(SpecError):
+    """A configuration file a run reads that does not exist."""
+
+
 @dataclass(frozen=True)
 class VenueProfile:
     """``arguments`` are the ``BacktestVenueConfig`` arguments; ``source`` names
@@ -58,6 +62,8 @@ def _check_models(name: str, arguments: Mapping[str, Any]) -> None:
 
 
 def _profile_table(path: Path, name: str) -> dict[str, Any]:
+    if not path.exists():
+        raise MissingConfigError(f"no venue profiles file {path}")
     with path.open("rb") as file:
         profiles = tomllib.load(file)
     try:

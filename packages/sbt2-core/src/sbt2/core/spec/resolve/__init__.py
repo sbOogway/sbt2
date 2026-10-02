@@ -13,6 +13,7 @@ from sbt2.core.spec.resolve.resolve import (
 from sbt2.core.spec.resolve.resolved import ResolvedRunSpec
 from sbt2.core.spec.resolve.venues import (
     InvalidVenueProfileError,
+    MissingConfigError,
     UnknownVenueProfileError,
 )
 
@@ -22,6 +23,7 @@ __all__ = [
     "InstrumentVenueError",
     "InvalidModelConfigError",
     "InvalidVenueProfileError",
+    "MissingConfigError",
     "OutdatedRunError",
     "ResolvedRunSpec",
     "UnknownModelKindError",

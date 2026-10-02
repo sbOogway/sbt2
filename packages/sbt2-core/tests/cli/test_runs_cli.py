@@ -42,7 +42,7 @@ def unfinished(
     """A store holding the folder of a run that started but never finished."""
     spec_file = served(tmp_path, monkeypatch, ServedSource())
     store = ParquetResultStore(tmp_path / "data" / "results")
-    [run_spec] = spec.load(spec_file)
+    [run_spec] = spec.load(spec_file, tmp_path / "config" / "venues.toml")
     return store, store.new_run(run_spec).run_id
 
 

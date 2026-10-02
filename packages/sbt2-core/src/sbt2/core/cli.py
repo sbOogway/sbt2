@@ -27,7 +27,7 @@ from rich.progress import (
 )
 
 from sbt2.core import data, results, spec
-from sbt2.core.config import Root
+from sbt2.core.config import VENUE_PROFILES, Root
 from sbt2.core.results import (
     Benchmark,
     MissingTableError,
@@ -173,7 +173,7 @@ def _setup(root: Root, settings: RunSettings, launch: _Launch) -> BatchSetup:
 
 def _run(spec_file: Path, setup: BatchSetup) -> None:
     """Pre-flight every run of the spec file, then execute them in a batch."""
-    runs = spec.load(spec_file)
+    runs = spec.load(spec_file, VENUE_PROFILES)
     with _bar("runs") as bar:
         run_ids = batch(runs, setup, bar)
     for run_id in run_ids:
