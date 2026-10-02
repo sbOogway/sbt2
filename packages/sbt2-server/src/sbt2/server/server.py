@@ -1,11 +1,16 @@
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
 from http import HTTPStatus
 from importlib.metadata import version
 
-from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage, Welcome
+from sbt2.protocol.v1.envelope_pb2 import (
+    Capability,
+    ClientMessage,
+    ServerMessage,
+    Welcome,
+)
 from sbt2.server.auth import BearerToken
 from sbt2.server.connection import Connection
 from sbt2.server.routing import Handler, Outbox, Router
@@ -39,13 +44,17 @@ class Settings:
 
 class Server:
     """Serves the protocol: it admits clients presenting the token, answers
-    ``Hello`` and sends every other body to the handler ``routes`` registers
-    for it, by the body's field name in ``ClientMessage``."""
+    ``Hello``, advertising ``capabilities``, and sends every other body to the
+    handler ``routes`` registers for it, by the body's field name in
+    ``ClientMessage``."""
 
     def __init__(
-        self, settings: Settings, routes: Mapping[str, Handler] | None = None
+        self,
+        settings: Settings,
+        routes: Mapping[str, Handler] | None = None,
+        capabilities: Iterable[Capability.ValueType] = (),
     ) -> None:
-        router = Router({"hello": _welcome, **(routes or {})})
+        router = Router({"hello": _welcomer(capabilities), **(routes or {})})
         self._settings = settings
         self._endpoint = _Endpoint(settings, router)
 
@@ -79,5 +88,14 @@ class _Endpoint(Endpoint):
         await Connection(channel, self._router, self._queue_size).serve()
 
 
-async def _welcome(_request: ClientMessage, _outbox: Outbox) -> ServerMessage:
-    return ServerMessage(welcome=Welcome(server_version=version("sbt2-server")))
+def _welcomer(capabilities: Iterable[Capability.ValueType]) -> Handler:
+    welcome = Welcome(
+        server_version=version("sbt2-server"), capabilities=list(capabilities)
+    )
+
+    async def answer(_request: ClientMessage, _outbox: Outbox) -> ServerMessage:
+        reply = ServerMessage()
+        reply.welcome.CopyFrom(welcome)
+        return reply
+
+    return answer
