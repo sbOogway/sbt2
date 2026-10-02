@@ -288,7 +288,7 @@ pythonpath = [
 addopts = [
     "--import-mode=importlib",
     "-p", "pytest_sbt2",
-    "-m", "not live and not realdata and not systemd",
+    "-m", "not live and not realdata and not systemd and not container",
 ]
 filterwarnings = ["error"]
 markers = [
@@ -300,6 +300,7 @@ markers = [
     "live: reaches a real data source over the network; run with -m live",
     "realdata: runs on a month of real data in data/, fetching what it lacks; run with -m realdata",
     "systemd: needs a systemd user session on its D-Bus session bus; run with -m systemd",
+    "container: builds and runs the server's container image with podman; run with -m container",
 ]
 
 [tool.coverage.run]

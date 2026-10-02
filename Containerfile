@@ -1,0 +1,39 @@
+ARG PYTHON_IMAGE=docker.io/library/python:3.14-slim-trixie
+
+FROM ${PYTHON_IMAGE} AS build
+COPY --from=ghcr.io/astral-sh/uv:0.12.19 /uv /usr/local/bin/uv
+# the build context has no git history to derive the version from
+ARG SBT2_VERSION=0.0.0+local
+ENV UV_DYNAMIC_VERSIONING_BYPASS=${SBT2_VERSION} \
+    UV_PROJECT_ENVIRONMENT=/opt/sbt2 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+WORKDIR /src
+COPY uv.lock pyproject.toml COPYING COPYING.LESSER ./
+COPY packages/sbt2-core/pyproject.toml packages/sbt2-core/
+COPY packages/sbt2-strategies/pyproject.toml packages/sbt2-strategies/
+COPY packages/sbt2-papers/pyproject.toml packages/sbt2-papers/
+COPY packages/sbt2-server/pyproject.toml packages/sbt2-server/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --extra server --no-install-workspace
+COPY packages packages
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --extra server --no-editable
+
+FROM ${PYTHON_IMAGE}
+RUN useradd --user-group --uid 10001 --create-home --home-dir /home/sbt2 sbt2 \
+    && mkdir /data /config \
+    && chown sbt2:sbt2 /data /config
+COPY --from=build /opt/sbt2 /opt/sbt2
+ENV PATH=/opt/sbt2/bin:${PATH} \
+    SBT2_DATA=/data \
+    SBT2_CONFIG=/config \
+    SBT2_SERVER_HOST=0.0.0.0 \
+    SBT2_SERVER_PORT=8765
+USER sbt2
+WORKDIR /home/sbt2
+EXPOSE 8765
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["python", "-c", "import os, urllib.request; urllib.request.urlopen(f'http://127.0.0.1:{os.environ[\"SBT2_SERVER_PORT\"]}/health', timeout=4)"]
+ENTRYPOINT ["sbt2-server"]
