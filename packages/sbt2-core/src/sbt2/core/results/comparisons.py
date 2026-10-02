@@ -61,6 +61,28 @@ def batch_table(store: ResultStore, batch_id: str) -> pd.DataFrame:
     return table.set_index(runs["run_id"])
 
 
+def study_list(store: ResultStore) -> pd.DataFrame:
+    """One row per study, by name: its strategy and how many runs it holds."""
+    rows = [
+        {"study": name, "strategy": store.study(name).strategy, "runs": count}
+        for name in store.studies()
+        for count in [len(store.runs(RunFilter(study=name)))]
+    ]
+    return pd.DataFrame(rows, columns=["study", "strategy", "runs"])
+
+
+def study_table(store: ResultStore, name: str) -> pd.DataFrame:
+    """One row per run of the study, by run_id: its part, the parameters whose
+    values vary across the study, then the headline metrics.
+
+    An unknown study raises ``UnknownStudyError``, naming the known ones."""
+    store.study(name)
+    runs = store.runs(RunFilter(study=name))
+    described = _varying(_described(runs))
+    table = pd.concat([runs["part"], described, runs[_HEADLINE]], axis=1)
+    return table.set_index(runs["run_id"])
+
+
 def _described(runs: pd.DataFrame) -> pd.DataFrame:
     params = pd.DataFrame([json.loads(each) for each in runs["params"]], runs.index)
     instruments = runs["instruments"].map(", ".join)

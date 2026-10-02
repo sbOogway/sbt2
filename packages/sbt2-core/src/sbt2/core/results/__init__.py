@@ -3,6 +3,8 @@ from sbt2.core.results.comparisons import (
     batch_table,
     compare_parts,
     degradation,
+    study_list,
+    study_table,
 )
 from sbt2.core.results.costs import (
     Activity,
@@ -101,5 +103,7 @@ __all__ = [
     "full_metrics",
     "headline_metrics",
     "open_store",
+    "study_list",
+    "study_table",
     "tearsheet",
 ]
