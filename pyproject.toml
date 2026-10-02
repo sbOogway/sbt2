@@ -103,7 +103,7 @@ max-args = 3
 max-positional-args = 3
 
 [tool.importlinter]
-root_packages = ["sbt2.core", "sbt2.strategies", "sbt2.papers"]
+root_packages = ["sbt2.core", "sbt2.strategies", "sbt2.papers", "sbt2.server", "sbt2.protocol"]
 exclude_type_checking_imports = true
 
 [[tool.importlinter.contracts]]
@@ -224,6 +224,24 @@ name = "Only sbt2.core.strategy imports its own internals"
 type = "protected"
 protected_modules = ["sbt2.core.strategy.*"]
 allowed_importers = ["sbt2.core.strategy"]
+
+[[tool.importlinter.contracts]]
+name = "Only sbt2.server.transport imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.server.transport.*"]
+allowed_importers = ["sbt2.server.transport"]
+
+[[tool.importlinter.contracts]]
+name = "sbt2 never imports the server or its protocol"
+type = "forbidden"
+source_modules = ["sbt2.core", "sbt2.strategies", "sbt2.papers"]
+forbidden_modules = ["sbt2.server", "sbt2.protocol"]
+
+[[tool.importlinter.contracts]]
+name = "The protocol is generated code and imports nothing of sbt2"
+type = "forbidden"
+source_modules = ["sbt2.protocol"]
+forbidden_modules = ["sbt2.core", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
 
 [[tool.importlinter.contracts]]
 name = "sbt2 never imports the paper pipeline"

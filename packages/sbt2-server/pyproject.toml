@@ -6,7 +6,7 @@ license = "LGPL-3.0-or-later"
 license-files = ["COPYING", "COPYING.LESSER"]
 requires-python = ">=3.14"
 # the generated code refuses a runtime older than the protoc that wrote it, or of another major
-dependencies = ["protobuf>=7.36.2,<8"]
+dependencies = ["protobuf>=7.36.2,<8", "websockets>=17.1"]
 
 [build-system]
 requires = ["hatchling>=1.27", "uv-dynamic-versioning>=0.8"]
