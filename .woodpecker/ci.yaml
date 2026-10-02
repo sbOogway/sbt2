@@ -22,7 +22,7 @@ steps:
     depends_on: []
     commands:
       - uv sync --locked
-      - uvx pre-commit run --all-files --show-diff-on-failure
+      - uvx prek@0.5.4 run --all-files --show-diff-on-failure
 
   # one step per job, because this agent doesn't let a step read files another step's container wrote
   - name: test-sbt2-core
