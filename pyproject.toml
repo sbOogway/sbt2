@@ -238,7 +238,12 @@ source_modules = ["sbt2.papers"]
 forbidden_modules = ["sbt2.core", "sbt2.strategies"]
 
 [tool.pytest.ini_options]
-testpaths = ["packages/sbt2-core/tests", "packages/sbt2-strategies/tests", "tests"]
+testpaths = [
+    "packages/sbt2-core/tests",
+    "packages/sbt2-strategies/tests",
+    "packages/sbt2-server/tests",
+    "tests",
+]
 # importlib mode leaves sys.path alone, so the folders that hold helper modules are listed
 pythonpath = [
     "tests",
