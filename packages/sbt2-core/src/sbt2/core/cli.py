@@ -5,7 +5,7 @@ import re
 import sys
 from collections.abc import Generator, Hashable, Mapping
 from contextlib import contextmanager
-from dataclasses import dataclass, fields, replace
+from dataclasses import fields, replace
 from datetime import date, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
@@ -36,10 +36,8 @@ from sbt2.core.results import (
 )
 from sbt2.core.run import (
     BatchSetup,
-    DataFolders,
-    Launcher,
+    Launch,
     Memory,
-    RunSettings,
     batch,
     launcher_named,
 )
@@ -152,32 +150,14 @@ def run(
     with _failing("run of %s", spec_file):
         root = Root(data.resolve())
         level = LogLevel.from_str(context.obj)
-        settings = RunSettings(root.catalog, log_level=level)
         memory = _memory(memory_budget, memory_per_run)
-        launch = _Launch(launcher_named(launcher), memory)
+        launch = Launch(launcher_named(launcher), memory)
         runs = spec.load(spec_file, ConfigFolder(config.resolve()).venues)
-        _run(runs, _setup(root, settings, launch))
+        _run(runs, BatchSetup.at(root, launch, level))
 
 
 def _memory(budget: int | None, per_run: int | None) -> Memory:
     return Memory(budget) if per_run is None else Memory(budget, per_run)
-
-
-@dataclass(frozen=True)
-class _Launch:
-    launcher: Launcher
-    memory: Memory
-
-
-def _setup(root: Root, settings: RunSettings, launch: _Launch) -> BatchSetup:
-    return BatchSetup(
-        store=results.store_at(root),
-        sources=lambda name: data.source(name, root.known_gaps),
-        folders=DataFolders(root.raw, root.catalog),
-        settings=settings,
-        launcher=launch.launcher,
-        memory=launch.memory,
-    )
 
 
 def _run(runs: list[spec.ResolvedRunSpec], setup: BatchSetup) -> None:
