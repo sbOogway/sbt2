@@ -1,4 +1,4 @@
-"""A batch's child process, which runs one backtest.
+"""The order a batch sends each child.
 
 The parent writes the child's order to stdin as one JSON document. It carries the
 parent's ``sys.path``, which must be in place before the spec can import the
@@ -6,9 +6,7 @@ strategy's own classes.
 """
 
 import json
-import logging
 import sys
-import traceback
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import IO, Any
@@ -16,11 +14,9 @@ from typing import IO, Any
 from nautilus_trader.common import LogLevel
 
 from sbt2.core.data import Gap
-from sbt2.core.results import ResultStore, RunIds, open_store
-from sbt2.core.run.execute import RunSettings, execute
+from sbt2.core.results import ResultStore, open_store
+from sbt2.core.run.execute import RunSettings
 from sbt2.core.spec import ResolvedRunSpec
-
-LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 
 type Document = dict[str, Any]
 
@@ -40,12 +36,7 @@ def send(order: Order, stream: IO[bytes]) -> None:
     stream.write(json.dumps(_order_document(order)).encode())
 
 
-def run_child(stream: IO[bytes]) -> None:
-    """Run the order sent on ``stream``."""
-    _run(_receive(stream))
-
-
-def _receive(stream: IO[bytes]) -> Order:
+def receive(stream: IO[bytes]) -> Order:
     document = json.load(stream)
     sys.path[:] = document["sys_path"]
     return _order(document)
@@ -100,18 +91,3 @@ def _settings(document: Document) -> RunSettings:
         document["chunk_size"],
         LogLevel.from_str(document["log_level"]),
     )
-
-
-def _run(order: Order) -> None:
-    logging.basicConfig(format=LOG_FORMAT, level=order.settings.log_level.name)
-    try:
-        ids = RunIds(order.run_id, order.batch_id)
-        sink = order.store.new_run(order.spec, order.known_gaps, ids)
-        execute(order.spec, sink, order.settings)
-    except BaseException as error:
-        order.error_file.write_text(_described(error))
-        raise
-
-
-def _described(error: BaseException) -> str:
-    return "".join(traceback.format_exception_only(error)).strip()
