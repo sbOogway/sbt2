@@ -8,7 +8,12 @@ from batch_kit import resolved, setup, summaries
 from launchers import PlainLauncher
 
 from sbt2.core.results import ParquetResultStore, RunFilter
-from sbt2.core.run import StudyCodeError, StudyContextError, batch
+from sbt2.core.run import (
+    DuplicateStudyRunError,
+    StudyCodeError,
+    StudyContextError,
+    batch,
+)
 from sbt2.core.spec import ResolvedRunSpec
 
 STUDY = "studied"
@@ -111,6 +116,26 @@ def test_comments_formatting_and_docstrings_do_not_change_the_code(
     second = batch([in_study(tmp_path, strategy, 3)], setup(tmp_path, PlainLauncher()))
 
     assert sorted(study_runs(tmp_path)["run_id"]) == sorted(first + second)
+
+
+@pytest.mark.integration
+def test_a_repeated_run_is_refused_naming_the_stored_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    strategy = studied(tmp_path, monkeypatch)
+    [stored] = batch(
+        [in_study(tmp_path, strategy, 2)], setup(tmp_path, PlainLauncher())
+    )
+    launcher = PlainLauncher()
+
+    with pytest.raises(DuplicateStudyRunError, match=stored):
+        batch(
+            [in_study(tmp_path, strategy, 3), in_study(tmp_path, strategy, 2)],
+            setup(tmp_path, launcher),
+        )
+
+    assert launcher.pids == []
+    assert list(study_runs(tmp_path)["run_id"]) == [stored]
 
 
 @pytest.mark.integration

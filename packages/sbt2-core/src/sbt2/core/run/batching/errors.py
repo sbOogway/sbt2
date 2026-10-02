@@ -22,3 +22,7 @@ class StudyContextError(StudyError):
 
 class StudyCodeError(StudyError):
     pass
+
+
+class DuplicateStudyRunError(StudyError):
+    pass

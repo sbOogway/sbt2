@@ -6,6 +6,7 @@ from tempfile import TemporaryDirectory
 from sbt2.core.data import Gap
 from sbt2.core.run.batching.children import Children
 from sbt2.core.run.batching.errors import (
+    DuplicateStudyRunError,
     OutOfMemoryError,
     RunFailedError,
     StudyCodeError,
@@ -83,6 +84,7 @@ def _orders(
 __all__ = [
     "BatchProgress",
     "BatchSetup",
+    "DuplicateStudyRunError",
     "Memory",
     "OutOfMemoryError",
     "RunFailedError",

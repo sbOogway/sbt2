@@ -3,8 +3,12 @@ import inspect
 from collections.abc import Sequence
 from pathlib import Path
 
-from sbt2.core.results import ResultStore, StoredStudy
-from sbt2.core.run.batching.errors import StudyCodeError, StudyContextError
+from sbt2.core.results import ResultStore, RunFilter, StoredStudy
+from sbt2.core.run.batching.errors import (
+    DuplicateStudyRunError,
+    StudyCodeError,
+    StudyContextError,
+)
 from sbt2.core.spec import ResolvedRunSpec, Study
 from sbt2.core.strategy import import_strategy
 
@@ -16,25 +20,54 @@ def checked_studies(
 ) -> list[StoredStudy]:
     """Check each run of ``specs`` against the study it names, and return the
     studies the store lacks, each fixed by its first run."""
-    known = set(store.studies())
-    studies: dict[str, StoredStudy] = {}
-    studied = [(spec, spec.study) for spec in specs if spec.study is not None]
-    for spec, study in studied:
-        if study.name not in studies:
-            studies[study.name] = (
-                store.study(study.name) if study.name in known else _new(spec, study)
+    studies = _Studies(store)
+    for spec in specs:
+        if spec.study is not None:
+            studies.check(spec, spec.study)
+    return studies.new()
+
+
+class _Studies:
+    """The studies a batch's runs name, each read from the store once."""
+
+    def __init__(self, store: ResultStore) -> None:
+        self._store = store
+        self._known = set(store.studies())
+        self._studies: dict[str, StoredStudy] = {}
+        self._run_ids: dict[str, dict[str, str]] = {}
+
+    def check(self, spec: ResolvedRunSpec, study: Study) -> None:
+        stored = self._study(spec, study)
+        _check_context(study, stored)
+        _check_code(spec, stored)
+        self._check_new_run(spec, study.name)
+
+    def new(self) -> list[StoredStudy]:
+        return [
+            study for name, study in self._studies.items() if name not in self._known
+        ]
+
+    def _study(self, spec: ResolvedRunSpec, study: Study) -> StoredStudy:
+        if study.name not in self._studies:
+            self._studies[study.name] = (
+                self._store.study(study.name)
+                if study.name in self._known
+                else StoredStudy(study.name, study.context, _module_source(spec))
             )
-        _check(spec, study, studies[study.name])
-    return [study for name, study in studies.items() if name not in known]
+        return self._studies[study.name]
 
-
-def _new(spec: ResolvedRunSpec, study: Study) -> StoredStudy:
-    return StoredStudy(study.name, study.context, _module_source(spec))
-
-
-def _check(spec: ResolvedRunSpec, study: Study, stored: StoredStudy) -> None:
-    _check_context(study, stored)
-    _check_code(spec, stored)
+    def _check_new_run(self, spec: ResolvedRunSpec, name: str) -> None:
+        if name not in self._run_ids:
+            runs = self._store.runs(RunFilter(study=name))
+            self._run_ids[name] = dict(
+                zip(runs["spec_hash"], runs["run_id"], strict=True)
+            )
+        stored = self._run_ids[name].get(spec.hash)
+        if stored is not None:
+            raise DuplicateStudyRunError(
+                f"study {name} already holds the {spec.part} run with "
+                f"{dict(spec.strategy.params)}: run {stored}"
+            )
 
 
 def _check_context(study: Study, stored: StoredStudy) -> None:

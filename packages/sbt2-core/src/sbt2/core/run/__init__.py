@@ -1,6 +1,7 @@
 from sbt2.core.run.batching import (
     BatchProgress,
     BatchSetup,
+    DuplicateStudyRunError,
     Memory,
     OutOfMemoryError,
     RunFailedError,
@@ -33,6 +34,7 @@ __all__ = [
     "BatchProgress",
     "BatchSetup",
     "DataFolders",
+    "DuplicateStudyRunError",
     "InstrumentAssetClassError",
     "Launcher",
     "LiquidationWithoutQuotesError",
