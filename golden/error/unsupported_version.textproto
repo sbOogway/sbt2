@@ -1,0 +1,14 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 1
+error {
+  code: ERROR_CODE_UNSUPPORTED_VERSION
+  message: "client 0.0.9 is older than the oldest supported, 0.1.0"
+  details {
+    key: "client_version"
+    value: "0.0.9"
+  }
+  details {
+    key: "minimum_version"
+    value: "0.1.0"
+  }
+}
