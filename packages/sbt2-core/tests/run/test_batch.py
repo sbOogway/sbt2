@@ -22,8 +22,8 @@ from sbt2.core.run import (
     RunFailedError,
     Uncapped,
     batch,
-    batching,
 )
+from sbt2.core.run.batching import children as batch_children
 
 EXIT = [sys.executable, "-c", "pass"]
 FAIL = [sys.executable, "-c", "raise SystemExit(1)"]
@@ -271,7 +271,9 @@ def test_an_uncapped_child_killed_by_a_signal_fails_with_its_exit_code(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
-        batching, "_spawn", lambda: subprocess.Popen(KILLED, stdin=subprocess.PIPE)
+        batch_children,
+        "_spawn",
+        lambda: subprocess.Popen(KILLED, stdin=subprocess.PIPE),
     )
 
     with pytest.raises(RunFailedError) as failure:
