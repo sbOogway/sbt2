@@ -78,7 +78,7 @@ class CountingScope(SystemdScope):
 @pytest.fixture(autouse=True)
 def launcher(monkeypatch: pytest.MonkeyPatch) -> CountingScope:
     scope = CountingScope(spawned(monkeypatch))
-    monkeypatch.setattr(cli, "launcher_for", lambda _: scope)
+    monkeypatch.setattr(cli, "launcher_named", lambda _: scope)
     return scope
 
 

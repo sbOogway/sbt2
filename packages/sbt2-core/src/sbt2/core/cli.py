@@ -42,7 +42,7 @@ from sbt2.core.run import (
     Memory,
     RunSettings,
     batch,
-    launcher_for,
+    launcher_named,
 )
 from sbt2.core.strategy import import_strategy
 
@@ -142,7 +142,7 @@ def _setup(root: Root, settings: RunSettings, memory: Memory) -> BatchSetup:
         sources=lambda name: data.source(name, SOURCES),
         folders=DataFolders(root.raw, root.catalog),
         settings=settings,
-        launcher=launcher_for(sys.platform),
+        launcher=launcher_named("systemd"),
         memory=memory,
     )
 

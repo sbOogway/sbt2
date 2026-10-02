@@ -1,22 +1,26 @@
 import pytest
 
 from sbt2.core.run import (
+    Launcher,
     SystemdScope,
     Uncapped,
-    UnsupportedPlatformError,
-    launcher_for,
+    UnknownLauncherError,
+    launcher_named,
 )
 
 
 @pytest.mark.unit
-def test_linux_gets_the_systemd_scope() -> None:
-    assert isinstance(launcher_for("linux"), SystemdScope)
+@pytest.mark.parametrize(
+    ("name", "kind"), [("uncapped", Uncapped), ("systemd", SystemdScope)]
+)
+def test_each_launcher_is_found_by_its_name(name: str, kind: type[Launcher]) -> None:
+    assert isinstance(launcher_named(name), kind)
 
 
 @pytest.mark.unit
-def test_an_unserved_platform_names_the_known_ones() -> None:
-    with pytest.raises(UnsupportedPlatformError, match="darwin; known: linux"):
-        launcher_for("darwin")
+def test_an_unknown_launcher_names_the_known_ones() -> None:
+    with pytest.raises(UnknownLauncherError, match="cgroup; known: systemd, uncapped"):
+        launcher_named("cgroup")
 
 
 @pytest.mark.unit
