@@ -77,6 +77,22 @@ def here(folder: Path) -> str:
     return "here:Here"
 
 
+class SlowLauncher(PlainLauncher):
+    """Takes a while to cap each child, then records whether the child had
+    already started its run."""
+
+    def __init__(self, store: ParquetResultStore) -> None:
+        super().__init__()
+        self.store = store
+        self.started_early: list[bool] = []
+
+    @override
+    def cap(self, run_id: str, pid: int, memory_max: int) -> None:
+        super().cap(run_id, pid, memory_max)
+        time.sleep(0.5)
+        self.started_early.append(self.store.folder(run_id).exists())
+
+
 class RecordedProgress:
     def __init__(self) -> None:
         self.runs: list[int] = []
@@ -232,6 +248,18 @@ def test_a_child_runs_in_the_batch_working_directory(
         [resolved(tmp_path, strategy=strategy)], setup(tmp_path, PlainLauncher())
     )
 
+    assert run_id in summaries(tmp_path)
+
+
+@pytest.mark.integration
+def test_a_child_does_no_work_until_its_launcher_has_capped_it(
+    tmp_path: Path,
+) -> None:
+    launcher = SlowLauncher(ParquetResultStore(tmp_path / "results"))
+
+    [run_id] = batch([resolved(tmp_path)], setup(tmp_path, launcher))
+
+    assert launcher.started_early == [False]
     assert run_id in summaries(tmp_path)
 
 
