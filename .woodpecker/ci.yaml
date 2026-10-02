@@ -13,11 +13,13 @@ variables:
   # shared by every step and pipeline; :z gives it SELinux's shared label, so each step's container can use it
   - &cache /home/mattia/.cache/woodpecker/sbt2:/cache:z
 
+# each step runs on its own, with no depends_on chain, so they all run at once
 steps:
   - name: lint
     image: *image
     environment: *env
     volumes: [*cache]
+    depends_on: []
     commands:
       - uv sync --locked
       - uvx pre-commit run --all-files --show-diff-on-failure
@@ -30,6 +32,7 @@ steps:
       CODECOV_TOKEN:
         from_secret: codecov_token
     volumes: [*cache]
+    depends_on: []
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
       - uv sync --locked --package sbt2-core
@@ -47,6 +50,7 @@ steps:
       CODECOV_TOKEN:
         from_secret: codecov_token
     volumes: [*cache]
+    depends_on: []
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
       - uv sync --locked --package sbt2-strategies
@@ -65,6 +69,7 @@ steps:
       CODECOV_TOKEN:
         from_secret: codecov_token
     volumes: [*cache]
+    depends_on: []
     commands:
       - uv sync --locked
       # the test results go up even when tests fail, so Test Analytics sees the failures
@@ -82,6 +87,7 @@ steps:
       CODECOV_TOKEN:
         from_secret: codecov_token
     volumes: [*cache]
+    depends_on: []
     commands:
       - uv sync --locked
       - |
