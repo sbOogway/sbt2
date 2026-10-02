@@ -8,7 +8,7 @@ from nautilus_trader.model import AssetClass, InstrumentClass
 
 from sbt2.core.assets import AssetProfile, asset_profile
 from sbt2.core.spec.errors import SpecError
-from sbt2.core.spec.resolve.models import model_builder, model_tables
+from sbt2.core.spec.resolve.models import built_model, model_tables
 
 
 class UnknownVenueProfileError(SpecError, LookupError):
@@ -43,18 +43,18 @@ def venue_profile(path: Path, name: str) -> VenueProfile:
         AssetClass.from_str(arguments.pop("asset_class")),
         InstrumentClass.from_str(arguments.pop("instrument_class")),
     )
-    _check_kinds(name, arguments)
+    _check_models(name, arguments)
     return VenueProfile(asset, source, {**asset.venue_defaults, **arguments})
 
 
-def _check_kinds(name: str, arguments: Mapping[str, Any]) -> None:
+def _check_models(name: str, arguments: Mapping[str, Any]) -> None:
     for argument, table in model_tables(arguments):
         if "kind" not in table:
             raise InvalidVenueProfileError(
                 f"the venue profile {name} names no {argument} kind; "
                 "models are not named by import path, name a kind"
             )
-        model_builder(argument, table["kind"])
+        built_model(argument, table)
 
 
 def _profile_table(path: Path, name: str) -> dict[str, Any]:

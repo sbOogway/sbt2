@@ -25,6 +25,10 @@ class UnknownModelKindError(SpecError, LookupError):
     pass
 
 
+class InvalidModelConfigError(SpecError):
+    pass
+
+
 def _fixed_fee(commission: str, **rest: Any) -> FixedFeeModel:
     """A TOML table holds no ``Money``, so the commission comes as its string."""
     return FixedFeeModel(Money.from_str(commission), **rest)
@@ -64,7 +68,19 @@ def model_tables(
             yield argument, value
 
 
-def model_builder(argument: str, kind: str) -> Callable[..., Any]:
+def built_model(argument: str, table: Mapping[str, Any]) -> Any:
+    """The nautilus model the ``{kind, config}`` ``table`` of ``argument`` names."""
+    kind = table["kind"]
+    builder = _builder(argument, kind)
+    try:
+        return builder(**table.get("config", {}))
+    except (TypeError, ValueError) as error:
+        raise InvalidModelConfigError(
+            f"{argument} {kind} cannot be built from its config: {error}"
+        ) from error
+
+
+def _builder(argument: str, kind: str) -> Callable[..., Any]:
     builders = _MODELS[argument]
     if kind not in builders:
         known = ", ".join(sorted(builders)) or "none"
@@ -74,9 +90,5 @@ def model_builder(argument: str, kind: str) -> Callable[..., Any]:
 
 def _built(argument: str, value: Any) -> Any:
     if argument == "modules":
-        return [_model(argument, each) for each in value]
-    return _model(argument, value)
-
-
-def _model(argument: str, table: Mapping[str, Any]) -> Any:
-    return model_builder(argument, table["kind"])(**table.get("config", {}))
+        return [built_model(argument, each) for each in value]
+    return built_model(argument, value)

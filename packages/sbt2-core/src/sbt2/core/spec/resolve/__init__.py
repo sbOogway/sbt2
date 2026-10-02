@@ -1,6 +1,7 @@
 from sbt2.core.spec.resolve.models import (
     FeeModelKind,
     FillModelKind,
+    InvalidModelConfigError,
     UnknownModelKindError,
 )
 from sbt2.core.spec.resolve.resolve import (
@@ -18,6 +19,7 @@ __all__ = [
     "FeeModelKind",
     "FillModelKind",
     "InstrumentVenueError",
+    "InvalidModelConfigError",
     "InvalidVenueProfileError",
     "ResolvedRunSpec",
     "UnknownModelKindError",

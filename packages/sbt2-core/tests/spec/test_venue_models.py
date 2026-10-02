@@ -8,6 +8,7 @@ from nautilus_trader.execution import (
 )
 
 from sbt2.core.spec import (
+    InvalidModelConfigError,
     InvalidVenueProfileError,
     ResolvedRunSpec,
     UnknownModelKindError,
@@ -105,4 +106,17 @@ def test_a_model_named_by_import_path_is_refused(paths: tuple[Path, Path]) -> No
     )
 
     with pytest.raises(InvalidVenueProfileError, match=r"fee_model.*name a kind"):
+        loaded(paths)
+
+
+@pytest.mark.unit
+def test_a_model_config_its_model_does_not_take_fails_on_load(
+    paths: tuple[Path, Path],
+) -> None:
+    config = '{ maker_rate = "0.0002", taker_rate = "0.00055", bogus = 1 }'
+    with_model(paths, "fee_model", f'{{ kind = "maker_taker", config = {config} }}')
+
+    with pytest.raises(
+        InvalidModelConfigError, match=r"fee_model maker_taker.*unexpected.*bogus"
+    ):
         loaded(paths)
