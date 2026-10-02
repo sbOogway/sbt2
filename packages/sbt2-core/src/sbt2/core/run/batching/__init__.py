@@ -8,6 +8,7 @@ from sbt2.core.run.batching.children import Children
 from sbt2.core.run.batching.errors import (
     OutOfMemoryError,
     RunFailedError,
+    StudyCodeError,
     StudyContextError,
     StudyError,
 )
@@ -85,6 +86,7 @@ __all__ = [
     "Memory",
     "OutOfMemoryError",
     "RunFailedError",
+    "StudyCodeError",
     "StudyContextError",
     "StudyError",
     "batch",

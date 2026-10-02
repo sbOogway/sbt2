@@ -8,7 +8,7 @@ from batch_kit import resolved, setup, summaries
 from launchers import PlainLauncher
 
 from sbt2.core.results import ParquetResultStore, RunFilter
-from sbt2.core.run import StudyContextError, batch
+from sbt2.core.run import StudyCodeError, StudyContextError, batch
 from sbt2.core.spec import ResolvedRunSpec
 
 STUDY = "studied"
@@ -18,6 +18,25 @@ from run_strategies import BuyThenSell
 
 class Studied(BuyThenSell):
     """Buys 1 BTC, then sells it."""
+'''
+CHANGED = '''
+from run_strategies import BuyThenSell
+
+
+class Studied(BuyThenSell):
+    """Buys 1 BTC, then sells it."""
+
+    def on_start(self) -> None:
+        super().on_start()
+        self.bars = 1
+'''
+REFORMATTED = '''"""The studied strategy."""
+# what the study runs
+from run_strategies import BuyThenSell  # bought, then sold
+
+class Studied( BuyThenSell ):
+    """Another docstring,
+    over two lines."""
 '''
 
 
@@ -63,6 +82,35 @@ def test_a_run_with_another_context_is_refused_naming_the_fields(
 
     assert launcher.pids == []
     assert list(study_runs(tmp_path)["run_id"]) == list(first)
+
+
+@pytest.mark.integration
+def test_a_run_with_changed_code_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    strategy = studied(tmp_path, monkeypatch)
+    first = batch([in_study(tmp_path, strategy, 2)], setup(tmp_path, PlainLauncher()))
+    studied(tmp_path, monkeypatch, CHANGED)
+    launcher = PlainLauncher()
+
+    with pytest.raises(StudyCodeError, match=STUDY):
+        batch([in_study(tmp_path, strategy, 3)], setup(tmp_path, launcher))
+
+    assert launcher.pids == []
+    assert list(study_runs(tmp_path)["run_id"]) == list(first)
+
+
+@pytest.mark.integration
+def test_comments_formatting_and_docstrings_do_not_change_the_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    strategy = studied(tmp_path, monkeypatch)
+    first = batch([in_study(tmp_path, strategy, 2)], setup(tmp_path, PlainLauncher()))
+    studied(tmp_path, monkeypatch, REFORMATTED)
+
+    second = batch([in_study(tmp_path, strategy, 3)], setup(tmp_path, PlainLauncher()))
+
+    assert sorted(study_runs(tmp_path)["run_id"]) == sorted(first + second)
 
 
 @pytest.mark.integration

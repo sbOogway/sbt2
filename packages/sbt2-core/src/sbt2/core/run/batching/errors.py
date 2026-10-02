@@ -18,3 +18,7 @@ class StudyError(RuntimeError):
 
 class StudyContextError(StudyError):
     pass
+
+
+class StudyCodeError(StudyError):
+    pass
