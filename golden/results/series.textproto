@@ -1,0 +1,3 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 13
+series { index: 2 last: true data: "\000\377\000" }

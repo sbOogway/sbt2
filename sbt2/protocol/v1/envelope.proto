@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package sbt2.protocol.v1;
 
+import "sbt2/protocol/v1/results.proto";
 import "sbt2/protocol/v1/types.proto";
 
 // Each binary WebSocket frame the client sends is one ClientMessage.
@@ -10,6 +11,11 @@ message ClientMessage {
   uint64 request_id = 1;
   oneof body {
     Hello hello = 2;
+    ListRuns list_runs = 3;
+    GetRun get_run = 4;
+    GetMetrics get_metrics = 5;
+    GetSeries get_series = 6;
+    GetTearsheet get_tearsheet = 7;
   }
 }
 
@@ -22,6 +28,11 @@ message ServerMessage {
   oneof body {
     Error error = 3;
     Welcome welcome = 4;
+    RunList run_list = 5;
+    RunSummary run_summary = 6;
+    Metrics metrics = 7;
+    Series series = 8;
+    Tearsheet tearsheet = 9;
   }
 }
 
@@ -38,4 +49,5 @@ message Welcome {
 
 enum Capability {
   CAPABILITY_UNSPECIFIED = 0;
+  CAPABILITY_RESULTS = 1;
 }

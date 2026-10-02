@@ -1,0 +1,13 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 11
+run_summary {
+  run_id: "0198cc00-0000-7000-8000-000000000001"
+  strategy: "example:Trend"
+  params_json: "{\"quantity\":\"0.100\"}"
+  instruments: "BTCUSDT-LINEAR.BYBIT"
+  start_at { seconds: 1704067200 nanos: 123456789 }
+  end_at { seconds: 1704153600 }
+  part: "train"
+  currency: "USDT"
+  headline { net_return: "0" trade_count: 0 total_fees: "0.000001" total_carry: "-5.25" }
+}

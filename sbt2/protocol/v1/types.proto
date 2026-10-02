@@ -19,4 +19,6 @@ enum ErrorCode {
   ERROR_CODE_UNIMPLEMENTED = 4;
   ERROR_CODE_UNSUPPORTED_VERSION = 5;
   ERROR_CODE_INTERNAL = 6;
+  // One indivisible response record exceeds the maximum envelope size.
+  ERROR_CODE_RESOURCE_EXHAUSTED = 7;
 }

@@ -12,6 +12,36 @@ The protobuf messages between the [sbt2](https://github.com/sbOogway/sbt2) serve
 - Removed fields are `reserved`, and their numbers never reused.
 - A breaking change needs a new package (`sbt2.protocol.v2`).
 
+## Results
+
+`CAPABILITY_RESULTS` advertises lists, summaries, metrics, Arrow series and HTML
+tearsheets. `GetRun` has one `run_summary` response. The other results requests
+have numbered responses starting at index zero, all carrying the request's ID
+and no subscription ID. Exactly one chunk has `last = true`, including for an
+empty result. Responses to different requests may interleave; clients must use
+distinct IDs for outstanding requests. A correlated `Error` terminates the
+response and invalidates its partial chunks.
+
+Each complete serialized envelope is at most 1,048,576 bytes. List and metric
+chunks contain whole records; an individual record that cannot fit returns
+`RESOURCE_EXHAUSTED`. Lists preserve the store's oldest-first ordering.
+Concatenate byte chunks before interpreting the Arrow IPC stream or UTF-8 HTML.
+Chunk boundaries need not align with Arrow records or UTF-8 characters.
+
+Equity is the core's settlement-currency curve on the run's time grid, including
+its endpoints. Its Arrow columns are `timestamp` (UTC nanoseconds), `currency`
+(string) and `equity` (float64, as calculated by core). Fills retain the stored
+report's rows, columns, types and index, with Arrow's pandas metadata describing
+the index. These Arrow payloads are distinct from the protobuf decimal-string
+convention. Summary `params_json` and `split_json` retain the stored JSON
+documents; undefined metric values are absent optional strings, not zero.
+
+An absent benchmark selection, `UNSPECIFIED`, or `DEFAULT` uses the strategy's
+benchmark, matching the CLI. Explicit choices are `NONE`, `BUY_AND_HOLD` and
+`EQUAL_WEIGHT`; only buy-and-hold accepts an instrument ID. External benchmark
+uploads are not part of this API. Missing default-benchmark dependencies cause
+an error, without silently changing the benchmark.
+
 ## Golden fixtures
 
 `golden/<area>/<case>.textproto` is an example message, starting with a `# proto-message: sbt2.protocol.v1.<Message>` header, and `<case>.binpb` its encoding. Every `ClientMessage` and `ServerMessage` body has at least one.

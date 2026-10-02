@@ -32,6 +32,8 @@ def classes(fds: FileDescriptorSet) -> dict[str, type[Message]]:
     return message_classes(fds)
 
 
+@pytest.mark.unit
+@pytest.mark.golden
 @pytest.mark.parametrize("text", FIXTURES, ids=lambda text: str(text.relative_to(GOLDEN)))
 def test_fixture_round_trips(text: Path, classes: dict[str, type[Message]]):
     parsed, decoded = _load(text, classes)
@@ -44,6 +46,8 @@ def test_fixture_round_trips(text: Path, classes: dict[str, type[Message]]):
     assert known.SerializeToString(deterministic=True) == encoded, "the .binpb has unknown fields"
 
 
+@pytest.mark.unit
+@pytest.mark.golden
 @pytest.mark.parametrize("envelope", ["ClientMessage", "ServerMessage"])
 def test_every_body_has_a_fixture(envelope: str, classes: dict[str, type[Message]]):
     name = f"{PACKAGE}.{envelope}"
