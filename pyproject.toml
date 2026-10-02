@@ -125,6 +125,54 @@ protected_modules = ["sbt2.core.results.*"]
 allowed_importers = ["sbt2.core.results"]
 
 [[tool.importlinter.contracts]]
+name = "Higher parts of sbt2.core.results may import lower ones, never the reverse"
+type = "layers"
+containers = ["sbt2.core.results"]
+layers = [
+    "report",
+    "comparisons",
+    "store | costs",
+    "pricing",
+    "metrics",
+]
+
+[[tool.importlinter.contracts]]
+name = "Only sbt2.core.results.costs imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.core.results.costs.*"]
+allowed_importers = ["sbt2.core.results.costs"]
+
+[[tool.importlinter.contracts]]
+name = "Only sbt2.core.results.metrics imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.core.results.metrics.*"]
+allowed_importers = ["sbt2.core.results.metrics"]
+
+[[tool.importlinter.contracts]]
+name = "Only sbt2.core.results.pricing imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.core.results.pricing.*"]
+allowed_importers = ["sbt2.core.results.pricing"]
+
+[[tool.importlinter.contracts]]
+name = "Only sbt2.core.results.report imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.core.results.report.*"]
+allowed_importers = ["sbt2.core.results.report"]
+
+[[tool.importlinter.contracts]]
+name = "Only sbt2.core.results.store imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.core.results.store.*"]
+allowed_importers = ["sbt2.core.results.store"]
+
+[[tool.importlinter.contracts]]
+name = "Only sbt2.core.results.store.parquet imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.core.results.store.parquet.*"]
+allowed_importers = ["sbt2.core.results.store.parquet"]
+
+[[tool.importlinter.contracts]]
 name = "Only sbt2.core.run imports its own internals"
 type = "protected"
 protected_modules = ["sbt2.core.run.*"]
