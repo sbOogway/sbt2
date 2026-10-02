@@ -615,12 +615,14 @@ name = "sbt2-server"
 source = { editable = "packages/sbt2-server" }
 dependencies = [
     { name = "protobuf" },
+    { name = "typer" },
     { name = "websockets" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "protobuf", specifier = ">=7.36.2,<8" },
+    { name = "typer", specifier = ">=0.27.2" },
     { name = "websockets", specifier = ">=17.1" },
 ]
 
