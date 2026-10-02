@@ -54,6 +54,7 @@ dev = [
     "pyright[nodejs]>=1.1.414",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
+    "pyyaml>=6.0.3",
     "sbt2-papers",
     "sbt2-server",
 ]

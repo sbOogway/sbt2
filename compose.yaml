@@ -1,0 +1,35 @@
+name: sbt2
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Containerfile
+      args:
+        SBT2_VERSION: ${SBT2_VERSION:-0.0.0+local}
+    image: localhost/sbt2-server
+    restart: unless-stopped
+    environment:
+      SBT2_SERVER_TOKEN: ${SBT2_SERVER_TOKEN:?set SBT2_SERVER_TOKEN to the API token clients must present}
+      SBT2_DATA: /data
+      SBT2_CONFIG: /config
+    volumes:
+      - data:/data
+      - config:/config
+    ports:
+      - "8765:8765"
+    # an image built in the OCI format drops the Containerfile's HEALTHCHECK
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=4)
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  data:
+  config:
