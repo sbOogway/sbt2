@@ -28,7 +28,7 @@ BTC = InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT")
 ETH = InstrumentId.from_str("ETHUSDT-LINEAR.BYBIT")
 TAKER_RATE = Decimal("0.00055")
 FEE_MODEL = {
-    "path": "nautilus_trader.execution:MakerTakerFeeModel",
+    "kind": "maker_taker",
     "config": {"maker_rate": "0.0002", "taker_rate": str(TAKER_RATE)},
 }
 DAY_NS = 86_400_000_000_000

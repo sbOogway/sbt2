@@ -7,9 +7,12 @@ from sbt2.core.spec.file import (
 )
 from sbt2.core.spec.load import DuplicateRunError, load
 from sbt2.core.spec.resolve import (
+    FeeModelKind,
+    FillModelKind,
     InstrumentVenueError,
     InvalidVenueProfileError,
     ResolvedRunSpec,
+    UnknownModelKindError,
     UnknownPartError,
     UnknownVenueProfileError,
 )
@@ -31,6 +34,8 @@ __all__ = [
     "DrawdownLimitError",
     "DuplicateRunError",
     "EmptyListError",
+    "FeeModelKind",
+    "FillModelKind",
     "FractionSplit",
     "InstrumentVenueError",
     "InvalidVenueProfileError",
@@ -41,6 +46,7 @@ __all__ = [
     "SplitFractionError",
     "Splitter",
     "UnknownBarSourceError",
+    "UnknownModelKindError",
     "UnknownPartError",
     "UnknownRiskKeyError",
     "UnknownSpecKeyError",

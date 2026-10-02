@@ -63,14 +63,14 @@ source = "bybit"
 asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 default_leverage = "10"
-fee_model = { path = "nautilus_trader.execution:MakerTakerFeeModel", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
+fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
 
 [seeded_linear]
 name = "BYBIT"
 source = "bybit"
 asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
-fill_model = { path = "nautilus_trader.execution:DefaultFillModel", config = { prob_fill_on_limit = 0.5, prob_slippage = 0.1 } }
+fill_model = { kind = "default", config = { prob_fill_on_limit = 0.5, prob_slippage = 0.1 } }
 
 [unliquidated_linear]
 name = "BYBIT"
@@ -78,7 +78,7 @@ source = "bybit"
 asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 liquidation_enabled = false
-fee_model = { path = "nautilus_trader.execution:MakerTakerFeeModel", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
+fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
 
 [other_source]
 name = "BYBIT"
@@ -86,7 +86,7 @@ source = "mirror"
 asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 default_leverage = "10"
-fee_model = { path = "nautilus_trader.execution:MakerTakerFeeModel", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
+fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
 """
 SOURCELESS = """
 [sourceless]
@@ -232,7 +232,7 @@ def test_bars_come_from_trades_by_default(paths: tuple[Path, Path]) -> None:
     assert NautilusDataType.Bar not in streamed
     assert spec.hash == resolved(paths, bars="trades").hash
     assert spec.hash == (
-        "7488ea117667a2969073e4b9693d12515de950a2690c3a65857aeedbbdfc8d5b"
+        "631f4b273b6f5a54c65b3520cb09407df4344d3c8a5afe247688f46a33630109"
     )
 
 

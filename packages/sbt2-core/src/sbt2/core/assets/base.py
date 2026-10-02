@@ -39,12 +39,12 @@ class BuyAndHoldConvention:
         """The taker rate of the venue's fee model, paid once on entry.
 
         ``venue`` holds the run's venue arguments, the fee model as its
-        ``{path, config}`` table.
+        ``{kind, config}`` table.
         """
         fee_model = venue.get("fee_model") or {}
         rate = fee_model.get("config", {}).get("taker_rate")
         if rate is None:
-            name = fee_model.get("path", "the venue's missing fee model")
+            name = fee_model.get("kind", "the venue's missing fee model")
             raise NoTakerRateError(f"{name} has no taker rate for a benchmark entry")
         return Decimal(str(rate))
 
