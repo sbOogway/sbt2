@@ -4,18 +4,18 @@ import subprocess
 import sys
 import time
 import uuid
-from abc import ABC, abstractmethod
 from collections import deque
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import ClassVar, Protocol
+from typing import Protocol
 
 from sbt2.core.data import Gap, Source
 from sbt2.core.results import ResultStore
 from sbt2.core.run.child import Order, send
 from sbt2.core.run.execute import RunSettings
+from sbt2.core.run.launchers import Launcher
 from sbt2.core.run.preflight import DataFolders, preflight
 from sbt2.core.spec import ResolvedRunSpec
 
@@ -35,29 +35,6 @@ class RunFailedError(RuntimeError):
 
 class OutOfMemoryError(RunFailedError):
     pass
-
-
-class Launcher(ABC):
-    """Starts each child of a batch under its memory cap, if it enforces one:
-    a launcher that does not leaves memory to the machine or container.
-
-    ``name`` is the name it is picked by.
-    """
-
-    name: ClassVar[str]
-
-    @abstractmethod
-    def check(self) -> None:
-        """Raise if no child can be capped here."""
-
-    @abstractmethod
-    def cap(self, run_id: str, pid: int, memory_max: int) -> None:
-        """Cap the running child ``pid``, which runs ``run_id``, at ``memory_max``
-        bytes; it does no work until this returns."""
-
-    @abstractmethod
-    def out_of_memory(self, run_id: str) -> bool:
-        """Whether the exited child running ``run_id`` was killed over its cap."""
 
 
 class BatchProgress(Protocol):
