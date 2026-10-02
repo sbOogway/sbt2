@@ -9,6 +9,30 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from sbt2.core import results as core
 from sbt2.protocol.v1 import results_pb2 as wire
 
+type Choice = tuple[str | None, str | None]
+"""A benchmark's name and argument as core builds it; no name is the strategy's."""
+
+_BENCHMARKS: dict[wire.BenchmarkKind.ValueType, str | None] = {
+    wire.BENCHMARK_KIND_UNSPECIFIED: None,
+    wire.BENCHMARK_KIND_DEFAULT: None,
+    wire.BENCHMARK_KIND_NONE: "none",
+    wire.BENCHMARK_KIND_BUY_AND_HOLD: "buy-and-hold",
+    wire.BENCHMARK_KIND_EQUAL_WEIGHT: "equal-weight",
+}
+
+
+class InvalidArgumentError(ValueError):
+    pass
+
+
+def benchmark_choice(selected: wire.BenchmarkSelection) -> Choice:
+    if selected.kind not in _BENCHMARKS:
+        raise InvalidArgumentError
+    instrument = selected.instrument_id if selected.HasField("instrument_id") else None
+    if instrument is not None and selected.kind != wire.BENCHMARK_KIND_BUY_AND_HOLD:
+        raise InvalidArgumentError
+    return _BENCHMARKS[selected.kind], instrument
+
 
 def run_filter(selected: wire.RunFilter) -> core.RunFilter:
     fields = {

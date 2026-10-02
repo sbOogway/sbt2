@@ -15,10 +15,13 @@ from sbt2.protocol.v1.results_pb2 import (
     RunList,
     Series,
     SeriesKind,
+    Tearsheet,
 )
 from sbt2.protocol.v1.types_pb2 import Error, ErrorCode
 from sbt2.server import Handler, Outbox, offloaded
 from sbt2.server.results.encoding import (
+    InvalidArgumentError,
+    benchmark_choice,
     equity,
     metrics,
     run_filter,
@@ -32,26 +35,26 @@ from sbt2.server.results.streaming import (
     pieces,
     records,
 )
+from sbt2.server.results.tearsheets import Tearsheets
 
 
 def routes(root: Root) -> dict[str, Handler]:
     """Handlers for browsing the results under ``root`` through core's public API."""
-    results = _Results(core.store_at(root))
+    store = core.store_at(root)
+    results = _Results(store, Tearsheets(root, store))
     return {
         "list_runs": _guard(results.list_runs),
         "get_run": _guard(results.get_run),
         "get_metrics": _guard(results.get_metrics),
         "get_series": _guard(results.get_series),
+        "get_tearsheet": _guard(results.get_tearsheet),
     }
-
-
-class _InvalidArgumentError(ValueError):
-    pass
 
 
 @dataclass
 class _Results:
     store: core.ResultStore
+    tearsheets: Tearsheets
 
     async def list_runs(self, request: ClientMessage, outbox: Outbox) -> ServerMessage:
         replies = await offloaded(self._listed)(request)
@@ -110,7 +113,17 @@ class _Results:
             case SeriesKind.SERIES_KIND_FILLS:
                 return self.store.load(selected.run_id, "fills")
             case _:
-                raise _InvalidArgumentError
+                raise InvalidArgumentError
+
+    async def get_tearsheet(
+        self, request: ClientMessage, outbox: Outbox
+    ) -> ServerMessage:
+        selected = request.get_tearsheet
+        choice = benchmark_choice(selected.benchmark)
+        path = await self.tearsheets.cached(selected.run_id, choice)
+        template = ServerMessage(request_id=request.request_id, tearsheet=Tearsheet())
+        with await offloaded(path.open)("rb") as source:
+            return await deliver(pieces(template, source), outbox)
 
 
 def _guard(handler: Handler) -> Handler:
@@ -118,12 +131,17 @@ def _guard(handler: Handler) -> Handler:
     async def answer(request: ClientMessage, outbox: Outbox) -> ServerMessage:
         try:
             return await handler(request, outbox)
-        except core.UnknownRunError, core.MissingTableError:
+        except (
+            core.UnknownRunError,
+            core.MissingTableError,
+            core.MissingPricesError,
+            core.BenchmarkCoverageError,
+        ):
             return _error(
                 ErrorCode.ERROR_CODE_NOT_FOUND,
                 "The run or required data was not found.",
             )
-        except _InvalidArgumentError:
+        except InvalidArgumentError:
             return _error(
                 ErrorCode.ERROR_CODE_INVALID_ARGUMENT, "The selection is not valid."
             )

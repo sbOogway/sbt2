@@ -1,15 +1,19 @@
 import asyncio
 from dataclasses import dataclass, replace
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from nautilus_run import RunOutput, round_trip_with_funding, spec
+from nautilus_run import START, RunOutput, round_trip_with_funding, spec
+from price_catalog import BTC, FEE_MODEL, PriceCatalog
 
 from sbt2.core.config import Root
-from sbt2.core.results import ParquetResultStore, Reports, ResultStore, RunIds
+from sbt2.core.results import ParquetResultStore, ResultStore, RunIds
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
 from sbt2.server import Handler, Outbox, Router
+
+BASE_STRATEGY = "sbt2.core.strategy:Strategy"
 
 
 class KeptReplies(Outbox):
@@ -24,12 +28,26 @@ class KeptReplies(Outbox):
 
 
 def ask(routes: dict[str, Handler], request: ClientMessage) -> list[ServerMessage]:
-    async def answer() -> list[ServerMessage]:
-        replies = KeptReplies()
-        replies.messages.append(await Router(routes).answer(request, replies))
-        return replies.messages
+    [replies] = ask_together(routes, [request])
+    return replies
 
-    return asyncio.run(answer())
+
+def ask_together(
+    routes: dict[str, Handler], requests: list[ClientMessage]
+) -> list[list[ServerMessage]]:
+    """The replies to ``requests`` answered concurrently, in request order."""
+
+    async def answer_all() -> list[list[ServerMessage]]:
+        router = Router(routes)
+        return await asyncio.gather(*(_answered(router, each) for each in requests))
+
+    return asyncio.run(answer_all())
+
+
+async def _answered(router: Router, request: ClientMessage) -> list[ServerMessage]:
+    replies = KeptReplies()
+    replies.messages.append(await router.answer(request, replies))
+    return replies.messages
 
 
 @dataclass(frozen=True)
@@ -39,33 +57,39 @@ class StoredResults:
     run_id: str
 
 
-def stored(path: Path) -> StoredResults:
+def stored(path: Path, strategy: str = BASE_STRATEGY) -> StoredResults:
     output = round_trip_with_funding()
-    return _stored(path, output.reports, output)
+    return _stored(path, output, strategy)
 
 
 def stored_without_fills(path: Path) -> StoredResults:
     output = round_trip_with_funding()
     reports = replace(output.reports, fills=output.reports.fills.iloc[0:0])
-    return _stored(path, reports, output)
+    return _stored(path, replace(output, reports=reports), BASE_STRATEGY)
 
 
-def _stored(path: Path, reports: Reports, output: RunOutput) -> StoredResults:
+def _stored(path: Path, output: RunOutput, strategy: str) -> StoredResults:
     root = Root(path)
     store = ParquetResultStore(root.results)
     run = spec()
     run = replace(
         run,
-        strategy=replace(
-            run.strategy, strategy="sbt2.core.strategy:Strategy", params={}
-        ),
+        strategy=replace(run.strategy, strategy=strategy, params={}),
+        venue={**run.venue, "fee_model": FEE_MODEL},
     )
     sink = store.new_run(run, ids=RunIds(batch_id="batch-1"))
     sink.write_equity(output.snapshots)
     sink.write_carry(output.carry)
-    sink.write_reports(reports)
+    sink.write_reports(output.reports)
     sink.finalize()
     return StoredResults(root, store, sink.run_id)
+
+
+def priced(root: Root) -> None:
+    """Hourly BTC marks in ``root``'s catalog over the stored run."""
+    root.catalog.mkdir(parents=True, exist_ok=True)
+    marks = {START + timedelta(hours=hour): 50_000.0 + 40 * hour for hour in range(25)}
+    PriceCatalog(root.catalog).add_marks(BTC, marks)
 
 
 def summary_record() -> dict[str, Any]:

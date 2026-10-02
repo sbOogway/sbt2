@@ -10,8 +10,11 @@ from sbt2.core import results as core
 from sbt2.core.config import Root
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage
 from sbt2.protocol.v1.results_pb2 import (
+    BenchmarkKind,
+    BenchmarkSelection,
     GetRun,
     GetSeries,
+    GetTearsheet,
     ListRuns,
     RunFilter,
     RunIds,
@@ -105,6 +108,17 @@ def test_result_errors_use_protocol_codes(tmp_path: Path) -> None:
         )
         assert reply.error.code == ErrorCode.ERROR_CODE_NOT_FOUND
         assert str(tmp_path) not in reply.error.message
+    selections = [
+        BenchmarkSelection(kind=BenchmarkKind.BENCHMARK_KIND_NONE, instrument_id="X"),
+        BenchmarkSelection(
+            kind=BenchmarkKind.BENCHMARK_KIND_BUY_AND_HOLD, instrument_id="not-one"
+        ),
+        BenchmarkSelection(kind=BenchmarkKind.ValueType(99)),
+    ]
+    for selection in selections:
+        tearsheet = GetTearsheet(run_id=run.run_id, benchmark=selection)
+        [reply] = ask(handlers, ClientMessage(request_id=4, get_tearsheet=tearsheet))
+        assert reply.error.code == ErrorCode.ERROR_CODE_INVALID_ARGUMENT
     (run.store.folder(run.run_id) / "summary.parquet").unlink()
     [reply] = ask(
         handlers, ClientMessage(request_id=2, get_run=GetRun(run_id=run.run_id))
