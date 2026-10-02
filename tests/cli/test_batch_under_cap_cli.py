@@ -18,7 +18,7 @@ from sbt2.core.run import SystemdScope
 
 runner = CliRunner()
 GiB = 2**30
-MA_CROSS = "sbt2.strategies.ma_cross:MovingAverageCross"
+MA_CROSS = "crossover:MovingAverageCross"
 CAPPED = ["--memory-budget", "2G", "--memory-per-run", "1G"]
 PAIRS = {(1, 3), (1, 4), (2, 3), (2, 4)}
 HOG = """

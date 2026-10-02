@@ -19,13 +19,13 @@ runner = CliRunner()
 ETH = "ETHUSDT-LINEAR.BYBIT"
 BENCHMARKED = """
 from sbt2.core.results import BuyAndHold
-from sbt2.strategies.ma_cross import MovingAverageCross
+from crossover import MovingAverageCross
 
 
 class BenchmarkedCross(MovingAverageCross):
     benchmark = BuyAndHold()
 """
-MA_CROSS = "sbt2.strategies.ma_cross:MovingAverageCross"
+MA_CROSS = "crossover:MovingAverageCross"
 HOUR_NS = 3_600_000_000_000
 DAY_NS = 24 * HOUR_NS
 
