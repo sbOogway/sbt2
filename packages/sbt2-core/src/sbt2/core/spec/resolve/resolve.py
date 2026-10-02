@@ -1,5 +1,6 @@
+import json
 from collections.abc import Iterable, Mapping
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -9,8 +10,9 @@ from nautilus_trader.model import InstrumentId
 from sbt2.core.spec.bars import bar_source
 from sbt2.core.spec.errors import SpecError
 from sbt2.core.spec.file import RunSpec
+from sbt2.core.spec.resolve.canonical import canonical_json
 from sbt2.core.spec.resolve.data import data_arguments, data_types
-from sbt2.core.spec.resolve.resolved import ResolvedRunSpec
+from sbt2.core.spec.resolve.resolved import ResolvedRunSpec, Study
 from sbt2.core.spec.resolve.venues import venue_profile
 from sbt2.core.spec.risk import risk_limits
 from sbt2.core.spec.split import Splitter, from_table
@@ -23,6 +25,9 @@ class InstrumentVenueError(SpecError):
 
 class UnknownPartError(SpecError):
     pass
+
+
+_UNFIXED = frozenset({"params", "part", "study"})
 
 
 def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
@@ -58,7 +63,20 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
         start=start,
         end=end,
         risk=risk.engine,
+        study=_study(spec, split),
     )
+
+
+def _study(spec: RunSpec, split: Splitter) -> Study | None:
+    if spec.study is None:
+        return None
+    context = {
+        each.name: getattr(spec, each.name)
+        for each in fields(spec)
+        if each.name not in _UNFIXED
+    }
+    context["split"] = split.document()
+    return Study(spec.study, json.loads(canonical_json(context)))
 
 
 def _splitter(split: Splitter | Mapping[str, Any]) -> Splitter:

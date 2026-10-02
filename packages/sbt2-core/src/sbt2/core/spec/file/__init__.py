@@ -4,7 +4,7 @@ from typing import Any
 
 from sbt2.core.spec.file.expand import EmptyListError, Expanded, expand
 from sbt2.core.spec.file.read import MissingSplitError, UnknownSpecKeyError, read_spec
-from sbt2.core.spec.file.run_spec import RunSpec
+from sbt2.core.spec.file.run_spec import InvalidStudyNameError, RunSpec
 
 
 def runs(path: Path, overrides: Mapping[str, Any]) -> list[Expanded]:
@@ -16,6 +16,7 @@ def runs(path: Path, overrides: Mapping[str, Any]) -> list[Expanded]:
 __all__ = [
     "EmptyListError",
     "Expanded",
+    "InvalidStudyNameError",
     "MissingSplitError",
     "RunSpec",
     "UnknownSpecKeyError",

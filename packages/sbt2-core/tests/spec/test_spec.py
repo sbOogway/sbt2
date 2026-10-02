@@ -28,6 +28,7 @@ from sbt2.core.spec import (
     EmptyListError,
     FractionSplit,
     InstrumentVenueError,
+    InvalidStudyNameError,
     InvalidVenueProfileError,
     MissingSplitError,
     ResolvedRunSpec,
@@ -859,3 +860,33 @@ def test_every_spec_error_is_a_spec_error() -> None:
     assert len(errors) > 1
     assert issubclass(SpecError, ValueError)
     assert [each for each in errors if not issubclass(each, SpecError)] == []
+
+
+def in_study(paths: tuple[Path, Path], name: str) -> tuple[Path, Path]:
+    """The spec file with ``study = name`` at its top."""
+    spec, venues = paths
+    spec.write_text(f"study = {name!r}\n{spec.read_text()}")
+    return spec, venues
+
+
+@pytest.mark.unit
+def test_a_spec_names_its_study(paths: tuple[Path, Path]) -> None:
+    runs = loaded(in_study(without(paths, "part"), "ma-btc"))
+
+    assert [each.study.name for each in runs if each.study] == ["ma-btc", "ma-btc"]
+
+
+@pytest.mark.unit
+def test_the_study_does_not_enter_the_hash(paths: tuple[Path, Path]) -> None:
+    outside = resolved(paths)
+
+    inside = resolved(in_study(paths, "ma-btc"))
+
+    assert inside.hash == outside.hash
+    assert "ma-btc" not in inside.to_json()
+
+
+@pytest.mark.unit
+def test_a_study_name_must_be_a_slug(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(InvalidStudyNameError, match=re.escape("../x")):
+        resolved(in_study(paths, "../x"))
