@@ -5,8 +5,15 @@ description = "The server behind sbt2's GUI, speaking protobuf over WebSocket"
 license = "LGPL-3.0-or-later"
 license-files = ["COPYING", "COPYING.LESSER"]
 requires-python = ">=3.14"
-# the generated code refuses a runtime older than the protoc that wrote it, or of another major
-dependencies = ["protobuf>=7.36.2,<8"]
+dependencies = [
+    # the generated code refuses a runtime older than the protoc that wrote it, or of another major
+    "protobuf>=7.36.2,<8",
+    "typer>=0.27.2",
+    "websockets>=17.1",
+]
+
+[project.scripts]
+sbt2-server = "sbt2.server.cli:app"
 
 [build-system]
 requires = ["hatchling>=1.27", "uv-dynamic-versioning>=0.8"]
@@ -17,3 +24,14 @@ source = "uv-dynamic-versioning"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sbt2"]
+
+[dependency-groups]
+dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0"]
+
+[tool.coverage.run]
+source_pkgs = ["sbt2.server"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true

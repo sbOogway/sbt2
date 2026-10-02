@@ -103,7 +103,7 @@ max-args = 3
 max-positional-args = 3
 
 [tool.importlinter]
-root_packages = ["sbt2.core", "sbt2.strategies", "sbt2.papers"]
+root_packages = ["sbt2.core", "sbt2.strategies", "sbt2.papers", "sbt2.server", "sbt2.protocol"]
 exclude_type_checking_imports = true
 
 [[tool.importlinter.contracts]]
@@ -226,6 +226,24 @@ protected_modules = ["sbt2.core.strategy.*"]
 allowed_importers = ["sbt2.core.strategy"]
 
 [[tool.importlinter.contracts]]
+name = "Only sbt2.server.transport imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.server.transport.*"]
+allowed_importers = ["sbt2.server.transport"]
+
+[[tool.importlinter.contracts]]
+name = "sbt2 never imports the server or its protocol"
+type = "forbidden"
+source_modules = ["sbt2.core", "sbt2.strategies", "sbt2.papers"]
+forbidden_modules = ["sbt2.server", "sbt2.protocol"]
+
+[[tool.importlinter.contracts]]
+name = "The protocol is generated code and imports nothing of sbt2"
+type = "forbidden"
+source_modules = ["sbt2.protocol"]
+forbidden_modules = ["sbt2.core", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
+
+[[tool.importlinter.contracts]]
 name = "sbt2 never imports the paper pipeline"
 type = "forbidden"
 source_modules = ["sbt2.core", "sbt2.strategies"]
@@ -238,7 +256,12 @@ source_modules = ["sbt2.papers"]
 forbidden_modules = ["sbt2.core", "sbt2.strategies"]
 
 [tool.pytest.ini_options]
-testpaths = ["packages/sbt2-core/tests", "packages/sbt2-strategies/tests", "tests"]
+testpaths = [
+    "packages/sbt2-core/tests",
+    "packages/sbt2-strategies/tests",
+    "packages/sbt2-server/tests",
+    "tests",
+]
 # importlib mode leaves sys.path alone, so the folders that hold helper modules are listed
 pythonpath = [
     "tests",
@@ -273,7 +296,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source_pkgs = ["sbt2.core", "sbt2.strategies", "sbt2.papers"]
+source_pkgs = ["sbt2.core", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
 branch = true
 patch = ["subprocess"]
 
