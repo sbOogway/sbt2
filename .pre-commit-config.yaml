@@ -21,3 +21,10 @@ repos:
       - id: buf-lint
       - id: buf-breaking
         args: [--against, "https://github.com/sbOogway/sbt2-protocol.git#branch=main"]
+      # borrows buf-build's environment for its buf binary
+      - id: buf-build
+        alias: tests
+        name: pytest
+        entry: uv run --locked pytest
+        always_run: true
+        pass_filenames: false

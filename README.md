@@ -14,12 +14,14 @@ The protobuf messages between the [sbt2](https://github.com/sbOogway/sbt2) serve
 
 ## Checks
 
-[prek](https://github.com/j178/prek) runs `buf format`, `buf lint` and `buf breaking` against this repo's `main`:
+[prek](https://github.com/j178/prek) runs `buf format`, `buf lint`, `buf breaking` against this repo's `main`, and the tests:
 
 ```sh
 uvx prek install
 uvx prek run --all-files
 ```
+
+- `tests/` (pytest, with `uv`): the rules above that buf lint does not check, over buf's descriptor set.
 
 ## License
 
