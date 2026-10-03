@@ -2,7 +2,7 @@ version: 2
 
 updates:
   - package-ecosystem: uv
-    directory: /
+    directory: /sbt2-backend
     schedule:
       interval: daily
     commit-message:

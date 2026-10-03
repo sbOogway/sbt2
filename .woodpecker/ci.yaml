@@ -24,7 +24,7 @@ steps:
     volumes: [sbt2-cache-lint:/cache:z]
     depends_on: []
     commands:
-      - uv sync --locked
+      - cd sbt2-backend && uv sync --locked
       - uvx prek@0.5.4 run --all-files --show-diff-on-failure
 
   # each package is tested with only its declared dependencies
@@ -38,10 +38,10 @@ steps:
     depends_on: []
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
-      - uv sync --locked --package sbt2-core
+      - cd sbt2-backend && uv sync --locked --package sbt2-core
       - |
         status=0
-        env -u CODECOV_TOKEN uv run --locked --package sbt2-core pytest packages/sbt2-core/tests --cov --cov-config=packages/sbt2-core/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        cd sbt2-backend && env -u CODECOV_TOKEN uv run --locked --package sbt2-core pytest packages/sbt2-core/tests --cov --cov-config=packages/sbt2-core/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag sbt2-core --file /cache/junit.xml --disable-search
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-core --file /cache/coverage.xml
         exit $status
@@ -56,10 +56,10 @@ steps:
     depends_on: []
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
-      - uv sync --locked --package sbt2-strategies
+      - cd sbt2-backend && uv sync --locked --package sbt2-strategies
       - |
         status=0
-        env -u CODECOV_TOKEN uv run --locked --package sbt2-strategies pytest packages/sbt2-strategies/tests --cov --cov-config=packages/sbt2-strategies/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        cd sbt2-backend && env -u CODECOV_TOKEN uv run --locked --package sbt2-strategies pytest packages/sbt2-strategies/tests --cov --cov-config=packages/sbt2-strategies/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag sbt2-strategies --file /cache/junit.xml --disable-search
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-strategies --file /cache/coverage.xml
         exit $status
@@ -74,10 +74,10 @@ steps:
     depends_on: []
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
-      - uv sync --locked --package sbt2-server
+      - cd sbt2-backend && uv sync --locked --package sbt2-server
       - |
         status=0
-        env -u CODECOV_TOKEN uv run --locked --package sbt2-server pytest packages/sbt2-server/tests --cov --cov-config=packages/sbt2-server/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        cd sbt2-backend && env -u CODECOV_TOKEN uv run --locked --package sbt2-server pytest packages/sbt2-server/tests --cov --cov-config=packages/sbt2-server/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag sbt2-server --file /cache/junit.xml --disable-search
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-server --file /cache/coverage.xml
         exit $status
@@ -92,12 +92,12 @@ steps:
     volumes: [sbt2-cache-test:/cache:z]
     depends_on: []
     commands:
-      - uv sync --locked
+      - cd sbt2-backend && uv sync --locked
       # the test results go up even when tests fail, so Test Analytics sees the failures
       - |
         status=0
         # the tests have no use for the token
-        env -u CODECOV_TOKEN uv run --locked pytest tests --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd and not container" || status=$?
+        cd sbt2-backend && env -u CODECOV_TOKEN uv run --locked pytest tests --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd and not container" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag tests --file /cache/junit.xml --disable-search
         exit $status
 
@@ -110,10 +110,10 @@ steps:
     volumes: [sbt2-cache-characterization:/cache:z]
     depends_on: []
     commands:
-      - uv sync --locked
+      - cd sbt2-backend && uv sync --locked
       - |
         status=0
-        env -u CODECOV_TOKEN uv run --locked pytest --junitxml=/cache/junit.xml -o junit_family=legacy -m "characterization and not systemd" || status=$?
+        cd sbt2-backend && env -u CODECOV_TOKEN uv run --locked pytest --junitxml=/cache/junit.xml -o junit_family=legacy -m "characterization and not systemd" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag characterization --file /cache/junit.xml --disable-search
         exit $status
 
@@ -131,6 +131,6 @@ steps:
     depends_on: []
     commands:
       - mkdir -p /cache/tmp
-      - buildah --root=/cache/storage build --format=docker --tag=sbt2-server:ci --file=Containerfile .
+      - buildah --root=/cache/storage build --format=docker --tag=sbt2-server:ci --file=sbt2-backend/Containerfile sbt2-backend
       # the base images stay cached; vfs keeps a full copy of every layer, so the build goes
       - buildah --root=/cache/storage rmi sbt2-server:ci

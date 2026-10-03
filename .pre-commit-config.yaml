@@ -1,7 +1,7 @@
 default_install_hook_types: [pre-commit, commit-msg, post-merge]
 default_stages: [pre-commit]
 # generate-protocol writes these, and fails when they are stale
-exclude: ^packages/sbt2-server/src/sbt2/protocol/
+exclude: ^sbt2-backend/packages/sbt2-server/src/sbt2/protocol/
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -50,7 +50,7 @@ repos:
 
       - id: pyright
         name: pyright
-        entry: uv run --locked pyright --warnings
+        entry: sh -c "cd sbt2-backend && uv run --locked pyright --warnings"
         language: system
         types: [python]
         pass_filenames: false
@@ -58,9 +58,9 @@ repos:
       - id: import-linter
         name: import-linter
         # its cache keeps resolving an unchanged file's imports to modules that were renamed away
-        entry: uv run --locked lint-imports --no-cache
+        entry: sh -c "cd sbt2-backend && uv run --locked lint-imports --no-cache"
         language: system
-        files: (\.py|^pyproject\.toml)$
+        files: (\.py|^sbt2-backend/pyproject\.toml)$
         pass_filenames: false
 
       - id: prune-merged-branches

@@ -28,8 +28,8 @@ steps:
     environment: *env
     volumes: [*cache]
     commands:
-      - uv sync --locked
-      - uv run --locked pytest -m live
+      - cd sbt2-backend && uv sync --locked
+      - cd sbt2-backend && uv run --locked pytest -m live
 
   # runs even when the live tests fail: an expiring pin must not wait on a flaky source
   - name: nautilus-bump

@@ -4,7 +4,8 @@
 set -euo pipefail
 
 out=${1:-.release}
-cliff=(uvx git-cliff==2.14.2)
+config=sbt2-backend/pyproject.toml
+cliff=(uvx git-cliff==2.14.2 --config "$config")
 
 rm -rf "$out"
 mkdir -p "$out"
@@ -17,6 +18,6 @@ fi
 
 git tag "$next"
 "${cliff[@]}" --latest --strip all --output "$out/notes.md" 2>/dev/null
-uv build --all-packages --out-dir "$out/dist"
+uv build --project sbt2-backend --all-packages --out-dir "$out/dist"
 echo "$next" >"$out/tag"
 echo "prepare-release: prepared $next"
