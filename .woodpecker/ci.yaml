@@ -25,7 +25,7 @@ steps:
     depends_on: []
     commands:
       # the protocol's tests run in their own step, with buf on the path
-      - cd sbt2-backend && uv sync --locked
+      - uv --directory sbt2-backend sync --locked
       - SKIP=protocol-tests uvx prek@0.5.4 run --all-files --show-diff-on-failure
 
   # the protocol's conventions and golden fixtures, through prek, whose buf-build hook has buf
@@ -60,10 +60,10 @@ steps:
     depends_on: []
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
-      - cd sbt2-backend && uv sync --locked --package sbt2-core
+      - uv --directory sbt2-backend sync --locked --package sbt2-core
       - |
         status=0
-        cd sbt2-backend && env -u CODECOV_TOKEN uv run --locked --package sbt2-core pytest packages/sbt2-core/tests --cov --cov-config=packages/sbt2-core/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        env -u CODECOV_TOKEN uv --directory sbt2-backend run --locked --package sbt2-core pytest packages/sbt2-core/tests --cov --cov-config=packages/sbt2-core/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag sbt2-core --file /cache/junit.xml --disable-search
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-core --file /cache/coverage.xml
         exit $status
@@ -78,10 +78,10 @@ steps:
     depends_on: []
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
-      - cd sbt2-backend && uv sync --locked --package sbt2-strategies
+      - uv --directory sbt2-backend sync --locked --package sbt2-strategies
       - |
         status=0
-        cd sbt2-backend && env -u CODECOV_TOKEN uv run --locked --package sbt2-strategies pytest packages/sbt2-strategies/tests --cov --cov-config=packages/sbt2-strategies/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        env -u CODECOV_TOKEN uv --directory sbt2-backend run --locked --package sbt2-strategies pytest packages/sbt2-strategies/tests --cov --cov-config=packages/sbt2-strategies/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag sbt2-strategies --file /cache/junit.xml --disable-search
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-strategies --file /cache/coverage.xml
         exit $status
@@ -96,10 +96,10 @@ steps:
     depends_on: []
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
-      - cd sbt2-backend && uv sync --locked --package sbt2-server
+      - uv --directory sbt2-backend sync --locked --package sbt2-server
       - |
         status=0
-        cd sbt2-backend && env -u CODECOV_TOKEN uv run --locked --package sbt2-server pytest packages/sbt2-server/tests --cov --cov-config=packages/sbt2-server/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        env -u CODECOV_TOKEN uv --directory sbt2-backend run --locked --package sbt2-server pytest packages/sbt2-server/tests --cov --cov-config=packages/sbt2-server/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag sbt2-server --file /cache/junit.xml --disable-search
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-server --file /cache/coverage.xml
         exit $status
@@ -114,12 +114,12 @@ steps:
     volumes: [sbt2-cache-test:/cache:z]
     depends_on: []
     commands:
-      - cd sbt2-backend && uv sync --locked
+      - uv --directory sbt2-backend sync --locked
       # the test results go up even when tests fail, so Test Analytics sees the failures
       - |
         status=0
         # the tests have no use for the token
-        cd sbt2-backend && env -u CODECOV_TOKEN uv run --locked pytest tests --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd and not container" || status=$?
+        env -u CODECOV_TOKEN uv --directory sbt2-backend run --locked pytest tests --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd and not container" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag tests --file /cache/junit.xml --disable-search
         exit $status
 
@@ -132,10 +132,10 @@ steps:
     volumes: [sbt2-cache-characterization:/cache:z]
     depends_on: []
     commands:
-      - cd sbt2-backend && uv sync --locked
+      - uv --directory sbt2-backend sync --locked
       - |
         status=0
-        cd sbt2-backend && env -u CODECOV_TOKEN uv run --locked pytest --junitxml=/cache/junit.xml -o junit_family=legacy -m "characterization and not systemd" || status=$?
+        env -u CODECOV_TOKEN uv --directory sbt2-backend run --locked pytest --junitxml=/cache/junit.xml -o junit_family=legacy -m "characterization and not systemd" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag characterization --file /cache/junit.xml --disable-search
         exit $status
 

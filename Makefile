@@ -9,8 +9,8 @@ help:
 	@echo "make test-protocol run the Python and Rust protocol tests"
 
 sync:
-	cd sbt2-backend && uv sync --locked
-	cd sbt2-protocol && uv sync --locked
+	uv --directory sbt2-backend sync --locked
+	uv --directory sbt2-protocol sync --locked
 
 check:
 	prek run --all-files --show-diff-on-failure
@@ -18,7 +18,7 @@ check:
 	$(MAKE) test-protocol
 
 test-backend:
-	cd sbt2-backend && uv run --locked pytest
+	uv --directory sbt2-backend run --locked pytest
 
 test-protocol:
 	prek run protocol-tests --all-files

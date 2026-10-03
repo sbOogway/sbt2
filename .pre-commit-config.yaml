@@ -80,7 +80,7 @@ repos:
       - id: buf-build
         alias: protocol-tests
         name: protocol tests
-        entry: sh -c "cd sbt2-protocol && uv run --locked pytest"
+        entry: uv --directory sbt2-protocol run --locked pytest
         always_run: true
         pass_filenames: false
 
@@ -95,7 +95,7 @@ repos:
 
       - id: pyright
         name: pyright
-        entry: sh -c "cd sbt2-backend && uv run --locked pyright --warnings"
+        entry: uv --directory sbt2-backend run --locked pyright --warnings
         language: system
         types: [python]
         pass_filenames: false
@@ -103,7 +103,7 @@ repos:
       - id: import-linter
         name: import-linter
         # its cache keeps resolving an unchanged file's imports to modules that were renamed away
-        entry: sh -c "cd sbt2-backend && uv run --locked lint-imports --no-cache"
+        entry: uv --directory sbt2-backend run --locked lint-imports --no-cache
         language: system
         files: (^sbt2-backend/.*\.py$|^sbt2-backend/pyproject\.toml$)
         pass_filenames: false
