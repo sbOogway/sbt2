@@ -2,7 +2,7 @@ default_install_hook_types: [pre-commit, commit-msg, post-merge]
 default_stages: [pre-commit]
 # generate-protocol writes the backend's protocol modules, and the golden hook writes the
 # protocol's fixtures; both fail when what they wrote is stale
-exclude: ^(sbt2-backend/packages/sbt2-server/src/sbt2/protocol/|\.binpb$)
+exclude: ^sbt2-backend/packages/sbt2-server/src/sbt2/protocol/|\.binpb$
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -10,11 +10,8 @@ repos:
     hooks:
       - id: check-toml
       - id: check-yaml
-      # the imported protocol keeps the text style its own commits already have
       - id: end-of-file-fixer
-        exclude: &imported ^(sbt2-protocol/|sbt2-backend/packages/sbt2-server/src/sbt2/protocol/|\.binpb$)
       - id: trailing-whitespace
-        exclude: *imported
       - id: check-added-large-files
         args: [--maxkb=1024]
 
