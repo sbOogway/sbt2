@@ -1,20 +1,30 @@
 <div align="center">
 
-# sbt2
+# sbt2-backend
 
-Backtesting framework on [nautilus_trader](https://nautilustrader.io).
+The Python distributions of [sbt2](https://github.com/sbOogway/sbt2): the backtesting framework on [nautilus_trader](https://nautilustrader.io), its CLI and its server.
 
 [![CI](https://woodpecker.mattiapapaccioli.com/api/badges/1/status.svg)](https://woodpecker.mattiapapaccioli.com/repos/1)
 [![codecov](https://codecov.io/gh/sbOogway/sbt2/graph/badge.svg)](https://codecov.io/gh/sbOogway/sbt2)
 [![release](https://img.shields.io/github/v/release/sbOogway/sbt2)](https://github.com/sbOogway/sbt2/releases)
-[![python](https://img.shields.io/python/required-version-toml?tomlFilePath=https://raw.githubusercontent.com/sbOogway/sbt2/main/pyproject.toml)](pyproject.toml)
+[![python](https://img.shields.io/python/required-version-toml?tomlFilePath=https://raw.githubusercontent.com/sbOogway/sbt2/main/sbt2-backend/pyproject.toml)](pyproject.toml)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-fe5196.svg)](https://www.conventionalcommits.org)
 
 </div>
 
+## Install
+
+```sh
+pip install 'sbt2[server] @ git+https://github.com/sbOogway/sbt2.git#subdirectory=sbt2-backend'
+```
+
+The build needs neither Buf nor protoc.
+
 ## Quick start
+
+From this directory:
 
 ```sh
 uv sync
@@ -60,7 +70,9 @@ quantity = "0.100"
 
 ## Development
 
-The server's protobuf messages live in [sbt2-protocol](https://github.com/sbOogway/sbt2-protocol), pinned as the `sbt2-protocol/` submodule; clone with `--recurse-submodules`, or run `git submodule update --init` in a clone. The `generate-protocol` hook regenerates `sbt2-server`'s Python from the pinned commit, offline with the locked `protoc` and `mypy-protobuf`, and fails when the committed code is stale.
+From the repository root, `make test-backend` runs this suite and `make check` runs every check of the repository.
+
+The server's protobuf messages live in [sbt2-protocol](../sbt2-protocol), in the same repository. The `generate-protocol` hook regenerates `sbt2-server`'s Python from them, offline with the locked `protoc` and `mypy-protobuf`, and fails when the committed code is stale.
 
 ## License
 

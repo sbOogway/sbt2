@@ -3,7 +3,7 @@
 The protobuf messages between the [sbt2](https://github.com/sbOogway/sbt2) server and its GUI, sent one per binary WebSocket frame.
 
 - `sbt2/protocol/v1/`: the `sbt2.protocol.v1` package. `envelope.proto` holds `ClientMessage` and `ServerMessage`, the envelope of every frame; `types.proto` the shared messages.
-- sbt2 pins this repo as the `proto/` submodule and generates its Python from it; the GUI generates its Rust types with `prost`.
+- [sbt2-backend](../sbt2-backend) generates its Python from these messages, offline with its locked `protoc`; the GUI generates its Rust types with `prost`.
 
 ## Rules
 
@@ -51,15 +51,10 @@ an error, without silently changing the benchmark.
 
 ## Checks
 
-[prek](https://github.com/j178/prek) runs `buf format`, `buf lint`, `buf breaking` against this repo's `main`, fails when a `.binpb` is stale, and runs the tests:
-
-```sh
-uvx prek install
-uvx prek run --all-files
-```
+From the repository root, [prek](https://github.com/j178/prek) runs `buf format`, `buf lint`, `buf breaking` against `sbt2-protocol/` on this repository's `main`, and fails when a `.binpb` is stale. `make check` runs the hooks and both components' tests; `make test-protocol` runs the tests below alone.
 
 - `tests/` (pytest, with `uv`): the rules above that buf lint does not check, over buf's descriptor set; and every fixture decodes with Python's `protobuf` to its textproto and re-encodes to the same bytes.
-- `checks/rust/` (CI only, `cargo test --manifest-path checks/rust/Cargo.toml`): the same round trip with `prost`.
+- `checks/rust/` (CI only, `cargo test --manifest-path sbt2-protocol/checks/rust/Cargo.toml`): the same round trip with `prost`.
 
 Both re-encode deterministically, as `buf convert` does: map entries sorted by key.
 

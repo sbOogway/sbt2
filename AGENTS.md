@@ -103,7 +103,7 @@ Every brief contains:
 - The bigger picture: where the change fits in the milestones and in the library design on the wiki, and which existing code to take as a model of style.
 - The branch name, cut from an up-to-date `origin/main`.
 - The approved test plan, or for a `refactor` the delegated rule for mechanical test changes. If a test turns out to need more, stop and report it instead of changing it.
-- The process: one behaviour at a time, atomic Conventional Commits with the attribution footer, `prek run` and `git add -A` before every commit, `uv run pytest` fully passing and pyright clean.
+- The process: one behaviour at a time, atomic Conventional Commits with the attribution footer, `prek run` and `git add -A` before every commit, `make check` fully passing and pyright clean.
 - The pull request: a draft after the first commit, titled like the issue, with a summary, `Closes #N`, the test plan, the assumptions it settled and notes. Mark it ready when done.
 - The wiki: clone it outside the repo, rewrite any passage the change makes outdated, `git pull --rebase` before pushing because other subagents edit it too, and list the pages in the pull request's notes.
 - The limits: never merge, never force-push or rewrite pushed history, never merge `main` into the branch, never change the global git config. On a conflict or a failing push, stop and report.
