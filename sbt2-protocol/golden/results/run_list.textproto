@@ -1,0 +1,3 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 10
+run_list { index: 0 last: true }

@@ -1,0 +1,134 @@
+syntax = "proto3";
+
+package sbt2.protocol.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message RunIds {
+  repeated string values = 1;
+}
+
+message RunFilter {
+  optional string strategy = 1;
+  optional string part = 2;
+  optional string batch = 3;
+  optional string study = 4;
+  // Absent selects all IDs; present and empty selects none.
+  RunIds run_ids = 5;
+}
+
+message ListRuns {
+  RunFilter filter = 1;
+}
+
+message GetRun {
+  string run_id = 1;
+}
+
+message HeadlineMetrics {
+  optional string net_return = 1;
+  optional string annualized_return = 2;
+  optional string sharpe = 3;
+  optional string max_drawdown = 4;
+  uint64 trade_count = 5;
+  string total_fees = 6;
+  string total_carry = 7;
+}
+
+message RunSummary {
+  string run_id = 1;
+  optional string batch_id = 2;
+  optional string study = 3;
+  string spec_hash = 4;
+  string strategy = 5;
+  // JSON retains the parameter and split documents' heterogeneous value types.
+  string params_json = 6;
+  repeated string instruments = 7;
+  google.protobuf.Timestamp start_at = 8;
+  google.protobuf.Timestamp end_at = 9;
+  string split_json = 10;
+  string part = 11;
+  repeated string known_gaps = 12;
+  string currency = 13;
+  HeadlineMetrics headline = 14;
+  google.protobuf.Timestamp drawdown_tripped_at = 15;
+}
+
+message RunList {
+  uint64 index = 1;
+  bool last = 2;
+  repeated RunSummary runs = 3;
+}
+
+message GetMetrics {
+  string run_id = 1;
+}
+
+enum MetricGroup {
+  METRIC_GROUP_UNSPECIFIED = 0;
+  METRIC_GROUP_PNLS = 1;
+  METRIC_GROUP_RETURNS = 2;
+  METRIC_GROUP_GENERAL = 3;
+  METRIC_GROUP_INSTRUMENT_PNLS = 4;
+  METRIC_GROUP_PROBABILISTIC_SHARPE = 5;
+}
+
+message Metric {
+  MetricGroup group = 1;
+  string name = 2;
+  // Absent means undefined, not zero. Finite values are decimal strings.
+  optional string value = 3;
+  optional string instrument_id = 4;
+}
+
+message Metrics {
+  uint64 index = 1;
+  bool last = 2;
+  string currency = 3;
+  repeated Metric entries = 4;
+}
+
+enum SeriesKind {
+  SERIES_KIND_UNSPECIFIED = 0;
+  SERIES_KIND_EQUITY = 1;
+  SERIES_KIND_FILLS = 2;
+}
+
+message GetSeries {
+  string run_id = 1;
+  SeriesKind kind = 2;
+}
+
+message Series {
+  uint64 index = 1;
+  bool last = 2;
+  // Concatenate all chunks before decoding the Arrow IPC stream.
+  bytes data = 3;
+}
+
+enum BenchmarkKind {
+  BENCHMARK_KIND_UNSPECIFIED = 0;
+  BENCHMARK_KIND_DEFAULT = 1;
+  BENCHMARK_KIND_NONE = 2;
+  BENCHMARK_KIND_BUY_AND_HOLD = 3;
+  BENCHMARK_KIND_EQUAL_WEIGHT = 4;
+}
+
+message BenchmarkSelection {
+  // UNSPECIFIED and an absent selection both mean the strategy's default.
+  BenchmarkKind kind = 1;
+  // Only valid for BUY_AND_HOLD; absent uses the run's first instrument.
+  optional string instrument_id = 2;
+}
+
+message GetTearsheet {
+  string run_id = 1;
+  BenchmarkSelection benchmark = 2;
+}
+
+message Tearsheet {
+  uint64 index = 1;
+  bool last = 2;
+  // Concatenate all chunks to recover the UTF-8 HTML document.
+  bytes data = 3;
+}

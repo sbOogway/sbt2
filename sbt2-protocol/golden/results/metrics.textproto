@@ -1,0 +1,10 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 12
+metrics {
+  index: 0 last: true currency: "USDT"
+  entries { group: METRIC_GROUP_RETURNS name: "Sharpe Ratio (365 days)" }
+  entries { group: METRIC_GROUP_PNLS name: "PnL (total)" value: "0" }
+  entries { group: METRIC_GROUP_INSTRUMENT_PNLS instrument_id: "BTCUSDT-LINEAR.BYBIT" name: "Win Rate" value: "1.0" }
+  entries { group: METRIC_GROUP_GENERAL name: "Long Ratio" value: "0.5" }
+  entries { group: METRIC_GROUP_PROBABILISTIC_SHARPE name: "Probabilistic Sharpe Ratio" }
+}
