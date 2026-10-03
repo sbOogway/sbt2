@@ -291,10 +291,10 @@ wheels = [
 
 [[package]]
 name = "nautilus-trader"
-version = "2.0.0rc6.dev20261001"
+version = "2.0.0rc6.dev20261002+19087"
 source = { registry = "https://packages.nautechsystems.io/simple" }
 wheels = [
-    { url = "https://packages.nautechsystems.io/simple/nautilus-trader/nautilus_trader-2.0.0rc6.dev20261001-cp314-cp314-manylinux_2_34_x86_64.whl", hash = "sha256:b1d269f2065e6cab3837617eddc0809b608571a19a8309a0916b03c2e9274a90" },
+    { url = "https://packages.nautechsystems.io/simple/nautilus-trader/nautilus_trader-2.0.0rc6.dev20261002+19087-cp314-cp314-manylinux_2_34_x86_64.whl", hash = "sha256:b9a8d727858d1b3ac6b1579bcd8d52d44b885c60d0fcd1fc5c6038389e1a00fa" },
 ]
 
 [package.optional-dependencies]
@@ -608,7 +608,7 @@ requires-dist = [
     { name = "duckdb", specifier = ">=1.5.6" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "jeepney", specifier = ">=0.9.0" },
-    { name = "nautilus-trader", extras = ["visualization"], specifier = "==2.0.0rc6.dev20261001", index = "https://packages.nautechsystems.io/simple" },
+    { name = "nautilus-trader", extras = ["visualization"], specifier = "==2.0.0rc6.dev20261002", index = "https://packages.nautechsystems.io/simple" },
     { name = "pandas", specifier = ">=3.0.6" },
     { name = "pyarrow", specifier = ">=25.0.1" },
     { name = "typer", specifier = ">=0.27.2" },
