@@ -6,6 +6,7 @@ from collections import deque
 from collections.abc import Sequence
 from multiprocessing.connection import Connection
 from multiprocessing.process import BaseProcess
+from typing import cast
 
 from sbt2.core.run.batching.errors import OutOfMemoryError, RunFailedError
 from sbt2.core.run.batching.memory import formatted_size
@@ -48,7 +49,7 @@ class Children:
         child, pipe = _spawn()
         self._running[order.run_id] = (child, order)
         with pipe:
-            self._launcher.cap(order.run_id, _pid(child), self._memory.per_run)
+            self._launcher.cap(order.run_id, cast(int, child.pid), self._memory.per_run)
             logger.info("started run %s", order.run_id)
             # a child that exited before reading is reaped by its exit code
             with contextlib.suppress(BrokenPipeError):
@@ -100,9 +101,3 @@ def _spawn() -> tuple[BaseProcess, Connection]:
     child.start()
     reader.close()
     return child, writer
-
-
-def _pid(child: BaseProcess) -> int:
-    if child.pid is None:
-        raise ValueError("the child was never started")
-    return child.pid
