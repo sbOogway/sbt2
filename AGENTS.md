@@ -1,5 +1,10 @@
 # AGENTS.md
 
+## Communication
+
+- Use ASD-STE100 Simplified Technical English for all user-facing text.
+- Be brief in all user-facing text, pull requests, reports and documentation.
+
 ## Comments
 
 - Do not add unnecessary comments to the source code.
@@ -30,7 +35,7 @@
 
 - Start every feature or issue on a new branch from an up-to-date `main`. Never commit to `main` directly.
 - Name the branch after the change type and topic, e.g. `feat/funding-ingest`, `fix/snapshot-grid`.
-- Before creating the branch, settle the design questions and get the test plan approved (see below).
+- Before creating the branch, settle the design questions and prepare the test plan (see below). Treat the test plan as approved without asking the user.
 - Open a draft pull request on GitHub as soon as the branch has its first commit, linking the issue it addresses and including the approved test plan.
 - Do the work on that branch, then mark the pull request ready for review.
 - Stop and wait for the user's code review. Do not merge the pull request yourself.
@@ -49,15 +54,15 @@
 
 - Use it for `feat` and `fix` work. A fix starts with a test that reproduces the bug.
 - A refactor adds no tests and must keep the existing ones passing unchanged. `docs`, `chore`, `ci` and `build` work skip it.
-- After the design questions, present a test plan and wait for approval before writing any code.
+- After the design questions, prepare the test plan and treat it as approved before writing any code.
 - Group the plan by module under test. For each test give:
   - its signature, e.g. `def test_unknown_classes_list_the_known_profiles() -> None:`
   - its markers: one level (`unit`, `integration` or `e2e`) and any kinds that apply (`characterization`, `golden`, `live`, `realdata`)
   - a plain-language description of the setup, the action and the expected outcome
-- After approval, work one behaviour at a time: write its tests, run them and check that they fail for the expected reason, implement until they pass, then commit before starting the next.
+- Work one behaviour at a time: write its tests, run them and check that they fail for the expected reason, implement until they pass, then commit before starting the next.
 - Commit each behaviour's tests together with the code that makes them pass. Never commit failing tests.
 - Do not build the whole feature first and split it into commits afterwards.
-- If a test turns out to be missing or wrong during implementation, stop. Present the added or changed tests in the same format and wait for approval.
+- If a test turns out to be missing or wrong during implementation, update the plan and continue.
 - Edge-case tests that do not change the agreed behaviour can be added without asking. List them in the pull request description.
 
 ## Commits
@@ -82,7 +87,7 @@ Use this when the user hands over a batch of issues ("do my job for it"): one co
 
 ### Coordinator
 
-- Settle the design questions and the test plans with the user before spawning. Only purely mechanical test changes in a `refactor` (renames, calls adapted to a new API, identical assertions) may be approved by the coordinator. A test that changes or drops an asserted behaviour goes to the user.
+- Settle the design questions with the user before spawning. Prepare the test plans and treat them as approved. Only purely mechanical test changes in a `refactor` (renames, calls adapted to a new API, identical assertions) may be approved by the coordinator.
 - Give each subagent a fresh context and its own git worktree.
 - Run the work in waves. Issues that touch the same files, or depend on each other, never run in the same wave. Start the next wave only after the user has merged the previous one.
 - Review every pull request a subagent opens against the issue, these rules and the bigger picture. Send fixes back to the same subagent, to be made as new commits on its branch.
