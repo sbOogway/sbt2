@@ -57,15 +57,10 @@ repos:
         entry: sh -c "cd sbt2-protocol && buf lint ."
         always_run: true
         pass_filenames: false
-      # sbt2 main holds no protocol files yet, so the migration compares the protocol with the
-      # commit this repository pinned; a later commit names sbt2 main itself
       - id: buf-build
         alias: buf-breaking
         name: buf breaking
-        entry: >-
-          sh -c "cd sbt2-protocol && buf breaking
-          --against https://github.com/sbOogway/sbt2-protocol.git#ref=2b77b67bd22db976a4121950bcfbf6b502bc9542
-          ."
+        entry: scripts/check-protocol-breaking.sh
         always_run: true
         pass_filenames: false
       - id: buf-build
