@@ -1,6 +1,9 @@
+import multiprocessing
 import os
+import signal
 import time
 import uuid
+from functools import partial
 from pathlib import Path
 from typing import override
 
@@ -11,9 +14,11 @@ from launchers import (
     ScriptedLauncher,
     exits,
     fails,
+    fails_when_ready,
     forked,
     killed,
     naps,
+    resists_termination,
     sleeps,
 )
 from nautilus_trader.model import FundingRateUpdate
@@ -358,6 +363,30 @@ def test_a_failure_stops_the_running_runs_and_starts_no_more(
     assert failed.exitcode == 1
     assert sleeper.exitcode is not None
     assert sleeper.exitcode < 0
+
+
+@pytest.mark.integration
+def test_a_failure_kills_a_child_that_ignores_termination(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ready = multiprocessing.get_context("forkserver").Event()
+    scripts = [
+        partial(fails_when_ready, ready),
+        partial(resists_termination, ready),
+        exits,
+    ]
+    launcher = ScriptedLauncher(monkeypatch, scripts)
+    monkeypatch.setattr(batch_children, "_GRACE_SECONDS", 0.1)
+    specs = [resolved(tmp_path, params={"hold_bars": each}) for each in (2, 3, 4)]
+    started = time.monotonic()
+
+    with pytest.raises(RunFailedError):
+        batch(specs, setup(tmp_path, launcher))
+
+    assert time.monotonic() - started < 30
+    failed, resistant = launcher.started
+    assert failed.exitcode == 1
+    assert resistant.exitcode == -signal.SIGKILL
 
 
 @pytest.mark.integration

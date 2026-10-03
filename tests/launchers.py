@@ -7,6 +7,7 @@ import time
 from collections.abc import Callable, Sequence
 from multiprocessing.connection import Connection
 from multiprocessing.process import BaseProcess
+from multiprocessing.synchronize import Event
 from typing import override
 
 import pytest
@@ -25,6 +26,18 @@ def exits(_order: Connection) -> None:
 
 def fails(_order: Connection) -> None:
     raise SystemExit(1)
+
+
+def fails_when_ready(ready: Event, _order: Connection) -> None:
+    if not ready.wait(10):
+        raise TimeoutError("the other child did not become ready")
+    raise SystemExit(1)
+
+
+def resists_termination(ready: Event, _order: Connection) -> None:
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    ready.set()
+    time.sleep(60)
 
 
 def naps(_order: Connection) -> None:
