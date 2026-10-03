@@ -1,59 +1,26 @@
 import asyncio
+import threading
 import time
 import urllib.request
-from collections.abc import AsyncGenerator, Awaitable, Callable, Mapping
-from contextlib import asynccontextmanager
+from collections.abc import Mapping
 from importlib.metadata import version
+from pathlib import Path
+from typing import Any
 
+import pyarrow as pa
 import pytest
+from results_kit import priced, stored
+from server_kit import AUTHORIZATION, SUBPROTOCOL, TOKEN, ask, client, greet, hello, run
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import InvalidStatus
 from websockets.typing import Subprotocol
 
-from sbt2.protocol.v1.envelope_pb2 import ClientMessage, Hello, ServerMessage, Welcome
+from sbt2.core import results as core
+from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage, Welcome
+from sbt2.protocol.v1.results_pb2 import GetSeries, GetTearsheet, ListRuns, SeriesKind
 from sbt2.protocol.v1.types_pb2 import ErrorCode
-from sbt2.server import Address, Outbox, Server, Settings, offloaded
-
-TOKEN = "s3cret-token"
-SUBPROTOCOL = Subprotocol("sbt2.v1")
-AUTHORIZATION = {"Authorization": f"Bearer {TOKEN}"}
-
-type Scenario = Callable[[str], Awaitable[None]]
-
-
-@asynccontextmanager
-async def serving(server: Server) -> AsyncGenerator[str]:
-    async with server.listening(Address("127.0.0.1", 0)) as bound:
-        yield f"ws://{bound.host}:{bound.port}"
-
-
-def run(scenario: Scenario, server: Server | None = None) -> None:
-    async def main() -> None:
-        async with serving(server or Server(Settings(TOKEN))) as url:
-            await asyncio.wait_for(scenario(url), timeout=10)
-
-    asyncio.run(main())
-
-
-def client(url: str) -> connect:
-    return connect(url, subprotocols=[SUBPROTOCOL], additional_headers=AUTHORIZATION)
-
-
-def hello(request_id: int, client_version: str = "test") -> ClientMessage:
-    return ClientMessage(
-        request_id=request_id, hello=Hello(client_version=client_version)
-    )
-
-
-async def ask(connection: ClientConnection, frame: bytes | str) -> ServerMessage:
-    await connection.send(frame)
-    reply = await connection.recv()
-    assert isinstance(reply, bytes)
-    return ServerMessage.FromString(reply)
-
-
-async def greet(connection: ClientConnection) -> ServerMessage:
-    return await ask(connection, hello(1).SerializeToString())
+from sbt2.server import Outbox, Server, Settings, offloaded
+from sbt2.server.results import routes
 
 
 async def refusal(
@@ -186,3 +153,90 @@ def test_a_blocking_handler_does_not_hold_up_other_connections() -> None:
 def test_an_outgoing_queue_of_no_messages_is_refused() -> None:
     with pytest.raises(ValueError, match="queue_size"):
         Settings(TOKEN, queue_size=0)
+
+
+async def collected(
+    connection: ClientConnection, pending: set[int]
+) -> dict[int, list[ServerMessage]]:
+    """The replies to the ``pending`` request ids, until each one's last chunk."""
+    replies: dict[int, list[ServerMessage]] = {each: [] for each in pending}
+    while pending:
+        frame = await connection.recv()
+        assert isinstance(frame, bytes)
+        reply = ServerMessage.FromString(frame)
+        replies[reply.request_id].append(reply)
+        body = reply.WhichOneof("body")
+        assert body is not None
+        if getattr(getattr(reply, body), "last", True):
+            pending.discard(reply.request_id)
+    return replies
+
+
+@pytest.mark.e2e
+def test_interleaved_result_streams_keep_their_request_ids(tmp_path: Path) -> None:
+    stored_run = stored(tmp_path)
+    priced(stored_run.root)
+    tearsheet = GetTearsheet(run_id=stored_run.run_id)
+    requests = [
+        ClientMessage(
+            request_id=2,
+            get_series=GetSeries(
+                run_id=stored_run.run_id, kind=SeriesKind.SERIES_KIND_FILLS
+            ),
+        ),
+        ClientMessage(request_id=3, get_tearsheet=tearsheet),
+        ClientMessage(request_id=4, list_runs=ListRuns()),
+    ]
+
+    async def scenario(url: str) -> None:
+        async with client(url) as connection:
+            await greet(connection)
+            for request in requests:
+                await connection.send(request.SerializeToString())
+            replies = await collected(connection, {2, 3, 4})
+
+        fills = b"".join(reply.series.data for reply in replies[2])
+        assert len(pa.ipc.open_stream(fills).read_all()) == 2
+        assert [reply.tearsheet.index for reply in replies[3]] == list(
+            range(len(replies[3]))
+        )
+        sheet = b"".join(reply.tearsheet.data for reply in replies[3]).decode()
+        assert sheet.rstrip().endswith("</html>")
+        [listed] = replies[4]
+        assert [each.run_id for each in listed.run_list.runs] == [stored_run.run_id]
+
+    run(scenario, Server(Settings(TOKEN), routes(stored_run.root)))
+
+
+@pytest.mark.e2e
+def test_result_work_does_not_block_other_connections(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stored_run = stored(tmp_path)
+    released = threading.Event()
+
+    def held(_run: Any, path: Path, _benchmark: Any = None) -> None:
+        released.wait(5)
+        path.write_text("<html></html>")
+
+    monkeypatch.setattr(core, "tearsheet", held)
+    tearsheet = ClientMessage(
+        request_id=2, get_tearsheet=GetTearsheet(run_id=stored_run.run_id)
+    )
+    listing = ClientMessage(request_id=2, list_runs=ListRuns())
+
+    async def scenario(url: str) -> None:
+        async with client(url) as rendering, client(url) as browsing:
+            await greet(rendering)
+            await rendering.send(tearsheet.SerializeToString())
+            await greet(browsing)
+            listed = await ask(browsing, listing.SerializeToString())
+            answered_while_held = not released.is_set()
+            released.set()
+            [sheet] = (await collected(rendering, {2}))[2]
+
+        assert answered_while_held
+        assert listed.run_list.runs[0].run_id == stored_run.run_id
+        assert sheet.tearsheet.data == b"<html></html>"
+
+    run(scenario, Server(Settings(TOKEN), routes(stored_run.root)))

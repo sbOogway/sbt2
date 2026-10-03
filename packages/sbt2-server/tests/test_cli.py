@@ -1,28 +1,58 @@
+from pathlib import Path
+
 import pytest
+from results_kit import stored
+from server_kit import TOKEN, ask, client, greet, run
 from typer.testing import CliRunner
 
+from sbt2.protocol.v1.envelope_pb2 import Capability, ClientMessage, Welcome
+from sbt2.protocol.v1.results_pb2 import ListRuns
 from sbt2.server import Address, Server
 from sbt2.server.cli import app
 
 runner = CliRunner()
 
 
-def served_address(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> Address:
-    served: list[Address] = []
+def served(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> tuple[Server, Address]:
+    """The server the command starts with ``args``, and the address it serves."""
+    started: list[tuple[Server, Address]] = []
 
-    async def serve(_server: Server, address: Address) -> None:
-        served.append(address)
+    async def serve(server: Server, address: Address) -> None:
+        started.append((server, address))
 
     monkeypatch.setattr(Server, "serve", serve)
     result = runner.invoke(app, args)
     assert result.exit_code == 0, result.output
-    [address] = served
-    return address
+    [each] = started
+    return each
+
+
+def served_address(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> Address:
+    return served(monkeypatch, args)[1]
+
+
+def browsed(server: Server) -> tuple[Welcome, list[str]]:
+    """The server's welcome, and the run ids it lists."""
+    seen: list[tuple[Welcome, list[str]]] = []
+
+    async def scenario(url: str) -> None:
+        async with client(url) as connection:
+            welcome = (await greet(connection)).welcome
+            listing = ClientMessage(request_id=2, list_runs=ListRuns())
+            listed = await ask(connection, listing.SerializeToString())
+        seen.append((welcome, [each.run_id for each in listed.run_list.runs]))
+
+    run(scenario, server)
+    [each] = seen
+    return each
 
 
 @pytest.mark.e2e
-def test_the_server_needs_a_token(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_the_server_needs_a_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.delenv("SBT2_SERVER_TOKEN", raising=False)
+    monkeypatch.setenv("SBT2_DATA", str(tmp_path))
 
     result = runner.invoke(app, [])
 
@@ -32,9 +62,10 @@ def test_the_server_needs_a_token(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.unit
 def test_host_and_port_come_from_options_or_the_environment(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("SBT2_SERVER_TOKEN", "s3cret-token")
+    monkeypatch.setenv("SBT2_DATA", str(tmp_path))
     monkeypatch.delenv("SBT2_SERVER_HOST", raising=False)
     monkeypatch.delenv("SBT2_SERVER_PORT", raising=False)
     assert served_address(monkeypatch, []) == Address("127.0.0.1", 8765)
@@ -45,3 +76,43 @@ def test_host_and_port_come_from_options_or_the_environment(
 
     options = ["--host", "::1", "--port", "9001"]
     assert served_address(monkeypatch, options) == Address("::1", 9001)
+
+
+@pytest.mark.e2e
+def test_server_requires_a_data_root(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SBT2_SERVER_TOKEN", TOKEN)
+    monkeypatch.delenv("SBT2_DATA", raising=False)
+
+    result = runner.invoke(app, [])
+
+    assert result.exit_code == 2
+    assert "--data" in result.output
+
+
+@pytest.mark.unit
+def test_data_option_overrides_the_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    chosen = stored(tmp_path / "chosen")
+    stored(tmp_path / "environment")
+    monkeypatch.setenv("SBT2_SERVER_TOKEN", TOKEN)
+    monkeypatch.setenv("SBT2_DATA", str(tmp_path / "environment"))
+
+    server, _ = served(monkeypatch, ["--data", str(tmp_path / "chosen")])
+
+    assert browsed(server)[1] == [chosen.run_id]
+
+
+@pytest.mark.e2e
+def test_server_command_exposes_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stored_run = stored(tmp_path)
+    monkeypatch.setenv("SBT2_SERVER_TOKEN", TOKEN)
+    monkeypatch.setenv("SBT2_DATA", str(tmp_path))
+
+    server, _ = served(monkeypatch, [])
+    welcome, run_ids = browsed(server)
+
+    assert list(welcome.capabilities) == [Capability.CAPABILITY_RESULTS]
+    assert run_ids == [stored_run.run_id]

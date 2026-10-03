@@ -16,6 +16,10 @@ class Outbox(ABC):
     def push(self, message: ServerMessage) -> None:
         """Queue ``message`` for the client without waiting for it to be sent."""
 
+    @abstractmethod
+    async def send(self, message: ServerMessage) -> None:
+        """Queue a response chunk, waiting for capacity; disconnect cancels it."""
+
 
 type Handler = Callable[[ClientMessage, Outbox], Awaitable[ServerMessage]]
 """Answers a request; the router sets the reply's ``request_id``."""

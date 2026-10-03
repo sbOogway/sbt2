@@ -1,11 +1,15 @@
 [project]
 name = "sbt2-server"
-dynamic = ["version"]
+dynamic = ["version", "dependencies"]
 description = "The server behind sbt2's GUI, speaking protobuf over WebSocket"
 license = "LGPL-3.0-or-later"
 license-files = ["COPYING", "COPYING.LESSER"]
 requires-python = ">=3.14"
+[tool.hatch.metadata.hooks.uv-dynamic-versioning]
 dependencies = [
+    "sbt2-core=={{ version }}",
+    "pyarrow>=25.0.1",
+    "pandas>=3.0.6",
     # the generated code refuses a runtime older than the protoc that wrote it, or of another major
     "protobuf>=7.36.2,<8",
     "typer>=0.27.2",
