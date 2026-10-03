@@ -1,0 +1,43 @@
+when:
+  - event: pull_request
+    path:
+      - sbt2-protocol/**
+      - '{.woodpecker,.github,scripts}/**'
+      - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
+  - event: push
+    branch: main
+  - event: [tag, manual]
+
+variables:
+  - &image ghcr.io/astral-sh/uv:0.12.19-python3.14-trixie
+  - &env
+    UV_LINK_MODE: copy
+    UV_PYTHON_DOWNLOADS: never
+    UV_PROJECT_ENVIRONMENT: /cache/venv
+    COVERAGE_FILE: /cache/.coverage
+    XDG_CACHE_HOME: /cache
+
+steps:
+  # the protocol's conventions and golden fixtures, through prek, whose buf-build hook has buf
+  - name: protocol-tests
+    image: *image
+    environment: *env
+    volumes: [sbt2-cache-protocol-tests:/cache:z]
+    depends_on: []
+    commands:
+      - uv --directory sbt2-protocol sync --locked
+      - |
+        for hook in buf-format buf-lint buf-breaking golden protocol-tests; do
+          uvx prek@0.5.4 run "$hook" --all-files --show-diff-on-failure
+        done
+
+  # prost against the golden fixtures; protox compiles the .proto files, so no buf here
+  - name: protocol-rust
+    image: rust:1.97.1-slim-trixie
+    environment:
+      CARGO_HOME: /cache/cargo
+      CARGO_TARGET_DIR: /cache/target
+    volumes: [sbt2-cache-protocol-rust:/cache:z]
+    depends_on: []
+    commands:
+      - cargo test --locked --manifest-path sbt2-protocol/checks/rust/Cargo.toml
