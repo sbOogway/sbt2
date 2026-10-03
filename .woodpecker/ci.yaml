@@ -5,65 +5,22 @@ when:
   - event: [tag, manual]
 
 variables:
-  - &backend_paths
-    - sbt2-backend/**
-    - .woodpecker/**
-    - .pre-commit-config.yaml
-    - .gitignore
-    - Makefile
-    - pyproject.toml
-    - uv.lock
-    - codecov.yml
-    - cliff.toml
-    - scripts/prepare-release.sh
-    - scripts/bump-nautilus.sh
-    - scripts/report-ci-selection.py
-  - &protocol_paths
-    - sbt2-protocol/**
-    - scripts/check-protocol-breaking.sh
-    - scripts/generate-protocol.sh
-    - .woodpecker/**
-    - .pre-commit-config.yaml
-    - .gitignore
-    - Makefile
-    - pyproject.toml
-    - uv.lock
-    - scripts/report-ci-selection.py
-  - &generated_paths
-    - sbt2-backend/**
-    - sbt2-protocol/**
-    - scripts/generate-protocol.sh
-    - .woodpecker/**
-    - .pre-commit-config.yaml
-    - .gitignore
-    - Makefile
-    - pyproject.toml
-    - uv.lock
-    - scripts/report-ci-selection.py
+  - &shared_directories '{.woodpecker,.github,scripts}/**'
+  - &shared_config '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
+  - &full_check
+    event: [push, tag, manual]
   - &backend_when
     - event: pull_request
-      path:
-        include: *backend_paths
-        on_empty: true
-    - event: push
-      branch: main
-    - event: [tag, manual]
+      path: [sbt2-backend/**, *shared_directories, *shared_config]
+    - *full_check
   - &protocol_when
     - event: pull_request
-      path:
-        include: *protocol_paths
-        on_empty: true
-    - event: push
-      branch: main
-    - event: [tag, manual]
+      path: [sbt2-protocol/**, *shared_directories, *shared_config]
+    - *full_check
   - &generated_when
     - event: pull_request
-      path:
-        include: *generated_paths
-        on_empty: true
-    - event: push
-      branch: main
-    - event: [tag, manual]
+      path: [sbt2-backend/**, sbt2-protocol/**, *shared_directories, *shared_config]
+    - *full_check
   - &image ghcr.io/astral-sh/uv:0.12.19-python3.14-trixie
   - &env
     UV_LINK_MODE: copy
@@ -78,14 +35,6 @@ variables:
 # Each keeps its own cache volume: :z relabels a volume when a container starts, but what a
 # running container writes carries its own SELinux label, which a concurrent step cannot open.
 steps:
-  - name: selection
-    image: *image
-    environment: *env
-    volumes: [sbt2-cache-selection:/cache:z]
-    depends_on: []
-    commands:
-      - uvx --from pyyaml==6.0.3 python scripts/report-ci-selection.py
-
   - name: repo-hooks
     image: *image
     environment: *env
