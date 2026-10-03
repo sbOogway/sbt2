@@ -16,11 +16,17 @@ The Python distributions of [sbt2](https://github.com/sbOogway/sbt2): the backte
 
 ## Install
 
+For a Git install, run these commands in an empty directory:
+
 ```sh
-pip install 'sbt2[server] @ git+https://github.com/sbOogway/sbt2.git#subdirectory=sbt2-backend'
+uv venv --python 3.14
+uv pip install 'sbt2[server] @ git+https://github.com/sbOogway/sbt2.git#subdirectory=sbt2-backend'
 ```
 
-The build needs neither Buf nor protoc.
+Use uv for this install. It gets the workspace members from the same Git
+commit. Pip alone cannot install the meta distribution until its exact member
+versions are available from a package registry. The build needs neither Buf
+nor protoc.
 
 ## Quick start
 
@@ -79,6 +85,18 @@ podman compose -f sbt2-backend/compose.yaml up -d --build
 From this directory, `podman compose up -d --build` does the same. The image needs neither protocol generation nor a Git submodule.
 
 ## Development
+
+For an editable checkout:
+
+```sh
+git clone https://github.com/sbOogway/sbt2.git
+cd sbt2
+make sync
+```
+
+`make sync` installs the backend members from `sbt2-backend/packages/` into
+`sbt2-backend/.venv` as editable packages. The direct backend command is
+`uv --directory sbt2-backend sync --locked`. Do not use an old root `.venv`.
 
 From the repository root, `make test-backend` runs this suite and `make check` runs every check of the repository.
 
