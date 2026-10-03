@@ -24,8 +24,30 @@ steps:
     volumes: [sbt2-cache-lint:/cache:z]
     depends_on: []
     commands:
+      # the protocol's tests run in their own step, with buf on the path
       - cd sbt2-backend && uv sync --locked
-      - uvx prek@0.5.4 run --all-files --show-diff-on-failure
+      - SKIP=protocol-tests uvx prek@0.5.4 run --all-files --show-diff-on-failure
+
+  # the protocol's conventions and golden fixtures, through prek, whose buf-build hook has buf
+  - name: protocol-tests
+    image: *image
+    environment: *env
+    volumes: [sbt2-cache-protocol-tests:/cache:z]
+    depends_on: []
+    commands:
+      - cd sbt2-protocol && uv sync --locked
+      - uvx prek@0.5.4 run protocol-tests --all-files
+
+  # prost against the golden fixtures; protox compiles the .proto files, so no buf here
+  - name: protocol-rust
+    image: rust:1.97.1-slim-trixie
+    environment:
+      CARGO_HOME: /cache/cargo
+      CARGO_TARGET_DIR: /cache/target
+    volumes: [sbt2-cache-protocol-rust:/cache:z]
+    depends_on: []
+    commands:
+      - cargo test --locked --manifest-path sbt2-protocol/checks/rust/Cargo.toml
 
   # each package is tested with only its declared dependencies
   - name: test-sbt2-core

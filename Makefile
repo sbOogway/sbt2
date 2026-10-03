@@ -21,5 +21,5 @@ test-backend:
 	cd sbt2-backend && uv run --locked pytest
 
 test-protocol:
-	cd sbt2-protocol && uv run --locked pytest
-	cd sbt2-protocol && cargo test --locked --manifest-path checks/rust/Cargo.toml
+	prek run protocol-tests --all-files
+	cargo test --locked --manifest-path sbt2-protocol/checks/rust/Cargo.toml

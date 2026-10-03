@@ -1,9 +1,8 @@
 default_install_hook_types: [pre-commit, commit-msg, post-merge]
 default_stages: [pre-commit]
-# generate-protocol writes the backend's modules, and fails when they are stale;
-# scripts/golden.sh writes the protocol's fixtures, and its own hook fails when they are stale.
-# The imported protocol is checked by the protocol's own hooks, below.
-exclude: ^(sbt2-backend/packages/sbt2-server/src/sbt2/protocol/|sbt2-protocol/)
+# generate-protocol writes the backend's protocol modules, and the golden hook writes the
+# protocol's fixtures; both fail when what they wrote is stale
+exclude: ^(sbt2-backend/packages/sbt2-server/src/sbt2/protocol/|\.binpb$)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -11,8 +10,11 @@ repos:
     hooks:
       - id: check-toml
       - id: check-yaml
+      # the imported protocol keeps the text style its own commits already have
       - id: end-of-file-fixer
+        exclude: &imported ^(sbt2-protocol/|sbt2-backend/packages/sbt2-server/src/sbt2/protocol/|\.binpb$)
       - id: trailing-whitespace
+        exclude: *imported
       - id: check-added-large-files
         args: [--maxkb=1024]
 
@@ -26,7 +28,9 @@ repos:
     hooks:
       - id: ruff-check
         args: [--fix]
+        files: ^sbt2-backend/
       - id: ruff-format
+        files: ^sbt2-backend/
 
   - repo: https://github.com/shellcheck-py/shellcheck-py
     rev: v0.11.0.1
@@ -39,10 +43,49 @@ repos:
       - id: shfmt
         args: [-w, -i, "4"]
 
+  - repo: https://github.com/bufbuild/buf
+    rev: v1.73.0
+    hooks:
+      # buf takes sbt2-protocol/ as its module, so these hooks borrow buf-build's environment
+      # for its buf binary and name the module themselves
+      - id: buf-build
+        alias: buf-format
+        name: buf format
+        entry: sh -c "cd sbt2-protocol && buf format -w --exit-code ."
+        always_run: true
+        pass_filenames: false
+      - id: buf-build
+        alias: buf-lint
+        name: buf lint
+        entry: sh -c "cd sbt2-protocol && buf lint ."
+        always_run: true
+        pass_filenames: false
+      # sbt2 main holds no protocol files yet, so the migration compares the protocol with the
+      # commit this repository pinned; a later commit names sbt2 main itself
+      - id: buf-build
+        alias: buf-breaking
+        name: buf breaking
+        entry: >-
+          sh -c "cd sbt2-protocol && buf breaking
+          --against https://github.com/sbOogway/sbt2-protocol.git#ref=2b77b67bd22db976a4121950bcfbf6b502bc9542
+          ."
+        always_run: true
+        pass_filenames: false
+      - id: buf-build
+        alias: golden
+        name: golden fixtures are up to date
+        entry: sbt2-protocol/scripts/golden.sh
+        always_run: true
+        pass_filenames: false
+      - id: buf-build
+        alias: protocol-tests
+        name: protocol tests
+        entry: sh -c "cd sbt2-protocol && uv run --locked pytest"
+        always_run: true
+        pass_filenames: false
+
   - repo: local
     hooks:
-      # sbt2-protocol/ is the submodule of that repo, which formats, lints and checks itself;
-      # here its pinned commit only drives the generated code
       - id: generate-protocol
         name: generate protocol
         entry: scripts/generate-protocol.sh
