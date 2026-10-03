@@ -68,6 +68,16 @@ quantity = "0.100"
 
 `sbt2 run` ends with the headline metrics of each part. Results are stored under `$SBT2_DATA/results`; list them with `uv run sbt2 runs list`, and write a run's tearsheet with `uv run sbt2 report tearsheet <run_id>`.
 
+## Deployment
+
+`Containerfile`, `compose.yaml` and `.dockerignore` live in this directory, which is the image's build context. From the repository root:
+
+```sh
+podman compose -f sbt2-backend/compose.yaml up -d --build
+```
+
+From this directory, `podman compose up -d --build` does the same. The image needs neither protocol generation nor a Git submodule.
+
 ## Development
 
 From the repository root, `make test-backend` runs this suite and `make check` runs every check of the repository.
