@@ -291,10 +291,10 @@ wheels = [
 
 [[package]]
 name = "nautilus-trader"
-version = "2.0.0rc6.dev20261002+19087"
+version = "2.0.0rc6.dev20261002"
 source = { registry = "https://packages.nautechsystems.io/simple" }
 wheels = [
-    { url = "https://packages.nautechsystems.io/simple/nautilus-trader/nautilus_trader-2.0.0rc6.dev20261002+19087-cp314-cp314-manylinux_2_34_x86_64.whl", hash = "sha256:b9a8d727858d1b3ac6b1579bcd8d52d44b885c60d0fcd1fc5c6038389e1a00fa" },
+    { url = "https://packages.nautechsystems.io/simple/nautilus-trader/nautilus_trader-2.0.0rc6.dev20261002-cp314-cp314-manylinux_2_34_x86_64.whl", hash = "sha256:0f0ec479cb89216a745853a0e1cf27cbb86da5fed0b1b672b77b5582989a041d" },
 ]
 
 [package.optional-dependencies]

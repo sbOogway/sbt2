@@ -8,12 +8,12 @@ updates:
     commit-message:
       prefix: build
       include: scope
+    ignore:
+      # nautilus-trader uses the Nautech nightly index and is bumped by scripts/bump-nautilus.sh.
+      - dependency-name: nautilus-trader
     groups:
-      # nautilus-trader is pinned to a dev build whose updates often break the API,
-      # so it stays in a pull request of its own
       python:
         patterns: ["*"]
-        exclude-patterns: [nautilus-trader]
 
   - package-ecosystem: pre-commit
     directory: /
