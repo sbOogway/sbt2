@@ -4,8 +4,8 @@
 set -euo pipefail
 
 out=${1:-.release}
-config=sbt2-backend/pyproject.toml
-cliff=(uvx git-cliff==2.14.2 --config "$config")
+# git-cliff reads its configuration from the repository root
+cliff=(uvx git-cliff==2.14.2)
 
 rm -rf "$out"
 mkdir -p "$out"
