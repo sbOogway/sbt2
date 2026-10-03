@@ -1,7 +1,9 @@
 default_install_hook_types: [pre-commit, commit-msg, post-merge]
 default_stages: [pre-commit]
-# generate-protocol writes these, and fails when they are stale
-exclude: ^sbt2-backend/packages/sbt2-server/src/sbt2/protocol/
+# generate-protocol writes the backend's modules, and fails when they are stale;
+# scripts/golden.sh writes the protocol's fixtures, and its own hook fails when they are stale.
+# The imported protocol is checked by the protocol's own hooks, below.
+exclude: ^(sbt2-backend/packages/sbt2-server/src/sbt2/protocol/|sbt2-protocol/)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -60,7 +62,7 @@ repos:
         # its cache keeps resolving an unchanged file's imports to modules that were renamed away
         entry: sh -c "cd sbt2-backend && uv run --locked lint-imports --no-cache"
         language: system
-        files: (\.py|^sbt2-backend/pyproject\.toml)$
+        files: (^sbt2-backend/.*\.py$|^sbt2-backend/pyproject\.toml$)
         pass_filenames: false
 
       - id: prune-merged-branches
