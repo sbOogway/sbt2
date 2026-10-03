@@ -1,3 +1,25 @@
+# Python environments and bytecode
 .venv/
+venv/
 __pycache__/
+*.py[cod]
+
+# Test, lint, and coverage artifacts
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Rust build output
 /checks/rust/target/
+/target/
+
+# Editor and operating system temporary files
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
