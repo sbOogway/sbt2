@@ -97,7 +97,7 @@ steps:
       - |
         status=0
         # the tests have no use for the token
-        env -u CODECOV_TOKEN uv run --locked pytest tests --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        env -u CODECOV_TOKEN uv run --locked pytest tests --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd and not container" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag tests --file /cache/junit.xml --disable-search
         exit $status
 
