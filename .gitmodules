@@ -1,3 +1,0 @@
-[submodule "proto"]
-	path = sbt2-protocol
-	url = https://github.com/sbOogway/sbt2-protocol.git

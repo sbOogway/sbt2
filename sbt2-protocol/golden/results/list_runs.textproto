@@ -1,0 +1,5 @@
+# proto-message: sbt2.protocol.v1.ClientMessage
+request_id: 10
+list_runs {
+  filter { strategy: "example:Trend" part: "train" batch: "batch-1" study: "study-1" run_ids {} }
+}

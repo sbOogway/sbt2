@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-SCRIPT = Path(__file__).parents[2] / "scripts" / "rebase-open-branches.sh"
+SCRIPT = Path(__file__).parents[3] / "scripts" / "rebase-open-branches.sh"
 
 # keeps the user's git config, and any hooks it installs, out of the test repos
 ISOLATED = {

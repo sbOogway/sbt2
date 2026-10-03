@@ -4,7 +4,7 @@
 # request for that nightly exists.
 set -euo pipefail
 
-manifest=packages/sbt2-core/pyproject.toml
+manifest=sbt2-backend/packages/sbt2-core/pyproject.toml
 
 current=$(sed -nE 's/.*"nautilus-trader\[[a-z]+\]==([^"]+)".*/\1/p' "$manifest")
 
@@ -40,7 +40,7 @@ if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
 fi
 
 sed -i -E "s/(\"nautilus-trader\[[a-z]+\]==)[^\"]+\"/\1$newest\"/" "$manifest"
-uv lock --upgrade-package nautilus-trader
+uv lock --project sbt2-backend --upgrade-package nautilus-trader
 
 git switch --quiet -c "$branch"
 git commit --quiet -am "build(deps): bump nautilus-trader to $newest"

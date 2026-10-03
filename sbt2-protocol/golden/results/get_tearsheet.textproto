@@ -1,0 +1,6 @@
+# proto-message: sbt2.protocol.v1.ClientMessage
+request_id: 14
+get_tearsheet {
+  run_id: "0198cc00-0000-7000-8000-000000000001"
+  benchmark { kind: BENCHMARK_KIND_BUY_AND_HOLD instrument_id: "BTCUSDT-LINEAR.BYBIT" }
+}

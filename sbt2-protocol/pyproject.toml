@@ -1,0 +1,21 @@
+# Only the tests' dependencies: this repo ships no Python package.
+[project]
+name = "sbt2-protocol-tests"
+version = "0"
+requires-python = ">=3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    # the version sbt2-server depends on
+    "protobuf>=7.36.2,<8",
+    "pytest>=9.1.1",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--strict-markers"]
+markers = ["unit: one module or protocol contract", "golden: committed wire fixtures"]

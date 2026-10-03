@@ -8,4 +8,4 @@ coverage:
 
 # The -m systemd tests cover it on a host with a systemd user session; CI's container has none.
 ignore:
-  - "packages/sbt2-core/src/sbt2/core/run/systemd.py"
+  - "sbt2-backend/packages/sbt2-core/src/sbt2/core/run/launchers/systemd.py"

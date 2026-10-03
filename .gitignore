@@ -1,4 +1,5 @@
 /data/
+/sbt2-backend/data/
 .venv/
 __pycache__/
 .ruff_cache/

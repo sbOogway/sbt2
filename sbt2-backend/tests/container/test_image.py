@@ -16,7 +16,7 @@ from sbt2.protocol.v1.envelope_pb2 import ClientMessage, Hello, ServerMessage
 
 pytestmark = [pytest.mark.e2e, pytest.mark.container]
 
-REPO = Path(__file__).parents[2]
+BACKEND = Path(__file__).parents[2]
 TAG = "localhost/sbt2-server:test"
 PORT = 8765
 TOKEN = "s3cret-token"
@@ -40,8 +40,8 @@ def image() -> str:
         "--format=docker",
         f"--build-arg=SBT2_VERSION={version('sbt2-server')}",
         f"--tag={TAG}",
-        f"--file={REPO / 'Containerfile'}",
-        str(REPO),
+        f"--file={BACKEND / 'Containerfile'}",
+        str(BACKEND),
     )
     return TAG
 

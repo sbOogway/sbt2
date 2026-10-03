@@ -1,0 +1,5 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 1
+welcome {
+  server_version: "0.1.0"
+}
