@@ -1,15 +1,18 @@
 """The order a batch sends each child.
 
-The parent writes the child's order to stdin as one JSON document. It carries the
-parent's ``sys.path``, which must be in place before the spec can import the
-strategy's own classes.
+The parent sends the child its order through a one-way pipe, as one JSON document.
+It carries the parent's working directory and ``sys.path``, which must be in place
+before the spec can import the strategy's own classes: ``sys.path`` can hold
+``''``, the working directory.
 """
 
 import json
+import os
 import sys
 from dataclasses import asdict, dataclass, replace
+from multiprocessing.connection import Connection
 from pathlib import Path
-from typing import IO, Any
+from typing import Any
 
 from nautilus_trader.common import LogLevel
 
@@ -32,12 +35,13 @@ class Order:
     error_file: Path
 
 
-def send(order: Order, stream: IO[bytes]) -> None:
-    stream.write(json.dumps(_order_document(order)).encode())
+def send(order: Order, pipe: Connection) -> None:
+    pipe.send_bytes(json.dumps(_order_document(order)).encode())
 
 
-def receive(stream: IO[bytes]) -> Order:
-    document = json.load(stream)
+def receive(pipe: Connection) -> Order:
+    document = json.loads(pipe.recv_bytes())
+    os.chdir(document["working_directory"])
     sys.path[:] = document["sys_path"]
     return _order(document)
 
@@ -46,6 +50,7 @@ def _order_document(order: Order) -> Document:
     return {
         "run_id": order.run_id,
         "batch_id": order.batch_id,
+        "working_directory": str(Path.cwd()),
         "sys_path": sys.path,
         "spec": _spec_document(order.spec),
         "known_gaps": [str(each) for each in order.known_gaps],

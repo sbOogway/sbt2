@@ -1,15 +1,26 @@
+import multiprocessing
 import os
-import subprocess
-import sys
+import signal
 import time
 import uuid
-from collections.abc import Sequence
+from functools import partial
 from pathlib import Path
 from typing import override
 
 import pytest
 from batch_kit import NEXT_DAY, GiB, resolved, served, setup, summaries
-from launchers import PlainLauncher, ScriptedLauncher
+from launchers import (
+    PlainLauncher,
+    ScriptedLauncher,
+    exits,
+    fails,
+    fails_when_ready,
+    forked,
+    killed,
+    naps,
+    resists_termination,
+    sleeps,
+)
 from nautilus_trader.model import FundingRateUpdate
 from served_source import INSTRUMENT_ID
 
@@ -25,11 +36,66 @@ from sbt2.core.run import (
 )
 from sbt2.core.run.batching import children as batch_children
 
-EXIT = [sys.executable, "-c", "pass"]
-FAIL = [sys.executable, "-c", "raise SystemExit(1)"]
-NAP = [sys.executable, "-c", "import time; time.sleep(0.5)"]
-SLEEP = [sys.executable, "-c", "import time; time.sleep(60)"]
-KILLED = [sys.executable, "-c", "import os; os.kill(os.getpid(), 9)"]
+NAUTILUS_CORE = "_libnautilus"
+FRESH = """
+import os
+from pathlib import Path
+
+from run_strategies import BuyThenSell
+
+with Path(__file__).with_name("imports.txt").open("a") as imports:
+    imports.write(f"{os.getpid()} {VERSION}\\n")
+
+
+class Fresh(BuyThenSell):
+    pass
+"""
+HERE = """
+from run_strategies import BuyThenSell
+
+
+class Here(BuyThenSell):
+    pass
+"""
+
+
+def fresh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, version: str) -> str:
+    """The import path of a strategy whose module records the pid and
+    ``version`` of each process that imports it."""
+    (tmp_path / "fresh.py").write_text(f"VERSION = {version!r}\n{FRESH}")
+    monkeypatch.syspath_prepend(tmp_path)
+    return "fresh:Fresh"
+
+
+def imported(tmp_path: Path) -> dict[int, str]:
+    """The version of the strategy each process imported, by its pid."""
+    lines = (tmp_path / "imports.txt").read_text().splitlines()
+    return {
+        int(pid): version for pid, version in (each.split(maxsplit=1) for each in lines)
+    }
+
+
+def here(folder: Path) -> str:
+    """The import path of a strategy whose module lives in ``folder``."""
+    folder.mkdir()
+    (folder / "here.py").write_text(HERE)
+    return "here:Here"
+
+
+class SlowLauncher(PlainLauncher):
+    """Takes a while to cap each child, then records whether the child had
+    already started its run."""
+
+    def __init__(self, store: ParquetResultStore) -> None:
+        super().__init__()
+        self.store = store
+        self.started_early: list[bool] = []
+
+    @override
+    def cap(self, run_id: str, pid: int, memory_max: int) -> None:
+        super().cap(run_id, pid, memory_max)
+        time.sleep(0.5)
+        self.started_early.append(self.store.folder(run_id).exists())
 
 
 class RecordedProgress:
@@ -52,17 +118,25 @@ class CountingLauncher(ScriptedLauncher):
     @override
     def cap(self, run_id: str, pid: int, memory_max: int) -> None:
         super().cap(run_id, pid, memory_max)
-        alive = sum(each.poll() is None for each in self.started)
+        alive = sum(each.is_alive() for each in self.started)
         self.most_alive = max(self.most_alive, alive)
 
 
-class PipelessLauncher(ScriptedLauncher):
-    """Has the batch spawn each child without the stdin pipe its order goes
-    through."""
+class InspectingLauncher(PlainLauncher):
+    """Records each child's parent and whether it has nautilus's compiled core
+    mapped, as the child waits for its order."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.parents: list[int] = []
+        self.preloaded: list[bool] = []
 
     @override
-    def _popen(self, command: Sequence[str]) -> subprocess.Popen[bytes]:
-        return subprocess.Popen(command)
+    def cap(self, run_id: str, pid: int, memory_max: int) -> None:
+        super().cap(run_id, pid, memory_max)
+        proc = Path("/proc", str(pid))
+        self.parents.append(int((proc / "stat").read_text().rsplit(")")[1].split()[1]))
+        self.preloaded.append(NAUTILUS_CORE in (proc / "maps").read_text())
 
 
 @pytest.mark.integration
@@ -126,6 +200,75 @@ def test_each_run_executes_in_its_own_fresh_process(tmp_path: Path) -> None:
 
 
 @pytest.mark.integration
+def test_children_fork_from_one_forkserver_with_the_run_modules_loaded(
+    tmp_path: Path,
+) -> None:
+    launcher = InspectingLauncher()
+    specs = [
+        resolved(tmp_path, params={"hold_bars": 2}),
+        resolved(tmp_path, params={"hold_bars": 3}),
+    ]
+
+    batch(specs, setup(tmp_path, launcher))
+
+    [parent] = set(launcher.parents)
+    assert parent != os.getpid()
+    assert launcher.preloaded == [True, True]
+
+
+@pytest.mark.integration
+def test_each_run_imports_its_strategy_afresh(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    strategy = fresh(tmp_path, monkeypatch, "first")
+    first = PlainLauncher()
+    specs = [
+        resolved(tmp_path, strategy=strategy, params={"hold_bars": each})
+        for each in (2, 3)
+    ]
+    batch(specs, setup(tmp_path, first))
+    fresh(tmp_path, monkeypatch, "the edited one")
+    second = PlainLauncher()
+
+    batch(specs[:1], setup(tmp_path, second))
+
+    versions = imported(tmp_path)
+    assert len(set(first.pids)) == 2
+    assert [versions[each] for each in first.pids] == ["first", "first"]
+    assert [versions[each] for each in second.pids] == ["the edited one"]
+
+
+@pytest.mark.integration
+def test_a_child_runs_in_the_batch_working_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "b").mkdir()
+    monkeypatch.chdir(tmp_path / "b")
+    batch([resolved(tmp_path)], setup(tmp_path, PlainLauncher()))
+    strategy = here(tmp_path / "a")
+    monkeypatch.chdir(tmp_path / "a")
+    monkeypatch.syspath_prepend("")
+
+    [run_id] = batch(
+        [resolved(tmp_path, strategy=strategy)], setup(tmp_path, PlainLauncher())
+    )
+
+    assert run_id in summaries(tmp_path)
+
+
+@pytest.mark.integration
+def test_a_child_does_no_work_until_its_launcher_has_capped_it(
+    tmp_path: Path,
+) -> None:
+    launcher = SlowLauncher(ParquetResultStore(tmp_path / "results"))
+
+    [run_id] = batch([resolved(tmp_path)], setup(tmp_path, launcher))
+
+    assert launcher.started_early == [False]
+    assert run_id in summaries(tmp_path)
+
+
+@pytest.mark.integration
 def test_known_gaps_found_by_preflight_are_stored_with_the_run(
     tmp_path: Path,
 ) -> None:
@@ -162,7 +305,7 @@ def test_the_parent_writes_nothing_to_the_store(
         resolved(tmp_path, params={"hold_bars": 3}),
     ]
 
-    batch(specs, setup(tmp_path, ScriptedLauncher(monkeypatch, [EXIT, EXIT])))
+    batch(specs, setup(tmp_path, ScriptedLauncher(monkeypatch, [exits, exits])))
 
     assert not (tmp_path / "results").exists()
 
@@ -178,7 +321,7 @@ def test_progress_counts_the_runs_planned_and_finished(
     ]
 
     run_ids = batch(
-        specs, setup(tmp_path, ScriptedLauncher(monkeypatch, [EXIT, EXIT])), progress
+        specs, setup(tmp_path, ScriptedLauncher(monkeypatch, [exits, exits])), progress
     )
 
     assert progress.runs == [2]
@@ -209,7 +352,7 @@ def test_a_failure_stops_the_running_runs_and_starts_no_more(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     specs = [resolved(tmp_path, params={"hold_bars": each}) for each in (2, 3, 4)]
-    launcher = ScriptedLauncher(monkeypatch, [FAIL, SLEEP, EXIT])
+    launcher = ScriptedLauncher(monkeypatch, [fails, sleeps, exits])
     started = time.monotonic()
 
     with pytest.raises(RunFailedError):
@@ -217,9 +360,33 @@ def test_a_failure_stops_the_running_runs_and_starts_no_more(
 
     assert time.monotonic() - started < 30
     failed, sleeper = launcher.started
-    assert failed.returncode == 1
-    assert sleeper.returncode is not None
-    assert sleeper.returncode < 0
+    assert failed.exitcode == 1
+    assert sleeper.exitcode is not None
+    assert sleeper.exitcode < 0
+
+
+@pytest.mark.integration
+def test_a_failure_kills_a_child_that_ignores_termination(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ready = multiprocessing.get_context("forkserver").Event()
+    scripts = [
+        partial(fails_when_ready, ready),
+        partial(resists_termination, ready),
+        exits,
+    ]
+    launcher = ScriptedLauncher(monkeypatch, scripts)
+    monkeypatch.setattr(batch_children, "_GRACE_SECONDS", 0.1)
+    specs = [resolved(tmp_path, params={"hold_bars": each}) for each in (2, 3, 4)]
+    started = time.monotonic()
+
+    with pytest.raises(RunFailedError):
+        batch(specs, setup(tmp_path, launcher))
+
+    assert time.monotonic() - started < 30
+    failed, resistant = launcher.started
+    assert failed.exitcode == 1
+    assert resistant.exitcode == -signal.SIGKILL
 
 
 @pytest.mark.integration
@@ -227,31 +394,18 @@ def test_at_most_budget_over_per_run_runs_go_at_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     specs = [resolved(tmp_path, params={"hold_bars": each}) for each in (2, 3, 4, 5)]
-    launcher = CountingLauncher(monkeypatch, [NAP] * 4)
+    launcher = CountingLauncher(monkeypatch, [naps] * 4)
 
     batch(specs, setup(tmp_path, launcher))
 
     assert launcher.most_alive == 2
-    assert [each.returncode for each in launcher.started] == [0] * 4
+    assert [each.exitcode for each in launcher.started] == [0] * 4
 
 
 @pytest.mark.unit
 def test_a_budget_below_the_per_run_cap_is_refused() -> None:
     with pytest.raises(ValueError, match="budget"):
         Memory(budget=GiB, per_run=2 * GiB)
-
-
-@pytest.mark.integration
-def test_a_child_started_without_a_stdin_pipe_is_refused_and_stopped(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    launcher = PipelessLauncher(monkeypatch, [SLEEP])
-
-    with pytest.raises(ValueError, match="without a stdin pipe"):
-        batch([resolved(tmp_path)], setup(tmp_path, launcher))
-
-    [child] = launcher.started
-    assert child.returncode is not None
 
 
 @pytest.mark.integration
@@ -273,7 +427,7 @@ def test_an_uncapped_child_killed_by_a_signal_fails_with_its_exit_code(
     monkeypatch.setattr(
         batch_children,
         "_spawn",
-        lambda: subprocess.Popen(KILLED, stdin=subprocess.PIPE),
+        lambda: forked(killed),
     )
 
     with pytest.raises(RunFailedError) as failure:

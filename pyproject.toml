@@ -307,6 +307,7 @@ markers = [
 [tool.coverage.run]
 source_pkgs = ["sbt2.core", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
 branch = true
+concurrency = ["multiprocessing"]
 patch = ["subprocess"]
 
 [tool.coverage.report]
