@@ -485,7 +485,11 @@ def test_delete_removes_an_unfinished_runs_partial_folder(
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("run_id", [str(uuid.uuid7()), "..", "../runs"])
+@pytest.mark.parametrize(
+    "run_id",
+    [str(uuid.uuid7()), "..", "../runs"],
+    ids=["unknown", "dot-dot", "parent-path"],
+)
 def test_unknown_or_malformed_run_ids_fail(
     store: ParquetResultStore, run_id: str
 ) -> None:
