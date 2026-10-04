@@ -12,6 +12,7 @@ from sbt2.core.data.sources import (
     add_known_gaps,
     known_gaps,
     listed_gaps,
+    remove_known_gaps,
     source,
 )
 
@@ -123,6 +124,16 @@ def test_adding_a_listed_gap_again_keeps_one_entry(tmp_path: Path) -> None:
     add_known_gaps(file, [TRADES_GAP, TRADES_GAP])
 
     assert listed_gaps(file) == [TRADES_GAP]
+
+
+@pytest.mark.unit
+def test_remove_known_gaps_drops_only_those_gaps(tmp_path: Path) -> None:
+    file = tmp_path / "known_gaps.toml"
+    add_known_gaps(file, [TRADES_GAP, CANDLES_GAP])
+
+    remove_known_gaps(file, [TRADES_GAP])
+
+    assert listed_gaps(file) == [CANDLES_GAP]
 
 
 @pytest.mark.unit

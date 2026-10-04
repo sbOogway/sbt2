@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -33,6 +33,7 @@ __all__ = [
     "candle_type",
     "known_gaps",
     "listed_gaps",
+    "remove_known_gaps",
     "source",
 ]
 
@@ -73,7 +74,7 @@ def listed_gaps(known_gaps_file: Path) -> list[ListedGap]:
     """Every gap ``known_gaps_file`` lists, in its order; none when the file is
     missing."""
     return [
-        ListedGap(name, entry["symbol"], entry["data"], entry["day"])
+        _listed(name, entry)
         for name, entries in _lists(known_gaps_file).items()
         for entry in entries
     ]
@@ -89,6 +90,20 @@ def add_known_gaps(known_gaps_file: Path, gaps: Iterable[ListedGap]) -> None:
         if entry not in entries:
             entries.append(entry)
     write_toml(known_gaps_file, lists)
+
+
+def remove_known_gaps(known_gaps_file: Path, gaps: Iterable[ListedGap]) -> None:
+    """Drop ``gaps`` from their sources' lists; a gap not listed is skipped."""
+    dropped = set(gaps)
+    lists = {
+        name: [each for each in entries if _listed(name, each) not in dropped]
+        for name, entries in _lists(known_gaps_file).items()
+    }
+    write_toml(known_gaps_file, lists)
+
+
+def _listed(name: str, entry: Mapping[str, Any]) -> ListedGap:
+    return ListedGap(name, entry["symbol"], entry["data"], entry["day"])
 
 
 def _checked_entry(gap: ListedGap) -> dict[str, Any]:

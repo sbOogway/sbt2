@@ -38,6 +38,7 @@ from sbt2.core.data.sources import (
     candle_type,
     known_gaps,
     listed_gaps,
+    remove_known_gaps,
     source,
 )
 from sbt2.core.data.tally import Tally
@@ -77,5 +78,6 @@ __all__ = [
     "ingest",
     "known_gaps",
     "listed_gaps",
+    "remove_known_gaps",
     "source",
 ]
