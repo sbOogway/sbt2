@@ -45,9 +45,10 @@ steps:
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
       - uv --directory sbt2-backend sync --locked --package sbt2-core
+      # the slowest suite, so it alone runs on a worker per CPU
       - |
         status=0
-        env -u CODECOV_TOKEN uv --directory sbt2-backend run --locked --package sbt2-core pytest packages/sbt2-core/tests --cov --cov-config=packages/sbt2-core/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        env -u CODECOV_TOKEN uv --directory sbt2-backend run --locked --package sbt2-core pytest packages/sbt2-core/tests -n auto --cov --cov-config=packages/sbt2-core/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag sbt2-core --file /cache/junit.xml --disable-search
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-core --file /cache/coverage.xml
         exit $status
