@@ -1,4 +1,3 @@
-import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -6,9 +5,10 @@ from typing import Any
 
 from nautilus_trader.model import AssetClass, InstrumentClass
 
-from sbt2.core.assets import AssetProfile, asset_profile
+from sbt2.core.assets import AssetProfile, UnknownAssetClassError, asset_profile
 from sbt2.core.spec.errors import SpecError
 from sbt2.core.spec.resolve.models import built_model, model_tables
+from sbt2.core.tomlfiles import read_toml, write_toml
 
 
 class UnknownVenueProfileError(SpecError, LookupError):
@@ -39,16 +39,55 @@ def venue_profile(path: Path, name: str) -> VenueProfile:
     The arguments start from the asset profile's venue defaults. Model arguments stay
     as ``{kind, config}`` tables until the run config builds them.
     """
-    arguments = _profile_table(path, name)
+    if not path.exists():
+        raise MissingConfigError(f"no venue profiles file {path}")
+    return _parsed(name, _stored(path, name))
+
+
+def venue_profiles(path: Path) -> dict[str, dict[str, Any]]:
+    """Every venue profile in ``path`` as stored, without the asset profile's
+    venue defaults; none when the file is missing."""
+    return read_toml(path)
+
+
+def put_venue_profile(path: Path, name: str, table: Mapping[str, Any]) -> None:
+    """Store ``table`` as the venue profile ``name``, replacing the one of that
+    name; an invalid ``table`` raises and leaves the file as it was."""
+    _parsed(name, table)
+    profiles = venue_profiles(path)
+    profiles[name] = dict(table)
+    try:
+        write_toml(path, profiles)
+    except TypeError as error:
+        raise InvalidVenueProfileError(
+            f"the venue profile {name} holds a value TOML cannot: {error}"
+        ) from error
+
+
+def _parsed(name: str, table: Mapping[str, Any]) -> VenueProfile:
+    arguments = dict(table)
     if "source" not in arguments:
         raise InvalidVenueProfileError(f"the venue profile {name} names no source")
     source = arguments.pop("source")
-    asset = asset_profile(
-        AssetClass.from_str(arguments.pop("asset_class")),
-        InstrumentClass.from_str(arguments.pop("instrument_class")),
+    asset = _asset(
+        name,
+        arguments.pop("asset_class", None),
+        arguments.pop("instrument_class", None),
     )
     _check_models(name, arguments)
     return VenueProfile(asset, source, {**asset.venue_defaults, **arguments})
+
+
+def _asset(name: str, asset_class: Any, instrument_class: Any) -> AssetProfile:
+    try:
+        return asset_profile(
+            AssetClass.from_str(asset_class), InstrumentClass.from_str(instrument_class)
+        )
+    except (TypeError, ValueError, UnknownAssetClassError) as error:
+        raise InvalidVenueProfileError(
+            f"the venue profile {name} names no known asset and instrument class: "
+            f"{error}"
+        ) from error
 
 
 def _check_models(name: str, arguments: Mapping[str, Any]) -> None:
@@ -61,21 +100,10 @@ def _check_models(name: str, arguments: Mapping[str, Any]) -> None:
         built_model(argument, table)
 
 
-def venue_profiles(path: Path) -> dict[str, dict[str, Any]]:
-    """Every venue profile in ``path`` as stored, without the asset profile's
-    venue defaults; none when the file is missing."""
-    if not path.exists():
-        return {}
-    with path.open("rb") as file:
-        return tomllib.load(file)
-
-
-def _profile_table(path: Path, name: str) -> dict[str, Any]:
-    if not path.exists():
-        raise MissingConfigError(f"no venue profiles file {path}")
+def _stored(path: Path, name: str) -> dict[str, Any]:
     profiles = venue_profiles(path)
     try:
-        return dict(profiles[name])
+        return profiles[name]
     except KeyError:
         raise UnknownVenueProfileError(
             f"no venue profile {name} in {path}; known: {', '.join(sorted(profiles))}"

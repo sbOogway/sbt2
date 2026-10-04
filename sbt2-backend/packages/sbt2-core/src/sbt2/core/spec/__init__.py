@@ -20,6 +20,7 @@ from sbt2.core.spec.resolve import (
     UnknownModelKindError,
     UnknownPartError,
     UnknownVenueProfileError,
+    put_venue_profile,
     venue_profiles,
 )
 from sbt2.core.spec.risk import DrawdownLimitError, UnknownRiskKeyError
@@ -64,5 +65,6 @@ __all__ = [
     "UnknownSplitError",
     "UnknownVenueProfileError",
     "load",
+    "put_venue_profile",
     "venue_profiles",
 ]
