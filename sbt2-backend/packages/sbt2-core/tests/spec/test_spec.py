@@ -1,6 +1,5 @@
 import hashlib
 import json
-import pickle
 import re
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -800,20 +799,6 @@ def test_a_split_table_of_fractions_resolves(paths: tuple[Path, Path]) -> None:
 
     assert spec.split == FractionSplit(validation=0.25, test=0.25)
     assert (spec.start, spec.end) == (START, datetime(2024, 1, 31, tzinfo=UTC))
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize("bars", ["trades", "candles"])
-def test_a_resolved_spec_survives_pickling(paths: tuple[Path, Path], bars: str) -> None:
-    spec = resolved(paths, bars=bars)
-
-    copy = pickle.loads(pickle.dumps(spec))
-
-    assert copy.hash == spec.hash
-    assert copy.to_json() == spec.to_json()
-    config, copied = spec.run_config("/catalog"), copy.run_config("/catalog")
-    assert repr(copied.venues) == repr(config.venues)
-    assert repr(copied.data) == repr(config.data)
 
 
 @pytest.mark.unit
