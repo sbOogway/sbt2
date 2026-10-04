@@ -146,9 +146,10 @@ def test_put_venue_profile_replaces_the_profile_of_the_same_name(
         ({"fee_model": {"kind": "nope"}}, UnknownModelKindError),
         ({"fee_model": {"kind": "fixed", "config": {}}}, InvalidModelConfigError),
         ({"source": None}, InvalidVenueProfileError),
+        ({"name": None}, InvalidVenueProfileError),
         ({"asset_class": "NOPE"}, InvalidVenueProfileError),
     ],
-    ids=["unknown-kind", "bad-config", "no-source", "unknown-asset-class"],
+    ids=["unknown-kind", "bad-config", "no-source", "no-venue", "unknown-asset-class"],
 )
 def test_invalid_venue_profile_is_rejected_and_leaves_the_file_unchanged(
     tmp_path: Path, change: dict[str, Any], error: type[Exception]

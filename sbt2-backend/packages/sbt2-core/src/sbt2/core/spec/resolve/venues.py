@@ -77,8 +77,11 @@ def delete_venue_profile(path: Path, name: str) -> None:
 
 def _parsed(name: str, table: Mapping[str, Any]) -> VenueProfile:
     arguments = dict(table)
-    if "source" not in arguments:
-        raise InvalidVenueProfileError(f"the venue profile {name} names no source")
+    for required in ("source", "name"):
+        if required not in arguments:
+            raise InvalidVenueProfileError(
+                f"the venue profile {name} names no {required}"
+            )
     source = arguments.pop("source")
     asset = _asset(
         name,
