@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from google.protobuf.struct_pb2 import Struct
+from google.protobuf.struct_pb2 import Struct, Value
 from results_kit import ask, ask_together
 
 from sbt2.core import data, spec
@@ -14,7 +14,11 @@ from sbt2.protocol.v1.config_pb2 import (
     InstrumentClass,
     KnownGap,
     ListKnownGaps,
+    ListModelKinds,
     ListVenueProfiles,
+    ModelArgument,
+    ModelParameter,
+    ParameterType,
     PutVenueProfile,
     RemoveKnownGaps,
     VenueModel,
@@ -238,6 +242,45 @@ def test_an_invalid_known_gap_answers_invalid_argument(
     assert reply.error.code == ErrorCode.ERROR_CODE_INVALID_ARGUMENT
     assert reply.error.message
     assert gaps_listed(handlers) == []
+
+
+@pytest.mark.unit
+def test_list_model_kinds_answers_each_kind_with_its_parameters(
+    tmp_path: Path,
+) -> None:
+    [reply] = ask(
+        config_routes(tmp_path),
+        ClientMessage(request_id=4, list_model_kinds=ListModelKinds()),
+    )
+
+    arguments = {each.argument: each for each in reply.model_kinds.arguments}
+    assert set(arguments) == {
+        ModelArgument.MODEL_ARGUMENT_FEE_MODEL,
+        ModelArgument.MODEL_ARGUMENT_FILL_MODEL,
+        ModelArgument.MODEL_ARGUMENT_LATENCY_MODEL,
+        ModelArgument.MODEL_ARGUMENT_MARGIN_MODEL,
+        ModelArgument.MODEL_ARGUMENT_MODULES,
+    }
+    fees = {
+        kind.name: kind
+        for kind in arguments[ModelArgument.MODEL_ARGUMENT_FEE_MODEL].kinds
+    }
+    assert set(fees) == {"fixed", "maker_taker"}
+    assert list(fees["fixed"].parameters) == [
+        ModelParameter(
+            name="commission", type=ParameterType.PARAMETER_TYPE_STRING, required=True
+        ),
+        ModelParameter(
+            name="charge_commission_once", type=ParameterType.PARAMETER_TYPE_BOOLEAN
+        ),
+    ]
+    [fill] = arguments[ModelArgument.MODEL_ARGUMENT_FILL_MODEL].kinds
+    assert fill.parameters[0] == ModelParameter(
+        name="prob_fill_on_limit",
+        type=ParameterType.PARAMETER_TYPE_NUMBER,
+        default=Value(number_value=1.0),
+    )
+    assert list(arguments[ModelArgument.MODEL_ARGUMENT_LATENCY_MODEL].kinds) == []
 
 
 @pytest.mark.integration

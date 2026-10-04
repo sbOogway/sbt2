@@ -13,6 +13,7 @@ from sbt2.server.config.encoding import (
     InvalidArgumentError,
     gap_message,
     listed_gap,
+    model_kinds,
     profile_message,
     profile_table,
 )
@@ -30,6 +31,7 @@ def routes(config: ConfigFolder, root: Root) -> dict[str, Handler]:
         "list_known_gaps": _guard(edits.list_known_gaps),
         "add_known_gaps": _guard(edits.add_known_gaps),
         "remove_known_gaps": _guard(edits.remove_known_gaps),
+        "list_model_kinds": _list_model_kinds,
     }
 
 
@@ -86,6 +88,10 @@ class _Config:
         async with self.known_gaps_lock:
             await offloaded(data.remove_known_gaps)(self.known_gaps, gaps)
         return _written()
+
+
+async def _list_model_kinds(_request: ClientMessage, _outbox: Outbox) -> ServerMessage:
+    return ServerMessage(model_kinds=model_kinds(spec.model_kinds()))
 
 
 def _written() -> ServerMessage:

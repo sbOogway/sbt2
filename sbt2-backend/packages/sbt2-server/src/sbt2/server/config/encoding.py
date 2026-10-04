@@ -3,12 +3,19 @@ from datetime import date
 from typing import Any
 
 from google.protobuf import json_format
+from google.protobuf.struct_pb2 import Value
 
-from sbt2.core import data
+from sbt2.core import data, spec
 from sbt2.protocol.v1.config_pb2 import (
     AssetClass,
     InstrumentClass,
     KnownGap,
+    ModelArgument,
+    ModelArgumentKinds,
+    ModelKind,
+    ModelKinds,
+    ModelParameter,
+    ParameterType,
     VenueModel,
     VenueProfile,
 )
@@ -16,6 +23,14 @@ from sbt2.protocol.v1.config_pb2 import (
 MODELS = ("fee_model", "fill_model", "latency_model", "margin_model")
 _TYPED = frozenset({"name", "source", "asset_class", "instrument_class", "modules"})
 _RESERVED = _TYPED | frozenset(MODELS)
+
+
+_PARAMETER_TYPES = {
+    str: ParameterType.PARAMETER_TYPE_STRING,
+    int: ParameterType.PARAMETER_TYPE_INTEGER,
+    float: ParameterType.PARAMETER_TYPE_NUMBER,
+    bool: ParameterType.PARAMETER_TYPE_BOOLEAN,
+}
 
 
 class InvalidArgumentError(ValueError):
@@ -68,6 +83,37 @@ def gap_message(gap: data.ListedGap) -> KnownGap:
         data_type=gap.data,
         day=gap.day.isoformat(),
     )
+
+
+def model_kinds(
+    kinds: Mapping[str, Mapping[str, tuple[spec.ModelParameter, ...]]],
+) -> ModelKinds:
+    """Core's model ``kinds``, by model argument."""
+    return ModelKinds(
+        arguments=[
+            ModelArgumentKinds(
+                argument=ModelArgument.Value(f"MODEL_ARGUMENT_{argument.upper()}"),
+                kinds=[
+                    ModelKind(
+                        name=kind, parameters=[_parameter(each) for each in params]
+                    )
+                    for kind, params in each_kind.items()
+                ],
+            )
+            for argument, each_kind in kinds.items()
+        ]
+    )
+
+
+def _parameter(parameter: spec.ModelParameter) -> ModelParameter:
+    message = ModelParameter(
+        name=parameter.name,
+        type=_PARAMETER_TYPES[parameter.type],
+        required=parameter.required,
+    )
+    if parameter.default is not None:
+        message.default.CopyFrom(json_format.ParseDict(parameter.default, Value()))
+    return message
 
 
 def _typed_table(profile: VenueProfile) -> dict[str, Any]:
