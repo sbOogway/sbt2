@@ -4,7 +4,14 @@ from pathlib import Path
 import pytest
 from nautilus_trader.model import Bar, InstrumentId, TradeTick
 
-from sbt2.core.data.sources import Gap, UnknownSourceError, known_gaps, source
+from sbt2.core.data.sources import (
+    Gap,
+    ListedGap,
+    UnknownSourceError,
+    known_gaps,
+    listed_gaps,
+    source,
+)
 
 
 @pytest.mark.unit
@@ -71,3 +78,20 @@ def test_a_config_without_sources_has_no_known_gaps(tmp_path: Path) -> None:
     file.write_text("")
 
     assert known_gaps(file) == frozenset()
+
+
+TRADES_GAP = ListedGap("bybit", "BTCUSDT", "trades", date(2020, 3, 25))
+CANDLES_GAP = ListedGap("bybit", "ETHUSDT", "candles", date(2020, 3, 26))
+
+
+@pytest.mark.unit
+def test_listed_known_gaps_name_their_source(tmp_path: Path) -> None:
+    file = tmp_path / "known_gaps.toml"
+    file.write_text(
+        "bybit = [\n"
+        '  { symbol = "BTCUSDT", data = "trades", day = 2020-03-25 },\n'
+        '  { symbol = "ETHUSDT", data = "candles", day = 2020-03-26 },\n'
+        "]\n"
+    )
+
+    assert listed_gaps(file) == [TRADES_GAP, CANDLES_GAP]

@@ -32,9 +32,11 @@ from sbt2.core.data.ingesting import (
 from sbt2.core.data.sources import (
     CANDLES,
     Gap,
+    ListedGap,
     Source,
     candle_type,
     known_gaps,
+    listed_gaps,
     source,
 )
 from sbt2.core.data.tally import Tally
@@ -58,6 +60,7 @@ __all__ = [
     "IngestRequest",
     "InstrumentChangedError",
     "Item",
+    "ListedGap",
     "NoSnapshotError",
     "Outcome",
     "OutsideDayError",
@@ -71,5 +74,6 @@ __all__ = [
     "download",
     "ingest",
     "known_gaps",
+    "listed_gaps",
     "source",
 ]
