@@ -42,6 +42,11 @@
 - Address every review comment with new commits on the same branch, then ask for review again.
 - Repeat until the user approves. Only the user decides when the work is done.
 
+## Wiki
+
+- Do not update the wiki when you implement an issue or do similar work.
+- Update the wiki only when the user explicitly tells you to.
+
 ## Design questions
 
 - Ask only about decisions that change a public interface, observable behaviour or a data format, or that are costly to reverse.
@@ -105,6 +110,6 @@ Every brief contains:
 - The approved test plan, or for a `refactor` the delegated rule for mechanical test changes. If a test turns out to need more, stop and report it instead of changing it.
 - The process: one behaviour at a time, atomic Conventional Commits with the attribution footer, `prek run` and `git add -A` before every commit, `make check` fully passing and pyright clean.
 - The pull request: a draft after the first commit, titled like the issue, with a summary, `Closes #N`, the test plan, the assumptions it settled and notes. Mark it ready when done.
-- The wiki: clone it outside the repo, rewrite any passage the change makes outdated, `git pull --rebase` before pushing because other subagents edit it too, and list the pages in the pull request's notes.
+- The wiki: do not edit it.
 - The limits: never merge, never force-push or rewrite pushed history, never merge `main` into the branch, never change the global git config. On a conflict or a failing push, stop and report.
 - The final report: short, with the pull request URL, the commits, the test results, the test files changed and any deviation or problem, candidly.
