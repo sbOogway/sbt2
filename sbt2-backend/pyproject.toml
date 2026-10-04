@@ -239,6 +239,12 @@ protected_modules = ["sbt2.server.results.*"]
 allowed_importers = ["sbt2.server.results"]
 
 [[tool.importlinter.contracts]]
+name = "Only sbt2.server.config imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.server.config.*"]
+allowed_importers = ["sbt2.server.config"]
+
+[[tool.importlinter.contracts]]
 name = "sbt2 never imports the server or its protocol"
 type = "forbidden"
 source_modules = ["sbt2.core", "sbt2.strategies", "sbt2.papers"]
