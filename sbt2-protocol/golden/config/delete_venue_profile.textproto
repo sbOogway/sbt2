@@ -1,0 +1,3 @@
+# proto-message: sbt2.protocol.v1.ClientMessage
+request_id: 22
+delete_venue_profile { name: "bybit_linear" }

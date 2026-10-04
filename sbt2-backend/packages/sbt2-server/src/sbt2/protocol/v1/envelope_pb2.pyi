@@ -8,6 +8,7 @@ from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+from sbt2.protocol.v1 import config_pb2 as _config_pb2
 from sbt2.protocol.v1 import results_pb2 as _results_pb2
 from sbt2.protocol.v1 import types_pb2 as _types_pb2
 import builtins as _builtins
@@ -29,11 +30,13 @@ class _CapabilityEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_Capability
     DESCRIPTOR: _descriptor.EnumDescriptor
     CAPABILITY_UNSPECIFIED: _Capability.ValueType  # 0
     CAPABILITY_RESULTS: _Capability.ValueType  # 1
+    CAPABILITY_CONFIG: _Capability.ValueType  # 2
 
 class Capability(_Capability, metaclass=_CapabilityEnumTypeWrapper): ...
 
 CAPABILITY_UNSPECIFIED: Capability.ValueType  # 0
 CAPABILITY_RESULTS: Capability.ValueType  # 1
+CAPABILITY_CONFIG: Capability.ValueType  # 2
 Global___Capability: _TypeAlias = Capability  # noqa: Y015
 
 @_typing.final
@@ -49,6 +52,13 @@ class ClientMessage(_message.Message):
     GET_METRICS_FIELD_NUMBER: _builtins.int
     GET_SERIES_FIELD_NUMBER: _builtins.int
     GET_TEARSHEET_FIELD_NUMBER: _builtins.int
+    LIST_VENUE_PROFILES_FIELD_NUMBER: _builtins.int
+    PUT_VENUE_PROFILE_FIELD_NUMBER: _builtins.int
+    DELETE_VENUE_PROFILE_FIELD_NUMBER: _builtins.int
+    LIST_KNOWN_GAPS_FIELD_NUMBER: _builtins.int
+    ADD_KNOWN_GAPS_FIELD_NUMBER: _builtins.int
+    REMOVE_KNOWN_GAPS_FIELD_NUMBER: _builtins.int
+    LIST_MODEL_KINDS_FIELD_NUMBER: _builtins.int
     request_id: _builtins.int
     """Chosen by the client and never 0; the server's answers carry it back."""
     @_builtins.property
@@ -63,6 +73,20 @@ class ClientMessage(_message.Message):
     def get_series(self) -> _results_pb2.GetSeries: ...
     @_builtins.property
     def get_tearsheet(self) -> _results_pb2.GetTearsheet: ...
+    @_builtins.property
+    def list_venue_profiles(self) -> _config_pb2.ListVenueProfiles: ...
+    @_builtins.property
+    def put_venue_profile(self) -> _config_pb2.PutVenueProfile: ...
+    @_builtins.property
+    def delete_venue_profile(self) -> _config_pb2.DeleteVenueProfile: ...
+    @_builtins.property
+    def list_known_gaps(self) -> _config_pb2.ListKnownGaps: ...
+    @_builtins.property
+    def add_known_gaps(self) -> _config_pb2.AddKnownGaps: ...
+    @_builtins.property
+    def remove_known_gaps(self) -> _config_pb2.RemoveKnownGaps: ...
+    @_builtins.property
+    def list_model_kinds(self) -> _config_pb2.ListModelKinds: ...
     def __init__(
         self,
         *,
@@ -73,12 +97,19 @@ class ClientMessage(_message.Message):
         get_metrics: _results_pb2.GetMetrics | None = ...,
         get_series: _results_pb2.GetSeries | None = ...,
         get_tearsheet: _results_pb2.GetTearsheet | None = ...,
+        list_venue_profiles: _config_pb2.ListVenueProfiles | None = ...,
+        put_venue_profile: _config_pb2.PutVenueProfile | None = ...,
+        delete_venue_profile: _config_pb2.DeleteVenueProfile | None = ...,
+        list_known_gaps: _config_pb2.ListKnownGaps | None = ...,
+        add_known_gaps: _config_pb2.AddKnownGaps | None = ...,
+        remove_known_gaps: _config_pb2.RemoveKnownGaps | None = ...,
+        list_model_kinds: _config_pb2.ListModelKinds | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "get_metrics", b"get_metrics", "get_run", b"get_run", "get_series", b"get_series", "get_tearsheet", b"get_tearsheet", "hello", b"hello", "list_runs", b"list_runs"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["add_known_gaps", b"add_known_gaps", "body", b"body", "delete_venue_profile", b"delete_venue_profile", "get_metrics", b"get_metrics", "get_run", b"get_run", "get_series", b"get_series", "get_tearsheet", b"get_tearsheet", "hello", b"hello", "list_known_gaps", b"list_known_gaps", "list_model_kinds", b"list_model_kinds", "list_runs", b"list_runs", "list_venue_profiles", b"list_venue_profiles", "put_venue_profile", b"put_venue_profile", "remove_known_gaps", b"remove_known_gaps"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "get_metrics", b"get_metrics", "get_run", b"get_run", "get_series", b"get_series", "get_tearsheet", b"get_tearsheet", "hello", b"hello", "list_runs", b"list_runs", "request_id", b"request_id"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["add_known_gaps", b"add_known_gaps", "body", b"body", "delete_venue_profile", b"delete_venue_profile", "get_metrics", b"get_metrics", "get_run", b"get_run", "get_series", b"get_series", "get_tearsheet", b"get_tearsheet", "hello", b"hello", "list_known_gaps", b"list_known_gaps", "list_model_kinds", b"list_model_kinds", "list_runs", b"list_runs", "list_venue_profiles", b"list_venue_profiles", "put_venue_profile", b"put_venue_profile", "remove_known_gaps", b"remove_known_gaps", "request_id", b"request_id"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_body: _TypeAlias = _typing.Literal["hello", "list_runs", "get_run", "get_metrics", "get_series", "get_tearsheet"]  # noqa: Y015
+    _WhichOneofReturnType_body: _TypeAlias = _typing.Literal["hello", "list_runs", "get_run", "get_metrics", "get_series", "get_tearsheet", "list_venue_profiles", "put_venue_profile", "delete_venue_profile", "list_known_gaps", "add_known_gaps", "remove_known_gaps", "list_model_kinds"]  # noqa: Y015
     _WhichOneofArgType_body: _TypeAlias = _typing.Literal["body", b"body"]  # noqa: Y015
     def WhichOneof(self, oneof_group: _WhichOneofArgType_body) -> _WhichOneofReturnType_body | None: ...
 
@@ -99,6 +130,10 @@ class ServerMessage(_message.Message):
     METRICS_FIELD_NUMBER: _builtins.int
     SERIES_FIELD_NUMBER: _builtins.int
     TEARSHEET_FIELD_NUMBER: _builtins.int
+    VENUE_PROFILES_FIELD_NUMBER: _builtins.int
+    CONFIG_WRITTEN_FIELD_NUMBER: _builtins.int
+    KNOWN_GAPS_FIELD_NUMBER: _builtins.int
+    MODEL_KINDS_FIELD_NUMBER: _builtins.int
     request_id: _builtins.int
     """0 on a push, which carries the subscription it belongs to instead."""
     subscription_id: _builtins.int
@@ -117,6 +152,14 @@ class ServerMessage(_message.Message):
     def series(self) -> _results_pb2.Series: ...
     @_builtins.property
     def tearsheet(self) -> _results_pb2.Tearsheet: ...
+    @_builtins.property
+    def venue_profiles(self) -> _config_pb2.VenueProfiles: ...
+    @_builtins.property
+    def config_written(self) -> _config_pb2.ConfigWritten: ...
+    @_builtins.property
+    def known_gaps(self) -> _config_pb2.KnownGaps: ...
+    @_builtins.property
+    def model_kinds(self) -> _config_pb2.ModelKinds: ...
     def __init__(
         self,
         *,
@@ -129,12 +172,16 @@ class ServerMessage(_message.Message):
         metrics: _results_pb2.Metrics | None = ...,
         series: _results_pb2.Series | None = ...,
         tearsheet: _results_pb2.Tearsheet | None = ...,
+        venue_profiles: _config_pb2.VenueProfiles | None = ...,
+        config_written: _config_pb2.ConfigWritten | None = ...,
+        known_gaps: _config_pb2.KnownGaps | None = ...,
+        model_kinds: _config_pb2.ModelKinds | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "error", b"error", "metrics", b"metrics", "run_list", b"run_list", "run_summary", b"run_summary", "series", b"series", "tearsheet", b"tearsheet", "welcome", b"welcome"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "config_written", b"config_written", "error", b"error", "known_gaps", b"known_gaps", "metrics", b"metrics", "model_kinds", b"model_kinds", "run_list", b"run_list", "run_summary", b"run_summary", "series", b"series", "tearsheet", b"tearsheet", "venue_profiles", b"venue_profiles", "welcome", b"welcome"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "error", b"error", "metrics", b"metrics", "request_id", b"request_id", "run_list", b"run_list", "run_summary", b"run_summary", "series", b"series", "subscription_id", b"subscription_id", "tearsheet", b"tearsheet", "welcome", b"welcome"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "config_written", b"config_written", "error", b"error", "known_gaps", b"known_gaps", "metrics", b"metrics", "model_kinds", b"model_kinds", "request_id", b"request_id", "run_list", b"run_list", "run_summary", b"run_summary", "series", b"series", "subscription_id", b"subscription_id", "tearsheet", b"tearsheet", "venue_profiles", b"venue_profiles", "welcome", b"welcome"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_body: _TypeAlias = _typing.Literal["error", "welcome", "run_list", "run_summary", "metrics", "series", "tearsheet"]  # noqa: Y015
+    _WhichOneofReturnType_body: _TypeAlias = _typing.Literal["error", "welcome", "run_list", "run_summary", "metrics", "series", "tearsheet", "venue_profiles", "config_written", "known_gaps", "model_kinds"]  # noqa: Y015
     _WhichOneofArgType_body: _TypeAlias = _typing.Literal["body", b"body"]  # noqa: Y015
     def WhichOneof(self, oneof_group: _WhichOneofArgType_body) -> _WhichOneofReturnType_body | None: ...
 

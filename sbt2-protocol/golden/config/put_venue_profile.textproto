@@ -1,0 +1,23 @@
+# proto-message: sbt2.protocol.v1.ClientMessage
+request_id: 21
+put_venue_profile {
+  profile {
+    name: "bybit_linear"
+    venue: "BYBIT"
+    source: "bybit"
+    asset_class: ASSET_CLASS_CRYPTOCURRENCY
+    instrument_class: INSTRUMENT_CLASS_SWAP
+    fee_model {
+      kind: "maker_taker"
+      config {
+        fields { key: "maker_rate" value { string_value: "0.0002" } }
+        fields { key: "taker_rate" value { string_value: "0.00055" } }
+      }
+    }
+    fill_model { kind: "default" }
+    arguments {
+      fields { key: "default_leverage" value { number_value: 3 } }
+      fields { key: "oms_type" value { string_value: "NETTING" } }
+    }
+  }
+}
