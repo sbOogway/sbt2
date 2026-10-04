@@ -100,6 +100,13 @@ repos:
         files: (^sbt2-backend/.*\.py$|^sbt2-backend/pyproject\.toml$)
         pass_filenames: false
 
+      - id: check-nautilus-lock
+        name: nautilus lock has no local version
+        entry: scripts/check-nautilus-lock.sh
+        language: script
+        files: ^sbt2-backend/uv\.lock$
+        pass_filenames: false
+
       - id: prune-merged-branches
         name: prune merged branches
         entry: scripts/prune-merged-branches.sh
