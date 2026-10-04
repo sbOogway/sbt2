@@ -5,12 +5,28 @@ from results_kit import stored
 from server_kit import TOKEN, ask, client, greet, run
 from typer.testing import CliRunner
 
+from sbt2.core import spec
+from sbt2.protocol.v1.config_pb2 import ListVenueProfiles
 from sbt2.protocol.v1.envelope_pb2 import Capability, ClientMessage, Welcome
 from sbt2.protocol.v1.results_pb2 import ListRuns
 from sbt2.server import Address, Server
 from sbt2.server.cli import app
 
 runner = CliRunner()
+PROFILE = {
+    "name": "BYBIT",
+    "source": "bybit",
+    "asset_class": "CRYPTOCURRENCY",
+    "instrument_class": "SWAP",
+}
+
+
+@pytest.fixture(autouse=True)
+def config_folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The config folder SBT2_CONFIG names for every command."""
+    folder = tmp_path / "config"
+    monkeypatch.setenv("SBT2_CONFIG", str(folder))
+    return folder
 
 
 def served(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> tuple[Server, Address]:
@@ -114,5 +130,48 @@ def test_server_command_exposes_results(
     server, _ = served(monkeypatch, [])
     welcome, run_ids = browsed(server)
 
-    assert list(welcome.capabilities) == [Capability.CAPABILITY_RESULTS]
+    assert Capability.CAPABILITY_RESULTS in welcome.capabilities
     assert run_ids == [stored_run.run_id]
+
+
+def profile_names(server: Server) -> list[str]:
+    """The names of the venue profiles the server lists."""
+    seen: list[list[str]] = []
+
+    async def scenario(url: str) -> None:
+        async with client(url) as connection:
+            await greet(connection)
+            listing = ClientMessage(
+                request_id=2, list_venue_profiles=ListVenueProfiles()
+            )
+            listed = await ask(connection, listing.SerializeToString())
+        seen.append([each.name for each in listed.venue_profiles.profiles])
+
+    run(scenario, server)
+    [each] = seen
+    return each
+
+
+@pytest.mark.unit
+def test_the_server_reads_its_config_folder_from_sbt2_config(
+    tmp_path: Path, config_folder: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    spec.put_venue_profile(config_folder / "venues.toml", "linear", PROFILE)
+    monkeypatch.setenv("SBT2_SERVER_TOKEN", TOKEN)
+    monkeypatch.setenv("SBT2_DATA", str(tmp_path / "data"))
+
+    server, _ = served(monkeypatch, [])
+
+    assert profile_names(server) == ["linear"]
+
+
+@pytest.mark.integration
+def test_welcome_announces_the_config_capability(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SBT2_SERVER_TOKEN", TOKEN)
+    monkeypatch.setenv("SBT2_DATA", str(tmp_path / "data"))
+
+    server, _ = served(monkeypatch, [])
+
+    assert Capability.CAPABILITY_CONFIG in browsed(server)[0].capabilities
