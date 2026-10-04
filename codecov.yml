@@ -5,6 +5,7 @@ coverage:
     project:
       default:
         target: 95%
+    patch: off
 
 # The -m systemd tests cover it on a host with a systemd user session; CI's container has none.
 ignore:
