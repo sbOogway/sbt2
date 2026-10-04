@@ -93,7 +93,12 @@ def channel(data_type: type) -> Channel:
 
 def named(name: str) -> Channel:
     """The channel called ``name`` in the data root's ``known_gaps.toml``."""
-    return {each.name: each for each in CHANNELS}[name]
+    channels = {each.name: each for each in CHANNELS}
+    if name not in channels:
+        raise UnsupportedDataTypeError(
+            f"bybit lists no data type {name}; it lists {', '.join(channels)}"
+        )
+    return channels[name]
 
 
 def json_path(kind: str, symbol: str, day: date) -> PurePosixPath:

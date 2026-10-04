@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -15,7 +16,7 @@ from sbt2.core.data.sources.base import (
     candle_type,
 )
 from sbt2.core.data.sources.bybit import BybitSource
-from sbt2.core.tomlfiles import read_toml
+from sbt2.core.tomlfiles import read_toml, write_toml
 
 __all__ = [
     "CANDLES",
@@ -28,6 +29,7 @@ __all__ = [
     "Source",
     "UnknownSourceError",
     "UnsupportedDataTypeError",
+    "add_known_gaps",
     "candle_type",
     "known_gaps",
     "listed_gaps",
@@ -75,6 +77,24 @@ def listed_gaps(known_gaps_file: Path) -> list[ListedGap]:
         for name, entries in _lists(known_gaps_file).items()
         for entry in entries
     ]
+
+
+def add_known_gaps(known_gaps_file: Path, gaps: Iterable[ListedGap]) -> None:
+    """Append ``gaps`` to their sources' lists, each once; a gap of an unknown
+    source or data type raises and leaves the file as it was."""
+    lists = _lists(known_gaps_file)
+    for gap in gaps:
+        entry = _checked_entry(gap)
+        entries = lists.setdefault(gap.source, [])
+        if entry not in entries:
+            entries.append(entry)
+    write_toml(known_gaps_file, lists)
+
+
+def _checked_entry(gap: ListedGap) -> dict[str, Any]:
+    entry = {"symbol": gap.symbol, "data": gap.data, "day": gap.day}
+    _source_class(gap.source).listing([entry])
+    return entry
 
 
 def _source_class(name: str) -> type[Source]:

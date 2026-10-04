@@ -8,6 +8,8 @@ from sbt2.core.data.sources import (
     Gap,
     ListedGap,
     UnknownSourceError,
+    UnsupportedDataTypeError,
+    add_known_gaps,
     known_gaps,
     listed_gaps,
     source,
@@ -95,3 +97,54 @@ def test_listed_known_gaps_name_their_source(tmp_path: Path) -> None:
     )
 
     assert listed_gaps(file) == [TRADES_GAP, CANDLES_GAP]
+
+
+@pytest.mark.unit
+def test_add_known_gaps_appends_them_to_their_source_list(tmp_path: Path) -> None:
+    file = tmp_path / "known_gaps.toml"
+
+    add_known_gaps(file, [TRADES_GAP])
+    add_known_gaps(file, [CANDLES_GAP])
+
+    assert listed_gaps(file) == [TRADES_GAP, CANDLES_GAP]
+    assert source("bybit", file).known_gaps == {
+        Gap(
+            InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT"), TradeTick, date(2020, 3, 25)
+        ),
+        Gap(InstrumentId.from_str("ETHUSDT-LINEAR.BYBIT"), Bar, date(2020, 3, 26)),
+    }
+
+
+@pytest.mark.unit
+def test_adding_a_listed_gap_again_keeps_one_entry(tmp_path: Path) -> None:
+    file = tmp_path / "known_gaps.toml"
+    add_known_gaps(file, [TRADES_GAP])
+
+    add_known_gaps(file, [TRADES_GAP, TRADES_GAP])
+
+    assert listed_gaps(file) == [TRADES_GAP]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("gap", "error"),
+    [
+        (ListedGap("nope", "BTCUSDT", "trades", date(2020, 3, 25)), UnknownSourceError),
+        (
+            ListedGap("bybit", "BTCUSDT", "quotes", date(2020, 3, 25)),
+            UnsupportedDataTypeError,
+        ),
+    ],
+    ids=["unknown-source", "unknown-data-type"],
+)
+def test_a_gap_of_an_unknown_source_or_data_type_is_rejected_and_nothing_is_written(
+    tmp_path: Path, gap: ListedGap, error: type[Exception]
+) -> None:
+    file = tmp_path / "known_gaps.toml"
+    add_known_gaps(file, [TRADES_GAP])
+    before = file.read_bytes()
+
+    with pytest.raises(error):
+        add_known_gaps(file, [CANDLES_GAP, gap])
+
+    assert file.read_bytes() == before
