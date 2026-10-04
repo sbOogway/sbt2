@@ -15,6 +15,7 @@ from sbt2.core.spec.resolve.venues import (
     InvalidVenueProfileError,
     MissingConfigError,
     UnknownVenueProfileError,
+    venue_profiles,
 )
 
 __all__ = [
@@ -31,4 +32,5 @@ __all__ = [
     "UnknownPartError",
     "UnknownVenueProfileError",
     "resolve",
+    "venue_profiles",
 ]

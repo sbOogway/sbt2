@@ -61,11 +61,19 @@ def _check_models(name: str, arguments: Mapping[str, Any]) -> None:
         built_model(argument, table)
 
 
+def venue_profiles(path: Path) -> dict[str, dict[str, Any]]:
+    """Every venue profile in ``path`` as stored, without the asset profile's
+    venue defaults; none when the file is missing."""
+    if not path.exists():
+        return {}
+    with path.open("rb") as file:
+        return tomllib.load(file)
+
+
 def _profile_table(path: Path, name: str) -> dict[str, Any]:
     if not path.exists():
         raise MissingConfigError(f"no venue profiles file {path}")
-    with path.open("rb") as file:
-        profiles = tomllib.load(file)
+    profiles = venue_profiles(path)
     try:
         return dict(profiles[name])
     except KeyError:

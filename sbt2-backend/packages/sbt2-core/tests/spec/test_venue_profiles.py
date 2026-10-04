@@ -4,7 +4,7 @@ import pytest
 from nautilus_trader.execution import MakerTakerFeeModel
 from nautilus_trader.model import OmsType
 
-from sbt2.core.spec import MissingConfigError, load
+from sbt2.core.spec import MissingConfigError, load, venue_profiles
 
 CONFIG = Path(__file__).parents[1] / "config"
 SPEC = """
@@ -39,3 +39,48 @@ def test_a_missing_venue_profiles_file_names_it(tmp_path: Path) -> None:
 
     with pytest.raises(MissingConfigError, match=str(venues)):
         load(spec, venues)
+
+
+TWO_PROFILES = """
+[linear]
+name = "BYBIT"
+source = "bybit"
+asset_class = "CRYPTOCURRENCY"
+instrument_class = "SWAP"
+fee_model = { kind = "fixed", config = { commission = "1 USDT" } }
+
+[leveraged]
+name = "BYBIT"
+source = "bybit"
+asset_class = "CRYPTOCURRENCY"
+instrument_class = "SWAP"
+default_leverage = 3
+"""
+
+
+@pytest.mark.unit
+def test_venue_profiles_list_every_profile_as_stored(tmp_path: Path) -> None:
+    venues = tmp_path / "venues.toml"
+    venues.write_text(TWO_PROFILES)
+
+    assert venue_profiles(venues) == {
+        "linear": {
+            "name": "BYBIT",
+            "source": "bybit",
+            "asset_class": "CRYPTOCURRENCY",
+            "instrument_class": "SWAP",
+            "fee_model": {"kind": "fixed", "config": {"commission": "1 USDT"}},
+        },
+        "leveraged": {
+            "name": "BYBIT",
+            "source": "bybit",
+            "asset_class": "CRYPTOCURRENCY",
+            "instrument_class": "SWAP",
+            "default_leverage": 3,
+        },
+    }
+
+
+@pytest.mark.unit
+def test_venue_profiles_of_a_missing_file_are_empty(tmp_path: Path) -> None:
+    assert venue_profiles(tmp_path / "venues.toml") == {}
