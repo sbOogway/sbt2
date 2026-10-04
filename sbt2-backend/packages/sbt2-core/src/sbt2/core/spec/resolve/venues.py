@@ -41,7 +41,10 @@ def venue_profile(path: Path, name: str) -> VenueProfile:
     """
     if not path.exists():
         raise MissingConfigError(f"no venue profiles file {path}")
-    return _parsed(name, _stored(path, name))
+    profiles = venue_profiles(path)
+    if name not in profiles:
+        raise _unknown(path, name, profiles)
+    return _parsed(name, profiles[name])
 
 
 def venue_profiles(path: Path) -> dict[str, dict[str, Any]]:
@@ -62,6 +65,14 @@ def put_venue_profile(path: Path, name: str, table: Mapping[str, Any]) -> None:
         raise InvalidVenueProfileError(
             f"the venue profile {name} holds a value TOML cannot: {error}"
         ) from error
+
+
+def delete_venue_profile(path: Path, name: str) -> None:
+    """Remove the venue profile ``name``, leaving the others."""
+    profiles = venue_profiles(path)
+    if profiles.pop(name, None) is None:
+        raise _unknown(path, name, profiles)
+    write_toml(path, profiles)
 
 
 def _parsed(name: str, table: Mapping[str, Any]) -> VenueProfile:
@@ -100,11 +111,9 @@ def _check_models(name: str, arguments: Mapping[str, Any]) -> None:
         built_model(argument, table)
 
 
-def _stored(path: Path, name: str) -> dict[str, Any]:
-    profiles = venue_profiles(path)
-    try:
-        return profiles[name]
-    except KeyError:
-        raise UnknownVenueProfileError(
-            f"no venue profile {name} in {path}; known: {', '.join(sorted(profiles))}"
-        ) from None
+def _unknown(
+    path: Path, name: str, profiles: Mapping[str, Any]
+) -> UnknownVenueProfileError:
+    return UnknownVenueProfileError(
+        f"no venue profile {name} in {path}; known: {', '.join(sorted(profiles))}"
+    )

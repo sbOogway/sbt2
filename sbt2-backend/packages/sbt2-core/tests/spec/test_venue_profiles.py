@@ -11,6 +11,8 @@ from sbt2.core.spec import (
     InvalidVenueProfileError,
     MissingConfigError,
     UnknownModelKindError,
+    UnknownVenueProfileError,
+    delete_venue_profile,
     load,
     put_venue_profile,
     venue_profiles,
@@ -181,3 +183,25 @@ def test_a_failed_config_write_leaves_the_previous_file_intact(
 
     assert venues.read_bytes() == before
     assert [each.name for each in tmp_path.iterdir()] == ["venues.toml"]
+
+
+@pytest.mark.unit
+def test_delete_venue_profile_removes_only_that_profile(tmp_path: Path) -> None:
+    venues = tmp_path / "venues.toml"
+    put_venue_profile(venues, "p", PROFILE)
+    put_venue_profile(venues, "q", PROFILE)
+
+    delete_venue_profile(venues, "p")
+
+    assert venue_profiles(venues) == {"q": PROFILE}
+
+
+@pytest.mark.unit
+def test_deleting_an_unknown_venue_profile_raises_unknown_venue_profile_error(
+    tmp_path: Path,
+) -> None:
+    venues = tmp_path / "venues.toml"
+    put_venue_profile(venues, "q", PROFILE)
+
+    with pytest.raises(UnknownVenueProfileError, match="no venue profile p"):
+        delete_venue_profile(venues, "p")

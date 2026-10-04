@@ -20,6 +20,7 @@ from sbt2.core.spec.resolve import (
     UnknownModelKindError,
     UnknownPartError,
     UnknownVenueProfileError,
+    delete_venue_profile,
     put_venue_profile,
     venue_profiles,
 )
@@ -64,6 +65,7 @@ __all__ = [
     "UnknownSpecKeyError",
     "UnknownSplitError",
     "UnknownVenueProfileError",
+    "delete_venue_profile",
     "load",
     "put_venue_profile",
     "venue_profiles",

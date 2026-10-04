@@ -15,6 +15,7 @@ from sbt2.core.spec.resolve.venues import (
     InvalidVenueProfileError,
     MissingConfigError,
     UnknownVenueProfileError,
+    delete_venue_profile,
     put_venue_profile,
     venue_profiles,
 )
@@ -32,6 +33,7 @@ __all__ = [
     "UnknownModelKindError",
     "UnknownPartError",
     "UnknownVenueProfileError",
+    "delete_venue_profile",
     "put_venue_profile",
     "resolve",
     "venue_profiles",
