@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# A hook inherits GIT_DIR, which would point the baseline repo's init at this repo.
+mapfile -t hook_env < <(git rev-parse --local-env-vars)
+unset "${hook_env[@]}"
+
 fetch_main() {
     git -C "$1" init --quiet
     git -C "$1" fetch --quiet --depth=1 https://github.com/sbOogway/sbt2.git main
