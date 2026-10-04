@@ -4,9 +4,11 @@ from typing import Any
 
 from google.protobuf import json_format
 
+from sbt2.core import data
 from sbt2.protocol.v1.config_pb2 import (
     AssetClass,
     InstrumentClass,
+    KnownGap,
     VenueModel,
     VenueProfile,
 )
@@ -48,6 +50,24 @@ def profile_message(name: str, table: Mapping[str, Any]) -> VenueProfile:
     if rest:
         profile.arguments.update(_jsonable(rest))
     return profile
+
+
+def listed_gap(gap: KnownGap) -> data.ListedGap:
+    """The gap as core lists it."""
+    try:
+        day = date.fromisoformat(gap.day)
+    except ValueError as error:
+        raise InvalidArgumentError(f"the day of a known gap: {error}") from error
+    return data.ListedGap(gap.source, gap.symbol, gap.data_type, day)
+
+
+def gap_message(gap: data.ListedGap) -> KnownGap:
+    return KnownGap(
+        source=gap.source,
+        symbol=gap.symbol,
+        data_type=gap.data,
+        day=gap.day.isoformat(),
+    )
 
 
 def _typed_table(profile: VenueProfile) -> dict[str, Any]:

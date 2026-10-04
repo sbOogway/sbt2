@@ -5,14 +5,18 @@ import pytest
 from google.protobuf.struct_pb2 import Struct
 from results_kit import ask, ask_together
 
-from sbt2.core import spec
+from sbt2.core import data, spec
 from sbt2.core.config import ConfigFolder, Root
 from sbt2.protocol.v1.config_pb2 import (
+    AddKnownGaps,
     AssetClass,
     DeleteVenueProfile,
     InstrumentClass,
+    KnownGap,
+    ListKnownGaps,
     ListVenueProfiles,
     PutVenueProfile,
+    RemoveKnownGaps,
     VenueModel,
     VenueProfile,
 )
@@ -167,6 +171,73 @@ def test_arguments_repeating_a_typed_field_answer_invalid_argument(
     assert reply.error.code == ErrorCode.ERROR_CODE_INVALID_ARGUMENT
     assert "source" in reply.error.message
     assert listed(config_routes(tmp_path)) == []
+
+
+TRADES = KnownGap(
+    source="bybit", symbol="BTCUSDT", data_type="trades", day="2020-03-25"
+)
+CANDLES = KnownGap(
+    source="bybit", symbol="ETHUSDT", data_type="candles", day="2020-03-26"
+)
+
+
+def gaps_listed(handlers: dict[str, Handler]) -> list[KnownGap]:
+    [reply] = ask(
+        handlers, ClientMessage(request_id=1, list_known_gaps=ListKnownGaps())
+    )
+    return list(reply.known_gaps.gaps)
+
+
+@pytest.mark.integration
+def test_known_gaps_add_list_and_remove_round_trip(tmp_path: Path) -> None:
+    handlers = config_routes(tmp_path)
+    assert gaps_listed(handlers) == []
+
+    [added] = ask(
+        handlers,
+        ClientMessage(
+            request_id=2, add_known_gaps=AddKnownGaps(gaps=[TRADES, CANDLES])
+        ),
+    )
+    assert added.WhichOneof("body") == "config_written"
+    assert gaps_listed(handlers) == [TRADES, CANDLES]
+    assert len(data.known_gaps(Root(tmp_path / "data").known_gaps)) == 2
+
+    [removed] = ask(
+        handlers,
+        ClientMessage(request_id=3, remove_known_gaps=RemoveKnownGaps(gaps=[TRADES])),
+    )
+    assert removed.WhichOneof("body") == "config_written"
+    assert gaps_listed(handlers) == [CANDLES]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "gap",
+    [
+        KnownGap(source="nope", symbol="BTCUSDT", data_type="trades", day="2020-03-25"),
+        KnownGap(
+            source="bybit", symbol="BTCUSDT", data_type="quotes", day="2020-03-25"
+        ),
+        KnownGap(
+            source="bybit", symbol="BTCUSDT", data_type="trades", day="25/03/2020"
+        ),
+    ],
+    ids=["unknown-source", "unknown-data-type", "bad-day"],
+)
+def test_an_invalid_known_gap_answers_invalid_argument(
+    tmp_path: Path, gap: KnownGap
+) -> None:
+    handlers = config_routes(tmp_path)
+
+    [reply] = ask(
+        handlers,
+        ClientMessage(request_id=2, add_known_gaps=AddKnownGaps(gaps=[TRADES, gap])),
+    )
+
+    assert reply.error.code == ErrorCode.ERROR_CODE_INVALID_ARGUMENT
+    assert reply.error.message
+    assert gaps_listed(handlers) == []
 
 
 @pytest.mark.integration
