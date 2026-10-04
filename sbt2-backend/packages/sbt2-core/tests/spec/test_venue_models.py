@@ -9,12 +9,16 @@ from nautilus_trader.execution import (
 )
 
 from sbt2.core.spec import (
+    FeeModelKind,
+    FillModelKind,
     InvalidModelConfigError,
     InvalidVenueProfileError,
+    ModelParameter,
     OutdatedRunError,
     ResolvedRunSpec,
     UnknownModelKindError,
     load,
+    model_kinds,
 )
 
 SPEC = """
@@ -138,3 +142,34 @@ def test_a_stored_spec_naming_a_model_by_path_predates_model_kinds(
 
     with pytest.raises(OutdatedRunError, match="predates model kinds"):
         ResolvedRunSpec.from_document(document)
+
+
+@pytest.mark.unit
+def test_model_kinds_list_every_kind_of_each_model_argument() -> None:
+    kinds = {argument: set(each) for argument, each in model_kinds().items()}
+
+    assert kinds == {
+        "fee_model": set(FeeModelKind),
+        "fill_model": set(FillModelKind),
+        "latency_model": set(),
+        "margin_model": set(),
+        "modules": set(),
+    }
+
+
+@pytest.mark.unit
+def test_model_parameters_name_their_type_default_and_whether_required() -> None:
+    kinds = model_kinds()
+
+    assert kinds["fee_model"][FeeModelKind.FIXED] == (
+        ModelParameter("commission", str, required=True),
+        ModelParameter("charge_commission_once", bool, required=False),
+    )
+    assert kinds["fee_model"][FeeModelKind.MAKER_TAKER][0] == ModelParameter(
+        "maker_rate", str, required=True
+    )
+    assert kinds["fill_model"][FillModelKind.DEFAULT] == (
+        ModelParameter("prob_fill_on_limit", float, required=False, default=1.0),
+        ModelParameter("prob_slippage", float, required=False, default=0.0),
+        ModelParameter("random_seed", str, required=False),
+    )

@@ -1,4 +1,7 @@
+import inspect
+import types
 from collections.abc import Callable, Iterator, Mapping
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
@@ -29,9 +32,26 @@ class InvalidModelConfigError(SpecError):
     pass
 
 
-def _fixed_fee(commission: str, **rest: Any) -> FixedFeeModel:
+@dataclass(frozen=True)
+class ModelParameter:
+    """A parameter of a model kind's config. ``type`` is ``str``, ``int``,
+    ``float`` or ``bool``; ``str`` also stands for a parameter whose type cannot
+    be told. ``default`` is ``None`` when there is none."""
+
+    name: str
+    type: type
+    required: bool
+    default: Any = None
+
+
+_DESCRIBED = (bool, int, float, str)
+
+
+def _fixed_fee(
+    commission: str, *, charge_commission_once: bool | None = None
+) -> FixedFeeModel:
     """A TOML table holds no ``Money``, so the commission comes as its string."""
-    return FixedFeeModel(Money.from_str(commission), **rest)
+    return FixedFeeModel(Money.from_str(commission), charge_commission_once)
 
 
 _MODELS: Mapping[str, Mapping[str, Callable[..., Any]]] = {
@@ -44,6 +64,42 @@ _MODELS: Mapping[str, Mapping[str, Callable[..., Any]]] = {
     "margin_model": {},
     "modules": {},
 }
+
+
+def model_kinds() -> dict[str, dict[str, tuple[ModelParameter, ...]]]:
+    """Each model argument's kinds, and the config parameters of each kind."""
+    return {
+        argument: {kind: _parameters(builder) for kind, builder in builders.items()}
+        for argument, builders in _MODELS.items()
+    }
+
+
+def _parameters(builder: Callable[..., Any]) -> tuple[ModelParameter, ...]:
+    return tuple(
+        _parameter(each)
+        for each in inspect.signature(builder).parameters.values()
+        if each.kind not in {each.VAR_POSITIONAL, each.VAR_KEYWORD}
+    )
+
+
+def _parameter(parameter: inspect.Parameter) -> ModelParameter:
+    required = parameter.default is parameter.empty
+    default = None if required else parameter.default
+    return ModelParameter(
+        parameter.name, _type(parameter.annotation, default), required, default
+    )
+
+
+def _type(annotation: Any, default: Any) -> type:
+    if isinstance(annotation, types.UnionType):
+        described = [each for each in annotation.__args__ if each is not type(None)]
+        annotation = described[0] if len(described) == 1 else None
+    for each in _DESCRIBED:
+        if annotation is each or (
+            annotation is inspect.Parameter.empty and isinstance(default, each)
+        ):
+            return each
+    return str
 
 
 def venue_objects(arguments: Mapping[str, Any]) -> dict[str, Any]:
