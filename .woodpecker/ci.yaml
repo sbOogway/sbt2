@@ -13,7 +13,6 @@ depends_on:
 variables:
   - &image ghcr.io/astral-sh/uv:0.12.19-python3.14-trixie
   - &env
-    UV_LINK_MODE: copy
     UV_PYTHON_DOWNLOADS: never
     UV_PROJECT_ENVIRONMENT: /cache/venv
     COVERAGE_FILE: /cache/.coverage
