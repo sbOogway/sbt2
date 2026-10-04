@@ -127,6 +127,16 @@ steps:
   # checks that the server's image builds; it is pushed nowhere
   - name: image
     image: quay.io/buildah/stable:v1.43.4
+    # the slowest step; on pull requests it runs only when the image's recipe or dependencies change
+    when:
+      - event: pull_request
+        path:
+          - sbt2-backend/Containerfile
+          - sbt2-backend/.dockerignore
+          - sbt2-backend/uv.lock
+          - sbt2-backend/**/pyproject.toml
+          - .woodpecker/backend.yaml
+      - event: [push, tag, manual]
     environment:
       # an unprivileged step can neither mount overlays nor set up namespaces
       STORAGE_DRIVER: vfs
