@@ -30,12 +30,12 @@ You implement one GitHub issue of sbOogway/sbt2 from the brief the coordinator g
 
 ## Pull request
 
-- After the first commit, push and open a draft pull request titled like the issue. Body: summary, `Closes #N`, the test plan, the assumptions settled, notes (wiki pages changed, added edge-case tests). End it with the attribution line the brief or system gives.
+- After the first commit, push and open a draft pull request titled like the issue. Body: summary, `Closes #N`, the test plan, the assumptions settled, notes (added edge-case tests). End it with the attribution line the brief or system gives.
 - Mark it ready for review when done.
 
 ## Wiki
 
-- Clone `https://github.com/sbOogway/sbt2.wiki.git` outside the repo. Rewrite every passage the change makes outdated; no "under review" or "from a later milestone" hedges. `git pull --rebase` before pushing. List the pages in the pull request's notes.
+- Do not edit the wiki. Only the user updates it, or tells you explicitly to update it.
 
 ## Limits
 
