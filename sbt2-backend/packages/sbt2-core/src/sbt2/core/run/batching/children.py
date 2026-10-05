@@ -54,6 +54,7 @@ class Children:
             # a child that exited before reading is reaped by its exit code
             with contextlib.suppress(BrokenPipeError):
                 send(order, pipe)
+        self._progress.started(order.run_id)
 
     def _reap(self) -> bool:
         exited = [

@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Protocol, Self
 
@@ -15,7 +15,12 @@ from sbt2.core.run.preflighting import DataFolders
 
 
 class BatchProgress(Protocol):
-    def planned(self, runs: int, /) -> None: ...
+    """Hears of each run: planned with the others, started, then finished. A run
+    that fails or is stopped never finishes."""
+
+    def planned(self, run_ids: Sequence[str], /) -> None: ...
+
+    def started(self, run_id: str, /) -> None: ...
 
     def finished(self, run_id: str, /) -> None: ...
 
