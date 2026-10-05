@@ -8,9 +8,9 @@ help:
 	@echo "make test-backend  run the backend test suite"
 	@echo "make test-protocol run the Python and Rust protocol tests"
 	@echo "make test-gui      run the GUI's format, lint and test checks"
-	@echo "make release-gui   build the Linux GUI and upload it to a release"
-	@echo "make release-image build the server image, test it and push it to GHCR"
-	@echo "make release       do both; TAG=vX.Y.Z picks a release, FORCE=1 replaces"
+	@echo "make release-gui   backfill: build the Linux GUI and upload it to a release"
+	@echo "make release-image backfill: build the image, test it and push it to GHCR"
+	@echo "make release       check the guards, build everything, publish; VERSION=X.Y.Z overrides"
 
 sync:
 	uv --directory sbt2-backend sync --locked
@@ -41,5 +41,4 @@ release-image:
 	scripts/release-image.sh
 
 release:
-	$(MAKE) release-gui
-	$(MAKE) release-image
+	scripts/release.sh

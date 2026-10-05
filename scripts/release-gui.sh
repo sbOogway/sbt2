@@ -15,9 +15,9 @@ tarball=sbt2-gui-$version-x86_64-linux.tar.gz
 id=$(release_id "$tag")
 refuse_existing "$id" "$tarball"
 
-start_work "$tag"
+start_work "refs/tags/$tag"
 # the build runs third-party build scripts, which have no use for the token
-env -u GH_TOKEN "$here/build-gui.sh" "$version" "$WORK/src" "$WORK/out"
+env -u GH_TOKEN -u WOODPECKER_TOKEN "$here/build-gui.sh" "$version" "$WORK/src" "$WORK/out"
 upload_asset "$id" "$WORK/out/$tarball"
 refresh_checksums "$id"
 echo "release-gui: uploaded $tarball to $tag"
