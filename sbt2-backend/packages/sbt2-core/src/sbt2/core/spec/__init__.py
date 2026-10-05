@@ -14,12 +14,17 @@ from sbt2.core.spec.resolve import (
     InvalidModelConfigError,
     InvalidVenueProfileError,
     MissingConfigError,
+    ModelParameter,
     OutdatedRunError,
     ResolvedRunSpec,
     Study,
     UnknownModelKindError,
     UnknownPartError,
     UnknownVenueProfileError,
+    delete_venue_profile,
+    model_kinds,
+    put_venue_profile,
+    venue_profiles,
 )
 from sbt2.core.spec.risk import DrawdownLimitError, UnknownRiskKeyError
 from sbt2.core.spec.split import (
@@ -48,6 +53,7 @@ __all__ = [
     "InvalidVenueProfileError",
     "MissingConfigError",
     "MissingSplitError",
+    "ModelParameter",
     "OutdatedRunError",
     "ResolvedRunSpec",
     "SpecError",
@@ -62,5 +68,9 @@ __all__ = [
     "UnknownSpecKeyError",
     "UnknownSplitError",
     "UnknownVenueProfileError",
+    "delete_venue_profile",
     "load",
+    "model_kinds",
+    "put_venue_profile",
+    "venue_profiles",
 ]

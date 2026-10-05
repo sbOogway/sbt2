@@ -1,0 +1,3 @@
+# proto-message: sbt2.protocol.v1.ClientMessage
+request_id: 23
+list_known_gaps {}

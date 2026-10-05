@@ -1,0 +1,3 @@
+# proto-message: sbt2.protocol.v1.ClientMessage
+request_id: 26
+list_model_kinds {}

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package sbt2.protocol.v1;
 
+import "sbt2/protocol/v1/config.proto";
 import "sbt2/protocol/v1/results.proto";
 import "sbt2/protocol/v1/types.proto";
 
@@ -16,6 +17,13 @@ message ClientMessage {
     GetMetrics get_metrics = 5;
     GetSeries get_series = 6;
     GetTearsheet get_tearsheet = 7;
+    ListVenueProfiles list_venue_profiles = 8;
+    PutVenueProfile put_venue_profile = 9;
+    DeleteVenueProfile delete_venue_profile = 10;
+    ListKnownGaps list_known_gaps = 11;
+    AddKnownGaps add_known_gaps = 12;
+    RemoveKnownGaps remove_known_gaps = 13;
+    ListModelKinds list_model_kinds = 14;
   }
 }
 
@@ -33,6 +41,10 @@ message ServerMessage {
     Metrics metrics = 7;
     Series series = 8;
     Tearsheet tearsheet = 9;
+    VenueProfiles venue_profiles = 10;
+    ConfigWritten config_written = 11;
+    KnownGaps known_gaps = 12;
+    ModelKinds model_kinds = 13;
   }
 }
 
@@ -50,4 +62,5 @@ message Welcome {
 enum Capability {
   CAPABILITY_UNSPECIFIED = 0;
   CAPABILITY_RESULTS = 1;
+  CAPABILITY_CONFIG = 2;
 }

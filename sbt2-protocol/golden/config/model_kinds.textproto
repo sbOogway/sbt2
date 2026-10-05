@@ -1,0 +1,24 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 26
+model_kinds {
+  arguments {
+    argument: MODEL_ARGUMENT_FEE_MODEL
+    kinds {
+      name: "fixed"
+      parameters { name: "commission" type: PARAMETER_TYPE_STRING required: true }
+      parameters { name: "charge_commission_once" type: PARAMETER_TYPE_BOOLEAN }
+    }
+  }
+  arguments {
+    argument: MODEL_ARGUMENT_FILL_MODEL
+    kinds {
+      name: "default"
+      parameters {
+        name: "prob_fill_on_limit"
+        type: PARAMETER_TYPE_NUMBER
+        default { number_value: 1 }
+      }
+    }
+  }
+  arguments { argument: MODEL_ARGUMENT_LATENCY_MODEL }
+}

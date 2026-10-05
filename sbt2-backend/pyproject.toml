@@ -89,7 +89,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 # Typer reads each command option from a parameter of its own
-"packages/sbt2-core/src/sbt2/core/cli.py" = ["FBT001", "FBT002", "PLR0913", "PLR0917"]
+"packages/*/src/sbt2/*/cli.py" = ["FBT001", "FBT002", "PLR0913", "PLR0917"]
 # pytest hands fixtures in as arguments
 "**/test_*.py" = ["PLR0913", "PLR0917"]
 "**/conftest.py" = ["PLR0913", "PLR0917"]
@@ -237,6 +237,12 @@ name = "Only sbt2.server.results imports its own internals"
 type = "protected"
 protected_modules = ["sbt2.server.results.*"]
 allowed_importers = ["sbt2.server.results"]
+
+[[tool.importlinter.contracts]]
+name = "Only sbt2.server.config imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.server.config.*"]
+allowed_importers = ["sbt2.server.config"]
 
 [[tool.importlinter.contracts]]
 name = "sbt2 never imports the server or its protocol"

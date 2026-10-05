@@ -12,6 +12,7 @@ dependencies = [
     "nautilus-trader[visualization]==2.0.0rc6.dev20261003",
     "pandas>=3.0.6",
     "pyarrow>=25.0.1",
+    "tomli-w>=1.2.0",
     "typer>=0.27.2",
 ]
 

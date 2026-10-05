@@ -1,0 +1,20 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 20
+venue_profiles {
+  profiles {
+    name: "bybit_linear"
+    venue: "BYBIT"
+    source: "bybit"
+    asset_class: ASSET_CLASS_CRYPTOCURRENCY
+    instrument_class: INSTRUMENT_CLASS_SWAP
+    fee_model {
+      kind: "fixed"
+      config {
+        fields { key: "commission" value { string_value: "1 USDT" } }
+      }
+    }
+    arguments {
+      fields { key: "liquidation_enabled" value { bool_value: false } }
+    }
+  }
+}

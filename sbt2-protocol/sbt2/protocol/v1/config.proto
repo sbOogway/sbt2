@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package sbt2.protocol.v1;
+
+import "google/protobuf/struct.proto";
+
+// Nautilus's asset classes.
+enum AssetClass {
+  ASSET_CLASS_UNSPECIFIED = 0;
+  ASSET_CLASS_FX = 1;
+  ASSET_CLASS_EQUITY = 2;
+  ASSET_CLASS_COMMODITY = 3;
+  ASSET_CLASS_DEBT = 4;
+  ASSET_CLASS_INDEX = 5;
+  ASSET_CLASS_CRYPTOCURRENCY = 6;
+  ASSET_CLASS_ALTERNATIVE = 7;
+}
+
+// Nautilus's instrument classes.
+enum InstrumentClass {
+  INSTRUMENT_CLASS_UNSPECIFIED = 0;
+  INSTRUMENT_CLASS_SPOT = 1;
+  INSTRUMENT_CLASS_SWAP = 2;
+  INSTRUMENT_CLASS_FUTURE = 3;
+  INSTRUMENT_CLASS_FUTURES_SPREAD = 4;
+  INSTRUMENT_CLASS_FORWARD = 5;
+  INSTRUMENT_CLASS_CFD = 6;
+  INSTRUMENT_CLASS_BOND = 7;
+  INSTRUMENT_CLASS_OPTION = 8;
+  INSTRUMENT_CLASS_OPTION_SPREAD = 9;
+  INSTRUMENT_CLASS_WARRANT = 10;
+  INSTRUMENT_CLASS_SPORTS_BETTING = 11;
+  INSTRUMENT_CLASS_BINARY_OPTION = 12;
+}
+
+// A model argument of a venue; ListModelKinds gives the kinds of each.
+message VenueModel {
+  string kind = 1;
+  // Absent stores no config table; an integral number is stored as an integer.
+  google.protobuf.Struct config = 2;
+}
+
+message VenueProfile {
+  // The profile's name, which a spec's `venue` selects.
+  string name = 1;
+  // The nautilus venue's name, such as BYBIT.
+  string venue = 2;
+  // The data source the venue's data comes from, such as bybit.
+  string source = 3;
+  AssetClass asset_class = 4;
+  InstrumentClass instrument_class = 5;
+  VenueModel fee_model = 6;
+  VenueModel fill_model = 7;
+  VenueModel latency_model = 8;
+  VenueModel margin_model = 9;
+  repeated VenueModel modules = 10;
+  // The other BacktestVenueConfig arguments; an integral number is stored as an integer.
+  google.protobuf.Struct arguments = 11;
+}
+
+message ListVenueProfiles {}
+
+message VenueProfiles {
+  repeated VenueProfile profiles = 1;
+}
+
+// Creates the profile, or replaces the one of the same name.
+message PutVenueProfile {
+  VenueProfile profile = 1;
+}
+
+message DeleteVenueProfile {
+  string name = 1;
+}
+
+// The answer to a write that succeeded.
+message ConfigWritten {}
+
+message KnownGap {
+  string source = 1;
+  string symbol = 2;
+  // The data type as the source's list names it, such as trades.
+  string data_type = 3;
+  // An ISO 8601 date, YYYY-MM-DD, in UTC.
+  string day = 4;
+}
+
+message ListKnownGaps {}
+
+message KnownGaps {
+  repeated KnownGap gaps = 1;
+}
+
+// Adds the gaps not listed yet; all of them or none.
+message AddKnownGaps {
+  repeated KnownGap gaps = 1;
+}
+
+// Removes the gaps listed; gaps not listed are skipped.
+message RemoveKnownGaps {
+  repeated KnownGap gaps = 1;
+}
+
+enum ModelArgument {
+  MODEL_ARGUMENT_UNSPECIFIED = 0;
+  MODEL_ARGUMENT_FEE_MODEL = 1;
+  MODEL_ARGUMENT_FILL_MODEL = 2;
+  MODEL_ARGUMENT_LATENCY_MODEL = 3;
+  MODEL_ARGUMENT_MARGIN_MODEL = 4;
+  MODEL_ARGUMENT_MODULES = 5;
+}
+
+enum ParameterType {
+  PARAMETER_TYPE_UNSPECIFIED = 0;
+  // Also a parameter whose type the server cannot tell.
+  PARAMETER_TYPE_STRING = 1;
+  PARAMETER_TYPE_INTEGER = 2;
+  PARAMETER_TYPE_NUMBER = 3;
+  PARAMETER_TYPE_BOOLEAN = 4;
+}
+
+message ModelParameter {
+  string name = 1;
+  ParameterType type = 2;
+  bool required = 3;
+  // Absent when the parameter has no default.
+  google.protobuf.Value default = 4;
+}
+
+message ModelKind {
+  string name = 1;
+  repeated ModelParameter parameters = 2;
+}
+
+message ModelArgumentKinds {
+  ModelArgument argument = 1;
+  // Empty when the argument has no kind yet.
+  repeated ModelKind kinds = 2;
+}
+
+message ListModelKinds {}
+
+message ModelKinds {
+  repeated ModelArgumentKinds arguments = 1;
+}

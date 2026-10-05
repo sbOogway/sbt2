@@ -1,0 +1,5 @@
+# proto-message: sbt2.protocol.v1.ClientMessage
+request_id: 24
+add_known_gaps {
+  gaps { source: "bybit" symbol: "BTCUSDT" data_type: "trades" day: "2020-03-25" }
+}
