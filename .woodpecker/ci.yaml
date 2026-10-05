@@ -26,10 +26,7 @@ variables:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-<<<<<<< HEAD
     - event: [push, manual]
-=======
-    - event: [push, tag, manual]
   - &gui
     - event: pull_request
       path:
@@ -37,7 +34,7 @@ variables:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, tag, manual]
+    - event: [push, manual]
   - &gui_e2e
     - event: pull_request
       path:
@@ -46,8 +43,7 @@ variables:
         - sbt2-backend/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, tag, manual]
->>>>>>> b08f94d (build(gui): add the sbt2-gui workspace with prost codegen, hooks and CI)
+    - event: [push, manual]
   - &backend_or_protocol
     - event: pull_request
       path:
@@ -273,7 +269,7 @@ steps:
     depends_on: []
     when: *gui_e2e
     commands:
-      - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+      - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git
       - curl -fsSL -o /tmp/uv.tar.gz https://github.com/astral-sh/uv/releases/download/0.12.19/uv-x86_64-unknown-linux-gnu.tar.gz
       - echo "23bf5552d220e0842b65c862097b2ebaeba0064b74eda5e565e77fd25969d8c8  /tmp/uv.tar.gz" | sha256sum --check
       - tar -xzf /tmp/uv.tar.gz -C /usr/local/bin --strip-components=1
