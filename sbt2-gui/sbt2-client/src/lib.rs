@@ -1,6 +1,8 @@
 //! The client of the sbt2 server.
 
 mod address;
+mod backoff;
+mod connection;
 mod dispatch;
 mod error;
 mod ids;
@@ -8,6 +10,7 @@ mod session;
 mod transport;
 
 pub use address::{ServerAddress, Token};
+pub use backoff::Backoff;
 pub use error::ClientError;
 pub use session::{Client, ConnectionState, Session, Subscription};
 

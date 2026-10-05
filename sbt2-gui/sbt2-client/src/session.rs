@@ -3,20 +3,23 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::{
-    ClientError, ServerAddress, Token,
+    Backoff, ClientError, ServerAddress, Token,
+    connection::{Command, Connection, Dial},
     dispatch::{Dispatcher, Reply},
     ids::RequestIds,
     protocol::{
-        ClientMessage, Hello, RunFilter, RunSummary, ServerMessage, Welcome, client_message,
+        ClientMessage, ListRuns, RunFilter, RunSummary, Welcome, client_message,
         server_message::Body,
     },
-    transport::Link,
 };
 
 /// Whether the session has a working connection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConnectionState {
     Connected,
+    /// The connection dropped; the session retries with a growing delay.
+    Reconnecting,
+    /// The session is closed, or the server refused the token on a retry.
     Disconnected,
 }
 
@@ -25,23 +28,41 @@ pub enum ConnectionState {
 pub struct Client {
     address: ServerAddress,
     token: Token,
+    backoff: Backoff,
 }
 
 impl Client {
     pub fn new(address: ServerAddress, token: Token) -> Self {
-        Self { address, token }
+        let backoff = Backoff::default();
+        Self {
+            address,
+            token,
+            backoff,
+        }
+    }
+
+    /// Sets the delays between attempts to reconnect.
+    pub fn backoff(mut self, backoff: Backoff) -> Self {
+        self.backoff = backoff;
+        self
     }
 
     /// Opens the connection and shakes hands; the session is ready once this returns.
     pub async fn connect(self) -> Result<Session, ClientError> {
         let ids = Arc::new(RequestIds::default());
-        let mut link = Link::open(&self.address, &self.token).await?;
-        let welcome = greet(&mut link, &ids).await?;
+        let dial = Dial {
+            address: self.address,
+            token: self.token,
+            backoff: self.backoff,
+            ids: Arc::clone(&ids),
+        };
+        let (link, welcome) = dial.open().await?;
         let (commands, inbox) = mpsc::unbounded_channel();
-        let (state_sender, state) = watch::channel(ConnectionState::Connected);
+        let (sender, state) = watch::channel(ConnectionState::Connected);
         let connection = Connection {
             inbox,
-            state: state_sender,
+            state: sender,
+            dial,
             dispatcher: Dispatcher::default(),
         };
         tokio::spawn(connection.run(link));
@@ -73,6 +94,7 @@ impl Session {
         *self.state.borrow()
     }
 
+    /// Changes of the connection state, from the current one on.
     pub fn states(&self) -> watch::Receiver<ConnectionState> {
         self.state.clone()
     }
@@ -82,10 +104,10 @@ impl Session {
     }
 
     pub async fn list_runs(&self, filter: RunFilter) -> Result<Vec<RunSummary>, ClientError> {
-        let body = client_message::Body::ListRuns(crate::protocol::ListRuns {
-            filter: Some(filter),
-        });
-        let chunks = self.request(body).await?;
+        let filter = Some(filter);
+        let chunks = self
+            .request(client_message::Body::ListRuns(ListRuns { filter }))
+            .await?;
         let mut runs = Vec::new();
         for chunk in chunks {
             match chunk {
@@ -96,7 +118,8 @@ impl Session {
         Ok(runs)
     }
 
-    /// The pushes of one subscription; the caller got its id from a reply.
+    /// The pushes of one subscription, whose id the caller got from a reply.
+    /// The stream ends when the connection drops; the caller subscribes again.
     pub fn subscribe(&self, subscription_id: u64) -> Subscription {
         let (stream, receiver) = mpsc::unbounded_channel();
         let _ = self.commands.send(Command::Subscribe {
@@ -127,100 +150,6 @@ impl Subscription {
     /// The next push; `None` once the connection is gone.
     pub async fn next(&mut self) -> Option<Body> {
         self.0.recv().await
-    }
-}
-
-enum Command {
-    Request {
-        message: ClientMessage,
-        reply: oneshot::Sender<Reply>,
-    },
-    Subscribe {
-        subscription_id: u64,
-        stream: mpsc::UnboundedSender<Body>,
-    },
-    Close,
-}
-
-/// The task that owns the link: it sends requests and sorts the replies.
-struct Connection {
-    inbox: mpsc::UnboundedReceiver<Command>,
-    state: watch::Sender<ConnectionState>,
-    dispatcher: Dispatcher,
-}
-
-impl Connection {
-    async fn run(mut self, mut link: Link) {
-        let error = self.serve(&mut link).await;
-        self.dispatcher.fail_all(&error);
-        let _ = self.state.send(ConnectionState::Disconnected);
-    }
-
-    async fn serve(&mut self, link: &mut Link) -> ClientError {
-        loop {
-            tokio::select! {
-                command = self.inbox.recv() => match command {
-                    None | Some(Command::Close) => return ClientError::Disconnected,
-                    Some(command) => {
-                        if let Err(error) = self.start(command, link).await {
-                            return error;
-                        }
-                    }
-                },
-                message = link.receive() => match message {
-                    Ok(message) => self.dispatcher.receive(message),
-                    Err(error) => return error,
-                },
-            }
-        }
-    }
-
-    async fn start(&mut self, command: Command, link: &mut Link) -> Result<(), ClientError> {
-        match command {
-            Command::Request { message, reply } => {
-                self.dispatcher.expect(message.request_id, reply);
-                link.send(&message).await
-            }
-            Command::Subscribe {
-                subscription_id,
-                stream,
-            } => {
-                self.dispatcher.subscribe(subscription_id, stream);
-                Ok(())
-            }
-            Command::Close => Ok(()),
-        }
-    }
-}
-
-async fn greet(link: &mut Link, ids: &RequestIds) -> Result<Welcome, ClientError> {
-    let request_id = ids.next();
-    let hello = Hello {
-        client_version: env!("CARGO_PKG_VERSION").to_owned(),
-    };
-    let message = ClientMessage {
-        request_id,
-        body: Some(client_message::Body::Hello(hello)),
-    };
-    link.send(&message).await?;
-    loop {
-        let reply = link.receive().await?;
-        if reply.request_id == request_id {
-            return welcome_of(reply);
-        }
-    }
-}
-
-fn welcome_of(reply: ServerMessage) -> Result<Welcome, ClientError> {
-    match reply.body {
-        Some(Body::Welcome(welcome)) => Ok(welcome),
-        Some(Body::Error(error)) => Err(ClientError::Server {
-            code: error.code(),
-            message: error.message,
-        }),
-        other => Err(ClientError::Protocol(format!(
-            "expected Welcome, got {other:?}"
-        ))),
     }
 }
 

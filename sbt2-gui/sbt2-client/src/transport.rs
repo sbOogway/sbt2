@@ -8,6 +8,7 @@ use tokio_tungstenite::{
     tungstenite::{
         self, Message,
         client::ClientRequestBuilder,
+        error::ProtocolError,
         http::{StatusCode, Uri},
         protocol::WebSocketConfig,
     },
@@ -88,10 +89,11 @@ fn open_error(error: tungstenite::Error) -> ClientError {
 fn read_error(error: tungstenite::Error) -> ClientError {
     match error {
         tungstenite::Error::Capacity(error) => ClientError::Protocol(error.to_string()),
+        tungstenite::Error::Protocol(ProtocolError::ResetWithoutClosingHandshake)
+        | tungstenite::Error::Io(_)
+        | tungstenite::Error::ConnectionClosed
+        | tungstenite::Error::AlreadyClosed => ClientError::Disconnected,
         tungstenite::Error::Protocol(error) => ClientError::Protocol(error.to_string()),
-        tungstenite::Error::ConnectionClosed | tungstenite::Error::AlreadyClosed => {
-            ClientError::Disconnected
-        }
         other => ClientError::Transport(other.to_string()),
     }
 }

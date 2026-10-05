@@ -44,7 +44,9 @@ impl Dispatcher {
         }
     }
 
+    /// Fails every outstanding request and ends every subscription's stream.
     pub(crate) fn fail_all(&mut self, error: &ClientError) {
+        self.subscriptions.clear();
         for (_, pending) in self.pending.drain() {
             let _ = pending.reply.send(Err(error.clone()));
         }
