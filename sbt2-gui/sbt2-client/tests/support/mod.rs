@@ -6,10 +6,7 @@ use futures_util::{SinkExt, StreamExt};
 use prost::Message as _;
 use sbt2_client::{
     ServerAddress,
-    protocol::{
-        ClientMessage, RunList, RunSummary, ServerMessage, Welcome, client_message,
-        server_message::Body,
-    },
+    protocol::{ClientMessage, ServerMessage, Welcome, client_message, server_message::Body},
 };
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{
@@ -70,17 +67,6 @@ pub fn reply(request_id: u64, body: Body) -> ServerMessage {
         body: Some(body),
         ..ServerMessage::default()
     }
-}
-
-pub fn run_chunk(request_id: u64, index: u64, last: bool, run_ids: &[&str]) -> ServerMessage {
-    let runs = run_ids
-        .iter()
-        .map(|id| RunSummary {
-            run_id: (*id).to_owned(),
-            ..RunSummary::default()
-        })
-        .collect();
-    reply(request_id, Body::RunList(RunList { index, last, runs }))
 }
 
 /// Serves each connection with `session`, which gets the connection's number from 0.
