@@ -10,7 +10,7 @@ variables:
   - &cache sbt2-cache-release:/cache:z
 
 steps:
-  # one step, because this agent doesn't let a step read files another step's container wrote
+  # the steps share nothing but GitHub, because this agent doesn't let a step read files another step's container wrote
   - name: release
     image: *image
     environment:
@@ -27,8 +27,16 @@ steps:
       # the build runs third-party build backends, which have no use for the token
       - env -u GH_TOKEN scripts/prepare-release.sh .release
       - '[ -f .release/tag ] || exit 0'
-      - apt-get update -qq && apt-get install -y -qq --no-install-recommends gh
-      - >
-        gh release create "$(cat .release/tag)" .release/dist/*
-        --repo "$CI_REPO" --target "$CI_COMMIT_SHA"
-        --title "$(cat .release/tag)" --notes-file .release/notes.md
+      - apt-get update -qq && apt-get install -y -qq --no-install-recommends gh curl jq
+      - scripts/draft-release.sh .release
+
+  # the release is public only when every step before this one has passed
+  - name: publish
+    image: *image
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+      GH_TOKEN:
+        from_secret: github_token
+    commands:
+      - apt-get update -qq && apt-get install -y -qq --no-install-recommends curl jq
+      - scripts/publish-release.sh
