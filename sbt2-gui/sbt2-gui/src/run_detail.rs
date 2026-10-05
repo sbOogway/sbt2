@@ -4,14 +4,16 @@ use std::collections::{HashMap, HashSet};
 
 use iced::{
     Element,
-    widget::{button, column, row, scrollable, text},
+    widget::{button, column, pick_list, row, scrollable, text},
 };
 use sbt2_client::{
-    ClientError, RunMetrics, Session, Table,
-    protocol::{Metric, MetricGroup, RunSummary},
+    ClientError, Point, RunMetrics, Session, Table,
+    protocol::{BenchmarkSelection, Metric, MetricGroup, PanelKind, RunSummary},
 };
 
 use crate::{
+    benchmark::{self, Benchmark},
+    charts::{self, Chart, Charts},
     dates,
     fills_table::{self, FillsTable},
     section::Section,
@@ -23,6 +25,8 @@ pub enum Load {
     Summary,
     Metrics,
     Fills,
+    Chart(Chart),
+    Benchmark(BenchmarkSelection),
 }
 
 impl Load {
@@ -32,8 +36,31 @@ impl Load {
             Self::Summary => Loaded::Summary(session.get_run(run_id).await.map(Box::new)),
             Self::Metrics => Loaded::Metrics(session.get_metrics(run_id).await),
             Self::Fills => Loaded::Fills(session.get_fills(run_id).await),
+            Self::Chart(chart) => Loaded::Chart(chart, fetch_chart(session, run_id, chart).await),
+            Self::Benchmark(selection) => {
+                let kind = PanelKind::BenchmarkReturns;
+                Loaded::Benchmark(session.get_panel(run_id, kind, selection).await)
+            }
         }
     }
+}
+
+async fn fetch_chart(
+    session: &Session,
+    run_id: &str,
+    chart: Chart,
+) -> Result<Vec<Point>, ClientError> {
+    let kind = match chart {
+        Chart::Equity => return session.get_equity(run_id).await,
+        Chart::Drawdown => PanelKind::Drawdown,
+        Chart::Returns => PanelKind::Returns,
+        Chart::RollingSharpe => PanelKind::RollingSharpe,
+        Chart::Monthly => PanelKind::MonthlyReturns,
+        Chart::Yearly => PanelKind::YearlyReturns,
+    };
+    session
+        .get_panel(run_id, kind, BenchmarkSelection::default())
+        .await
 }
 
 /// The answer to a `Load`.
@@ -42,29 +69,26 @@ pub enum Loaded {
     Summary(Result<Box<RunSummary>, ClientError>),
     Metrics(Result<RunMetrics, ClientError>),
     Fills(Result<Table, ClientError>),
+    Chart(Chart, Result<Vec<Point>, ClientError>),
+    Benchmark(Result<Vec<Point>, ClientError>),
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub enum Tab {
     #[default]
     Overview,
+    Charts,
     Fills,
 }
 
 impl Tab {
-    const ALL: [Self; 2] = [Self::Overview, Self::Fills];
+    const ALL: [Self; 3] = [Self::Overview, Self::Charts, Self::Fills];
 
     fn title(self) -> &'static str {
         match self {
             Self::Overview => "Overview",
+            Self::Charts => "Charts",
             Self::Fills => "Fills",
-        }
-    }
-
-    fn loads(self) -> Vec<Load> {
-        match self {
-            Self::Overview => vec![Load::Summary, Load::Metrics],
-            Self::Fills => vec![Load::Fills],
         }
     }
 }
@@ -74,6 +98,9 @@ pub enum Message {
     Back,
     Refresh,
     Show(Tab),
+    Benchmark(benchmark::Kind),
+    Instrument(String),
+    Charts(charts::Message),
     Fills(fills_table::Message),
     Loaded(String, Loaded),
 }
@@ -83,15 +110,42 @@ struct RunData {
     summary: Section<Box<RunSummary>>,
     metrics: Section<RunMetrics>,
     fills: Section<FillsTable>,
+    charts: Charts,
+    benchmark: Benchmark,
     opened: HashSet<Tab>,
 }
 
 impl RunData {
+    fn instruments(&self) -> &[String] {
+        match &self.summary {
+            Section::Ready(run) => &run.instruments,
+            _ => &[],
+        }
+    }
+
+    fn loads(&self, tab: Tab) -> Vec<Load> {
+        match tab {
+            Tab::Overview => vec![Load::Summary, Load::Metrics],
+            Tab::Charts => vec![
+                Load::Chart(Chart::Equity),
+                Load::Chart(Chart::Returns),
+                Load::Benchmark(self.benchmark.selection()),
+                Load::Chart(Chart::Drawdown),
+                Load::Chart(Chart::RollingSharpe),
+                Load::Chart(Chart::Monthly),
+                Load::Chart(Chart::Yearly),
+            ],
+            Tab::Fills => vec![Load::Fills],
+        }
+    }
+
     fn apply(&mut self, loaded: Loaded) {
         match loaded {
             Loaded::Summary(result) => self.summary = result.into(),
             Loaded::Metrics(result) => self.metrics = result.into(),
             Loaded::Fills(result) => self.fills = result.map(FillsTable::new).into(),
+            Loaded::Chart(chart, result) => self.charts.set(chart, result.into()),
+            Loaded::Benchmark(result) => self.charts.set_benchmark(result.into()),
         }
     }
 }
@@ -122,8 +176,9 @@ impl RunDetail {
         }
         let mut data = RunData::default();
         data.opened.insert(Tab::Overview);
+        let loads = data.loads(Tab::Overview);
         self.runs.insert(run_id.to_owned(), data);
-        Tab::Overview.loads()
+        loads
     }
 
     /// Applies a message; returns the loads the caller must start.
@@ -132,6 +187,9 @@ impl RunDetail {
             Message::Back => self.open = None,
             Message::Refresh => return self.reload(),
             Message::Show(tab) => return self.show(tab),
+            Message::Benchmark(kind) => return self.choose_benchmark(kind),
+            Message::Instrument(instrument) => return self.choose_instrument(instrument),
+            Message::Charts(message) => self.update_charts(message),
             Message::Fills(message) => self.update_fills(message),
             Message::Loaded(run_id, loaded) => {
                 if let Some(data) = self.runs.get_mut(&run_id) {
@@ -167,8 +225,13 @@ impl RunDetail {
 
     fn show(&mut self, tab: Tab) -> Vec<Load> {
         self.tab = tab;
-        let first_time = self.data_mut().is_some_and(|data| data.opened.insert(tab));
-        if first_time { tab.loads() } else { Vec::new() }
+        match self.data_mut() {
+            Some(data) if !data.opened.contains(&tab) => {
+                data.opened.insert(tab);
+                data.loads(tab)
+            }
+            _ => Vec::new(),
+        }
     }
 
     fn reload(&self) -> Vec<Load> {
@@ -178,8 +241,41 @@ impl RunDetail {
         Tab::ALL
             .into_iter()
             .filter(|tab| data.opened.contains(tab))
-            .flat_map(Tab::loads)
+            .flat_map(|tab| data.loads(tab))
             .collect()
+    }
+
+    /// The instruments buy and hold can follow; none for the other benchmarks.
+    fn instrument_options(&self) -> Vec<String> {
+        match self.data() {
+            Some(data) if data.benchmark.kind() == benchmark::Kind::BuyAndHold => {
+                data.instruments().to_vec()
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    fn choose_benchmark(&mut self, kind: benchmark::Kind) -> Vec<Load> {
+        let Some(data) = self.data_mut() else {
+            return Vec::new();
+        };
+        let instruments = data.instruments().to_vec();
+        data.benchmark.choose(kind, &instruments);
+        vec![Load::Benchmark(data.benchmark.selection())]
+    }
+
+    fn choose_instrument(&mut self, instrument: String) -> Vec<Load> {
+        let Some(data) = self.data_mut() else {
+            return Vec::new();
+        };
+        data.benchmark.choose_instrument(instrument);
+        vec![Load::Benchmark(data.benchmark.selection())]
+    }
+
+    fn update_charts(&mut self, message: charts::Message) {
+        if let Some(data) = self.data_mut() {
+            data.charts.update(message);
+        }
     }
 
     fn update_fills(&mut self, message: fills_table::Message) {
@@ -200,8 +296,26 @@ impl RunDetail {
     fn tab_view<'a>(&self, data: &'a RunData) -> Element<'a, Message> {
         match self.tab {
             Tab::Overview => overview(data),
+            Tab::Charts => self.charts_tab(data),
             Tab::Fills => fills(&data.fills),
         }
+    }
+
+    fn charts_tab<'a>(&self, data: &'a RunData) -> Element<'a, Message> {
+        let kind = data.benchmark.kind();
+        let mut picker = row![
+            text("Benchmark"),
+            pick_list(benchmark::Kind::ALL, Some(kind), Message::Benchmark),
+        ]
+        .spacing(12);
+        let instruments = self.instrument_options();
+        if !instruments.is_empty() {
+            let chosen = data.benchmark.instrument().cloned();
+            picker = picker.push(pick_list(instruments, chosen, Message::Instrument));
+        }
+        column![picker, data.charts.view().map(Message::Charts)]
+            .spacing(16)
+            .into()
     }
 }
 
@@ -307,6 +421,8 @@ fn metric_groups(metrics: &RunMetrics) -> Vec<(String, Vec<(String, String)>)> {
 
 #[cfg(test)]
 mod tests {
+    use sbt2_client::protocol::BenchmarkKind;
+
     use super::*;
 
     fn metric(group: MetricGroup, name: &str, value: Option<&str>) -> Metric {
@@ -347,6 +463,62 @@ mod tests {
         assert_eq!(detail.update(Message::Show(Tab::Fills)), [Load::Fills]);
         assert_eq!(detail.update(Message::Show(Tab::Overview)), []);
         assert_eq!(detail.update(Message::Show(Tab::Fills)), []);
+
+        let loads = detail.update(Message::Show(Tab::Charts));
+        let panels = [
+            Load::Chart(Chart::Equity),
+            Load::Chart(Chart::Returns),
+            Load::Benchmark(Benchmark::default().selection()),
+            Load::Chart(Chart::Drawdown),
+            Load::Chart(Chart::RollingSharpe),
+            Load::Chart(Chart::Monthly),
+            Load::Chart(Chart::Yearly),
+        ];
+        assert_eq!(loads, panels);
+        assert_eq!(detail.update(Message::Show(Tab::Charts)), []);
+    }
+
+    #[test]
+    fn a_benchmark_change_reloads_only_the_benchmark_panel() {
+        let mut detail = RunDetail::default();
+        detail.open("a");
+        detail.update(Message::Show(Tab::Charts));
+
+        let loads = detail.update(Message::Benchmark(benchmark::Kind::NoBenchmark));
+
+        let selection = BenchmarkSelection {
+            kind: BenchmarkKind::None.into(),
+            instrument_id: None,
+        };
+        assert_eq!(loads, [Load::Benchmark(selection)]);
+    }
+
+    #[test]
+    fn buy_and_hold_offers_the_runs_instruments() {
+        let mut detail = RunDetail::default();
+        detail.open("a");
+        let run = RunSummary {
+            instruments: vec!["AAPL".to_owned(), "MSFT".to_owned()],
+            ..RunSummary::default()
+        };
+        let summary = Loaded::Summary(Ok(Box::new(run)));
+        detail.update(Message::Loaded("a".to_owned(), summary));
+        assert_eq!(detail.instrument_options(), Vec::<String>::new());
+
+        let loads = detail.update(Message::Benchmark(benchmark::Kind::BuyAndHold));
+        let first = BenchmarkSelection {
+            kind: BenchmarkKind::BuyAndHold.into(),
+            instrument_id: Some("AAPL".to_owned()),
+        };
+        assert_eq!(loads, [Load::Benchmark(first)]);
+        assert_eq!(detail.instrument_options(), ["AAPL", "MSFT"]);
+
+        let loads = detail.update(Message::Instrument("MSFT".to_owned()));
+        let second = BenchmarkSelection {
+            kind: BenchmarkKind::BuyAndHold.into(),
+            instrument_id: Some("MSFT".to_owned()),
+        };
+        assert_eq!(loads, [Load::Benchmark(second)]);
     }
 
     #[test]
@@ -360,10 +532,12 @@ mod tests {
 
         detail.update(Message::Show(Tab::Fills));
 
-        assert_eq!(
-            detail.update(Message::Refresh),
-            [Load::Summary, Load::Metrics, Load::Fills]
-        );
+        let loads = detail.update(Message::Refresh);
+        assert_eq!(loads, [Load::Summary, Load::Metrics, Load::Fills]);
+
+        detail.update(Message::Show(Tab::Charts));
+        let loads = detail.update(Message::Refresh);
+        assert_eq!(loads.len(), 2 + 7 + 1);
     }
 
     #[test]

@@ -1,9 +1,12 @@
 use iced_test::simulator;
 use sbt2_client::{
-    RunMetrics,
+    Point, RunMetrics,
     protocol::{Metric, MetricGroup, RunSummary},
 };
-use sbt2_gui::run_detail::{Loaded, Message, RunDetail, Tab};
+use sbt2_gui::{
+    charts::Chart,
+    run_detail::{Loaded, Message, RunDetail, Tab},
+};
 
 fn metric(group: MetricGroup, name: &str, value: Option<&str>) -> Metric {
     Metric {
@@ -43,12 +46,14 @@ fn the_detail_tabs_and_back_emit_their_messages() {
     let detail = overview_detail();
 
     let mut ui = simulator(detail.view());
+    ui.click("Charts").unwrap();
     ui.click("Fills").unwrap();
     ui.click("Back").unwrap();
     let messages: Vec<Message> = ui.into_messages().collect();
 
-    assert!(matches!(messages[0], Message::Show(Tab::Fills)));
-    assert!(matches!(messages[1], Message::Back));
+    assert!(matches!(messages[0], Message::Show(Tab::Charts)));
+    assert!(matches!(messages[1], Message::Show(Tab::Fills)));
+    assert!(matches!(messages[2], Message::Back));
 }
 
 #[test]
@@ -59,5 +64,52 @@ fn the_overview_shows_the_runs_metrics() {
 
     for expected in ["momentum", "Sharpe Ratio", "1.75", "PnL (total)", "1234.5"] {
         assert!(ui.find(expected).is_ok(), "{expected} is not shown");
+    }
+}
+
+#[test]
+fn the_charts_tab_draws_each_chart_with_its_title() {
+    let mut detail = overview_detail();
+    detail.update(Message::Show(Tab::Charts));
+    let day = 86_400 * 1_000_000_000;
+    let points: Vec<Point> = (0..40)
+        .map(|index| Point {
+            ts: 1_704_067_200 * 1_000_000_000 + index * day,
+            value: if index % 9 == 0 {
+                f64::NAN
+            } else {
+                index as f64 / 100.0
+            },
+        })
+        .collect();
+    for chart in [
+        Chart::Equity,
+        Chart::Drawdown,
+        Chart::Returns,
+        Chart::Yearly,
+    ] {
+        let loaded = Loaded::Chart(chart, Ok(points.clone()));
+        detail.update(Message::Loaded("run-1".to_owned(), loaded));
+    }
+    detail.update(Message::Loaded(
+        "run-1".to_owned(),
+        Loaded::Benchmark(Ok(points.clone())),
+    ));
+    detail.update(Message::Loaded(
+        "run-1".to_owned(),
+        Loaded::Chart(Chart::Monthly, Ok(points)),
+    ));
+
+    let mut ui = simulator(detail.view());
+
+    assert!(ui.snapshot(&iced::Theme::Dark).is_ok());
+    for title in [
+        "Equity",
+        "Drawdown",
+        "Daily returns",
+        "Monthly returns",
+        "Yearly returns",
+    ] {
+        assert!(ui.find(title).is_ok(), "{title} is not shown");
     }
 }

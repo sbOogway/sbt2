@@ -1,6 +1,8 @@
 //! The sbt2 GUI.
 
 mod app;
+mod benchmark;
+pub mod charts;
 mod dates;
 mod fills_table;
 mod navigation;
