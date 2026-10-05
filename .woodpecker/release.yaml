@@ -10,7 +10,7 @@ variables:
   - &cache sbt2-cache-release:/cache:z
 
 steps:
-  # the steps share nothing but GitHub, because this agent doesn't let a step read files another step's container wrote
+  # one step, because this agent doesn't let a step read files another step's container wrote
   - name: release
     image: *image
     environment:
@@ -27,52 +27,8 @@ steps:
       # the build runs third-party build backends, which have no use for the token
       - env -u GH_TOKEN scripts/prepare-release.sh .release
       - '[ -f .release/tag ] || exit 0'
-      - apt-get update -qq && apt-get install -y -qq --no-install-recommends gh curl jq
-      - scripts/draft-release.sh .release
-
-  # built on bookworm (glibc 2.36), so the binary runs on Debian 12+, Ubuntu 23.04+ and Fedora 37+
-  - name: gui
-    image: rust:1.97.1-slim-bookworm
-    environment:
-      DEBIAN_FRONTEND: noninteractive
-      CARGO_HOME: /cache/cargo
-      CARGO_TARGET_DIR: /cache/target
-      GH_TOKEN:
-        from_secret: github_token
-    volumes: [sbt2-cache-release-gui:/cache:z]
-    commands:
-      - apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates curl jq
-      - scripts/release-gui.sh
-
-  # the only public action before publish; the image is smoke-tested first, and only then pushed
-  - name: image
-    image: quay.io/buildah/stable:v1.43.4
-    environment:
-      # an unprivileged step can neither mount overlays nor set up namespaces
-      STORAGE_DRIVER: vfs
-      BUILDAH_ISOLATION: chroot
-      # buildah keeps the RUN --mount=type=cache folders, uv's cache among them, under it
-      TMPDIR: /cache/tmp
-      XDG_CACHE_HOME: /cache
-      GH_TOKEN:
-        from_secret: github_token
-      GHCR_TOKEN:
-        from_secret: ghcr_token
-    volumes: [sbt2-cache-release-image:/cache:z]
-    commands:
-      - mkdir -p /cache/tmp
-      - dnf install -y -q jq
-      - scripts/release-image.sh
-
-  # the release is public only when every step before this one has passed
-  - name: publish
-    image: *image
-    environment:
-      DEBIAN_FRONTEND: noninteractive
-      GH_TOKEN:
-        from_secret: github_token
-      GHCR_TOKEN:
-        from_secret: ghcr_token
-    commands:
-      - apt-get update -qq && apt-get install -y -qq --no-install-recommends curl jq
-      - scripts/publish-release.sh
+      - apt-get update -qq && apt-get install -y -qq --no-install-recommends gh
+      - >
+        gh release create "$(cat .release/tag)" .release/dist/*
+        --repo "$CI_REPO" --target "$CI_COMMIT_SHA"
+        --title "$(cat .release/tag)" --notes-file .release/notes.md
