@@ -17,6 +17,10 @@ _TYPES: dict[type, ParameterType.ValueType] = {
 }
 
 
+class InvalidArgumentError(ValueError):
+    """A request the server answers INVALID_ARGUMENT; its message says why."""
+
+
 def describe(strategy: type[Strategy[Any]]) -> StrategySchema:
     """The schema of ``strategy.Params``, as the protocol carries it."""
     return StrategySchema(
