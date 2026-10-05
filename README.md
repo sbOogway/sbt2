@@ -74,7 +74,9 @@ commands, run from its directory.
 
 CI publishes the wheels of each release. The maintainer builds the GUI and the
 server image on their machine, with `GH_TOKEN` (or a `gh` login) and, for the
-image, `GHCR_TOKEN` (a classic token with `write:packages`) in the environment:
+image, `GHCR_TOKEN` (a classic token with `write:packages`) in the environment
+or in a git-ignored `.env` at the repo root (`GHCR_TOKEN=...`, mode 600). A
+variable set in the environment wins over `.env`:
 
 ```sh
 make release-gui     # build the GUI and upload it to the release

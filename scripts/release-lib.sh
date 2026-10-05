@@ -11,6 +11,29 @@ IMAGE_REPOSITORY=${IMAGE_REPOSITORY,,}
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root" || exit 1
 
+# Takes GH_TOKEN and GHCR_TOKEN from $1 when the environment lacks them. The file is
+# parsed, never run, so nothing in it but these two KEY=value lines has any effect.
+load_tokens() {
+    local file=$1 line key value
+    [ -f "$file" ] || return 0
+    if [ -n "$(find "$file" -perm /go=r)" ]; then
+        echo "${0##*/}: other users can read $file; run chmod 600 $file" >&2
+    fi
+    while IFS= read -r line || [ -n "$line" ]; do
+        [[ $line =~ ^[[:space:]]*(export[[:space:]]+)?(GH_TOKEN|GHCR_TOKEN)=(.*)$ ]] || continue
+        key=${BASH_REMATCH[2]}
+        value=${BASH_REMATCH[3]%$'\r'}
+        if [[ $value =~ ^\"(.*)\"$ || $value =~ ^\'(.*)\'$ ]]; then
+            value=${BASH_REMATCH[1]}
+        fi
+        if [ -z "${!key:-}" ]; then
+            export "$key=$value"
+        fi
+    done <"$file"
+}
+
+load_tokens "$root/.env"
+
 die() {
     echo "${0##*/}: $*" >&2
     exit 1
