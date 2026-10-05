@@ -120,8 +120,16 @@ def test_a_module_with_two_strategies_is_invalid_argument_naming_both() -> None:
 
 
 @pytest.mark.integration
-def test_an_imported_strategy_does_not_count() -> None:
-    source = "from sbt2.strategies.ma_cross import MovingAverageCross\n" + STRATEGY
+def test_an_imported_strategy_does_not_count(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    library = tmp_path / "library"
+    library.mkdir()
+    (library / "installed_strategy.py").write_text(
+        with_params("size: int = 1\n", "Installed")
+    )
+    monkeypatch.setenv("PYTHONPATH", str(library))
+    source = "from installed_strategy import Installed\n" + STRATEGY
 
     reply = described("imports_strategy", source)
 
