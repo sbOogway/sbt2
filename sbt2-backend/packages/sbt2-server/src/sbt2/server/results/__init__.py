@@ -17,6 +17,7 @@ from sbt2.protocol.v1.results_pb2 import (
     RunList,
     Series,
     SeriesKind,
+    StudyList,
     Tearsheet,
 )
 from sbt2.protocol.v1.types_pb2 import Error, ErrorCode
@@ -38,6 +39,7 @@ from sbt2.server.results.streaming import (
     pieces,
     records,
 )
+from sbt2.server.results.studies import study_summaries
 from sbt2.server.results.tearsheets import Tearsheets
 
 
@@ -52,6 +54,7 @@ def routes(root: Root) -> dict[str, Handler]:
         "get_series": _guard(results.get_series),
         "get_tearsheet": _guard(results.get_tearsheet),
         "get_panel": _guard(results.get_panel),
+        "list_studies": _guard(results.list_studies),
     }
 
 
@@ -130,6 +133,16 @@ class _Results:
     def _stage_panel(self, selected: GetPanel, staged: BinaryIO) -> None:
         write_arrow(self.panels.table(selected), staged)
         staged.seek(0)
+
+    async def list_studies(
+        self, request: ClientMessage, outbox: Outbox
+    ) -> ServerMessage:
+        replies = await offloaded(self._studies)(request)
+        return await deliver(replies, outbox)
+
+    def _studies(self, request: ClientMessage) -> Iterator[ServerMessage]:
+        template = ServerMessage(request_id=request.request_id, study_list=StudyList())
+        return records(template, "studies", study_summaries(self.store))
 
     async def get_tearsheet(
         self, request: ClientMessage, outbox: Outbox
