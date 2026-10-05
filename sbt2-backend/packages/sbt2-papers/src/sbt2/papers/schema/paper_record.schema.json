@@ -1,0 +1,546 @@
+{
+  "$defs": {
+    "AssetClass": {
+      "enum": [
+        "equity",
+        "crypto",
+        "fx",
+        "futures",
+        "commodity",
+        "bond",
+        "multi"
+      ],
+      "title": "AssetClass",
+      "type": "string"
+    },
+    "FieldStatus": {
+      "enum": [
+        "stated",
+        "inferred",
+        "missing"
+      ],
+      "title": "FieldStatus",
+      "type": "string"
+    },
+    "Field_AssetClass_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AssetClass"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The content. Null when the status is missing."
+        },
+        "status": {
+          "$ref": "#/$defs/FieldStatus",
+          "description": "stated: the paper says it. inferred: read from the paper's text. missing: the paper does not give it."
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "Field[AssetClass]",
+      "type": "object"
+    },
+    "Field_Frequency_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Frequency"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The content. Null when the status is missing."
+        },
+        "status": {
+          "$ref": "#/$defs/FieldStatus",
+          "description": "stated: the paper says it. inferred: read from the paper's text. missing: the paper does not give it."
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "Field[Frequency]",
+      "type": "object"
+    },
+    "Field_Period_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Period"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The content. Null when the status is missing."
+        },
+        "status": {
+          "$ref": "#/$defs/FieldStatus",
+          "description": "stated: the paper says it. inferred: read from the paper's text. missing: the paper does not give it."
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "Field[Period]",
+      "type": "object"
+    },
+    "Field_list_str__": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The content. Null when the status is missing.",
+          "title": "Value"
+        },
+        "status": {
+          "$ref": "#/$defs/FieldStatus",
+          "description": "stated: the paper says it. inferred: read from the paper's text. missing: the paper does not give it."
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "Field[list[str]]",
+      "type": "object"
+    },
+    "Field_str_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The content. Null when the status is missing.",
+          "title": "Value"
+        },
+        "status": {
+          "$ref": "#/$defs/FieldStatus",
+          "description": "stated: the paper says it. inferred: read from the paper's text. missing: the paper does not give it."
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "Field[str]",
+      "type": "object"
+    },
+    "Frequency": {
+      "enum": [
+        "tick",
+        "minute",
+        "hour",
+        "daily",
+        "weekly",
+        "monthly",
+        "quarterly",
+        "yearly"
+      ],
+      "title": "Frequency",
+      "type": "string"
+    },
+    "Paper": {
+      "additionalProperties": false,
+      "description": "The identity of a paper, as the acquire stage finds it.",
+      "properties": {
+        "title": {
+          "description": "The title of the paper.",
+          "title": "Title",
+          "type": "string"
+        },
+        "authors": {
+          "description": "The authors, in the order given.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Authors",
+          "type": "array"
+        },
+        "first_published": {
+          "description": "The date of the first public version.",
+          "format": "date",
+          "title": "First Published",
+          "type": "string"
+        },
+        "arxiv_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The arXiv id.",
+          "title": "Arxiv Id"
+        },
+        "ssrn_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The SSRN id.",
+          "title": "Ssrn Id"
+        },
+        "doi": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The DOI.",
+          "title": "Doi"
+        }
+      },
+      "required": [
+        "title",
+        "authors",
+        "first_published"
+      ],
+      "title": "Paper",
+      "type": "object"
+    },
+    "Parameter": {
+      "additionalProperties": false,
+      "description": "A parameter of the strategy.",
+      "properties": {
+        "name": {
+          "description": "The name of the parameter.",
+          "title": "Name",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ParameterValue"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The value the paper uses. Null when missing."
+        },
+        "status": {
+          "$ref": "#/$defs/FieldStatus",
+          "description": "stated, inferred or missing, as for a field."
+        },
+        "tried": {
+          "description": "The values or grid the authors searched. Each one counts as a trial.",
+          "items": {
+            "$ref": "#/$defs/ParameterValue"
+          },
+          "title": "Tried",
+          "type": "array"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What the parameter does.",
+          "title": "Description"
+        }
+      },
+      "required": [
+        "name",
+        "status"
+      ],
+      "title": "Parameter",
+      "type": "object"
+    },
+    "ParameterValue": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "Period": {
+      "additionalProperties": false,
+      "description": "A range of dates, both ends included.",
+      "properties": {
+        "start": {
+          "description": "The first date.",
+          "format": "date",
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "description": "The last date. Not before the start.",
+          "format": "date",
+          "title": "End",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "Period",
+      "type": "object"
+    },
+    "ReportedResult": {
+      "additionalProperties": false,
+      "description": "A performance figure the paper reports.",
+      "properties": {
+        "metric": {
+          "description": "The name of the metric, for example Sharpe ratio.",
+          "title": "Metric",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The reported number. Null when missing.",
+          "title": "Value"
+        },
+        "status": {
+          "$ref": "#/$defs/FieldStatus",
+          "description": "stated, inferred or missing, as for a field."
+        },
+        "period": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Period"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The period the figure covers."
+        },
+        "variant": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The variant or parameter set the figure is for.",
+          "title": "Variant"
+        },
+        "net_of_costs": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "True when the figure is after costs.",
+          "title": "Net Of Costs"
+        }
+      },
+      "required": [
+        "metric",
+        "status"
+      ],
+      "title": "ReportedResult",
+      "type": "object"
+    },
+    "TradingStrategy": {
+      "additionalProperties": false,
+      "description": "One tradable rule of the paper.",
+      "properties": {
+        "name": {
+          "description": "A short name that tells the rule apart.",
+          "title": "Name",
+          "type": "string"
+        },
+        "instruments": {
+          "$ref": "#/$defs/Field_list_str__",
+          "description": "The instruments or tickers traded."
+        },
+        "asset_class": {
+          "$ref": "#/$defs/Field_AssetClass_",
+          "description": "The asset class."
+        },
+        "universe_filters": {
+          "$ref": "#/$defs/Field_str_",
+          "description": "The rules that select the universe."
+        },
+        "data_frequency": {
+          "$ref": "#/$defs/Field_Frequency_",
+          "description": "The frequency of the data the signal uses."
+        },
+        "signal_description": {
+          "$ref": "#/$defs/Field_str_",
+          "description": "The signal, in words."
+        },
+        "signal_formula": {
+          "$ref": "#/$defs/Field_str_",
+          "description": "The signal, as a LaTeX formula."
+        },
+        "lookbacks": {
+          "$ref": "#/$defs/Field_str_",
+          "description": "The lookback windows."
+        },
+        "portfolio_construction": {
+          "$ref": "#/$defs/Field_str_",
+          "description": "How signals become positions."
+        },
+        "rebalancing_frequency": {
+          "$ref": "#/$defs/Field_Frequency_",
+          "description": "How often the portfolio changes."
+        },
+        "execution_timing": {
+          "$ref": "#/$defs/Field_str_",
+          "description": "When orders fill, for example next open."
+        },
+        "costs": {
+          "$ref": "#/$defs/Field_str_",
+          "description": "The costs the paper assumed."
+        },
+        "in_sample": {
+          "$ref": "#/$defs/Field_Period_",
+          "description": "The in-sample period."
+        },
+        "out_of_sample": {
+          "$ref": "#/$defs/Field_Period_",
+          "description": "The out-of-sample period."
+        },
+        "parameters": {
+          "description": "The parameters of the strategy.",
+          "items": {
+            "$ref": "#/$defs/Parameter"
+          },
+          "title": "Parameters",
+          "type": "array"
+        },
+        "results": {
+          "description": "The results the paper reports.",
+          "items": {
+            "$ref": "#/$defs/ReportedResult"
+          },
+          "title": "Results",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "instruments",
+        "asset_class",
+        "universe_filters",
+        "data_frequency",
+        "signal_description",
+        "signal_formula",
+        "lookbacks",
+        "portfolio_construction",
+        "rebalancing_frequency",
+        "execution_timing",
+        "costs",
+        "in_sample",
+        "out_of_sample"
+      ],
+      "title": "TradingStrategy",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "What the extraction of one paper produces.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "description": "The version of this schema. Always 1.",
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "paper": {
+      "$ref": "#/$defs/Paper",
+      "description": "The paper."
+    },
+    "strategies": {
+      "description": "The tradable rules of the paper. Empty when it has none.",
+      "items": {
+        "$ref": "#/$defs/TradingStrategy"
+      },
+      "title": "Strategies",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "paper",
+    "strategies"
+  ],
+  "title": "PaperRecord",
+  "type": "object"
+}
