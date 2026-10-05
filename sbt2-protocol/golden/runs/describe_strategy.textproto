@@ -1,0 +1,8 @@
+# proto-message: sbt2.protocol.v1.ClientMessage
+request_id: 35
+describe_strategy {
+  strategy {
+    name: "my_cross"
+    source: "from sbt2.core.strategy import Strategy\n"
+  }
+}

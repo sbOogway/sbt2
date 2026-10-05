@@ -93,6 +93,18 @@ response carrying the request's ID: `JobSubmitted`, `JobCancelled`, `Jobs`,
   current state first. `Unsubscribe` stops the pushes.
 - Log lines are the job's stdout and stderr, as printed, without the run that
   printed them.
+- `DescribeStrategy` carries a strategy module like `SubmitRun`, and answers
+  `StrategySchema`: the strategy's `"module:Class"`, its docstring, the docstring
+  of its `Params`, and each parameter with its type, whether it is required, its
+  default and, for a `Literal`, its allowed values. The types are integer, number,
+  decimal, string and boolean; a decimal default or choice is a string. The
+  server imports the module in a process of its own with the clean environment of
+  a job process, never in the server, and does not queue it behind jobs. The
+  strategy is the one concrete `Strategy` subclass the module itself defines.
+  Anything else answers `INVALID_ARGUMENT` naming the cause: no strategy or more
+  than one, an import error, an import that takes longer than 30 seconds, a
+  parameter of another type (named with its type), or a module name the image
+  already has.
 
 ## Golden fixtures
 

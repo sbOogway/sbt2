@@ -1,0 +1,29 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 35
+strategy_schema {
+  strategy: "my_cross:MyCross"
+  description: "Buys when the fast average crosses above the slow one."
+  params_description: "The averages' windows."
+  parameters {
+    name: "fast"
+    type: PARAMETER_TYPE_INTEGER
+    default { number_value: 10 }
+  }
+  parameters {
+    name: "slow"
+    type: PARAMETER_TYPE_INTEGER
+    required: true
+  }
+  parameters {
+    name: "step"
+    type: PARAMETER_TYPE_DECIMAL
+    default { string_value: "0.100" }
+  }
+  parameters {
+    name: "mode"
+    type: PARAMETER_TYPE_STRING
+    default { string_value: "ema" }
+    choices { string_value: "ema" }
+    choices { string_value: "sma" }
+  }
+}

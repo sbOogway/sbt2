@@ -121,6 +121,8 @@ class _ParameterTypeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_Paramet
     PARAMETER_TYPE_INTEGER: _ParameterType.ValueType  # 2
     PARAMETER_TYPE_NUMBER: _ParameterType.ValueType  # 3
     PARAMETER_TYPE_BOOLEAN: _ParameterType.ValueType  # 4
+    PARAMETER_TYPE_DECIMAL: _ParameterType.ValueType  # 5
+    """A decimal string, as everywhere in the protocol."""
 
 class ParameterType(_ParameterType, metaclass=_ParameterTypeEnumTypeWrapper): ...
 
@@ -130,6 +132,8 @@ PARAMETER_TYPE_STRING: ParameterType.ValueType  # 1
 PARAMETER_TYPE_INTEGER: ParameterType.ValueType  # 2
 PARAMETER_TYPE_NUMBER: ParameterType.ValueType  # 3
 PARAMETER_TYPE_BOOLEAN: ParameterType.ValueType  # 4
+PARAMETER_TYPE_DECIMAL: ParameterType.ValueType  # 5
+"""A decimal string, as everywhere in the protocol."""
 Global___ParameterType: _TypeAlias = ParameterType  # noqa: Y015
 
 @_typing.final

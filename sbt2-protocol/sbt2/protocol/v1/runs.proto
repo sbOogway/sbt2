@@ -4,6 +4,7 @@ package sbt2.protocol.v1;
 
 import "google/protobuf/struct.proto";
 import "google/protobuf/timestamp.proto";
+import "sbt2/protocol/v1/config.proto";
 
 // The period a spec covers, before its split.
 message SpecPeriod {
@@ -135,3 +136,34 @@ message Unsubscribe {
 }
 
 message Unsubscribed {}
+
+// Asks for the parameter schema of a strategy module. The server imports the
+// module in a process of its own, never in its own. A module with no strategy
+// or more than one, one that fails to import or takes too long to, one with a
+// parameter of an unsupported type, or a name the image already has, answers
+// INVALID_ARGUMENT.
+message DescribeStrategy {
+  StrategyModule strategy = 1;
+}
+
+message StrategyParameter {
+  string name = 1;
+  ParameterType type = 2;
+  bool required = 3;
+  // Absent when the parameter is required. A decimal is a string.
+  google.protobuf.Value default = 4;
+  // The allowed values when the parameter is a Literal; empty otherwise.
+  repeated google.protobuf.Value choices = 5;
+}
+
+// The strategy a module defines: the concrete Strategy subclasses whose module
+// is that one. Imported ones do not count.
+message StrategySchema {
+  // The strategy's class, as "module:Class".
+  string strategy = 1;
+  // The strategy's docstring; empty when it has none.
+  string description = 2;
+  // The docstring of its Params; empty when it has none.
+  string params_description = 3;
+  repeated StrategyParameter parameters = 4;
+}

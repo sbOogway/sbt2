@@ -10,6 +10,7 @@ from google.protobuf import struct_pb2 as _struct_pb2
 from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+from sbt2.protocol.v1 import config_pb2 as _config_pb2
 import builtins as _builtins
 import sys
 import typing as _typing
@@ -524,3 +525,103 @@ class Unsubscribed(_message.Message):
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
 Global___Unsubscribed: _TypeAlias = Unsubscribed  # noqa: Y015
+
+@_typing.final
+class DescribeStrategy(_message.Message):
+    """Asks for the parameter schema of a strategy module. The server imports the
+    module in a process of its own, never in its own. A module with no strategy
+    or more than one, one that fails to import or takes too long to, one with a
+    parameter of an unsupported type, or a name the image already has, answers
+    INVALID_ARGUMENT.
+    """
+
+    DESCRIPTOR: _descriptor.Descriptor
+
+    STRATEGY_FIELD_NUMBER: _builtins.int
+    @_builtins.property
+    def strategy(self) -> Global___StrategyModule: ...
+    def __init__(
+        self,
+        *,
+        strategy: Global___StrategyModule | None = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["strategy", b"strategy"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["strategy", b"strategy"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___DescribeStrategy: _TypeAlias = DescribeStrategy  # noqa: Y015
+
+@_typing.final
+class StrategyParameter(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: _builtins.int
+    TYPE_FIELD_NUMBER: _builtins.int
+    REQUIRED_FIELD_NUMBER: _builtins.int
+    DEFAULT_FIELD_NUMBER: _builtins.int
+    CHOICES_FIELD_NUMBER: _builtins.int
+    name: _builtins.str
+    type: _config_pb2.ParameterType.ValueType
+    required: _builtins.bool
+    @_builtins.property
+    def default(self) -> _struct_pb2.Value:
+        """Absent when the parameter is required. A decimal is a string."""
+
+    @_builtins.property
+    def choices(self) -> _containers.RepeatedCompositeFieldContainer[_struct_pb2.Value]:
+        """The allowed values when the parameter is a Literal; empty otherwise."""
+
+    def __init__(
+        self,
+        *,
+        name: _builtins.str = ...,
+        type: _config_pb2.ParameterType.ValueType = ...,
+        required: _builtins.bool = ...,
+        default: _struct_pb2.Value | None = ...,
+        choices: _abc.Iterable[_struct_pb2.Value] | None = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["default", b"default"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["choices", b"choices", "default", b"default", "name", b"name", "required", b"required", "type", b"type"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___StrategyParameter: _TypeAlias = StrategyParameter  # noqa: Y015
+
+@_typing.final
+class StrategySchema(_message.Message):
+    """The strategy a module defines: the concrete Strategy subclasses whose module
+    is that one. Imported ones do not count.
+    """
+
+    DESCRIPTOR: _descriptor.Descriptor
+
+    STRATEGY_FIELD_NUMBER: _builtins.int
+    DESCRIPTION_FIELD_NUMBER: _builtins.int
+    PARAMS_DESCRIPTION_FIELD_NUMBER: _builtins.int
+    PARAMETERS_FIELD_NUMBER: _builtins.int
+    strategy: _builtins.str
+    """The strategy's class, as "module:Class"."""
+    description: _builtins.str
+    """The strategy's docstring; empty when it has none."""
+    params_description: _builtins.str
+    """The docstring of its Params; empty when it has none."""
+    @_builtins.property
+    def parameters(self) -> _containers.RepeatedCompositeFieldContainer[Global___StrategyParameter]: ...
+    def __init__(
+        self,
+        *,
+        strategy: _builtins.str = ...,
+        description: _builtins.str = ...,
+        params_description: _builtins.str = ...,
+        parameters: _abc.Iterable[Global___StrategyParameter] | None = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["description", b"description", "parameters", b"parameters", "params_description", b"params_description", "strategy", b"strategy"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___StrategySchema: _TypeAlias = StrategySchema  # noqa: Y015
