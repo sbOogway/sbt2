@@ -3,15 +3,16 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::{
-    Backoff, ClientError, ServerAddress, Token,
+    Backoff, ClientError, ServerAddress, Token, arrow,
     connection::{Command, Connection, Dial},
     dispatch::{Dispatcher, Reply},
     ids::RequestIds,
     protocol::{
-        ClientMessage, GetMetrics, GetRun, ListRuns, RunFilter, RunSummary, Welcome,
-        client_message, server_message::Body,
+        BenchmarkSelection, ClientMessage, GetMetrics, GetPanel, GetRun, GetSeries, ListRuns,
+        PanelKind, RunFilter, RunSummary, SeriesKind, Welcome, client_message,
+        server_message::Body,
     },
-    results::RunMetrics,
+    results::{Point, RunMetrics, Table},
 };
 
 /// Whether the session has a working connection.
@@ -162,6 +163,61 @@ impl Session {
             }
         }
         Ok(metrics)
+    }
+
+    /// The equity curve as points of its total equity.
+    pub async fn get_equity(&self, run_id: &str) -> Result<Vec<Point>, ClientError> {
+        let data = self.series(run_id, SeriesKind::Equity).await?;
+        arrow::points(&data, "ts_event", "total_equity")
+    }
+
+    /// The fills with the columns the server stored.
+    pub async fn get_fills(&self, run_id: &str) -> Result<Table, ClientError> {
+        let data = self.series(run_id, SeriesKind::Fills).await?;
+        arrow::table(&data)
+    }
+
+    /// A tearsheet panel as points; `benchmark` matters only for the benchmark returns.
+    pub async fn get_panel(
+        &self,
+        run_id: &str,
+        kind: PanelKind,
+        benchmark: BenchmarkSelection,
+    ) -> Result<Vec<Point>, ClientError> {
+        let request = GetPanel {
+            run_id: run_id.to_owned(),
+            kind: kind.into(),
+            benchmark: Some(benchmark),
+        };
+        let chunks = self
+            .request(client_message::Body::GetPanel(request))
+            .await?;
+        let mut data = Vec::new();
+        for chunk in chunks {
+            match chunk {
+                Body::Panel(part) => data.extend(part.data),
+                other => return Err(unexpected(&other)),
+            }
+        }
+        arrow::points(&data, "ts", "value")
+    }
+
+    async fn series(&self, run_id: &str, kind: SeriesKind) -> Result<Vec<u8>, ClientError> {
+        let request = GetSeries {
+            run_id: run_id.to_owned(),
+            kind: kind.into(),
+        };
+        let chunks = self
+            .request(client_message::Body::GetSeries(request))
+            .await?;
+        let mut data = Vec::new();
+        for chunk in chunks {
+            match chunk {
+                Body::Series(part) => data.extend(part.data),
+                other => return Err(unexpected(&other)),
+            }
+        }
+        Ok(data)
     }
 
     /// The pushes of one subscription, whose id the caller got from a reply.
