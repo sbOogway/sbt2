@@ -127,3 +127,20 @@ def test_the_rolling_sharpe_is_annualized_by_the_asset_calendar(
 
     np.testing.assert_allclose(sharpe.to_numpy(), expected.to_numpy())
     assert tearsheet_panels(daily_run(prices, start, wavy(30))).rolling_sharpe.empty
+
+
+@pytest.mark.unit
+def test_the_rolling_sharpe_keeps_the_undefined_values_of_flat_windows(
+    prices: PriceCatalog,
+) -> None:
+    start = datetime(2024, 1, 1, tzinfo=UTC)
+    varied = wavy(20)
+    values = varied + [varied[-1]] * 70
+
+    sharpe = tearsheet_panels(daily_run(prices, start, values)).rolling_sharpe
+
+    assert len(sharpe) == 90 - 59
+    assert sharpe.index[0] == start + 59 * DAY
+    assert not math.isnan(sharpe.iloc[0])
+    assert sharpe.iloc[:20].notna().all()
+    assert sharpe.iloc[-11:].isna().all()

@@ -53,7 +53,7 @@ def rolling_sharpe(returns: pd.Series, days_per_year: int) -> pd.Series:
     rolling = returns.rolling(ROLLING_WINDOW)
     volatility = pd.Series(rolling.std()).replace(0, math.nan)
     sharpe = pd.Series(rolling.mean() / volatility) * math.sqrt(days_per_year)
-    return sharpe.dropna()
+    return sharpe.iloc[ROLLING_WINDOW - 1 :]
 
 
 def _compounded(returns: pd.Series, period: str) -> pd.Series:
