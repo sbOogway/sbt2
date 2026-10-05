@@ -3,7 +3,7 @@ use sbt2_client::{
     RunMetrics,
     protocol::{Metric, MetricGroup, RunSummary},
 };
-use sbt2_gui::run_detail::{Loaded, Message, RunDetail};
+use sbt2_gui::run_detail::{Loaded, Message, RunDetail, Tab};
 
 fn metric(group: MetricGroup, name: &str, value: Option<&str>) -> Metric {
     Metric {
@@ -36,6 +36,19 @@ fn overview_detail() -> RunDetail {
         detail.update(Message::Loaded("run-1".to_owned(), loaded));
     }
     detail
+}
+
+#[test]
+fn the_detail_tabs_and_back_emit_their_messages() {
+    let detail = overview_detail();
+
+    let mut ui = simulator(detail.view());
+    ui.click("Fills").unwrap();
+    ui.click("Back").unwrap();
+    let messages: Vec<Message> = ui.into_messages().collect();
+
+    assert!(matches!(messages[0], Message::Show(Tab::Fills)));
+    assert!(matches!(messages[1], Message::Back));
 }
 
 #[test]

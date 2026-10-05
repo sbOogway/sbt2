@@ -2,6 +2,7 @@
 
 mod app;
 mod dates;
+mod fills_table;
 mod navigation;
 pub mod run_detail;
 mod runs_table;

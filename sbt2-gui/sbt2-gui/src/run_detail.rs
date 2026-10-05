@@ -1,23 +1,28 @@
 //! The detail of one run: its header and metrics, and a cache of what was loaded.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use iced::{
     Element,
     widget::{button, column, row, scrollable, text},
 };
 use sbt2_client::{
-    ClientError, RunMetrics, Session,
+    ClientError, RunMetrics, Session, Table,
     protocol::{Metric, MetricGroup, RunSummary},
 };
 
-use crate::{dates, section::Section};
+use crate::{
+    dates,
+    fills_table::{self, FillsTable},
+    section::Section,
+};
 
 /// A request the detail needs a client call for.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Load {
     Summary,
     Metrics,
+    Fills,
 }
 
 impl Load {
@@ -26,6 +31,7 @@ impl Load {
         match self {
             Self::Summary => Loaded::Summary(session.get_run(run_id).await.map(Box::new)),
             Self::Metrics => Loaded::Metrics(session.get_metrics(run_id).await),
+            Self::Fills => Loaded::Fills(session.get_fills(run_id).await),
         }
     }
 }
@@ -35,12 +41,40 @@ impl Load {
 pub enum Loaded {
     Summary(Result<Box<RunSummary>, ClientError>),
     Metrics(Result<RunMetrics, ClientError>),
+    Fills(Result<Table, ClientError>),
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum Tab {
+    #[default]
+    Overview,
+    Fills,
+}
+
+impl Tab {
+    const ALL: [Self; 2] = [Self::Overview, Self::Fills];
+
+    fn title(self) -> &'static str {
+        match self {
+            Self::Overview => "Overview",
+            Self::Fills => "Fills",
+        }
+    }
+
+    fn loads(self) -> Vec<Load> {
+        match self {
+            Self::Overview => vec![Load::Summary, Load::Metrics],
+            Self::Fills => vec![Load::Fills],
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     Back,
     Refresh,
+    Show(Tab),
+    Fills(fills_table::Message),
     Loaded(String, Loaded),
 }
 
@@ -48,6 +82,8 @@ pub enum Message {
 struct RunData {
     summary: Section<Box<RunSummary>>,
     metrics: Section<RunMetrics>,
+    fills: Section<FillsTable>,
+    opened: HashSet<Tab>,
 }
 
 impl RunData {
@@ -55,6 +91,7 @@ impl RunData {
         match loaded {
             Loaded::Summary(result) => self.summary = result.into(),
             Loaded::Metrics(result) => self.metrics = result.into(),
+            Loaded::Fills(result) => self.fills = result.map(FillsTable::new).into(),
         }
     }
 }
@@ -64,6 +101,7 @@ impl RunData {
 pub struct RunDetail {
     runs: HashMap<String, RunData>,
     open: Option<String>,
+    tab: Tab,
 }
 
 impl RunDetail {
@@ -78,18 +116,23 @@ impl RunDetail {
     /// Shows a run; returns the loads it needs, none when its data is cached.
     pub fn open(&mut self, run_id: &str) -> Vec<Load> {
         self.open = Some(run_id.to_owned());
+        self.tab = Tab::Overview;
         if self.runs.contains_key(run_id) {
             return Vec::new();
         }
-        self.runs.insert(run_id.to_owned(), RunData::default());
-        Self::overview_loads()
+        let mut data = RunData::default();
+        data.opened.insert(Tab::Overview);
+        self.runs.insert(run_id.to_owned(), data);
+        Tab::Overview.loads()
     }
 
     /// Applies a message; returns the loads the caller must start.
     pub fn update(&mut self, message: Message) -> Vec<Load> {
         match message {
             Message::Back => self.open = None,
-            Message::Refresh => return Self::overview_loads(),
+            Message::Refresh => return self.reload(),
+            Message::Show(tab) => return self.show(tab),
+            Message::Fills(message) => self.update_fills(message),
             Message::Loaded(run_id, loaded) => {
                 if let Some(data) = self.runs.get_mut(&run_id) {
                     data.apply(loaded);
@@ -106,18 +149,67 @@ impl RunDetail {
         ]
         .spacing(12);
         let body = match self.data() {
-            Some(data) => overview(data),
+            Some(data) => self.tab_view(data),
             None => text("No run is open.").into(),
         };
-        column![toolbar, scrollable(body)].spacing(12).into()
+        column![toolbar, self.tabs(), scrollable(body)]
+            .spacing(12)
+            .into()
     }
 
     fn data(&self) -> Option<&RunData> {
         self.runs.get(self.open.as_deref()?)
     }
 
-    fn overview_loads() -> Vec<Load> {
-        vec![Load::Summary, Load::Metrics]
+    fn data_mut(&mut self) -> Option<&mut RunData> {
+        self.runs.get_mut(self.open.as_deref()?)
+    }
+
+    fn show(&mut self, tab: Tab) -> Vec<Load> {
+        self.tab = tab;
+        let first_time = self.data_mut().is_some_and(|data| data.opened.insert(tab));
+        if first_time { tab.loads() } else { Vec::new() }
+    }
+
+    fn reload(&self) -> Vec<Load> {
+        let Some(data) = self.data() else {
+            return Vec::new();
+        };
+        Tab::ALL
+            .into_iter()
+            .filter(|tab| data.opened.contains(tab))
+            .flat_map(Tab::loads)
+            .collect()
+    }
+
+    fn update_fills(&mut self, message: fills_table::Message) {
+        if let Some(Section::Ready(fills)) = self.data_mut().map(|data| &mut data.fills) {
+            fills.update(message);
+        }
+    }
+
+    fn tabs(&self) -> Element<'_, Message> {
+        let tabs = Tab::ALL.map(|tab| {
+            button(tab.title())
+                .on_press_maybe((tab != self.tab).then_some(Message::Show(tab)))
+                .into()
+        });
+        row(tabs).spacing(8).into()
+    }
+
+    fn tab_view<'a>(&self, data: &'a RunData) -> Element<'a, Message> {
+        match self.tab {
+            Tab::Overview => overview(data),
+            Tab::Fills => fills(&data.fills),
+        }
+    }
+}
+
+fn fills(fills: &Section<FillsTable>) -> Element<'_, Message> {
+    match fills {
+        Section::Loading => text("Loading the fills...").into(),
+        Section::Failed(error) => text(format!("Could not load the fills: {error}")).into(),
+        Section::Ready(fills) => fills.view().map(Message::Fills),
     }
 }
 
@@ -248,13 +340,30 @@ mod tests {
     }
 
     #[test]
-    fn refresh_loads_the_opened_tabs_again() {
+    fn a_tab_loads_its_data_the_first_time_it_opens() {
         let mut detail = RunDetail::default();
         detail.open("a");
 
-        let loads = detail.update(Message::Refresh);
+        assert_eq!(detail.update(Message::Show(Tab::Fills)), [Load::Fills]);
+        assert_eq!(detail.update(Message::Show(Tab::Overview)), []);
+        assert_eq!(detail.update(Message::Show(Tab::Fills)), []);
+    }
 
-        assert_eq!(loads, [Load::Summary, Load::Metrics]);
+    #[test]
+    fn refresh_loads_the_opened_tabs_again() {
+        let mut detail = RunDetail::default();
+        detail.open("a");
+        assert_eq!(
+            detail.update(Message::Refresh),
+            [Load::Summary, Load::Metrics]
+        );
+
+        detail.update(Message::Show(Tab::Fills));
+
+        assert_eq!(
+            detail.update(Message::Refresh),
+            [Load::Summary, Load::Metrics, Load::Fills]
+        );
     }
 
     #[test]
