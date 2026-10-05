@@ -1,9 +1,12 @@
+#[path = "support/runs.rs"]
+mod runs;
 mod support;
 
 use std::time::Duration;
 
+use runs::run_chunk;
 use sbt2_client::{Backoff, Client, ClientError, ConnectionState, Token, protocol::RunFilter};
-use support::{TOKEN, run_chunk, serve};
+use support::{TOKEN, serve};
 use tokio::time::timeout;
 
 #[tokio::test]

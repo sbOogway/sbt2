@@ -6,6 +6,7 @@ mod connection;
 mod dispatch;
 mod error;
 mod ids;
+mod results;
 mod session;
 mod transport;
 #[cfg(test)]
@@ -15,6 +16,7 @@ mod version_format;
 pub use address::{ServerAddress, Token};
 pub use backoff::Backoff;
 pub use error::ClientError;
+pub use results::RunMetrics;
 pub use session::{Client, ConnectionState, Session, Subscription};
 
 /// The version stamped at build time: the release tag, in the format of the Python packages.

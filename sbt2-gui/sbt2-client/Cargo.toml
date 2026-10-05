@@ -11,6 +11,9 @@ publish.workspace = true
 test-support = []
 
 [dependencies]
+arrow-array = { version = "60", default-features = false }
+arrow-ipc = { version = "60", default-features = false }
+arrow-schema = { version = "60", default-features = false }
 prost = "=0.14.4"
 prost-types = "=0.14.4"
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }

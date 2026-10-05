@@ -8,9 +8,10 @@ use crate::{
     dispatch::{Dispatcher, Reply},
     ids::RequestIds,
     protocol::{
-        ClientMessage, ListRuns, RunFilter, RunSummary, Welcome, client_message,
-        server_message::Body,
+        ClientMessage, GetMetrics, GetRun, ListRuns, RunFilter, RunSummary, Welcome,
+        client_message, server_message::Body,
     },
+    results::RunMetrics,
 };
 
 /// Whether the session has a working connection.
@@ -129,6 +130,38 @@ impl Session {
             }
         }
         Ok(runs)
+    }
+
+    pub async fn get_run(&self, run_id: &str) -> Result<RunSummary, ClientError> {
+        let run_id = run_id.to_owned();
+        let chunks = self
+            .request(client_message::Body::GetRun(GetRun { run_id }))
+            .await?;
+        match chunks.into_iter().next() {
+            Some(Body::RunSummary(summary)) => Ok(*summary),
+            Some(other) => Err(unexpected(&other)),
+            None => Err(ClientError::Protocol("empty reply".to_owned())),
+        }
+    }
+
+    pub async fn get_metrics(&self, run_id: &str) -> Result<RunMetrics, ClientError> {
+        let run_id = run_id.to_owned();
+        let chunks = self
+            .request(client_message::Body::GetMetrics(GetMetrics { run_id }))
+            .await?;
+        let mut metrics = RunMetrics::default();
+        for chunk in chunks {
+            match chunk {
+                Body::Metrics(part) => {
+                    if metrics.currency.is_empty() {
+                        metrics.currency = part.currency;
+                    }
+                    metrics.entries.extend(part.entries);
+                }
+                other => return Err(unexpected(&other)),
+            }
+        }
+        Ok(metrics)
     }
 
     /// The pushes of one subscription, whose id the caller got from a reply.
