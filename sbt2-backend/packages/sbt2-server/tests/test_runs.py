@@ -22,9 +22,9 @@ from runs_kit import (
 )
 
 from sbt2.core.config import Root
-from sbt2.core.results import ParquetResultStore
+from sbt2.core.results import ParquetResultStore, RunFilter
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
-from sbt2.protocol.v1.results_pb2 import GetRun
+from sbt2.protocol.v1.results_pb2 import GetRun, GetStudy
 from sbt2.protocol.v1.runs_pb2 import (
     CancelJob,
     Job,
@@ -710,6 +710,24 @@ def test_a_changed_strategy_is_rejected_as_a_code_conflict(tmp_path: Path) -> No
         assert conflict.kind == StudyConflictKind.STUDY_CONFLICT_KIND_CODE
         assert list(conflict.context_keys) == []
         assert not conflict.HasField("run_id")
+
+    in_one_loop(scenario())
+
+
+@pytest.mark.integration
+def test_the_pinned_source_uploaded_again_runs_into_the_study(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        root, jobs = real_jobs(tmp_path)
+        session = Session({**area.routes(jobs), **results.routes(root)})
+        first = await submitted_into_study(session, jobs)
+        got = await session.ask(ClientMessage(get_study=GetStudy(name="sweep")))
+        table = run_table(study="sweep", params={"hold_bars": 3})
+
+        reply = await session.ask(submit_run(table, got.study_detail.source))
+        await finished(jobs, submitted_job(reply))
+
+        runs = ParquetResultStore(root.results).runs(RunFilter(study="sweep"))
+        assert sorted(runs["run_id"]) == sorted([first, *reply.job_submitted.run_ids])
 
     in_one_loop(scenario())
 
