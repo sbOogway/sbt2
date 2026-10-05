@@ -21,7 +21,8 @@ server and a protocol for a future GUI.
   server. Its [README](sbt2-backend/README.md) has the quick start.
 - [sbt2-protocol/](sbt2-protocol): the protobuf messages between the server and
   its GUI. Its [README](sbt2-protocol/README.md) has the protocol rules.
-- [sbt2-gui/](sbt2-gui): reserved for the GUI.
+- [sbt2-gui/](sbt2-gui): the GUI, written in Rust with
+  [iced](https://iced.rs). Its [README](sbt2-gui/README.md) has the build.
 
 ## Install
 
