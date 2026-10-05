@@ -131,6 +131,25 @@ steps:
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-server --file /cache/coverage.xml || true
         exit $status
 
+  - name: test-sbt2-papers
+    image: *image
+    environment:
+      <<: *env
+      CODECOV_TOKEN:
+        from_secret: codecov_token
+    volumes: [sbt2-cache-test-sbt2-papers:/cache:z]
+    depends_on: []
+    when: *backend
+    commands:
+      # only the member and what it declares, so an undeclared dependency fails here
+      - uv --directory sbt2-backend sync --locked --package sbt2-papers
+      - |
+        status=0
+        env -u CODECOV_TOKEN uv --directory sbt2-backend run --locked --package sbt2-papers pytest packages/sbt2-papers/tests --cov --cov-config=packages/sbt2-papers/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag sbt2-papers --file /cache/junit.xml --disable-search || true
+        uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-papers --file /cache/coverage.xml || true
+        exit $status
+
   # the root tests span the members, so they run with the whole workspace
   - name: test
     image: *image
