@@ -8,6 +8,7 @@ from typing import Self, override
 
 from sbt2.core.config import ConfigFolder, Root
 from sbt2.server.runs.jobs import Submission
+from sbt2.server.runs.lines import Lines
 from sbt2.server.runs.wire import (
     GO,
     Event,
@@ -121,13 +122,12 @@ class _ProcessWorker(Worker):
             self._queue.put_nowait(decode(line.decode()))
 
     async def _read_output(self, output: asyncio.StreamReader) -> None:
-        pending = b""
+        lines = Lines()
         while chunk := await output.read(_CHUNK):
-            *lines, pending = (pending + chunk).split(b"\n")
-            if lines:
-                self._queue.put_nowait(LogLines(tuple(_line(each) for each in lines)))
-        if pending:
-            self._queue.put_nowait(LogLines((_line(pending),)))
+            if complete := lines.feed(chunk):
+                self._queue.put_nowait(LogLines(tuple(complete)))
+        if last := lines.flush():
+            self._queue.put_nowait(LogLines(tuple(last)))
 
     async def _finish(self, readers: list[asyncio.Task[None]]) -> None:
         code = await self._process.wait()
@@ -155,7 +155,3 @@ def _stdout(process: asyncio.subprocess.Process) -> asyncio.StreamReader:
     if process.stdout is None:
         raise RuntimeError("the job process has no output pipe")
     return process.stdout
-
-
-def _line(raw: bytes) -> str:
-    return raw.decode(errors="replace").rstrip("\r")

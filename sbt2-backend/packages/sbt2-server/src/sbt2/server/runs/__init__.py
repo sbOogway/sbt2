@@ -24,6 +24,7 @@ from sbt2.server.runs.jobs import (
 )
 from sbt2.server.runs.memory import InMemoryJobs
 from sbt2.server.runs.process import ProcessWorkers
+from sbt2.server.runs.pushes import recent_lines, update_messages
 
 PUSH_INTERVAL = 0.25
 
@@ -90,7 +91,7 @@ class _Runs:
             job_subscribed=JobSubscribed(
                 subscription_id=subscription_id,
                 job=subscription.job,
-                log_lines=subscription.log_lines,
+                log_lines=recent_lines(subscription.job, subscription.log_lines),
             )
         )
 
@@ -114,11 +115,8 @@ class _Runs:
                 woken.clear()
                 over = collecting.done()
                 if merged.pending:
-                    outbox.push(
-                        ServerMessage(
-                            subscription_id=subscription_id, job_update=merged.take()
-                        )
-                    )
+                    for message in update_messages(merged.take(), subscription_id):
+                        outbox.push(message)
                 if over:
                     return
                 await asyncio.sleep(self.interval)

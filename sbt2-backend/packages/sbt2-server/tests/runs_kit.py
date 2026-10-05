@@ -265,8 +265,12 @@ class FakeWorkers(Workers):
 
 
 class ScriptedSubscription(Subscription):
-    def __init__(self, updates: list[JobUpdate]) -> None:
-        super().__init__(Job(job_id="job", state=JobState.JOB_STATE_RUNNING), [])
+    def __init__(
+        self, updates: list[JobUpdate], log_lines: list[str] | None = None
+    ) -> None:
+        super().__init__(
+            Job(job_id="job", state=JobState.JOB_STATE_RUNNING), log_lines or []
+        )
         self._updates = updates
         self.closed = False
 

@@ -39,8 +39,11 @@ from sbt2.protocol.v1.runs_pb2 import (
 from sbt2.protocol.v1.types_pb2 import ErrorCode
 from sbt2.server import results
 from sbt2.server import runs as area
+from sbt2.server.limits import MAX_ENVELOPE
 from sbt2.server.runs.jobs import Jobs, Submission, Subscription
+from sbt2.server.runs.lines import LINE_LIMIT, Lines
 from sbt2.server.runs.memory import InMemoryJobs
+from sbt2.server.runs.pushes import update_messages
 from sbt2.server.runs.wire import (
     Done,
     Exited,
@@ -307,28 +310,29 @@ def test_subscribing_after_reconnect_gets_the_current_state_first(
     in_one_loop(scenario())
 
 
+class Static(Jobs):
+    def __init__(self, subscription: Subscription) -> None:
+        self._subscription = subscription
+
+    @override
+    async def submit(self, submission: Submission) -> JobSubmitted:
+        raise NotImplementedError
+
+    @override
+    async def cancel(self, job_id: str) -> None:
+        raise NotImplementedError
+
+    @override
+    def list_jobs(self) -> list[Job]:
+        return []
+
+    @override
+    def subscribe(self, job_id: str) -> Subscription:
+        return self._subscription
+
+
 @pytest.mark.unit
 def test_job_updates_are_coalesced_to_a_few_per_second() -> None:
-    class Static(Jobs):
-        def __init__(self, subscription: Subscription) -> None:
-            self._subscription = subscription
-
-        @override
-        async def submit(self, submission: Submission) -> JobSubmitted:
-            raise NotImplementedError
-
-        @override
-        async def cancel(self, job_id: str) -> None:
-            raise NotImplementedError
-
-        @override
-        def list_jobs(self) -> list[Job]:
-            return []
-
-        @override
-        def subscribe(self, job_id: str) -> Subscription:
-            return self._subscription
-
     lines = [f"line {number}" for number in range(300)]
     emitted = [
         JobUpdate(log_lines=[line], state=JobState.JOB_STATE_RUNNING) for line in lines
@@ -575,3 +579,86 @@ def test_unsubscribe_stops_the_pushes() -> None:
         assert len(session.pushes) == before
 
     in_one_loop(scenario())
+
+
+@pytest.mark.unit
+def test_a_flood_of_log_lines_is_pushed_within_the_envelope_limit() -> None:
+    lines = [f"{number:04} " + "x" * 5000 for number in range(1000)]
+    emitted = [
+        JobUpdate(log_lines=lines[at : at + 100], state=JobState.JOB_STATE_RUNNING)
+        for at in range(0, len(lines), 100)
+    ]
+    emitted[-1].state = JobState.JOB_STATE_FINISHED
+    emitted[-1].runs.add(run_id="run-1", state=RunStatus.RUN_STATUS_FINISHED)
+    subscription = ScriptedSubscription(emitted)
+
+    async def scenario() -> None:
+        session = Session(area.routes(Static(subscription)))
+        await subscribe(session, "job")
+        await until(lambda: True if subscription.closed else None, timeout=20)
+        pushes = session.pushes
+        assert all(each.ByteSize() <= MAX_ENVELOPE for each in pushes)
+        pushed = [each.job_update for each in pushes]
+        assert [line for each in pushed for line in each.log_lines] == lines
+        assert pushed[-1].state == JobState.JOB_STATE_FINISHED
+        assert [each.run_id for each in pushed[-1].runs] == ["run-1"]
+
+    in_one_loop(scenario())
+
+
+@pytest.mark.unit
+def test_an_over_long_log_line_is_truncated_and_a_stream_without_newline_is_bounded() -> (
+    None
+):
+    lines = Lines()
+
+    first = lines.feed(b"x" * (10 * LINE_LIMIT) + b"\nnext\n")
+    for _ in range(50):
+        assert lines.feed(b"y" * 1_000_000) == []
+    last = lines.flush()
+
+    assert len(first) == 2
+    assert first[0].startswith("xxx")
+    assert first[0].endswith("[truncated]")
+    assert len(first[0]) <= LINE_LIMIT + 32
+    assert first[1] == "next"
+    assert len(last) == 1
+    assert len(last[0]) <= LINE_LIMIT + 32
+
+
+@pytest.mark.unit
+def test_a_snapshot_drops_the_oldest_log_lines_until_it_fits() -> None:
+    lines = [f"{number:03} " + "x" * 8000 for number in range(200)]
+    subscription = ScriptedSubscription([], lines)
+
+    async def scenario() -> None:
+        session = Session(area.routes(Static(subscription)))
+        reply = await subscribe(session, "job")
+        kept = list(reply.job_subscribed.log_lines)
+        assert reply.ByteSize() <= MAX_ENVELOPE
+        assert 0 < len(kept) < 200
+        assert kept == lines[-len(kept) :]
+        await session.close()
+
+    in_one_loop(scenario())
+
+
+@pytest.mark.unit
+def test_a_split_update_carries_the_job_state_in_its_last_push_only() -> None:
+    update = JobUpdate(
+        log_lines=["x" * 5000] * 600,
+        state=JobState.JOB_STATE_FAILED,
+        reason="broke",
+    )
+    update.runs.add(run_id="run-1", state=RunStatus.RUN_STATUS_FAILED)
+
+    messages = update_messages(update, 7)
+
+    assert len(messages) > 1
+    assert all(each.subscription_id == 7 for each in messages)
+    assert [each.job_update.state for each in messages[:-1]] == [
+        JobState.JOB_STATE_UNSPECIFIED
+    ] * (len(messages) - 1)
+    assert messages[-1].job_update.state == JobState.JOB_STATE_FAILED
+    assert messages[-1].job_update.reason == "broke"
+    assert [r.run_id for each in messages for r in each.job_update.runs] == ["run-1"]
