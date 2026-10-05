@@ -1,6 +1,7 @@
 import hashlib
 import json
 import re
+import tomllib
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -39,6 +40,7 @@ from sbt2.core.spec import (
     UnknownSplitError,
     UnknownVenueProfileError,
     load,
+    load_table,
 )
 from sbt2.core.strategy import UnknownParameterError
 
@@ -875,3 +877,38 @@ def test_the_study_does_not_enter_the_hash(paths: tuple[Path, Path]) -> None:
 def test_a_study_name_must_be_a_slug(paths: tuple[Path, Path]) -> None:
     with pytest.raises(InvalidStudyNameError, match=re.escape("../x")):
         resolved(in_study(paths, "../x"))
+
+
+TABLE_SPEC = SPEC.replace('part = "train"', 'part = ["train", "validation"]').replace(
+    "lookback = 30", "lookback = [30, 60]"
+)
+
+
+@pytest.mark.unit
+def test_load_table_resolves_every_run_a_table_expands_into(
+    paths: tuple[Path, Path],
+) -> None:
+    spec, venues = paths
+    spec.write_text(TABLE_SPEC)
+
+    from_table = load_table(tomllib.loads(TABLE_SPEC), venues)
+
+    assert len(from_table) == 4
+    assert [each.hash for each in from_table] == [
+        each.hash for each in load(spec, venues)
+    ]
+
+
+@pytest.mark.unit
+def test_load_table_rejects_unknown_keys_and_a_missing_split(
+    paths: tuple[Path, Path],
+) -> None:
+    _, venues = paths
+    table = tomllib.loads(SPEC)
+
+    with pytest.raises(UnknownSpecKeyError, match="symbols"):
+        load_table({**table, "symbols": []}, venues)
+    with pytest.raises(MissingSplitError):
+        load_table(
+            {key: value for key, value in table.items() if key != "split"}, venues
+        )

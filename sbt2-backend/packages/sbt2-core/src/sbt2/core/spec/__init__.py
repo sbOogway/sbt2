@@ -6,7 +6,7 @@ from sbt2.core.spec.file import (
     MissingSplitError,
     UnknownSpecKeyError,
 )
-from sbt2.core.spec.load import DuplicateRunError, load
+from sbt2.core.spec.load import DuplicateRunError, load, load_table
 from sbt2.core.spec.resolve import (
     FeeModelKind,
     FillModelKind,
@@ -70,6 +70,7 @@ __all__ = [
     "UnknownVenueProfileError",
     "delete_venue_profile",
     "load",
+    "load_table",
     "model_kinds",
     "put_venue_profile",
     "venue_profiles",
