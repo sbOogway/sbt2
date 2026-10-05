@@ -4,10 +4,16 @@ from dataclasses import dataclass
 from typing import Any
 
 from sbt2.protocol.v1.runs_pb2 import Job, JobSubmitted, JobUpdate
+from sbt2.protocol.v1.types_pb2 import StudyConflict
 
 
 class InvalidSubmissionError(ValueError):
-    """A submission the server cannot run; its message says why."""
+    """A submission the server cannot run; its message says why. A run that
+    does not fit its study also carries the ``conflict``."""
+
+    def __init__(self, message: str, conflict: StudyConflict | None = None) -> None:
+        super().__init__(message)
+        self.conflict = conflict
 
 
 class NotFoundError(LookupError):

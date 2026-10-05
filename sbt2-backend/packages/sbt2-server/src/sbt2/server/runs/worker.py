@@ -24,15 +24,20 @@ from sbt2.core import data, spec
 from sbt2.core.config import Root
 from sbt2.core.run import (
     BatchSetup,
+    DuplicateStudyRunError,
     Launch,
     PreflightError,
     RunFailedError,
+    StudyCodeError,
+    StudyContextError,
     StudyError,
     Uncapped,
     batch,
 )
 from sbt2.server.runs.wire import (
     GO,
+    Conflict,
+    ConflictKind,
     Crashed,
     Done,
     Event,
@@ -166,11 +171,23 @@ def _failure(error: Exception, progress: _Progress) -> Event:
     return _rejection(error)
 
 
+def _conflict(error: Exception) -> Conflict | None:
+    match error:
+        case StudyContextError(keys=keys):
+            return Conflict(ConflictKind.CONTEXT, context_keys=keys)
+        case StudyCodeError():
+            return Conflict(ConflictKind.CODE)
+        case DuplicateStudyRunError(run_id=run_id):
+            return Conflict(ConflictKind.DUPLICATE_RUN, run_id=run_id)
+        case _:
+            return None
+
+
 def _rejection(error: Exception) -> Rejected:
     if isinstance(error, spec.UnknownVenueProfileError):
         return Rejected(Rejection.NOT_FOUND, _described(error))
     if isinstance(error, _INVALID):
-        return Rejected(Rejection.INVALID, _described(error))
+        return Rejected(Rejection.INVALID, _described(error), _conflict(error))
     return Rejected(Rejection.INTERNAL, f"{type(error).__name__}: {error}")
 
 

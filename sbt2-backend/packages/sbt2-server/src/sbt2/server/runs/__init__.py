@@ -13,7 +13,7 @@ from sbt2.protocol.v1.runs_pb2 import (
     Unsubscribed,
 )
 from sbt2.protocol.v1.runs_pb2 import Jobs as JobList
-from sbt2.protocol.v1.types_pb2 import Error, ErrorCode
+from sbt2.protocol.v1.types_pb2 import Error, ErrorCode, StudyConflict
 from sbt2.server import Handler, Outbox
 from sbt2.server.runs.encoding import InvalidArgumentError, submission
 from sbt2.server.runs.jobs import (
@@ -170,14 +170,23 @@ def _guard(handler: Handler) -> Handler:
             return await handler(request, outbox)
         except NotFoundError as error:
             return _error(ErrorCode.ERROR_CODE_NOT_FOUND, error)
-        except (InvalidSubmissionError, InvalidArgumentError) as error:
-            return _error(ErrorCode.ERROR_CODE_INVALID_ARGUMENT, error)
+        except InvalidSubmissionError as error:
+            return _invalid(error, error.conflict)
+        except InvalidArgumentError as error:
+            return _invalid(error, None)
 
     return answer
 
 
 def _error(code: ErrorCode.ValueType, error: Exception) -> ServerMessage:
     return ServerMessage(error=Error(code=code, message=str(error)))
+
+
+def _invalid(error: Exception, conflict: StudyConflict | None) -> ServerMessage:
+    reply = _error(ErrorCode.ERROR_CODE_INVALID_ARGUMENT, error)
+    if conflict is not None:
+        reply.error.study_conflict.CopyFrom(conflict)
+    return reply
 
 
 __all__ = ["local_jobs", "routes"]

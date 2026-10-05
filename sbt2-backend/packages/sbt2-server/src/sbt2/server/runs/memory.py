@@ -13,6 +13,7 @@ from sbt2.protocol.v1.runs_pb2 import (
     RunState,
     RunStatus,
 )
+from sbt2.protocol.v1.types_pb2 import StudyConflict, StudyConflictKind
 from sbt2.server.runs.jobs import (
     InvalidSubmissionError,
     Jobs,
@@ -21,6 +22,8 @@ from sbt2.server.runs.jobs import (
     Subscription,
 )
 from sbt2.server.runs.wire import (
+    Conflict,
+    ConflictKind,
     Crashed,
     Done,
     Event,
@@ -117,8 +120,8 @@ class InMemoryJobs(Jobs):
         match event:
             case Planned(run_ids):
                 self._accept(job, run_ids, checked)
-            case Rejected(kind, message):
-                _reject(checked, _rejection(kind, message))
+            case Rejected(kind, message, conflict):
+                _reject(checked, _rejection(kind, message, conflict))
             case Crashed(reason) if not checked.done():
                 _reject(checked, RuntimeError(reason))
             case Exited(code):
@@ -279,15 +282,32 @@ def _copied(run: RunState) -> RunState:
     return copy
 
 
-def _rejection(kind: Rejection, message: str) -> Exception:
+def _rejection(kind: Rejection, message: str, conflict: Conflict | None) -> Exception:
     match kind:
         case Rejection.INVALID:
-            return InvalidSubmissionError(message)
+            return InvalidSubmissionError(message, _detail(conflict))
         case Rejection.NOT_FOUND:
             return NotFoundError(message)
         case _:
             logger.error("a job's specs could not be checked: %s", message)
             return RuntimeError(message)
+
+
+_KINDS = {
+    ConflictKind.CONTEXT: StudyConflictKind.STUDY_CONFLICT_KIND_CONTEXT,
+    ConflictKind.CODE: StudyConflictKind.STUDY_CONFLICT_KIND_CODE,
+    ConflictKind.DUPLICATE_RUN: StudyConflictKind.STUDY_CONFLICT_KIND_DUPLICATE_RUN,
+}
+
+
+def _detail(conflict: Conflict | None) -> StudyConflict | None:
+    if conflict is None:
+        return None
+    return StudyConflict(
+        kind=_KINDS[conflict.kind],
+        context_keys=conflict.context_keys,
+        run_id=conflict.run_id,
+    )
 
 
 def _reject(checked: asyncio.Future[list[str]], error: Exception) -> None:

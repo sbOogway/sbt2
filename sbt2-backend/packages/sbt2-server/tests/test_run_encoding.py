@@ -6,6 +6,14 @@ from runs_kit import spec_message
 
 from sbt2.protocol.v1.runs_pb2 import SpecFile
 from sbt2.server.runs.encoding import InvalidArgumentError, spec_table
+from sbt2.server.runs.wire import (
+    Conflict,
+    ConflictKind,
+    Rejected,
+    Rejection,
+    decode,
+    encode,
+)
 
 TABLE: dict[str, Any] = {
     "strategy": "trend:Trend",
@@ -81,3 +89,20 @@ def test_spec_file_message_with_a_half_set_period_is_invalid_argument() -> None:
 
     with pytest.raises(InvalidArgumentError, match="period"):
         spec_table(message)
+
+
+@pytest.mark.unit
+def test_a_rejection_keeps_its_study_conflict() -> None:
+    conflicts = [
+        Conflict(ConflictKind.CONTEXT, context_keys=("capital", "period")),
+        Conflict(ConflictKind.CODE),
+        Conflict(ConflictKind.DUPLICATE_RUN, run_id="run-1"),
+    ]
+    for conflict in conflicts:
+        rejected = Rejected(Rejection.INVALID, "no", conflict)
+
+        assert decode(encode(rejected)) == rejected
+
+    plain = Rejected(Rejection.INVALID, "no")
+    assert decode(encode(plain)) == plain
+    assert decode('{"type": "rejected", "kind": "invalid", "message": "no"}') == plain
