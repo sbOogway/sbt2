@@ -9,7 +9,7 @@ dependencies = [
     "duckdb>=1.5.6",
     "httpx>=0.28.1",
     "jeepney>=0.9.0",
-    "nautilus-trader[visualization]==2.0.0rc6.dev20261003",
+    "nautilus-trader[visualization]==2.0.0rc6",
     "pandas>=3.0.6",
     "pyarrow>=25.0.1",
     "tomli-w>=1.2.0",
