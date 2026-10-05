@@ -1,5 +1,9 @@
+# a draft gets no CI; marking it ready for review starts it
 when:
   - event: pull_request
+    evaluate: 'CI_COMMIT_PULL_REQUEST_DRAFT != "true"'
+  - event: pull_request_metadata
+    evaluate: 'CI_PIPELINE_EVENT_REASON == "ready_for_review"'
   - event: push
     branch: main
   - event: manual
@@ -14,21 +18,21 @@ variables:
     # uv, prek, pyright's Node.js and codecov-cli all keep their caches under it
     XDG_CACHE_HOME: /cache
   - &backend
-    - event: pull_request
+    - event: [pull_request, pull_request_metadata]
       path:
         - sbt2-backend/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
     - event: [push, manual]
   - &protocol
-    - event: pull_request
+    - event: [pull_request, pull_request_metadata]
       path:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
     - event: [push, manual]
   - &backend_or_protocol
-    - event: pull_request
+    - event: [pull_request, pull_request_metadata]
       path:
         - sbt2-backend/**
         - sbt2-protocol/**
@@ -174,7 +178,7 @@ steps:
     image: quay.io/buildah/stable:v1.43.4
     # the slowest step; on pull requests it runs only when the image's recipe or dependencies change
     when:
-      - event: pull_request
+      - event: [pull_request, pull_request_metadata]
         path:
           - sbt2-backend/Containerfile
           - sbt2-backend/.dockerignore
