@@ -3,6 +3,7 @@ import os
 import signal
 import time
 import uuid
+from collections.abc import Sequence
 from functools import partial
 from pathlib import Path
 from typing import override
@@ -100,14 +101,17 @@ class SlowLauncher(PlainLauncher):
 
 class RecordedProgress:
     def __init__(self) -> None:
-        self.runs: list[int] = []
-        self.done: list[str] = []
+        self.planned_ids: list[tuple[str, ...]] = []
+        self.events: list[tuple[str, str]] = []
 
-    def planned(self, runs: int) -> None:
-        self.runs.append(runs)
+    def planned(self, run_ids: Sequence[str]) -> None:
+        self.planned_ids.append(tuple(run_ids))
+
+    def started(self, run_id: str) -> None:
+        self.events.append(("started", run_id))
 
     def finished(self, run_id: str) -> None:
-        self.done.append(run_id)
+        self.events.append(("finished", run_id))
 
 
 class CountingLauncher(ScriptedLauncher):
@@ -311,7 +315,7 @@ def test_the_parent_writes_nothing_to_the_store(
 
 
 @pytest.mark.integration
-def test_progress_counts_the_runs_planned_and_finished(
+def test_batch_progress_hears_planned_run_ids_then_started_and_finished(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     progress = RecordedProgress()
@@ -324,8 +328,10 @@ def test_progress_counts_the_runs_planned_and_finished(
         specs, setup(tmp_path, ScriptedLauncher(monkeypatch, [exits, exits])), progress
     )
 
-    assert progress.runs == [2]
-    assert sorted(progress.done) == sorted(run_ids)
+    assert progress.planned_ids == [run_ids]
+    for run_id in run_ids:
+        events = [each for each in progress.events if each[1] == run_id]
+        assert events == [("started", run_id), ("finished", run_id)]
 
 
 @pytest.mark.integration

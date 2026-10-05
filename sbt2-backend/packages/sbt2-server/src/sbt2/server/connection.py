@@ -38,7 +38,7 @@ class Connection(Outbox):
                 "closing a client that fell %d messages behind", self._outgoing.maxsize
             )
             self._closing = True
-            self._spawn(self._channel.close(TRY_AGAIN_LATER))
+            self.spawn(self._channel.close(TRY_AGAIN_LATER))
 
     async def send(self, message: ServerMessage) -> None:
         if self._closing:
@@ -71,7 +71,7 @@ class Connection(Outbox):
         if not self._greeted:
             self.push(_before_hello(request))
             return
-        self._spawn(self._answer(request))
+        self.spawn(self._answer(request))
 
     async def _answer(self, request: ClientMessage) -> None:
         await self.send(await self._router.answer(request, self))
@@ -81,10 +81,11 @@ class Connection(Outbox):
             message = await self._outgoing.get()
             await self._channel.send(message.SerializeToString())
 
-    def _spawn(self, work: Coroutine[Any, Any, None]) -> None:
+    def spawn(self, work: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
         task = asyncio.create_task(work)
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
+        return task
 
 
 def _decoded(frame: bytes | str) -> ClientMessage | None:

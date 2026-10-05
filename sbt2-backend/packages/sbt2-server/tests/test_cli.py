@@ -175,3 +175,15 @@ def test_welcome_announces_the_config_capability(
     server, _ = served(monkeypatch, [])
 
     assert Capability.CAPABILITY_CONFIG in browsed(server)[0].capabilities
+
+
+@pytest.mark.integration
+def test_welcome_announces_the_runs_capability(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SBT2_SERVER_TOKEN", TOKEN)
+    monkeypatch.setenv("SBT2_DATA", str(tmp_path / "data"))
+
+    server, _ = served(monkeypatch, [])
+
+    assert Capability.CAPABILITY_RUNS in browsed(server)[0].capabilities

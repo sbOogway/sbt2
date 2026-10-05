@@ -1,6 +1,8 @@
 from collections.abc import Mapping
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from decimal import Decimal
+from pathlib import Path
 from typing import Any
 
 from nautilus_trader.model import (
@@ -14,9 +16,14 @@ from sbt2.core.assets import AssetProfile, asset_profile
 from sbt2.core.data import CANDLES
 from sbt2.core.spec.errors import SpecError
 from sbt2.core.spec.resolve.models import model_tables
-from sbt2.core.spec.risk import RiskLimits, risk_limits
+from sbt2.core.spec.risk import risk_limits
 from sbt2.core.spec.split import Splitter, from_table
-from sbt2.core.strategy import StrategyRun, import_strategy, resolve_params
+from sbt2.core.strategy import (
+    Strategy,
+    StrategyRun,
+    import_strategy,
+    resolve_params,
+)
 
 type Document = Mapping[str, Any]
 
@@ -25,13 +32,20 @@ class OutdatedRunError(SpecError):
     pass
 
 
-def spec_fields(document: Document) -> dict[str, Any]:
-    """The ``ResolvedRunSpec`` fields its hashed document holds, typed back."""
+def spec_fields(
+    document: Document, strategy_source: Path | None = None
+) -> dict[str, Any]:
+    """The ``ResolvedRunSpec`` fields its hashed document holds, typed back; the
+    strategy's module is read from ``strategy_source`` when given."""
     asset = _asset(document)
     data = [_data_arguments(each) for each in document["data"]]
     risk = risk_limits(document.get("risk", {}))
     return {
-        "strategy": _strategy(document["strategy"], data, risk),
+        "strategy": _strategy(
+            document["strategy"],
+            import_strategy(document["strategy"]["path"], strategy_source),
+            _Streaming(_aggregated_from(data), risk.drawdown_limit),
+        ),
         "asset": asset,
         "venue": _venue(document["venue"], asset),
         "data": data,
@@ -51,18 +65,23 @@ def _asset(document: Document) -> AssetProfile:
     )
 
 
+@dataclass(frozen=True)
+class _Streaming:
+    aggregated_from: str | None
+    drawdown_limit: Decimal | None
+
+
 def _strategy(
-    document: Document, data: list[dict[str, Any]], risk: RiskLimits
+    document: Document, strategy: type[Strategy[Any]], streaming: _Streaming
 ) -> StrategyRun:
-    path = document["path"]
-    params = resolve_params(import_strategy(path), document["params"])
+    params = resolve_params(strategy, document["params"])
     return StrategyRun(
-        path,
+        document["path"],
         _instrument_ids(document["instruments"]),
         asdict(params),
         datetime.fromisoformat(document["trade_start"]),
-        _aggregated_from(data),
-        risk.drawdown_limit,
+        streaming.aggregated_from,
+        streaming.drawdown_limit,
     )
 
 

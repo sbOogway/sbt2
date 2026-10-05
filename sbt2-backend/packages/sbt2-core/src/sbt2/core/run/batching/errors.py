@@ -6,6 +6,7 @@ class RunFailedError(RuntimeError):
         super().__init__(f"run {run_id} failed: {reason}; its folder is {folder}")
         self.run_id = run_id
         self.folder = folder
+        self.reason = reason
 
 
 class OutOfMemoryError(RunFailedError):

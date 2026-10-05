@@ -29,6 +29,10 @@ class OutputSink(Protocol):
 
     def write_reports(self, reports: Reports) -> None: ...
 
+    def write_strategy_source(self, source: str) -> None:
+        """Keep the source of the strategy's module with the run."""
+        ...
+
     def write_drawdown_trip(self, tripped_at: datetime) -> None:
         """Record when the drawdown guard stopped the run's trading.
 

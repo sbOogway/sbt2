@@ -3,7 +3,7 @@ import logging
 import math
 import re
 import sys
-from collections.abc import Generator, Hashable, Mapping
+from collections.abc import Generator, Hashable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import fields, replace
 from datetime import date, datetime, timedelta
@@ -162,7 +162,7 @@ def _memory(budget: int | None, per_run: int | None) -> Memory:
 
 def _run(runs: list[spec.ResolvedRunSpec], setup: BatchSetup) -> None:
     """Pre-flight every run, then execute them in a batch."""
-    with _bar("runs") as bar:
+    with _runs_bar() as bar:
         run_ids = batch(runs, setup, bar)
     for run_id in run_ids:
         logger.info("stored run %s in %s", run_id, setup.store.folder(run_id))
@@ -635,6 +635,29 @@ class _DownloadBar(_Bar):
 def _bar(description: str) -> Generator[_Bar]:
     with _progress() as progress:
         yield _Bar(progress, progress.add_task(description, total=None))
+
+
+class _RunsBar:
+    """Runs finished out of those planned."""
+
+    def __init__(self, progress: Progress, task: TaskID) -> None:
+        self._progress = progress
+        self._task = task
+
+    def planned(self, run_ids: Sequence[str]) -> None:
+        self._progress.update(self._task, total=len(run_ids))
+
+    def started(self, _run_id: str, /) -> None:
+        pass
+
+    def finished(self, _run_id: str, /) -> None:
+        self._progress.advance(self._task)
+
+
+@contextmanager
+def _runs_bar() -> Generator[_RunsBar]:
+    with _progress() as progress:
+        yield _RunsBar(progress, progress.add_task("runs", total=None))
 
 
 @contextmanager

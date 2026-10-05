@@ -9,6 +9,7 @@ from sbt2.core.strategy.base import (
     import_strategy,
     importable_config,
     resolve_params,
+    strategy_source,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "import_strategy",
     "importable_config",
     "resolve_params",
+    "strategy_source",
 ]

@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import Coroutine
 from dataclasses import dataclass, replace
 from datetime import timedelta
 from pathlib import Path
@@ -19,12 +20,18 @@ BASE_STRATEGY = "sbt2.core.strategy:Strategy"
 class KeptReplies(Outbox):
     def __init__(self) -> None:
         self.messages: list[ServerMessage] = []
+        self.tasks: list[asyncio.Task[None]] = []
 
     def push(self, message: ServerMessage) -> None:
         self.messages.append(message)
 
     async def send(self, message: ServerMessage) -> None:
         self.messages.append(message)
+
+    def spawn(self, work: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
+        task = asyncio.create_task(work)
+        self.tasks.append(task)
+        return task
 
 
 def ask(routes: dict[str, Handler], request: ClientMessage) -> list[ServerMessage]:

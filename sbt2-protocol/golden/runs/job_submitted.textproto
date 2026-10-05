@@ -1,0 +1,6 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 31
+job_submitted {
+  job_id: "0198cc00-0000-7000-8000-0000000000aa"
+  run_ids: ["0198cc00-0000-7000-8000-000000000001", "0198cc00-0000-7000-8000-000000000002"]
+}

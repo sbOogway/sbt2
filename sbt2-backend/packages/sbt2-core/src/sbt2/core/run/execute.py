@@ -10,7 +10,12 @@ from nautilus_trader.model import PositionAdjusted, PositionAdjustmentType, Venu
 
 from sbt2.core.results import OutputSink, Reports
 from sbt2.core.spec import ResolvedRunSpec
-from sbt2.core.strategy import Strategy, StrategyRun, build_strategy
+from sbt2.core.strategy import (
+    Strategy,
+    StrategyRun,
+    build_strategy,
+    strategy_source,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +51,7 @@ class _Backtest:
 def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> None:
     """Run one backtest in this process and hand its output to ``sink``."""
     logger.info("run %s: %s from %s", sink.run_id, spec.strategy.strategy, spec.start)
+    sink.write_strategy_source(strategy_source(spec.strategy.strategy))
     config = _run_config(spec, settings)
     backtest = _Backtest(BacktestNode([config]), config.id, Venue(spec.venue_name))
     try:

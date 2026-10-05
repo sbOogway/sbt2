@@ -1,0 +1,35 @@
+# proto-message: sbt2.protocol.v1.ClientMessage
+request_id: 31
+submit_run {
+  spec {
+    strategy: "trend:Trend"
+    instruments: "BTCUSDT-LINEAR.BYBIT"
+    period {
+      start_at { seconds: 1704067200 }
+      end_at { seconds: 1709251200 }
+    }
+    venue: "bybit_linear"
+    capital: "10000 USDT"
+    part: ["train", "validation"]
+    split {
+      fields { key: "validation_start" value { string_value: "2024-02-01" } }
+      fields { key: "test_start" value { string_value: "2024-02-15" } }
+    }
+    seed: 7
+    equity_interval: "1h"
+    liquidation: false
+    bars: "trades"
+    params {
+      fields { key: "lookback" value { list_value { values { number_value: 30 } values { number_value: 60 } } } }
+      fields { key: "quantity" value { string_value: "0.100" } }
+    }
+    risk {
+      fields { key: "drawdown_limit" value { string_value: "0.2" } }
+    }
+    study: "trend-btc"
+  }
+  strategy {
+    name: "trend"
+    source: "from sbt2.core.strategy import Strategy\n"
+  }
+}

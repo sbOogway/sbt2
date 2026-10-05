@@ -5,8 +5,8 @@ from google.protobuf.message import Message
 
 from sbt2.protocol.v1.envelope_pb2 import ServerMessage
 from sbt2.server import Outbox, offloaded
+from sbt2.server.limits import MAX_ENVELOPE
 
-MAX_ENVELOPE = 1_048_576
 # room for the chunk's index, last flag and the length prefixes its bytes add
 _CHUNK_OVERHEAD = 32
 

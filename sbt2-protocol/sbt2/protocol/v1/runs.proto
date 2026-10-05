@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+package sbt2.protocol.v1;
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// The period a spec covers, before its split.
+message SpecPeriod {
+  google.protobuf.Timestamp start_at = 1;
+  google.protobuf.Timestamp end_at = 2;
+}
+
+// A spec file's table, key for key.
+message SpecFile {
+  // The strategy's class in the uploaded module, as "module:Class".
+  string strategy = 1;
+  repeated string instruments = 2;
+  SpecPeriod period = 3;
+  // The name of a venue profile in the server's config.
+  string venue = 4;
+  // A nautilus money string, such as "10000 USDT".
+  string capital = 5;
+  // The parts to run: train, validation or test. Empty runs train and validation.
+  repeated string part = 6;
+  // The split's table: validation_start and test_start as ISO 8601 strings, or
+  // validation and test as fractions.
+  google.protobuf.Struct split = 7;
+  optional int64 seed = 8;
+  optional string equity_interval = 9;
+  optional bool liquidation = 10;
+  optional string bars = 11;
+  // The strategy's parameters; a list value is a sweep, one run for each of its
+  // items. An integral number is read as an integer.
+  google.protobuf.Struct params = 12;
+  // The risk table: drawdown_limit and the risk engine's limits.
+  google.protobuf.Struct risk = 13;
+  optional string study = 14;
+}
+
+// A single-module strategy, sent as source.
+message StrategyModule {
+  // A Python identifier that no module of the server's image already has.
+  string name = 1;
+  string source = 2;
+}
+
+// Starts a job whose runs are the spec's expansion. The server answers once the
+// spec is checked: JobSubmitted, or an Error and no job.
+message SubmitRun {
+  SpecFile spec = 1;
+  StrategyModule strategy = 2;
+}
+
+message JobSubmitted {
+  string job_id = 1;
+  // The runs the job makes, in the order the spec expands into them.
+  repeated string run_ids = 2;
+}
+
+enum JobState {
+  JOB_STATE_UNSPECIFIED = 0;
+  // Checked, and waiting for the jobs before it.
+  JOB_STATE_QUEUED = 1;
+  JOB_STATE_CHECKING = 2;
+  JOB_STATE_RUNNING = 3;
+  JOB_STATE_FINISHED = 4;
+  JOB_STATE_FAILED = 5;
+  JOB_STATE_CANCELLED = 6;
+}
+
+enum RunStatus {
+  RUN_STATUS_UNSPECIFIED = 0;
+  RUN_STATUS_PENDING = 1;
+  RUN_STATUS_RUNNING = 2;
+  RUN_STATUS_FINISHED = 3;
+  RUN_STATUS_FAILED = 4;
+  RUN_STATUS_CANCELLED = 5;
+}
+
+message RunState {
+  string run_id = 1;
+  RunStatus state = 2;
+  // Why the run failed; empty otherwise.
+  string reason = 3;
+}
+
+message Job {
+  string job_id = 1;
+  JobState state = 2;
+  repeated RunState runs = 3;
+  // Why a failed job failed when no run is to blame; empty otherwise.
+  string reason = 4;
+}
+
+// Stops the job; its runs not finished become cancelled. Cancelling a finished
+// job does nothing.
+message CancelJob {
+  string job_id = 1;
+}
+
+message JobCancelled {}
+
+message ListJobs {}
+
+message Jobs {
+  repeated Job jobs = 1;
+}
+
+// Follows a job: JobSubscribed first, then a JobUpdate push for each change,
+// at most a few a second, the last one when the job is over.
+message SubscribeJob {
+  string job_id = 1;
+}
+
+message JobSubscribed {
+  // Names the subscription in the pushes that follow, and in Unsubscribe.
+  uint64 subscription_id = 1;
+  Job job = 2;
+  // The latest lines the job printed, oldest first.
+  repeated string log_lines = 3;
+}
+
+// A push of a subscription, with the run states that changed.
+message JobUpdate {
+  repeated RunState runs = 1;
+  // Lines of the job's stdout and stderr, in the order they were printed.
+  repeated string log_lines = 2;
+  JobState state = 3;
+  string reason = 4;
+}
+
+message Unsubscribe {
+  uint64 subscription_id = 1;
+}
+
+message Unsubscribed {}

@@ -1,10 +1,17 @@
 import functools
+import hashlib
 import importlib
+import importlib.util
+import inspect
+import sys
+import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, ClassVar, get_type_hints
 
 from nautilus_trader.core import dt_to_unix_nanos, unix_nanos_to_dt
@@ -223,13 +230,58 @@ class InvalidParameterError(ValueError):
     pass
 
 
-def import_strategy(path: str) -> type[Strategy[Any]]:
-    """Import a strategy class from ``"package.module:Class"``."""
+_LOAD_LOCK = threading.Lock()
+
+
+def import_strategy(path: str, source: Path | None = None) -> type[Strategy[Any]]:
+    """Import a strategy class from ``"package.module:Class"``.
+
+    With ``source``, the module is the file ``source``, loaded under a name of
+    its own that its content fixes, without touching ``sys.path``: modules of
+    one name and different sources each keep their own classes.
+    """
     module_name, _, class_name = path.partition(":")
-    strategy = getattr(importlib.import_module(module_name), class_name)
+    if source is None:
+        module = importlib.import_module(module_name)
+    else:
+        module = _module_from(module_name, source)
+    strategy = getattr(module, class_name)
     if not (isinstance(strategy, type) and issubclass(strategy, Strategy)):
         raise TypeError(f"{path} is not an sbt2 Strategy subclass")
     return strategy
+
+
+def strategy_source(path: str) -> str:
+    """The source of the module that defines the strategy at ``path``."""
+    strategy = import_strategy(path)
+    file = inspect.getsourcefile(strategy)
+    if file is None:
+        raise TypeError(f"{path} has no source file to keep")
+    return Path(file).read_text()
+
+
+def _module_from(name: str, source: Path) -> ModuleType:
+    code = source.read_bytes()
+    private = (
+        f"_sbt2_stored_{hashlib.sha256(code).hexdigest()[:16]}_{name.replace('.', '_')}"
+    )
+    with _LOAD_LOCK:
+        if private not in sys.modules:
+            _load(private, source)
+        return sys.modules[private]
+
+
+def _load(name: str, source: Path) -> None:
+    spec = importlib.util.spec_from_file_location(name, source)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load a module from {source}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        del sys.modules[name]
+        raise
 
 
 def resolve_params(strategy: type[Strategy[Any]], values: Mapping[str, Any]) -> Any:

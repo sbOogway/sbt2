@@ -25,6 +25,7 @@ from sbt2.core.results.store.sink import IncompleteRunError, Reports
 from sbt2.core.spec import ResolvedRunSpec
 
 SUMMARY = "summary"
+STRATEGY_SOURCE = "strategy.py"
 
 _UTC = pa.timestamp("ns", tz="UTC")
 SUMMARY_SCHEMA = pa.schema(
@@ -86,6 +87,9 @@ class ParquetSink:
         self._write("account", reports.account)
         if reports.orders is not None:
             self._write("orders", reports.orders)
+
+    def write_strategy_source(self, source: str) -> None:
+        (self._folder / STRATEGY_SOURCE).write_text(source)
 
     def write_drawdown_trip(self, tripped_at: datetime) -> None:
         self._drawdown_tripped_at = tripped_at

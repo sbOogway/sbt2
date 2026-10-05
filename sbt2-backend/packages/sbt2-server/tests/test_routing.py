@@ -1,4 +1,6 @@
 import asyncio
+from collections.abc import Coroutine
+from typing import Any
 
 import pytest
 
@@ -16,6 +18,9 @@ class KeptOutbox(Outbox):
 
     async def send(self, message: ServerMessage) -> None:
         self.pushed.append(message)
+
+    def spawn(self, work: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
+        return asyncio.create_task(work)
 
 
 def hello(request_id: int) -> ClientMessage:

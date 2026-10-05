@@ -1,7 +1,5 @@
 import ast
-import inspect
 from collections.abc import Sequence
-from pathlib import Path
 
 from sbt2.core.results import ResultStore, RunFilter, StoredStudy
 from sbt2.core.run.batching.errors import (
@@ -10,7 +8,7 @@ from sbt2.core.run.batching.errors import (
     StudyContextError,
 )
 from sbt2.core.spec import ResolvedRunSpec, Study
-from sbt2.core.strategy import import_strategy
+from sbt2.core.strategy import strategy_source
 
 _DOCUMENTED = (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
 
@@ -52,7 +50,9 @@ class _Studies:
             self._studies[study.name] = (
                 self._store.study(study.name)
                 if study.name in self._known
-                else StoredStudy(study.name, study.context, _module_source(spec))
+                else StoredStudy(
+                    study.name, study.context, strategy_source(spec.strategy.strategy)
+                )
             )
         return self._studies[study.name]
 
@@ -87,7 +87,9 @@ def _check_context(study: Study, stored: StoredStudy) -> None:
 
 
 def _check_code(spec: ResolvedRunSpec, stored: StoredStudy) -> None:
-    if _normalised(_module_source(spec)) != _normalised(stored.source):
+    if _normalised(strategy_source(spec.strategy.strategy)) != _normalised(
+        stored.source
+    ):
         raise StudyCodeError(
             f"the module of {spec.strategy.strategy} changed since study "
             f"{stored.name} pinned it"
@@ -110,12 +112,3 @@ def _docstring(body: list[ast.stmt]) -> bool:
             return True
         case _:
             return False
-
-
-def _module_source(spec: ResolvedRunSpec) -> str:
-    """The source of the module that defines the run's strategy."""
-    strategy = import_strategy(spec.strategy.strategy)
-    path = inspect.getsourcefile(strategy)
-    if path is None:
-        raise TypeError(f"{spec.strategy.strategy} has no source file to pin")
-    return Path(path).read_text()

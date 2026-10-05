@@ -43,11 +43,16 @@ _EVERY_RUN = RunFilter()
 
 @dataclass(frozen=True)
 class StoredRun:
-    """A finished run as the store holds it, with the days its data skipped."""
+    """A finished run as the store holds it, with the days its data skipped.
+
+    ``strategy_source`` is the file of the strategy's module kept with the run,
+    if any; the strategy is imported from it.
+    """
 
     spec: ResolvedRunSpec
     tables: RunTables
     known_gaps: frozenset[Gap]
+    strategy_source: Path | None = None
 
     def priced(self, catalog: Catalog) -> PricedRun:
         """The run valued from ``catalog``."""
@@ -59,7 +64,9 @@ class StoredRun:
         """The benchmark called ``name`` with ``argument``, as ``build_benchmark``
         builds it; the strategy's own without a name."""
         if name is None:
-            return import_strategy(self.spec.strategy.strategy).benchmark
+            return import_strategy(
+                self.spec.strategy.strategy, self.strategy_source
+            ).benchmark
         return build_benchmark(name, argument)
 
 

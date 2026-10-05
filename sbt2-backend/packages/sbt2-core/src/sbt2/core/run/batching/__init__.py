@@ -22,7 +22,10 @@ from sbt2.core.spec import ResolvedRunSpec
 
 
 class _NoProgress:
-    def planned(self, runs: int) -> None:
+    def planned(self, run_ids: Sequence[str]) -> None:
+        pass
+
+    def started(self, run_id: str) -> None:
         pass
 
     def finished(self, run_id: str) -> None:
@@ -53,9 +56,9 @@ def batch(
     for study in studies:
         setup.store.new_study(study)
     progress = progress or _NoProgress()
-    progress.planned(len(specs))
     with TemporaryDirectory(prefix="sbt2-batch-") as errors:
         orders = _orders(zip(specs, known_gaps, strict=True), setup, Path(errors))
+        progress.planned([each.run_id for each in orders])
         Children(setup, progress).run(orders)
     return tuple(each.run_id for each in orders)
 

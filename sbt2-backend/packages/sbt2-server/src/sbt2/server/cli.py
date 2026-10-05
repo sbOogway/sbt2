@@ -9,7 +9,7 @@ import typer
 
 from sbt2.core.config import ConfigFolder, Root
 from sbt2.protocol.v1.envelope_pb2 import Capability
-from sbt2.server import Address, Server, Settings, config, results
+from sbt2.server import Address, Server, Settings, config, results, runs
 
 HOST_ENV = "SBT2_SERVER_HOST"
 PORT_ENV = "SBT2_SERVER_PORT"
@@ -30,7 +30,7 @@ def main(
             envvar=DATA_ROOT_ENV,
             show_envvar=True,
             help="Serves the results in PATH/results, priced from PATH/catalog, "
-            "and edits PATH/known_gaps.toml.",
+            "edits PATH/known_gaps.toml, and runs strategies on PATH/catalog.",
         ),
     ],
     config_folder: Annotated[
@@ -39,7 +39,7 @@ def main(
             "--config",
             envvar=CONFIG_ENV,
             show_envvar=True,
-            help="The config folder; edits PATH/venues.toml.",
+            help="The config folder; edits PATH/venues.toml, which runs read.",
         ),
     ],
     host: Annotated[
@@ -63,8 +63,16 @@ def main(
 def _server(token: str, root: Root, folder: ConfigFolder) -> Server:
     return Server(
         Settings(token),
-        {**results.routes(root), **config.routes(folder, root)},
-        [Capability.CAPABILITY_RESULTS, Capability.CAPABILITY_CONFIG],
+        {
+            **results.routes(root),
+            **config.routes(folder, root),
+            **runs.routes(runs.local_jobs(root, folder)),
+        },
+        [
+            Capability.CAPABILITY_RESULTS,
+            Capability.CAPABILITY_CONFIG,
+            Capability.CAPABILITY_RUNS,
+        ],
     )
 
 
