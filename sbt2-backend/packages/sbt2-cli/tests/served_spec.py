@@ -2,9 +2,9 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from served_source import ServedSource
 
 from sbt2 import data
+from sbt2.data.testing import ServedSource
 
 SPEC = """
 strategy = "crossover:MovingAverageCross"

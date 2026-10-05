@@ -6,7 +6,6 @@ from typing import Any
 
 import pytest
 from nautilus_trader.model import Bar, FundingRateUpdate, TradeTick
-from served_source import INSTRUMENT_ID, SYMBOL, ServedSource, spot_pair
 
 from sbt2.core.assets import Calendar
 from sbt2.core.run import (
@@ -23,13 +22,15 @@ from sbt2.data import (
     DayRange,
     DownloadOptions,
     DownloadRequest,
+    Gap,
     IngestOptions,
     IngestRequest,
+    UnsupportedDataTypeError,
     Window,
     download,
     ingest,
 )
-from sbt2.data.sources import Gap, UnsupportedDataTypeError
+from sbt2.data.testing import INSTRUMENT_ID, SYMBOL, ServedSource, spot_pair
 
 VENUES = """
 [test_linear]

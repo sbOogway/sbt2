@@ -35,7 +35,7 @@ from sbt2.core.results import (
     full_metrics,
 )
 from sbt2.core.spec import ResolvedRunSpec
-from sbt2.data.sources import Gap
+from sbt2.data import Gap
 
 
 @pytest.fixture(scope="module")

@@ -7,13 +7,12 @@ import pytest
 from nautilus_trader.core import dt_to_unix_nanos
 from nautilus_trader.model import CryptoPerpetual, MarkPriceUpdate, Price
 from plotted import Plotted, plotted
-from served_source import ServedSource, perpetual
 from served_spec import DAY, NEXT_DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
 
 from sbt2.cli import app
 from sbt2.core.results import ParquetResultStore
-from sbt2.data.catalog import CatalogWriter, DayFile
+from sbt2.data.testing import CatalogWriter, DayFile, ServedSource, perpetual
 
 runner = CliRunner()
 ETH = "ETHUSDT-LINEAR.BYBIT"

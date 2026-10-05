@@ -10,7 +10,8 @@ from typer.testing import CliRunner
 
 from sbt2 import data
 from sbt2.cli import app
-from sbt2.data.sources import MissingAtSourceError, RawFile, Source
+from sbt2.data import Source
+from sbt2.data.testing import MissingAtSourceError, RawFile
 
 runner = CliRunner()
 
