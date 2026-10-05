@@ -43,7 +43,7 @@ impl Dial {
     async fn greet(&self, link: &mut Link) -> Result<Welcome, ClientError> {
         let request_id = self.ids.next();
         let hello = Hello {
-            client_version: env!("CARGO_PKG_VERSION").to_owned(),
+            client_version: crate::VERSION.to_owned(),
         };
         let body = client_message::Body::Hello(hello);
         let message = ClientMessage {

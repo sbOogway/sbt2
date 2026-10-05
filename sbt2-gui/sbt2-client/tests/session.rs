@@ -35,6 +35,28 @@ async fn connect_sends_the_token_and_subprotocol_then_hello_and_returns_welcome(
 }
 
 #[tokio::test]
+async fn the_hello_carries_the_stamped_version() {
+    let (sent, mut received) = tokio::sync::mpsc::unbounded_channel();
+    let address = serve(move |_, mut peer| {
+        let sent = sent.clone();
+        async move {
+            let hello = peer.greet().await;
+            let _ = sent.send(hello);
+            peer.receive().await;
+        }
+    })
+    .await;
+
+    let _session = connected(address).await;
+
+    let hello = received.recv().await.expect("a Hello");
+    let Some(client_message::Body::Hello(hello)) = hello.body else {
+        panic!("not a Hello");
+    };
+    assert_eq!(hello.client_version, sbt2_client::VERSION);
+}
+
+#[tokio::test]
 async fn a_wrong_token_fails_the_connection_as_unauthorized() {
     let address = serve(|_, mut peer| async move {
         peer.greet().await;
