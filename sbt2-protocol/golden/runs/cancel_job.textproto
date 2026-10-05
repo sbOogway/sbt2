@@ -1,0 +1,3 @@
+# proto-message: sbt2.protocol.v1.ClientMessage
+request_id: 32
+cancel_job { job_id: "0198cc00-0000-7000-8000-0000000000aa" }

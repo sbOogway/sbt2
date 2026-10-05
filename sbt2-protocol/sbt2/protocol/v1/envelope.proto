@@ -4,6 +4,7 @@ package sbt2.protocol.v1;
 
 import "sbt2/protocol/v1/config.proto";
 import "sbt2/protocol/v1/results.proto";
+import "sbt2/protocol/v1/runs.proto";
 import "sbt2/protocol/v1/types.proto";
 
 // Each binary WebSocket frame the client sends is one ClientMessage.
@@ -24,6 +25,11 @@ message ClientMessage {
     AddKnownGaps add_known_gaps = 12;
     RemoveKnownGaps remove_known_gaps = 13;
     ListModelKinds list_model_kinds = 14;
+    SubmitRun submit_run = 15;
+    CancelJob cancel_job = 16;
+    ListJobs list_jobs = 17;
+    SubscribeJob subscribe_job = 18;
+    Unsubscribe unsubscribe = 19;
   }
 }
 
@@ -45,6 +51,12 @@ message ServerMessage {
     ConfigWritten config_written = 11;
     KnownGaps known_gaps = 12;
     ModelKinds model_kinds = 13;
+    JobSubmitted job_submitted = 14;
+    JobCancelled job_cancelled = 15;
+    Jobs jobs = 16;
+    JobSubscribed job_subscribed = 17;
+    JobUpdate job_update = 18;
+    Unsubscribed unsubscribed = 19;
   }
 }
 
@@ -63,4 +75,5 @@ enum Capability {
   CAPABILITY_UNSPECIFIED = 0;
   CAPABILITY_RESULTS = 1;
   CAPABILITY_CONFIG = 2;
+  CAPABILITY_RUNS = 3;
 }

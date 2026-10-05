@@ -1,0 +1,8 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+subscription_id: 3
+job_update {
+  runs { run_id: "0198cc00-0000-7000-8000-000000000001" state: RUN_STATUS_FAILED reason: "StrategyError: boom" }
+  runs { run_id: "0198cc00-0000-7000-8000-000000000002" state: RUN_STATUS_CANCELLED }
+  log_lines: ["run 0198cc00-0000-7000-8000-000000000001 failed"]
+  state: JOB_STATE_FAILED
+}

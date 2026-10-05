@@ -64,6 +64,36 @@ one response, carrying the request's ID: `VenueProfiles`, `KnownGaps` or
   config parameters with their type, whether they are required, and their
   default. A parameter whose type the server cannot tell is a string.
 
+## Runs
+
+`CAPABILITY_RUNS` advertises the run requests in `runs.proto`. Each has one
+response carrying the request's ID: `JobSubmitted`, `JobCancelled`, `Jobs`,
+`JobSubscribed` or `Unsubscribed`, or a correlated `Error`.
+
+- `SubmitRun` carries a `SpecFile`, a spec file's table key for key, and the
+  strategy's module as a name and source. A list in `params` is a sweep. An
+  integral number in a `Struct` is read as an integer. The name is a Python
+  identifier that no module of the server's image has; the source runs only in a
+  job process, never in the server, and imports only what the image installs.
+- The server answers once the spec is checked. A spec that does not resolve, or
+  whose data is missing, answers `INVALID_ARGUMENT` with core's message; an
+  unknown venue profile answers `NOT_FOUND`. A rejected spec starts no job.
+- Jobs run one at a time, in the order they were submitted. A run is pending,
+  running, finished, failed with its reason, or cancelled. The first failed run
+  fails the job and cancels the runs after it.
+- Each job stores its runs, and the source of the strategy with each, in the
+  results area. Jobs live as long as the server process.
+- `CancelJob` stops a running job and cancels its unfinished runs. An unknown job
+  answers `NOT_FOUND`; cancelling a finished job does nothing.
+- `SubscribeJob` answers `JobSubscribed` with the job's current state and its
+  latest log lines, then pushes `JobUpdate` with the subscription's ID and
+  request ID 0, at most four a second, with the run states that changed and the
+  lines printed since. The last update carries the job's final state, and ends
+  the subscription. After a reconnect the client subscribes again, and gets the
+  current state first. `Unsubscribe` stops the pushes.
+- Log lines are the job's stdout and stderr, as printed, without the run that
+  printed them.
+
 ## Golden fixtures
 
 `golden/<area>/<case>.textproto` is an example message, starting with a `# proto-message: sbt2.protocol.v1.<Message>` header, and `<case>.binpb` its encoding. Every `ClientMessage` and `ServerMessage` body has at least one.

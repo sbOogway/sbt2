@@ -1,0 +1,10 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 33
+jobs {
+  jobs {
+    job_id: "0198cc00-0000-7000-8000-0000000000aa"
+    state: JOB_STATE_RUNNING
+    runs { run_id: "0198cc00-0000-7000-8000-000000000001" state: RUN_STATUS_FINISHED }
+    runs { run_id: "0198cc00-0000-7000-8000-000000000002" state: RUN_STATUS_RUNNING }
+  }
+}
