@@ -16,5 +16,6 @@ toml = "0.9"
 tokio = { version = "1", features = ["rt", "sync"] }
 
 [dev-dependencies]
+sbt2-client = { path = "../sbt2-client", features = ["test-support"] }
 iced_test = "=0.14.0"
 tempfile = "3"

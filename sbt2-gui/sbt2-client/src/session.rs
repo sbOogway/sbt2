@@ -86,6 +86,19 @@ pub struct Session {
 }
 
 impl Session {
+    /// A session on no server: every request fails with `Disconnected`.
+    #[cfg(feature = "test-support")]
+    pub fn offline(welcome: Welcome) -> Self {
+        let (commands, _) = mpsc::unbounded_channel();
+        let (_, state) = watch::channel(ConnectionState::Connected);
+        Self {
+            commands,
+            ids: Arc::default(),
+            welcome: Arc::new(welcome),
+            state,
+        }
+    }
+
     pub fn welcome(&self) -> &Welcome {
         &self.welcome
     }
