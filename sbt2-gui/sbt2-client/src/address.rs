@@ -33,6 +33,10 @@ impl Token {
     pub fn new(value: impl Into<String>) -> Self {
         Self(value.into())
     }
+
+    pub(crate) fn expose(&self) -> &str {
+        &self.0
+    }
 }
 
 impl fmt::Debug for Token {
