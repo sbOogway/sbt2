@@ -38,3 +38,20 @@ upload_asset() {
     github_api -X POST -H "Content-Type: application/octet-stream" --data-binary "@$file" \
         "$GITHUB_UPLOADS/repos/$CI_REPO/releases/$id/assets?name=$name" >/dev/null
 }
+
+# The repository of the server image, which GHCR wants in lower case
+image_repository() {
+    echo "ghcr.io/${CI_REPO_OWNER,,}/sbt2-server"
+}
+
+# The digest GHCR holds for the tag $1 of the server image
+image_digest() {
+    local path token
+    path=${CI_REPO_OWNER,,}/sbt2-server
+    token=$(curl -fsS -u "$CI_REPO_OWNER:$GH_TOKEN" \
+        "https://ghcr.io/token?service=ghcr.io&scope=repository:$path:pull" | jq -r .token)
+    curl -fsSI -H "Authorization: Bearer $token" \
+        -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+        "https://ghcr.io/v2/$path/manifests/$1" |
+        tr -d '\r' | awk 'tolower($1) == "docker-content-digest:" { print $2 }'
+}

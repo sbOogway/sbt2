@@ -44,6 +44,24 @@ steps:
       - apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates curl jq
       - scripts/release-gui.sh
 
+  # the only public action before publish; the image is smoke-tested first, and only then pushed
+  - name: image
+    image: quay.io/buildah/stable:v1.43.4
+    environment:
+      # an unprivileged step can neither mount overlays nor set up namespaces
+      STORAGE_DRIVER: vfs
+      BUILDAH_ISOLATION: chroot
+      # buildah keeps the RUN --mount=type=cache folders, uv's cache among them, under it
+      TMPDIR: /cache/tmp
+      XDG_CACHE_HOME: /cache
+      GH_TOKEN:
+        from_secret: github_token
+    volumes: [sbt2-cache-release-image:/cache:z]
+    commands:
+      - mkdir -p /cache/tmp
+      - dnf install -y -q jq
+      - scripts/release-image.sh
+
   # the release is public only when every step before this one has passed
   - name: publish
     image: *image
