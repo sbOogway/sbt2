@@ -86,7 +86,14 @@ impl Dispatcher {
         };
         let mut chunks = std::mem::take(&mut pending.chunks);
         chunks.sort_by_key(chunk_index);
-        self.finish(request_id, Ok(chunks));
+        let reply = if has_every_index(&chunks) {
+            Ok(chunks)
+        } else {
+            Err(ClientError::Protocol(
+                "the reply has a gap or a duplicate in its chunk indexes".to_owned(),
+            ))
+        };
+        self.finish(request_id, reply);
     }
 
     fn finish(&mut self, request_id: u64, reply: Reply) {
@@ -96,11 +103,19 @@ impl Dispatcher {
     }
 }
 
+fn has_every_index(sorted: &[Body]) -> bool {
+    sorted
+        .iter()
+        .zip(0..)
+        .all(|(chunk, expected)| chunk_index(chunk) == expected)
+}
+
 fn is_last(body: &Body) -> bool {
     match body {
         Body::RunList(chunk) => chunk.last,
         Body::Metrics(chunk) => chunk.last,
         Body::Series(chunk) => chunk.last,
+        Body::Panel(chunk) => chunk.last,
         Body::Tearsheet(chunk) => chunk.last,
         _ => true,
     }
@@ -111,6 +126,7 @@ fn chunk_index(body: &Body) -> u64 {
         Body::RunList(chunk) => chunk.index,
         Body::Metrics(chunk) => chunk.index,
         Body::Series(chunk) => chunk.index,
+        Body::Panel(chunk) => chunk.index,
         Body::Tearsheet(chunk) => chunk.index,
         _ => 0,
     }
@@ -121,7 +137,7 @@ mod tests {
     use tokio::sync::oneshot::error::TryRecvError;
 
     use super::*;
-    use crate::protocol::{Error, ErrorCode, RunList, RunSummary, Series};
+    use crate::protocol::{Error, ErrorCode, Panel, RunList, RunSummary, Series};
 
     fn run_chunk(request_id: u64, index: u64, last: bool, run_ids: &[&str]) -> ServerMessage {
         let runs = run_ids
@@ -136,6 +152,28 @@ mod tests {
             body: Some(Body::RunList(RunList { index, last, runs })),
             ..ServerMessage::default()
         }
+    }
+
+    fn panel_chunk(request_id: u64, index: u64, last: bool) -> ServerMessage {
+        ServerMessage {
+            request_id,
+            body: Some(Body::Panel(Panel {
+                index,
+                last,
+                data: vec![index as u8],
+            })),
+            ..ServerMessage::default()
+        }
+    }
+
+    fn panel_indexes(chunks: Vec<Body>) -> Vec<u64> {
+        chunks
+            .into_iter()
+            .map(|chunk| match chunk {
+                Body::Panel(panel) => panel.index,
+                other => panic!("not a panel: {other:?}"),
+            })
+            .collect()
     }
 
     fn error_reply(request_id: u64, code: ErrorCode, message: &str) -> ServerMessage {
@@ -185,6 +223,36 @@ mod tests {
         dispatcher.receive(run_chunk(7, 2, true, &["c", "d"]));
         let chunks = reply.try_recv().unwrap().unwrap();
         assert_eq!(run_ids(chunks), ["a", "b", "c", "d"]);
+    }
+
+    #[test]
+    fn panel_chunks_are_joined_in_index_order_until_the_last() {
+        let mut dispatcher = Dispatcher::default();
+        let (sender, mut reply) = oneshot::channel();
+        dispatcher.expect(7, sender);
+
+        dispatcher.receive(panel_chunk(7, 1, false));
+        dispatcher.receive(panel_chunk(7, 0, false));
+        assert_eq!(reply.try_recv().unwrap_err(), TryRecvError::Empty);
+
+        dispatcher.receive(panel_chunk(7, 2, true));
+        let chunks = reply.try_recv().unwrap().unwrap();
+        assert_eq!(panel_indexes(chunks), [0, 1, 2]);
+    }
+
+    #[test]
+    fn a_gap_in_the_chunk_indexes_is_a_protocol_error() {
+        let mut dispatcher = Dispatcher::default();
+        let (sender, mut reply) = oneshot::channel();
+        dispatcher.expect(7, sender);
+
+        dispatcher.receive(panel_chunk(7, 0, false));
+        dispatcher.receive(panel_chunk(7, 2, true));
+
+        assert!(matches!(
+            reply.try_recv().unwrap(),
+            Err(ClientError::Protocol(_))
+        ));
     }
 
     #[test]
