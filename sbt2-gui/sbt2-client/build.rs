@@ -17,6 +17,7 @@ fn main() {
     let fds = protox::compile(&protos, [&root]).unwrap();
     prost_build::Config::new()
         .boxed(".sbt2.protocol.v1.ClientMessage.body.put_venue_profile")
+        .boxed(".sbt2.protocol.v1.ClientMessage.body.submit_run")
         .boxed(".sbt2.protocol.v1.ServerMessage.body.run_summary")
         .include_file("protocol.rs")
         .compile_fds(fds)
