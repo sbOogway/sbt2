@@ -25,11 +25,13 @@ from sbt2.core.results.metrics import (
     full_metrics,
 )
 from sbt2.core.results.pricing import Benchmark, PricedRun
+from sbt2.core.results.report import series
 from sbt2.core.results.report.panels import (
     cost_waterfall,
     instrument_breakdown,
     rolling_sharpe,
 )
+from sbt2.core.results.report.series import TearsheetPanels
 
 type Statistics = dict[str, float | None]
 
@@ -53,6 +55,14 @@ def tearsheet(run: PricedRun, path: Path, benchmark: Benchmark | None = None) ->
         benchmark_returns=sheet.benchmark_returns,
         benchmark_name=sheet.benchmark_name,
     )
+
+
+def tearsheet_panels(
+    run: PricedRun, benchmark: Benchmark | None = None
+) -> TearsheetPanels:
+    """The series of the tearsheet's panels for ``run``, from the daily returns
+    the tearsheet is built from, and for ``benchmark`` when given."""
+    return _Sheet(run, benchmark).panels
 
 
 @dataclass(frozen=True)
@@ -81,6 +91,23 @@ class _Sheet:
         if self.benchmark is None:
             return None
         return compounded_daily(self.benchmark.returns(self.run))
+
+    @cached_property
+    def panels(self) -> TearsheetPanels:
+        return TearsheetPanels(
+            returns=self.returns,
+            benchmark_returns=(
+                series.empty_series()
+                if self.benchmark_returns is None
+                else self.benchmark_returns
+            ),
+            drawdown=series.drawdown(self.returns),
+            monthly_returns=series.monthly_returns(self.returns),
+            yearly_returns=series.yearly_returns(self.returns),
+            rolling_sharpe=series.rolling_sharpe(
+                self.returns, self.segment.days_per_year
+            ),
+        )
 
     @property
     def benchmark_name(self) -> str:

@@ -38,7 +38,7 @@ from sbt2.core.results.pricing import (
     UnknownBenchmarkError,
     build_benchmark,
 )
-from sbt2.core.results.report import tearsheet
+from sbt2.core.results.report import TearsheetPanels, tearsheet, tearsheet_panels
 from sbt2.core.results.store import (
     IncompleteRunError,
     MissingTableError,
@@ -89,6 +89,7 @@ __all__ = [
     "StoredRun",
     "StoredStudy",
     "Table",
+    "TearsheetPanels",
     "UnknownBatchError",
     "UnknownBenchmarkError",
     "UnknownRunError",
@@ -108,4 +109,5 @@ __all__ = [
     "study_list",
     "study_table",
     "tearsheet",
+    "tearsheet_panels",
 ]
