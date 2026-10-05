@@ -296,6 +296,7 @@ pythonpath = [
     "packages/sbt2-core/tests/strategy",
     "packages/sbt2-strategies/tests",
     "packages/sbt2-server/tests",
+    "packages/sbt2-papers/tests",
 ]
 addopts = [
     "--import-mode=importlib",
