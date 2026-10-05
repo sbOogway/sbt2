@@ -6,7 +6,8 @@ use iced::{
     widget::{self, button, column, container, row, text, text_input},
 };
 use sbt2_client::{
-    Client, ClientError, ConnectionState, ServerAddress, Session, Token, protocol::RunFilter,
+    Client, ClientError, ConnectionState, ServerAddress, Session, Token, VERSION,
+    protocol::RunFilter,
 };
 
 use crate::{
@@ -47,6 +48,7 @@ pub enum Message {
 enum Warning {
     NoKeyring,
     NotSaved(String),
+    VersionMismatch { server: String },
 }
 
 impl fmt::Display for Warning {
@@ -55,6 +57,11 @@ impl fmt::Display for Warning {
             Self::NoKeyring => formatter
                 .write_str("No OS keyring: the token is kept in a file that only you can read."),
             Self::NotSaved(reason) => write!(formatter, "Could not save the connection: {reason}"),
+            Self::VersionMismatch { server } => write!(
+                formatter,
+                "The server is version {server} but this GUI is version {}.",
+                VERSION
+            ),
         }
     }
 }
@@ -149,6 +156,7 @@ impl App {
     fn enter(&mut self, session: Session) -> Task<Message> {
         self.status = Status::Idle;
         self.remember();
+        self.check_version(&session);
         let areas = navigation::areas(session.welcome());
         let connected = Connected {
             version: session.welcome().server_version.clone(),
@@ -227,6 +235,15 @@ impl App {
         }
     }
 
+    fn check_version(&mut self, session: &Session) {
+        let server = &session.welcome().server_version;
+        if server != VERSION {
+            self.warnings.push(Warning::VersionMismatch {
+                server: server.clone(),
+            });
+        }
+    }
+
     fn connection_screen(&self) -> Element<'_, Message> {
         let mut form = column![
             text("Connect to an sbt2 server").size(24),
@@ -270,7 +287,7 @@ impl App {
         let bar = row(navigation)
             .push(widget::space::horizontal())
             .push(text(format!(
-                "Server {}: {}",
+                "GUI {VERSION}, server {}: {}",
                 connected.version,
                 state_text(connected.state)
             )))
@@ -331,8 +348,12 @@ mod tests {
     }
 
     fn offline_session(capabilities: &[Capability]) -> Session {
+        offline_session_of(VERSION, capabilities)
+    }
+
+    fn offline_session_of(server_version: &str, capabilities: &[Capability]) -> Session {
         Session::offline(Welcome {
-            server_version: "9.9.9".to_owned(),
+            server_version: server_version.to_owned(),
             capabilities: capabilities.iter().map(|each| *each as i32).collect(),
         })
     }
@@ -357,9 +378,41 @@ mod tests {
         let _ = app.update(Message::Connected(Ok(session)));
         assert_eq!(app.status, Status::Idle);
         let connected = app.connected.as_ref().unwrap();
-        assert_eq!(connected.version, "9.9.9");
+        assert_eq!(connected.version, VERSION);
         assert_eq!(connected.areas, [Area::Runs]);
         assert_eq!(connected.state, ConnectionState::Connected);
+    }
+
+    #[test]
+    fn a_server_with_another_version_shows_a_version_warning() {
+        let folder = TempDir::new().unwrap();
+        let mut app = app_in(&folder, TokenStore::new(None, folder.path()));
+        filled(&mut app, "ws://127.0.0.1:1");
+
+        let _ = app.update(Message::Connected(Ok(offline_session_of("0.0.1", &[]))));
+
+        assert!(app.connected.is_some());
+        let warning = Warning::VersionMismatch {
+            server: "0.0.1".to_owned(),
+        };
+        assert!(app.warnings.contains(&warning));
+        let text = warning.to_string();
+        assert!(text.contains("0.0.1") && text.contains(VERSION));
+    }
+
+    #[test]
+    fn a_server_with_the_same_version_shows_no_warning() {
+        let folder = TempDir::new().unwrap();
+        let mut app = app_in(&folder, TokenStore::new(None, folder.path()));
+        filled(&mut app, "ws://127.0.0.1:1");
+
+        let _ = app.update(Message::Connected(Ok(offline_session_of(VERSION, &[]))));
+
+        assert!(
+            !app.warnings
+                .iter()
+                .any(|warning| matches!(warning, Warning::VersionMismatch { .. }))
+        );
     }
 
     #[test]
