@@ -4,7 +4,8 @@
 REPO=${SBT2_REPO:-sbOogway/sbt2}
 GITHUB_API=${GITHUB_API:-https://api.github.com}
 GITHUB_UPLOADS=${GITHUB_UPLOADS:-https://uploads.github.com}
-IMAGE_REPOSITORY=ghcr.io/${REPO%%/*}/sbt2-server
+IMAGE_REGISTRY=${IMAGE_REGISTRY:-ghcr.io}
+IMAGE_REPOSITORY=$IMAGE_REGISTRY/${REPO%%/*}/sbt2-server
 IMAGE_REPOSITORY=${IMAGE_REPOSITORY,,}
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)

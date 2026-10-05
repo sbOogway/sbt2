@@ -2,6 +2,7 @@
 # Builds the GUI of a release and uploads it. The release is $TAG or the newest vX.Y.Z tag.
 # Refuses when the release has the GUI already, unless FORCE=1. Needs GH_TOKEN or a gh login.
 set -euo pipefail
+shopt -s inherit_errexit
 
 here=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=release-lib.sh
