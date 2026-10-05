@@ -27,8 +27,10 @@ server and a protocol for a future GUI.
 ## Install
 
 Each [release](https://github.com/sbOogway/sbt2/releases) has the Python
-distributions, the Linux GUI and `SHA256SUMS`, which covers every file of the
-release. The notes name the server image with its digest.
+distributions. CI publishes them. The maintainer adds the Linux GUI and the
+server image afterwards, so they can follow some time later. `SHA256SUMS`
+covers every file of the release, and the notes name the server image with its
+digest.
 
 ### Server
 
@@ -47,9 +49,10 @@ to run that version.
 
 ### GUI
 
-The GUI is for Linux x86_64 with glibc 2.36 or newer: Debian 12+, Ubuntu
-23.04+ or Fedora 37+. Download the tarball and `SHA256SUMS` from the release,
-then:
+The GUI is for Linux x86_64. The maintainer builds it on Fedora 44, so the
+binary needs a glibc as new as that machine's, glibc 2.43. On an older system,
+build it from source (see [sbt2-gui/README.md](sbt2-gui/README.md)).
+Download the tarball and `SHA256SUMS` from the release, then:
 
 ```sh
 sha256sum --check --ignore-missing SHA256SUMS
@@ -66,6 +69,22 @@ make check
 
 `make help` lists the other commands. Each component also keeps its own direct
 commands, run from its directory.
+
+## Release
+
+CI publishes the wheels of each release. The maintainer builds the GUI and the
+server image on their machine, with `GH_TOKEN` (or a `gh` login) and, for the
+image, `GHCR_TOKEN` (a classic token with `write:packages`) in the environment:
+
+```sh
+make release-gui     # build the GUI and upload it to the release
+make release-image   # build the image, smoke-test it and push it to GHCR
+make release         # both
+```
+
+They act on the newest `vX.Y.Z` tag. Use `TAG=vX.Y.Z` to pick another release.
+A target refuses when the release has its artifact already, unless `FORCE=1`.
+Each target builds the tag's commit in a temporary worktree.
 
 ## License
 
