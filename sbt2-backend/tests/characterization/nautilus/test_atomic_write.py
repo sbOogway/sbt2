@@ -9,38 +9,38 @@ from catalog_kit import catalog_file_name, day_bounds, new_catalog
 from kit import HOUR, INSTRUMENT_ID, trade
 from nautilus_trader.model import NautilusDataType
 
-# Large enough that encoding the file takes milliseconds, so the poll below
-# sees it while it is still being written.
-TICKS = 3_000_000
+TICKS = 20_000
+FILE_SIZE_LIMIT = 4096
 WRITER = """
-import sys
+import resource, signal, sys
 from catalog_kit import day_bounds
 from kit import START, trade
 from nautilus_trader.persistence import ParquetDataCatalog
 
+# Python ignores SIGXFSZ; the default action kills the process at the limit.
+signal.signal(signal.SIGXFSZ, signal.SIG_DFL)
+limit = int(sys.argv[3])
+resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
 ticks = [trade(START + i) for i in range(int(sys.argv[2]))]
 ParquetDataCatalog(sys.argv[1]).write_trade_ticks(ticks, *day_bounds(0))
 """
 
 
 def kill_while_writing(catalog: Path) -> Path:
-    """Starts a large trades write in a child, kills it at its first file, returns that file."""
+    """Runs a trades write in a child that the kernel kills at a file size limit.
+
+    The limit stops the child while it writes the temporary file, before the
+    rename. Returns that file.
+    """
     directory = catalog / "data" / "trades" / str(INSTRUMENT_ID)
     kit = str(Path(__file__).parent)
-    child = subprocess.Popen(
-        [sys.executable, "-c", WRITER, str(catalog), str(TICKS)],
+    child = subprocess.run(
+        [sys.executable, "-c", WRITER, str(catalog), str(TICKS), str(FILE_SIZE_LIMIT)],
         env={**os.environ, "PYTHONPATH": kit},
+        check=False,
     )
-    try:
-        while child.poll() is None:
-            files = list(directory.iterdir()) if directory.is_dir() else []
-            if files:
-                child.send_signal(signal.SIGKILL)
-                return files[0]
-        pytest.fail("the write finished before any file was seen")
-    finally:
-        child.kill()
-        child.wait()
+    assert child.returncode == -signal.SIGXFSZ
+    return next(directory.iterdir())
 
 
 @pytest.fixture(scope="module")
