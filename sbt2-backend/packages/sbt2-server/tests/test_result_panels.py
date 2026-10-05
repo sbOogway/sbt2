@@ -151,6 +151,7 @@ def test_panel_chunks_reassemble_within_the_envelope_limit(
 @pytest.mark.integration
 def test_benchmark_returns_without_prices_are_not_found(tmp_path: Path) -> None:
     run = stored(tmp_path)
+    run.root.catalog.mkdir(parents=True)
 
     [reply] = panel(tmp_path, run.run_id, PanelKind.PANEL_KIND_BENCHMARK_RETURNS)
 
