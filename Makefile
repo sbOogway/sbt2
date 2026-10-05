@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help sync check test-backend test-protocol test-gui
+.PHONY: help sync check test-backend test-protocol test-gui release release-gui release-image
 
 help:
 	@echo "make sync          prepare the locked backend and protocol environments"
@@ -8,6 +8,9 @@ help:
 	@echo "make test-backend  run the backend test suite"
 	@echo "make test-protocol run the Python and Rust protocol tests"
 	@echo "make test-gui      run the GUI's format, lint and test checks"
+	@echo "make release-gui   build the Linux GUI and upload it to a release"
+	@echo "make release-image build the server image, test it and push it to GHCR"
+	@echo "make release       do both; TAG=vX.Y.Z picks a release, FORCE=1 replaces"
 
 sync:
 	uv --directory sbt2-backend sync --locked
@@ -30,3 +33,13 @@ test-gui:
 	cd sbt2-gui && cargo fmt --all --check
 	cd sbt2-gui && cargo clippy --locked --all-targets -- -D warnings
 	cd sbt2-gui && cargo test --locked
+
+release-gui:
+	scripts/release-gui.sh
+
+release-image:
+	scripts/release-image.sh
+
+release:
+	$(MAKE) release-gui
+	$(MAKE) release-image

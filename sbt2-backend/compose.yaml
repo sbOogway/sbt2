@@ -7,7 +7,7 @@ services:
       dockerfile: Containerfile
       args:
         SBT2_VERSION: ${SBT2_VERSION:-0.0.0+local}
-    image: localhost/sbt2-server
+    image: ghcr.io/sboogway/sbt2-server:${SBT2_VERSION:-latest}
     restart: unless-stopped
     environment:
       SBT2_SERVER_TOKEN: ${SBT2_SERVER_TOKEN:?set SBT2_SERVER_TOKEN to the API token clients must present}

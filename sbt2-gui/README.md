@@ -32,6 +32,12 @@ The e2e test starts `sbt2-server` from `../sbt2-backend` with a temporary data
 folder holding one stored run. `SBT2_E2E_UV` names the `uv` command, and
 `SBT2_E2E_PORT` the port; a free port is the default.
 
+## Release binary
+
+The release tarball has a native build from Fedora 44, so its binary needs a
+glibc as new as that machine's, glibc 2.43. On an older system, build the GUI
+from source as above.
+
 ## Connection
 
 The token is kept in the OS keyring (Secret Service). Without a keyring it goes
