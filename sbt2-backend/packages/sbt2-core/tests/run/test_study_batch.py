@@ -90,6 +90,22 @@ def test_a_run_with_another_context_is_refused_naming_the_fields(
 
 
 @pytest.mark.integration
+def test_a_context_error_names_the_differing_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    strategy = studied(tmp_path, monkeypatch)
+    batch([in_study(tmp_path, strategy, 2)], setup(tmp_path, PlainLauncher()))
+    later = ["2024-01-01T03:00:00", "2024-01-05"]
+    elsewhere = in_study(tmp_path, strategy, 3, period=later, capital="5000 USDT")
+
+    with pytest.raises(StudyContextError) as refused:
+        batch([elsewhere], setup(tmp_path, PlainLauncher()))
+
+    assert refused.value.keys == ("capital", "period")
+    assert str(refused.value).startswith(f"the run does not fit study {STUDY}'s")
+
+
+@pytest.mark.integration
 def test_a_run_with_changed_code_is_refused(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -136,6 +152,21 @@ def test_a_repeated_run_is_refused_naming_the_stored_one(
 
     assert launcher.pids == []
     assert list(study_runs(tmp_path)["run_id"]) == [stored]
+
+
+@pytest.mark.integration
+def test_a_duplicate_run_error_names_the_existing_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    strategy = studied(tmp_path, monkeypatch)
+    [stored] = batch(
+        [in_study(tmp_path, strategy, 2)], setup(tmp_path, PlainLauncher())
+    )
+
+    with pytest.raises(DuplicateStudyRunError) as refused:
+        batch([in_study(tmp_path, strategy, 2)], setup(tmp_path, PlainLauncher()))
+
+    assert refused.value.run_id == stored
 
 
 @pytest.mark.integration
