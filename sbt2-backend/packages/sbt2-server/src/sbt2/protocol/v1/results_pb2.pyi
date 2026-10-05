@@ -81,6 +81,31 @@ BENCHMARK_KIND_BUY_AND_HOLD: BenchmarkKind.ValueType  # 3
 BENCHMARK_KIND_EQUAL_WEIGHT: BenchmarkKind.ValueType  # 4
 Global___BenchmarkKind: _TypeAlias = BenchmarkKind  # noqa: Y015
 
+class _PanelKind:
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    V: _TypeAlias = ValueType  # noqa: Y015
+
+class _PanelKindEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_PanelKind.ValueType], _builtins.type):
+    DESCRIPTOR: _descriptor.EnumDescriptor
+    PANEL_KIND_UNSPECIFIED: _PanelKind.ValueType  # 0
+    PANEL_KIND_RETURNS: _PanelKind.ValueType  # 1
+    PANEL_KIND_BENCHMARK_RETURNS: _PanelKind.ValueType  # 2
+    PANEL_KIND_DRAWDOWN: _PanelKind.ValueType  # 3
+    PANEL_KIND_MONTHLY_RETURNS: _PanelKind.ValueType  # 4
+    PANEL_KIND_YEARLY_RETURNS: _PanelKind.ValueType  # 5
+    PANEL_KIND_ROLLING_SHARPE: _PanelKind.ValueType  # 6
+
+class PanelKind(_PanelKind, metaclass=_PanelKindEnumTypeWrapper): ...
+
+PANEL_KIND_UNSPECIFIED: PanelKind.ValueType  # 0
+PANEL_KIND_RETURNS: PanelKind.ValueType  # 1
+PANEL_KIND_BENCHMARK_RETURNS: PanelKind.ValueType  # 2
+PANEL_KIND_DRAWDOWN: PanelKind.ValueType  # 3
+PANEL_KIND_MONTHLY_RETURNS: PanelKind.ValueType  # 4
+PANEL_KIND_YEARLY_RETURNS: PanelKind.ValueType  # 5
+PANEL_KIND_ROLLING_SHARPE: PanelKind.ValueType  # 6
+Global___PanelKind: _TypeAlias = PanelKind  # noqa: Y015
+
 @_typing.final
 class RunIds(_message.Message):
     DESCRIPTOR: _descriptor.Descriptor
@@ -548,3 +573,59 @@ class Tearsheet(_message.Message):
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
 Global___Tearsheet: _TypeAlias = Tearsheet  # noqa: Y015
+
+@_typing.final
+class GetPanel(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    RUN_ID_FIELD_NUMBER: _builtins.int
+    KIND_FIELD_NUMBER: _builtins.int
+    BENCHMARK_FIELD_NUMBER: _builtins.int
+    run_id: _builtins.str
+    kind: Global___PanelKind.ValueType
+    @_builtins.property
+    def benchmark(self) -> Global___BenchmarkSelection:
+        """Only BENCHMARK_RETURNS uses it; the rules are GetTearsheet's."""
+
+    def __init__(
+        self,
+        *,
+        run_id: _builtins.str = ...,
+        kind: Global___PanelKind.ValueType = ...,
+        benchmark: Global___BenchmarkSelection | None = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["benchmark", b"benchmark"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["benchmark", b"benchmark", "kind", b"kind", "run_id", b"run_id"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___GetPanel: _TypeAlias = GetPanel  # noqa: Y015
+
+@_typing.final
+class Panel(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    INDEX_FIELD_NUMBER: _builtins.int
+    LAST_FIELD_NUMBER: _builtins.int
+    DATA_FIELD_NUMBER: _builtins.int
+    index: _builtins.int
+    last: _builtins.bool
+    data: _builtins.bytes
+    """Concatenate all chunks before decoding the Arrow IPC stream. It has the
+    columns ts (UTC timestamp) and value (float64, a fraction, not percent).
+    """
+    def __init__(
+        self,
+        *,
+        index: _builtins.int = ...,
+        last: _builtins.bool = ...,
+        data: _builtins.bytes = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["data", b"data", "index", b"index", "last", b"last"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___Panel: _TypeAlias = Panel  # noqa: Y015

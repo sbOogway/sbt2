@@ -132,3 +132,28 @@ message Tearsheet {
   // Concatenate all chunks to recover the UTF-8 HTML document.
   bytes data = 3;
 }
+
+enum PanelKind {
+  PANEL_KIND_UNSPECIFIED = 0;
+  PANEL_KIND_RETURNS = 1;
+  PANEL_KIND_BENCHMARK_RETURNS = 2;
+  PANEL_KIND_DRAWDOWN = 3;
+  PANEL_KIND_MONTHLY_RETURNS = 4;
+  PANEL_KIND_YEARLY_RETURNS = 5;
+  PANEL_KIND_ROLLING_SHARPE = 6;
+}
+
+message GetPanel {
+  string run_id = 1;
+  PanelKind kind = 2;
+  // Only BENCHMARK_RETURNS uses it; the rules are GetTearsheet's.
+  BenchmarkSelection benchmark = 3;
+}
+
+message Panel {
+  uint64 index = 1;
+  bool last = 2;
+  // Concatenate all chunks before decoding the Arrow IPC stream. It has the
+  // columns ts (UTC timestamp) and value (float64, a fraction, not percent).
+  bytes data = 3;
+}
