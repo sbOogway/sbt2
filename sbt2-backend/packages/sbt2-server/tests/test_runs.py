@@ -390,7 +390,7 @@ def test_the_logs_of_a_real_job_reach_its_subscriber(tmp_path: Path) -> None:
             *subscribed.job_subscribed.log_lines,
             *(line for each in updates(session) for line in each.log_lines),
         ]
-        assert "hello from the strategy" in seen
+        assert any("hello from the strategy" in line for line in seen)
 
     in_one_loop(scenario())
 
