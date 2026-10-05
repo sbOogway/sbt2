@@ -30,6 +30,20 @@ steps:
       - apt-get update -qq && apt-get install -y -qq --no-install-recommends gh curl jq
       - scripts/draft-release.sh .release
 
+  # built on bookworm (glibc 2.36), so the binary runs on Debian 12+, Ubuntu 23.04+ and Fedora 37+
+  - name: gui
+    image: rust:1.97.1-slim-bookworm
+    environment:
+      DEBIAN_FRONTEND: noninteractive
+      CARGO_HOME: /cache/cargo
+      CARGO_TARGET_DIR: /cache/target
+      GH_TOKEN:
+        from_secret: github_token
+    volumes: [sbt2-cache-release-gui:/cache:z]
+    commands:
+      - apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates curl jq
+      - scripts/release-gui.sh
+
   # the release is public only when every step before this one has passed
   - name: publish
     image: *image
