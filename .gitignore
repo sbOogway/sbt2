@@ -9,6 +9,7 @@ __pycache__/
 htmlcov/
 .claude/worktrees/
 .release/
+.env
 coverage.xml
 junit.xml
 /sbt2-gui/target/
