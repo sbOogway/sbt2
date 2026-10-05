@@ -1,7 +1,8 @@
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Awaitable, Callable, Coroutine, Mapping
+from typing import Any
 
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
 from sbt2.protocol.v1.types_pb2 import Error, ErrorCode
@@ -19,6 +20,11 @@ class Outbox(ABC):
     @abstractmethod
     async def send(self, message: ServerMessage) -> None:
         """Queue a response chunk, waiting for capacity; disconnect cancels it."""
+
+    @abstractmethod
+    def spawn(self, work: Coroutine[Any, Any, None]) -> asyncio.Task[None]:
+        """Run ``work`` as a task that outlives the handler and pushes through
+        this outbox; disconnect cancels it."""
 
 
 type Handler = Callable[[ClientMessage, Outbox], Awaitable[ServerMessage]]

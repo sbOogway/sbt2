@@ -62,7 +62,11 @@ dev = [
 [tool.pyright]
 include = ["packages", "tests"]
 # the core tests share helpers with the root tests
-extraPaths = ["tests", "packages/sbt2-core/tests/results"]
+extraPaths = [
+    "tests",
+    "packages/sbt2-core/tests/results",
+    "packages/sbt2-core/tests/run",
+]
 reportDeprecated = "error"
 
 # mypy-protobuf's stubs narrow Message.DESCRIPTOR, which typeshed declares as a union;

@@ -1,10 +1,14 @@
+import importlib.util
+import keyword
+import sys
 from datetime import UTC
 from typing import Any
 
 from google.protobuf import json_format
 from google.protobuf.struct_pb2 import Struct
 
-from sbt2.protocol.v1.runs_pb2 import SpecFile
+from sbt2.protocol.v1.runs_pb2 import SpecFile, SubmitRun
+from sbt2.server.runs.jobs import Module, Submission
 
 _REQUIRED = ("strategy", "instruments", "period", "venue", "capital")
 _OPTIONAL = ("seed", "equity_interval", "liquidation", "bars", "study")
@@ -65,3 +69,38 @@ def _integral(value: Any) -> Any:
     if isinstance(value, list):
         return [_integral(each) for each in value]
     return value
+
+
+def submission(request: SubmitRun) -> Submission:
+    """What a ``SubmitRun`` asks for, in the types the jobs take."""
+    table = spec_table(request.spec)
+    module = request.strategy
+    _check_module(module.name, module.source, table["strategy"])
+    return Submission(table, Module(module.name, module.source))
+
+
+def _check_module(name: str, source: str, strategy: str) -> None:
+    if not name.isidentifier() or keyword.iskeyword(name):
+        raise InvalidArgumentError(f"the module name {name!r} is not an identifier")
+    if _importable(name):
+        raise InvalidArgumentError(
+            f"the server has a module called {name}; give yours another name"
+        )
+    if strategy.partition(":")[0] != name or ":" not in strategy:
+        raise InvalidArgumentError(
+            f"the strategy {strategy!r} must be a class of the module {name}, "
+            f"as {name}:Class"
+        )
+    if not source.strip():
+        raise InvalidArgumentError(f"the source of the module {name} is empty")
+
+
+def _importable(name: str) -> bool:
+    """Whether the server's image has a module of this name; ``find_spec`` runs
+    no module's code."""
+    if name in sys.modules:
+        return True
+    try:
+        return importlib.util.find_spec(name) is not None
+    except ImportError, ValueError:
+        return True
