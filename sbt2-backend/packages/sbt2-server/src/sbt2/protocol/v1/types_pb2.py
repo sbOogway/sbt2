@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1csbt2/protocol/v1/types.proto\x12\x10sbt2.protocol.v1\"\xaa\x01\n\x05\x45rror\x12)\n\x04\x63ode\x18\x01 \x01(\x0e\x32\x1b.sbt2.protocol.v1.ErrorCode\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x35\n\x07\x64\x65tails\x18\x03 \x03(\x0b\x32$.sbt2.protocol.v1.Error.DetailsEntry\x1a.\n\x0c\x44\x65tailsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01*\x80\x02\n\tErrorCode\x12\x1a\n\x16\x45RROR_CODE_UNSPECIFIED\x10\x00\x12\x1e\n\x1a\x45RROR_CODE_INVALID_MESSAGE\x10\x01\x12\x1f\n\x1b\x45RROR_CODE_INVALID_ARGUMENT\x10\x02\x12\x18\n\x14\x45RROR_CODE_NOT_FOUND\x10\x03\x12\x1c\n\x18\x45RROR_CODE_UNIMPLEMENTED\x10\x04\x12\"\n\x1e\x45RROR_CODE_UNSUPPORTED_VERSION\x10\x05\x12\x17\n\x13\x45RROR_CODE_INTERNAL\x10\x06\x12!\n\x1d\x45RROR_CODE_RESOURCE_EXHAUSTED\x10\x07\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1csbt2/protocol/v1/types.proto\x12\x10sbt2.protocol.v1\"\xef\x01\n\x05\x45rror\x12)\n\x04\x63ode\x18\x01 \x01(\x0e\x32\x1b.sbt2.protocol.v1.ErrorCode\x12\x0f\n\x07message\x18\x02 \x01(\t\x12\x35\n\x07\x64\x65tails\x18\x03 \x03(\x0b\x32$.sbt2.protocol.v1.Error.DetailsEntry\x12\x39\n\x0estudy_conflict\x18\x04 \x01(\x0b\x32\x1f.sbt2.protocol.v1.StudyConflictH\x00\x1a.\n\x0c\x44\x65tailsEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\t:\x02\x38\x01\x42\x08\n\x06\x64\x65tail\"x\n\rStudyConflict\x12\x31\n\x04kind\x18\x01 \x01(\x0e\x32#.sbt2.protocol.v1.StudyConflictKind\x12\x14\n\x0c\x63ontext_keys\x18\x02 \x03(\t\x12\x13\n\x06run_id\x18\x03 \x01(\tH\x00\x88\x01\x01\x42\t\n\x07_run_id*\x9e\x01\n\x11StudyConflictKind\x12#\n\x1fSTUDY_CONFLICT_KIND_UNSPECIFIED\x10\x00\x12\x1f\n\x1bSTUDY_CONFLICT_KIND_CONTEXT\x10\x01\x12\x1c\n\x18STUDY_CONFLICT_KIND_CODE\x10\x02\x12%\n!STUDY_CONFLICT_KIND_DUPLICATE_RUN\x10\x03*\x80\x02\n\tErrorCode\x12\x1a\n\x16\x45RROR_CODE_UNSPECIFIED\x10\x00\x12\x1e\n\x1a\x45RROR_CODE_INVALID_MESSAGE\x10\x01\x12\x1f\n\x1b\x45RROR_CODE_INVALID_ARGUMENT\x10\x02\x12\x18\n\x14\x45RROR_CODE_NOT_FOUND\x10\x03\x12\x1c\n\x18\x45RROR_CODE_UNIMPLEMENTED\x10\x04\x12\"\n\x1e\x45RROR_CODE_UNSUPPORTED_VERSION\x10\x05\x12\x17\n\x13\x45RROR_CODE_INTERNAL\x10\x06\x12!\n\x1d\x45RROR_CODE_RESOURCE_EXHAUSTED\x10\x07\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,10 +33,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
   _globals['_ERROR_DETAILSENTRY']._loaded_options = None
   _globals['_ERROR_DETAILSENTRY']._serialized_options = b'8\001'
-  _globals['_ERRORCODE']._serialized_start=224
-  _globals['_ERRORCODE']._serialized_end=480
+  _globals['_STUDYCONFLICTKIND']._serialized_start=415
+  _globals['_STUDYCONFLICTKIND']._serialized_end=573
+  _globals['_ERRORCODE']._serialized_start=576
+  _globals['_ERRORCODE']._serialized_end=832
   _globals['_ERROR']._serialized_start=51
-  _globals['_ERROR']._serialized_end=221
-  _globals['_ERROR_DETAILSENTRY']._serialized_start=175
-  _globals['_ERROR_DETAILSENTRY']._serialized_end=221
+  _globals['_ERROR']._serialized_end=290
+  _globals['_ERROR_DETAILSENTRY']._serialized_start=234
+  _globals['_ERROR_DETAILSENTRY']._serialized_end=280
+  _globals['_STUDYCONFLICT']._serialized_start=292
+  _globals['_STUDYCONFLICT']._serialized_end=412
 # @@protoc_insertion_point(module_scope)

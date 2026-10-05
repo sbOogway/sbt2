@@ -1,0 +1,7 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 11
+study_list {
+  index: 0
+  last: true
+  studies { name: "trend-sweep" strategy: "example:Trend" run_count: 3 }
+}

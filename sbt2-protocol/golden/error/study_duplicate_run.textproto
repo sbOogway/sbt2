@@ -1,0 +1,7 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 14
+error {
+  code: ERROR_CODE_INVALID_ARGUMENT
+  message: "study trend-sweep already holds the run: run run-1"
+  study_conflict { kind: STUDY_CONFLICT_KIND_DUPLICATE_RUN run_id: "run-1" }
+}

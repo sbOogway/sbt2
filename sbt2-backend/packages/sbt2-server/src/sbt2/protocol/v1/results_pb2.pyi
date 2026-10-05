@@ -368,6 +368,162 @@ class RunList(_message.Message):
 Global___RunList: _TypeAlias = RunList  # noqa: Y015
 
 @_typing.final
+class ListStudies(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    def __init__(
+        self,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___ListStudies: _TypeAlias = ListStudies  # noqa: Y015
+
+@_typing.final
+class StudySummary(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: _builtins.int
+    STRATEGY_FIELD_NUMBER: _builtins.int
+    RUN_COUNT_FIELD_NUMBER: _builtins.int
+    name: _builtins.str
+    strategy: _builtins.str
+    run_count: _builtins.int
+    def __init__(
+        self,
+        *,
+        name: _builtins.str = ...,
+        strategy: _builtins.str = ...,
+        run_count: _builtins.int = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["name", b"name", "run_count", b"run_count", "strategy", b"strategy"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___StudySummary: _TypeAlias = StudySummary  # noqa: Y015
+
+@_typing.final
+class StudyList(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    INDEX_FIELD_NUMBER: _builtins.int
+    LAST_FIELD_NUMBER: _builtins.int
+    STUDIES_FIELD_NUMBER: _builtins.int
+    index: _builtins.int
+    last: _builtins.bool
+    @_builtins.property
+    def studies(self) -> _containers.RepeatedCompositeFieldContainer[Global___StudySummary]: ...
+    def __init__(
+        self,
+        *,
+        index: _builtins.int = ...,
+        last: _builtins.bool = ...,
+        studies: _abc.Iterable[Global___StudySummary] | None = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["index", b"index", "last", b"last", "studies", b"studies"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___StudyList: _TypeAlias = StudyList  # noqa: Y015
+
+@_typing.final
+class GetStudy(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: _builtins.int
+    name: _builtins.str
+    def __init__(
+        self,
+        *,
+        name: _builtins.str = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["name", b"name"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___GetStudy: _TypeAlias = GetStudy  # noqa: Y015
+
+@_typing.final
+class StudyRun(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    RUN_ID_FIELD_NUMBER: _builtins.int
+    PART_FIELD_NUMBER: _builtins.int
+    VARYING_PARAMS_JSON_FIELD_NUMBER: _builtins.int
+    HEADLINE_FIELD_NUMBER: _builtins.int
+    run_id: _builtins.str
+    part: _builtins.str
+    varying_params_json: _builtins.str
+    """A JSON object of the parameters that vary across the study's runs."""
+    @_builtins.property
+    def headline(self) -> Global___HeadlineMetrics: ...
+    def __init__(
+        self,
+        *,
+        run_id: _builtins.str = ...,
+        part: _builtins.str = ...,
+        varying_params_json: _builtins.str = ...,
+        headline: Global___HeadlineMetrics | None = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["headline", b"headline"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["headline", b"headline", "part", b"part", "run_id", b"run_id", "varying_params_json", b"varying_params_json"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___StudyRun: _TypeAlias = StudyRun  # noqa: Y015
+
+@_typing.final
+class StudyDetail(_message.Message):
+    DESCRIPTOR: _descriptor.Descriptor
+
+    INDEX_FIELD_NUMBER: _builtins.int
+    LAST_FIELD_NUMBER: _builtins.int
+    NAME_FIELD_NUMBER: _builtins.int
+    STRATEGY_FIELD_NUMBER: _builtins.int
+    CONTEXT_JSON_FIELD_NUMBER: _builtins.int
+    SOURCE_FIELD_NUMBER: _builtins.int
+    RUNS_FIELD_NUMBER: _builtins.int
+    index: _builtins.int
+    last: _builtins.bool
+    name: _builtins.str
+    """name, strategy, context_json and source are set only in the chunk with index 0."""
+    strategy: _builtins.str
+    context_json: _builtins.str
+    """A JSON object: the context every run of the study shares."""
+    source: _builtins.str
+    """The module source the study pinned."""
+    @_builtins.property
+    def runs(self) -> _containers.RepeatedCompositeFieldContainer[Global___StudyRun]: ...
+    def __init__(
+        self,
+        *,
+        index: _builtins.int = ...,
+        last: _builtins.bool = ...,
+        name: _builtins.str = ...,
+        strategy: _builtins.str = ...,
+        context_json: _builtins.str = ...,
+        source: _builtins.str = ...,
+        runs: _abc.Iterable[Global___StudyRun] | None = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["context_json", b"context_json", "index", b"index", "last", b"last", "name", b"name", "runs", b"runs", "source", b"source", "strategy", b"strategy"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    def WhichOneof(self, oneof_group: _Never) -> None: ...
+
+Global___StudyDetail: _TypeAlias = StudyDetail  # noqa: Y015
+
+@_typing.final
 class GetMetrics(_message.Message):
     DESCRIPTOR: _descriptor.Descriptor
 

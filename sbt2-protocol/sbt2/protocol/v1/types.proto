@@ -7,6 +7,28 @@ message Error {
   ErrorCode code = 1;
   string message = 2;
   map<string, string> details = 3;
+  oneof detail {
+    StudyConflict study_conflict = 4;
+  }
+}
+
+// Why a run does not fit the study it names; the code is ERROR_CODE_INVALID_ARGUMENT.
+message StudyConflict {
+  StudyConflictKind kind = 1;
+  // CONTEXT only: the context keys whose values differ from the study's.
+  repeated string context_keys = 2;
+  // DUPLICATE_RUN only: the study's run with the same parameters.
+  optional string run_id = 3;
+}
+
+enum StudyConflictKind {
+  STUDY_CONFLICT_KIND_UNSPECIFIED = 0;
+  // The run's context differs from the study's.
+  STUDY_CONFLICT_KIND_CONTEXT = 1;
+  // The strategy's source differs from the one the study pinned.
+  STUDY_CONFLICT_KIND_CODE = 2;
+  // The study already holds a run with the same parameters.
+  STUDY_CONFLICT_KIND_DUPLICATE_RUN = 3;
 }
 
 enum ErrorCode {

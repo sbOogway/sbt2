@@ -19,6 +19,31 @@ else:
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class _StudyConflictKind:
+    ValueType = _typing.NewType("ValueType", _builtins.int)
+    V: _TypeAlias = ValueType  # noqa: Y015
+
+class _StudyConflictKindEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_StudyConflictKind.ValueType], _builtins.type):
+    DESCRIPTOR: _descriptor.EnumDescriptor
+    STUDY_CONFLICT_KIND_UNSPECIFIED: _StudyConflictKind.ValueType  # 0
+    STUDY_CONFLICT_KIND_CONTEXT: _StudyConflictKind.ValueType  # 1
+    """The run's context differs from the study's."""
+    STUDY_CONFLICT_KIND_CODE: _StudyConflictKind.ValueType  # 2
+    """The strategy's source differs from the one the study pinned."""
+    STUDY_CONFLICT_KIND_DUPLICATE_RUN: _StudyConflictKind.ValueType  # 3
+    """The study already holds a run with the same parameters."""
+
+class StudyConflictKind(_StudyConflictKind, metaclass=_StudyConflictKindEnumTypeWrapper): ...
+
+STUDY_CONFLICT_KIND_UNSPECIFIED: StudyConflictKind.ValueType  # 0
+STUDY_CONFLICT_KIND_CONTEXT: StudyConflictKind.ValueType  # 1
+"""The run's context differs from the study's."""
+STUDY_CONFLICT_KIND_CODE: StudyConflictKind.ValueType  # 2
+"""The strategy's source differs from the one the study pinned."""
+STUDY_CONFLICT_KIND_DUPLICATE_RUN: StudyConflictKind.ValueType  # 3
+"""The study already holds a run with the same parameters."""
+Global___StudyConflictKind: _TypeAlias = StudyConflictKind  # noqa: Y015
+
 class _ErrorCode:
     ValueType = _typing.NewType("ValueType", _builtins.int)
     V: _TypeAlias = ValueType  # noqa: Y015
@@ -81,21 +106,60 @@ class Error(_message.Message):
     CODE_FIELD_NUMBER: _builtins.int
     MESSAGE_FIELD_NUMBER: _builtins.int
     DETAILS_FIELD_NUMBER: _builtins.int
+    STUDY_CONFLICT_FIELD_NUMBER: _builtins.int
     code: Global___ErrorCode.ValueType
     message: _builtins.str
     @_builtins.property
     def details(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]: ...
+    @_builtins.property
+    def study_conflict(self) -> Global___StudyConflict: ...
     def __init__(
         self,
         *,
         code: Global___ErrorCode.ValueType = ...,
         message: _builtins.str = ...,
         details: _abc.Mapping[_builtins.str, _builtins.str] | None = ...,
+        study_conflict: Global___StudyConflict | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["detail", b"detail", "study_conflict", b"study_conflict"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["code", b"code", "details", b"details", "message", b"message"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["code", b"code", "detail", b"detail", "details", b"details", "message", b"message", "study_conflict", b"study_conflict"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    def WhichOneof(self, oneof_group: _Never) -> None: ...
+    _WhichOneofReturnType_detail: _TypeAlias = _typing.Literal["study_conflict"]  # noqa: Y015
+    _WhichOneofArgType_detail: _TypeAlias = _typing.Literal["detail", b"detail"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_detail) -> _WhichOneofReturnType_detail | None: ...
 
 Global___Error: _TypeAlias = Error  # noqa: Y015
+
+@_typing.final
+class StudyConflict(_message.Message):
+    """Why a run does not fit the study it names; the code is ERROR_CODE_INVALID_ARGUMENT."""
+
+    DESCRIPTOR: _descriptor.Descriptor
+
+    KIND_FIELD_NUMBER: _builtins.int
+    CONTEXT_KEYS_FIELD_NUMBER: _builtins.int
+    RUN_ID_FIELD_NUMBER: _builtins.int
+    kind: Global___StudyConflictKind.ValueType
+    run_id: _builtins.str
+    """DUPLICATE_RUN only: the study's run with the same parameters."""
+    @_builtins.property
+    def context_keys(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+        """CONTEXT only: the context keys whose values differ from the study's."""
+
+    def __init__(
+        self,
+        *,
+        kind: Global___StudyConflictKind.ValueType = ...,
+        context_keys: _abc.Iterable[_builtins.str] | None = ...,
+        run_id: _builtins.str | None = ...,
+    ) -> None: ...
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_run_id", b"_run_id", "run_id", b"run_id"]  # noqa: Y015
+    def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_run_id", b"_run_id", "context_keys", b"context_keys", "kind", b"kind", "run_id", b"run_id"]  # noqa: Y015
+    def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
+    _WhichOneofReturnType__run_id: _TypeAlias = _typing.Literal["run_id"]  # noqa: Y015
+    _WhichOneofArgType__run_id: _TypeAlias = _typing.Literal["_run_id", b"_run_id"]  # noqa: Y015
+    def WhichOneof(self, oneof_group: _WhichOneofArgType__run_id) -> _WhichOneofReturnType__run_id | None: ...
+
+Global___StudyConflict: _TypeAlias = StudyConflict  # noqa: Y015
