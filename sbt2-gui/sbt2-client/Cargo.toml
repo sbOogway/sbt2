@@ -23,4 +23,5 @@ prost-build = "=0.14.4"
 protox = "0.9.1"
 
 [dev-dependencies]
+tempfile = "3"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }
