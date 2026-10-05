@@ -1,6 +1,7 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import nautilus_trader.model
@@ -60,9 +61,13 @@ class ResolvedRunSpec:
     study: Study | None = field(default=None, compare=False)
 
     @classmethod
-    def from_document(cls, document: Mapping[str, Any]) -> ResolvedRunSpec:
-        """The spec whose hashed document ``document`` is, as ``to_json`` wrote it."""
-        return cls(source="", **spec_fields(document))
+    def from_document(
+        cls, document: Mapping[str, Any], strategy_source: Path | None = None
+    ) -> ResolvedRunSpec:
+        """The spec whose hashed document ``document`` is, as ``to_json`` wrote it.
+
+        With ``strategy_source``, the strategy's module is imported from that file."""
+        return cls(source="", **spec_fields(document, strategy_source))
 
     @property
     def hash(self) -> str:

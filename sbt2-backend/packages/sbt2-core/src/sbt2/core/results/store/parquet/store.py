@@ -22,6 +22,7 @@ from sbt2.core.results.store.base import (
     UnknownStudyError,
 )
 from sbt2.core.results.store.parquet.sink import (
+    STRATEGY_SOURCE,
     SUMMARY,
     SUMMARY_SCHEMA,
     NewRun,
@@ -108,8 +109,9 @@ class ParquetResultStore(ResultStore):
     @override
     def stored_run(self, run_id: str) -> StoredRun:
         [summary] = self.load(run_id, "summary").to_dict("records")
+        source = self._strategy_source(run_id)
         return StoredRun(
-            spec=ResolvedRunSpec.from_document(self.spec(run_id)),
+            spec=ResolvedRunSpec.from_document(self.spec(run_id), source),
             tables=RunTables(
                 equity=self.load(run_id, "equity"),
                 fills=self.load(run_id, "fills"),
@@ -118,6 +120,7 @@ class ParquetResultStore(ResultStore):
                 positions=self.load(run_id, "positions"),
             ),
             known_gaps=frozenset(Gap.from_str(each) for each in summary["known_gaps"]),
+            strategy_source=source,
         )
 
     @override
@@ -155,6 +158,10 @@ class ParquetResultStore(ResultStore):
         if not self._studies.is_dir():
             return ()
         return tuple(sorted(each.name for each in self._studies.iterdir()))
+
+    def _strategy_source(self, run_id: str) -> Path | None:
+        source = self._folder(run_id) / STRATEGY_SOURCE
+        return source if source.exists() else None
 
     def _folder(self, run_id: str) -> Path:
         folder = self._runs / _canonical_uuid(run_id)
