@@ -1,0 +1,31 @@
+[package]
+name = "sbt2-client"
+description = "The protocol client of the sbt2 server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Session::offline, for tests of code that holds a session
+test-support = []
+
+[dependencies]
+prost = "=0.14.4"
+prost-types = "=0.14.4"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+thiserror = "2"
+tokio = { version = "1", features = ["rt", "macros", "sync", "time"] }
+tokio-tungstenite = { version = "0.30.0", features = ["rustls-tls-webpki-roots"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+tracing = "0.1"
+url = "2"
+
+[build-dependencies]
+prost = "=0.14.4"
+prost-build = "=0.14.4"
+protox = "0.9.1"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "time"] }

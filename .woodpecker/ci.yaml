@@ -27,6 +27,23 @@ variables:
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
     - event: [push, manual]
+  - &gui
+    - event: pull_request
+      path:
+        - sbt2-gui/**
+        - sbt2-protocol/**
+        - '{.woodpecker,.github,scripts}/**'
+        - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
+    - event: [push, manual]
+  - &gui_e2e
+    - event: pull_request
+      path:
+        - sbt2-gui/**
+        - sbt2-protocol/**
+        - sbt2-backend/**
+        - '{.woodpecker,.github,scripts}/**'
+        - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
+    - event: [push, manual]
   - &backend_or_protocol
     - event: pull_request
       path:
@@ -241,3 +258,40 @@ steps:
     when: *protocol
     commands:
       - cargo test --locked --manifest-path sbt2-protocol/checks/rust/Cargo.toml
+
+  # the GUI's format, lint, unit and integration tests; cargo runs in sbt2-gui, where rust-toolchain.toml pins the image's toolchain
+  - name: gui
+    image: rust:1.97.1-slim-trixie
+    environment:
+      CARGO_HOME: /cache/cargo
+      CARGO_TARGET_DIR: /cache/target
+    volumes: [sbt2-cache-gui:/cache:z]
+    depends_on: []
+    when: *gui
+    commands:
+      - cd sbt2-gui
+      - cargo fmt --all --check
+      - cargo clippy --locked --all-targets -- -D warnings
+      - cargo test --locked
+
+  # the GUI's client against the real server; the rust image brings the toolchain, a pinned uv release brings Python
+  - name: gui-e2e
+    image: rust:1.97.1-slim-trixie
+    environment:
+      CARGO_HOME: /cache/cargo
+      CARGO_TARGET_DIR: /cache/target
+      UV_PYTHON_DOWNLOADS: automatic
+      UV_PYTHON: "3.14"
+      UV_PROJECT_ENVIRONMENT: /cache/venv
+      XDG_CACHE_HOME: /cache
+    volumes: [sbt2-cache-gui-e2e:/cache:z]
+    depends_on: []
+    when: *gui_e2e
+    commands:
+      - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git
+      - curl -fsSL -o /tmp/uv.tar.gz https://github.com/astral-sh/uv/releases/download/0.12.19/uv-x86_64-unknown-linux-gnu.tar.gz
+      - echo "23bf5552d220e0842b65c862097b2ebaeba0064b74eda5e565e77fd25969d8c8  /tmp/uv.tar.gz" | sha256sum --check
+      - tar -xzf /tmp/uv.tar.gz -C /usr/local/bin --strip-components=1
+      - uv --directory sbt2-backend sync --locked
+      - cd sbt2-gui
+      - cargo test --locked -- --ignored
