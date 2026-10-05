@@ -8,7 +8,7 @@ from nautilus_trader.model import AssetClass, InstrumentClass
 from sbt2.core.assets import AssetProfile, UnknownAssetClassError, asset_profile
 from sbt2.core.spec.errors import SpecError
 from sbt2.core.spec.resolve.models import built_model, model_tables
-from sbt2.core.tomlfiles import read_toml, write_toml
+from sbt2.data.tomlfiles import read_toml, write_toml
 
 
 class UnknownVenueProfileError(SpecError, LookupError):

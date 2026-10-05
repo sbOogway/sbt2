@@ -13,6 +13,7 @@ members = [
     "sbt2",
     "sbt2-cli",
     "sbt2-core",
+    "sbt2-data",
     "sbt2-papers",
     "sbt2-server",
     "sbt2-strategies",
@@ -571,9 +572,10 @@ wheels = [
 name = "sbt2"
 source = { editable = "." }
 dependencies = [
-    { name = "sbt2-cli" },
-    { name = "sbt2-core" },
-    { name = "sbt2-strategies" },
+    { name = "sbt2-cli", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "sbt2-core", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "sbt2-data", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "sbt2-strategies", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 
 [package.optional-dependencies]
@@ -606,6 +608,7 @@ dev = [
 requires-dist = [
     { name = "sbt2-cli", editable = "packages/sbt2-cli" },
     { name = "sbt2-core", editable = "packages/sbt2-core" },
+    { name = "sbt2-data", editable = "packages/sbt2-data" },
     { name = "sbt2-papers", marker = "extra == 'all'", editable = "packages/sbt2-papers" },
     { name = "sbt2-papers", marker = "extra == 'papers'", editable = "packages/sbt2-papers" },
     { name = "sbt2-server", marker = "extra == 'all'", editable = "packages/sbt2-server" },
@@ -658,13 +661,13 @@ dev = [
 name = "sbt2-core"
 source = { editable = "packages/sbt2-core" }
 dependencies = [
-    { name = "duckdb" },
-    { name = "httpx" },
-    { name = "jeepney" },
-    { name = "nautilus-trader", extra = ["visualization"] },
-    { name = "pandas" },
-    { name = "pyarrow" },
-    { name = "tomli-w" },
+    { name = "duckdb", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "httpx", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "jeepney", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "nautilus-trader", extra = ["visualization"], marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "pandas", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "pyarrow", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "tomli-w", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 
 [package.dev-dependencies]
@@ -676,9 +679,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "duckdb", specifier = ">=1.5.6" },
-    { name = "httpx", specifier = ">=0.28.1" },
     { name = "jeepney", specifier = ">=0.9.0" },
-    { name = "nautilus-trader", extras = ["visualization"], specifier = "==2.0.0rc7.dev20261005", index = "https://packages.nautechsystems.io/simple" },
+    { name = "nautilus-trader", extras = ["visualization"], specifier = "==2.0.0rc6", index = "https://packages.nautechsystems.io/simple" },
     { name = "pandas", specifier = ">=3.0.6" },
     { name = "pyarrow", specifier = ">=25.0.1" },
     { name = "tomli-w", specifier = ">=1.2.0" },

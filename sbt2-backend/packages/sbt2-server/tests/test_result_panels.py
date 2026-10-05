@@ -9,7 +9,7 @@ from results_kit import ask, priced, stored
 
 from sbt2.core import results as core
 from sbt2.core.config import Root
-from sbt2.core.data import Catalog
+from sbt2.data import Catalog
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
 from sbt2.protocol.v1.results_pb2 import (
     BenchmarkKind,

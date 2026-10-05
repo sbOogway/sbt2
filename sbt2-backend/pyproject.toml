@@ -16,6 +16,7 @@ source = "uv-dynamic-versioning"
 [tool.hatch.metadata.hooks.uv-dynamic-versioning]
 dependencies = [
     "sbt2-core=={{ version }}",
+    "sbt2-data=={{ version }}",
     "sbt2-cli=={{ version }}",
     "sbt2-strategies=={{ version }}",
 ]
@@ -46,6 +47,7 @@ members = ["packages/*"]
 [tool.uv.sources]
 nautilus-trader = { index = "nautech" }
 sbt2-core = { workspace = true }
+sbt2-data = { workspace = true }
 sbt2-cli = { workspace = true }
 sbt2-strategies = { workspace = true }
 sbt2-papers = { workspace = true }
@@ -72,6 +74,9 @@ extraPaths = [
     "tests",
     "packages/sbt2-core/tests",
     "packages/sbt2-cli/tests",
+    "packages/sbt2-data/tests",
+    "packages/sbt2-data/tests/catalog",
+    "packages/sbt2-data/tests/sources",
     "packages/sbt2-core/tests/results",
     "packages/sbt2-core/tests/run",
 ]
@@ -117,7 +122,7 @@ max-args = 3
 max-positional-args = 3
 
 [tool.importlinter]
-root_packages = ["sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server", "sbt2.protocol"]
+root_packages = ["sbt2.data", "sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server", "sbt2.protocol"]
 exclude_type_checking_imports = true
 
 [[tool.importlinter.contracts]]
@@ -127,7 +132,8 @@ layers = [
     "sbt2.core.run",
     "sbt2.core.results",
     "sbt2.core.spec",
-    "sbt2.core.data | sbt2.core.strategy | sbt2.core.assets | sbt2.core.config",
+    "sbt2.core.strategy | sbt2.core.assets | sbt2.core.config",
+    "sbt2.data",
 ]
 
 [[tool.importlinter.contracts]]
@@ -137,10 +143,23 @@ protected_modules = ["sbt2.core.assets.*"]
 allowed_importers = ["sbt2.core.assets"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.core.data imports its own internals"
+name = "Only sbt2.data imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.core.data.*"]
-allowed_importers = ["sbt2.core.data"]
+protected_modules = [
+    "sbt2.data.catalog",
+    "sbt2.data.catalog.*",
+    "sbt2.data.days",
+    "sbt2.data.days.*",
+    "sbt2.data.downloading",
+    "sbt2.data.downloading.*",
+    "sbt2.data.ingesting",
+    "sbt2.data.ingesting.*",
+    "sbt2.data.sources",
+    "sbt2.data.sources.*",
+    "sbt2.data.tally",
+    "sbt2.data.tally.*",
+]
+allowed_importers = ["sbt2.data"]
 
 [[tool.importlinter.contracts]]
 name = "Only sbt2.core.results imports its own internals"
@@ -296,6 +315,7 @@ forbidden_modules = ["sbt2.core", "sbt2.strategies"]
 testpaths = [
     "packages/sbt2-core/tests",
     "packages/sbt2-cli/tests",
+    "packages/sbt2-data/tests",
     "packages/sbt2-strategies/tests",
     "packages/sbt2-server/tests",
     "packages/sbt2-papers/tests",
@@ -307,9 +327,9 @@ pythonpath = [
     "tests/characterization/nautilus",
     "tests/golden",
     "packages/sbt2-core/tests",
-    "packages/sbt2-core/tests/data",
-    "packages/sbt2-core/tests/data/catalog",
-    "packages/sbt2-core/tests/data/sources",
+    "packages/sbt2-data/tests",
+    "packages/sbt2-data/tests/catalog",
+    "packages/sbt2-data/tests/sources",
     "packages/sbt2-core/tests/results",
     "packages/sbt2-core/tests/run",
     "packages/sbt2-core/tests/spec",
@@ -338,7 +358,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source_pkgs = ["sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
+source_pkgs = ["sbt2.data", "sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
 branch = true
 concurrency = ["multiprocessing"]
 patch = ["subprocess"]

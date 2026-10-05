@@ -9,7 +9,6 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from nautilus_trader.model import PortfolioSnapshot, PositionAdjusted
 
-from sbt2.core.data import Gap
 from sbt2.core.results.metrics import (
     HeadlineMetrics,
     RunTables,
@@ -23,6 +22,7 @@ from sbt2.core.results.store.parquet.tables import (
 )
 from sbt2.core.results.store.sink import IncompleteRunError, Reports
 from sbt2.core.spec import ResolvedRunSpec
+from sbt2.data import Gap
 
 SUMMARY = "summary"
 STRATEGY_SOURCE = "strategy.py"

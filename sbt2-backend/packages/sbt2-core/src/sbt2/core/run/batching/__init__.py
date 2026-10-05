@@ -3,7 +3,6 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from sbt2.core.data import Gap
 from sbt2.core.run.batching.children import Children
 from sbt2.core.run.batching.errors import (
     DuplicateStudyRunError,
@@ -19,6 +18,7 @@ from sbt2.core.run.batching.studies import checked_studies
 from sbt2.core.run.child import Order
 from sbt2.core.run.preflighting import preflight
 from sbt2.core.spec import ResolvedRunSpec
+from sbt2.data import Gap
 
 
 class _NoProgress:

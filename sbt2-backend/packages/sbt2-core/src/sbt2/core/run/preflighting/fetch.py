@@ -5,7 +5,9 @@ from datetime import date
 from operator import attrgetter
 from pathlib import Path
 
-from sbt2.core.data import (
+from sbt2.core.run.preflighting.errors import MissingDataError
+from sbt2.core.spec import ResolvedRunSpec
+from sbt2.data import (
     Catalog,
     Coverage,
     DayRange,
@@ -22,8 +24,6 @@ from sbt2.core.data import (
     download,
     ingest,
 )
-from sbt2.core.run.preflighting.errors import MissingDataError
-from sbt2.core.spec import ResolvedRunSpec
 
 logger = logging.getLogger(__name__)
 

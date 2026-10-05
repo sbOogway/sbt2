@@ -3,9 +3,9 @@ from datetime import timedelta
 
 from nautilus_trader.model import Bar, BarSpecification, PriceType
 
-from sbt2.core.data import CANDLES
 from sbt2.core.spec.bars.source import BarSource
 from sbt2.core.spec.errors import SpecError
+from sbt2.data import CANDLES
 
 _MINUTE = timedelta(minutes=1)
 

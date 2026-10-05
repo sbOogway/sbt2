@@ -25,7 +25,6 @@ from launchers import (
 from nautilus_trader.model import FundingRateUpdate
 from served_source import INSTRUMENT_ID
 
-from sbt2.core.data.sources import Gap
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import (
     Memory,
@@ -36,6 +35,7 @@ from sbt2.core.run import (
     batch,
 )
 from sbt2.core.run.batching import children as batch_children
+from sbt2.data.sources import Gap
 
 NAUTILUS_CORE = "_libnautilus"
 FRESH = """

@@ -21,7 +21,6 @@ from nautilus_run import (
 from nautilus_trader.core import UUID4
 from nautilus_trader.model import FundingRateUpdate, InstrumentId, PositionAdjusted
 
-from sbt2.core.data.sources import Gap
 from sbt2.core.results import (
     IncompleteRunError,
     MissingTableError,
@@ -36,6 +35,7 @@ from sbt2.core.results import (
     full_metrics,
 )
 from sbt2.core.spec import ResolvedRunSpec
+from sbt2.data.sources import Gap
 
 
 @pytest.fixture(scope="module")

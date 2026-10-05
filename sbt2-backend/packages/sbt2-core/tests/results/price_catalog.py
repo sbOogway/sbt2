@@ -20,9 +20,9 @@ from nautilus_trader.model import (
     Symbol,
 )
 
-from sbt2.core.data import Catalog
-from sbt2.core.data.catalog import CatalogWriter, DayFile
 from sbt2.core.spec import ResolvedRunSpec
+from sbt2.data import Catalog
+from sbt2.data.catalog import CatalogWriter, DayFile
 
 BTC = InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT")
 ETH = InstrumentId.from_str("ETHUSDT-LINEAR.BYBIT")

@@ -4,9 +4,9 @@ from typing import Annotated
 
 import typer
 
+from sbt2 import data
 from sbt2.cli import tables
 from sbt2.cli.options import DAY, data_option, failing
-from sbt2.core import data
 from sbt2.core.config import Root
 
 STATUS_HEADER = ("instrument", "type", "first", "last", "days", "gaps", "known gaps")

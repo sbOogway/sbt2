@@ -9,9 +9,9 @@ from typer.testing import CliRunner
 
 from sbt2.cli import app
 from sbt2.cli import run as cli
-from sbt2.core.data.sources import Gap
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import Launcher, launcher_named
+from sbt2.data.sources import Gap
 
 runner = CliRunner()
 FAILING = """

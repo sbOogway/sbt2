@@ -9,7 +9,16 @@ from nautilus_trader.model import Bar, FundingRateUpdate, TradeTick
 from served_source import INSTRUMENT_ID, SYMBOL, ServedSource, spot_pair
 
 from sbt2.core.assets import Calendar
-from sbt2.core.data import (
+from sbt2.core.run import (
+    DataFolders,
+    InstrumentAssetClassError,
+    LiquidationWithoutQuotesError,
+    MissingDataError,
+    SnapshotBufferError,
+    preflight,
+)
+from sbt2.core.spec import ResolvedRunSpec, load
+from sbt2.data import (
     Catalog,
     DayRange,
     DownloadOptions,
@@ -20,16 +29,7 @@ from sbt2.core.data import (
     download,
     ingest,
 )
-from sbt2.core.data.sources import Gap, UnsupportedDataTypeError
-from sbt2.core.run import (
-    DataFolders,
-    InstrumentAssetClassError,
-    LiquidationWithoutQuotesError,
-    MissingDataError,
-    SnapshotBufferError,
-    preflight,
-)
-from sbt2.core.spec import ResolvedRunSpec, load
+from sbt2.data.sources import Gap, UnsupportedDataTypeError
 
 VENUES = """
 [test_linear]

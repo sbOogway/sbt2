@@ -13,7 +13,6 @@ from nautilus_trader.model import (
 )
 
 from sbt2.core.assets import AssetProfile, asset_profile
-from sbt2.core.data import CANDLES
 from sbt2.core.spec.errors import SpecError
 from sbt2.core.spec.resolve.models import model_tables
 from sbt2.core.spec.risk import risk_limits
@@ -24,6 +23,7 @@ from sbt2.core.strategy import (
     import_strategy,
     resolve_params,
 )
+from sbt2.data import CANDLES
 
 type Document = Mapping[str, Any]
 

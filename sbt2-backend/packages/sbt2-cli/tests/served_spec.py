@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from served_source import ServedSource
 
-from sbt2.core import data
+from sbt2 import data
 
 SPEC = """
 strategy = "crossover:MovingAverageCross"
