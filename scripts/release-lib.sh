@@ -48,7 +48,7 @@ image_repository() {
 image_digest() {
     local path token
     path=${CI_REPO_OWNER,,}/sbt2-server
-    token=$(curl -fsS -u "$CI_REPO_OWNER:$GH_TOKEN" \
+    token=$(curl -fsS -u "$CI_REPO_OWNER:$GHCR_TOKEN" \
         "https://ghcr.io/token?service=ghcr.io&scope=repository:$path:pull" | jq -r .token)
     curl -fsSI -H "Authorization: Bearer $token" \
         -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \

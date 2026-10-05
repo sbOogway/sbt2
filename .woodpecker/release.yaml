@@ -56,6 +56,8 @@ steps:
       XDG_CACHE_HOME: /cache
       GH_TOKEN:
         from_secret: github_token
+      GHCR_TOKEN:
+        from_secret: ghcr_token
     volumes: [sbt2-cache-release-image:/cache:z]
     commands:
       - mkdir -p /cache/tmp
@@ -69,6 +71,8 @@ steps:
       DEBIAN_FRONTEND: noninteractive
       GH_TOKEN:
         from_secret: github_token
+      GHCR_TOKEN:
+        from_secret: ghcr_token
     commands:
       - apt-get update -qq && apt-get install -y -qq --no-install-recommends curl jq
       - scripts/publish-release.sh
