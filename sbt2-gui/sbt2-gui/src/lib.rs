@@ -1,6 +1,7 @@
 //! The sbt2 GUI.
 
 mod app;
+mod dates;
 mod navigation;
 mod runs_table;
 mod settings;
