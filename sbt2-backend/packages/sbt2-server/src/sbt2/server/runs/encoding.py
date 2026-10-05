@@ -1,6 +1,3 @@
-import importlib.util
-import keyword
-import sys
 from datetime import UTC
 from typing import Any
 
@@ -8,6 +5,7 @@ from google.protobuf import json_format
 from google.protobuf.struct_pb2 import Struct
 
 from sbt2.protocol.v1.runs_pb2 import SpecFile, SubmitRun
+from sbt2.server.modules import module_name_problem
 from sbt2.server.runs.jobs import Module, Submission
 
 _REQUIRED = ("strategy", "instruments", "period", "venue", "capital")
@@ -80,12 +78,8 @@ def submission(request: SubmitRun) -> Submission:
 
 
 def _check_module(name: str, source: str, strategy: str) -> None:
-    if not name.isidentifier() or keyword.iskeyword(name):
-        raise InvalidArgumentError(f"the module name {name!r} is not an identifier")
-    if _importable(name):
-        raise InvalidArgumentError(
-            f"the server has a module called {name}; give yours another name"
-        )
+    if problem := module_name_problem(name):
+        raise InvalidArgumentError(problem)
     if strategy.partition(":")[0] != name or ":" not in strategy:
         raise InvalidArgumentError(
             f"the strategy {strategy!r} must be a class of the module {name}, "
@@ -93,14 +87,3 @@ def _check_module(name: str, source: str, strategy: str) -> None:
         )
     if not source.strip():
         raise InvalidArgumentError(f"the source of the module {name} is empty")
-
-
-def _importable(name: str) -> bool:
-    """Whether the server's image has a module of this name; ``find_spec`` runs
-    no module's code."""
-    if name in sys.modules:
-        return True
-    try:
-        return importlib.util.find_spec(name) is not None
-    except ImportError, ValueError:
-        return True

@@ -7,6 +7,7 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Self, override
 
 from sbt2.core.config import ConfigFolder, Root
+from sbt2.server.modules import clean_environment
 from sbt2.server.runs.jobs import Submission
 from sbt2.server.runs.lines import Lines
 from sbt2.server.runs.wire import (
@@ -20,7 +21,6 @@ from sbt2.server.runs.wire import (
 from sbt2.server.runs.workers import Worker, Workers
 
 WORKER_MODULE = "sbt2.server.runs.worker"
-SERVER_VARIABLES = "SBT2_SERVER_"
 STOP_SECONDS = 15
 STREAM_GRACE_SECONDS = 2
 _CHUNK = 65_536
@@ -143,12 +143,7 @@ class _ProcessWorker(Worker):
 
 
 def _environment(server: Mapping[str, str]) -> dict[str, str]:
-    inherited = {
-        key: value
-        for key, value in server.items()
-        if not key.startswith(SERVER_VARIABLES)
-    }
-    return {**inherited, "PYTHONUNBUFFERED": "1"}
+    return {**clean_environment(server), "PYTHONUNBUFFERED": "1"}
 
 
 def _stdout(process: asyncio.subprocess.Process) -> asyncio.StreamReader:

@@ -30,6 +30,7 @@ message ClientMessage {
     ListJobs list_jobs = 17;
     SubscribeJob subscribe_job = 18;
     Unsubscribe unsubscribe = 19;
+    DescribeStrategy describe_strategy = 20;
   }
 }
 
@@ -57,6 +58,7 @@ message ServerMessage {
     JobSubscribed job_subscribed = 17;
     JobUpdate job_update = 18;
     Unsubscribed unsubscribed = 19;
+    StrategySchema strategy_schema = 20;
   }
 }
 

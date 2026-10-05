@@ -12,7 +12,15 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, ClassVar, get_type_hints
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Literal,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 from nautilus_trader.core import dt_to_unix_nanos, unix_nanos_to_dt
 from nautilus_trader.model import (
@@ -308,6 +316,8 @@ def _reject_unknown(strategy: type[Strategy[Any]], values: Mapping[str, Any]) ->
 
 
 def _typed(name: str, value: Any, kind: Any) -> Any:
+    if get_origin(kind) is Literal:
+        return _chosen(name, value, get_args(kind))
     if not isinstance(kind, type):
         return value
     if isinstance(value, kind) and not (isinstance(value, bool) and kind is not bool):
@@ -328,3 +338,13 @@ def _decimal(name: str, value: str | float) -> Decimal:
         raise InvalidParameterError(
             f"parameter {name} must be a decimal, got {value!r}"
         ) from None
+
+
+def _chosen(name: str, value: Any, choices: tuple[Any, ...]) -> Any:
+    typed = _typed(name, value, type(choices[0]))
+    if typed not in choices:
+        listed = ", ".join(repr(each) for each in choices)
+        raise InvalidParameterError(
+            f"parameter {name} must be one of {listed}, got {value!r}"
+        )
+    return typed
