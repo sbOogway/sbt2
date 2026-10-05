@@ -12,8 +12,8 @@ from served_source import ServedSource
 from served_spec import DAY, NEXT_DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
 
-from sbt2 import cli
 from sbt2.cli import app
+from sbt2.cli import run as cli
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import SystemdScope
 
