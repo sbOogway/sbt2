@@ -2,7 +2,7 @@ when:
   - event: pull_request
   - event: push
     branch: main
-  - event: manual
+  - event: [tag, manual]
 
 variables:
   - &image ghcr.io/astral-sh/uv:0.12.19-python3.14-trixie
@@ -19,16 +19,13 @@ variables:
         - sbt2-backend/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [push, tag, manual]
   - &protocol
     - event: pull_request
       path:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-<<<<<<< HEAD
-    - event: [push, manual]
-=======
     - event: [push, tag, manual]
   - &gui
     - event: pull_request
@@ -47,7 +44,6 @@ variables:
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
     - event: [push, tag, manual]
->>>>>>> b08f94d (build(gui): add the sbt2-gui workspace with prost codegen, hooks and CI)
   - &backend_or_protocol
     - event: pull_request
       path:
@@ -55,7 +51,7 @@ variables:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [push, tag, manual]
 
 # One workflow per pipeline: the agent runs one workflow at a time, so pipelines queue whole instead of interleaving.
 # Each step has its own cache volume because concurrent containers use different SELinux labels.
@@ -202,7 +198,7 @@ steps:
           - sbt2-backend/uv.lock
           - sbt2-backend/**/pyproject.toml
           - .woodpecker/ci.yaml
-      - event: [push, manual]
+      - event: [push, tag, manual]
     environment:
       # an unprivileged step can neither mount overlays nor set up namespaces
       STORAGE_DRIVER: vfs

@@ -2,7 +2,7 @@ when:
   - event: pull_request
   - event: push
     branch: main
-  - event: manual
+  - event: [tag, manual]
 
 variables:
   - &image ghcr.io/astral-sh/uv:0.12.19-python3.14-trixie
@@ -19,35 +19,14 @@ variables:
         - sbt2-backend/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [push, tag, manual]
   - &protocol
     - event: pull_request
       path:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-<<<<<<< HEAD
-    - event: [push, manual]
-=======
     - event: [push, tag, manual]
-  - &gui
-    - event: pull_request
-      path:
-        - sbt2-gui/**
-        - sbt2-protocol/**
-        - '{.woodpecker,.github,scripts}/**'
-        - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, tag, manual]
-  - &gui_e2e
-    - event: pull_request
-      path:
-        - sbt2-gui/**
-        - sbt2-protocol/**
-        - sbt2-backend/**
-        - '{.woodpecker,.github,scripts}/**'
-        - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, tag, manual]
->>>>>>> b08f94d (build(gui): add the sbt2-gui workspace with prost codegen, hooks and CI)
   - &backend_or_protocol
     - event: pull_request
       path:
@@ -55,7 +34,7 @@ variables:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [push, tag, manual]
 
 # One workflow per pipeline: the agent runs one workflow at a time, so pipelines queue whole instead of interleaving.
 # Each step has its own cache volume because concurrent containers use different SELinux labels.
@@ -202,7 +181,7 @@ steps:
           - sbt2-backend/uv.lock
           - sbt2-backend/**/pyproject.toml
           - .woodpecker/ci.yaml
-      - event: [push, manual]
+      - event: [push, tag, manual]
     environment:
       # an unprivileged step can neither mount overlays nor set up namespaces
       STORAGE_DRIVER: vfs
@@ -243,35 +222,3 @@ steps:
     when: *protocol
     commands:
       - cargo test --locked --manifest-path sbt2-protocol/checks/rust/Cargo.toml
-
-  # the GUI's format, lint, unit and integration tests; clippy and rustfmt come with rust-toolchain.toml
-  - name: gui
-    image: rust:1.97.1-slim-trixie
-    environment:
-      CARGO_HOME: /cache/cargo
-      RUSTUP_HOME: /cache/rustup
-      CARGO_TARGET_DIR: /cache/target
-    volumes: [sbt2-cache-gui:/cache:z]
-    depends_on: []
-    when: *gui
-    commands:
-      - cargo fmt --manifest-path sbt2-gui/Cargo.toml --all --check
-      - cargo clippy --locked --manifest-path sbt2-gui/Cargo.toml --all-targets -- -D warnings
-      - cargo test --locked --manifest-path sbt2-gui/Cargo.toml
-
-  # the GUI's client against the real server; uv's image has curl, so rustup comes with it
-  - name: gui-e2e
-    image: *image
-    environment:
-      <<: *env
-      CARGO_HOME: /cache/cargo
-      RUSTUP_HOME: /cache/rustup
-      CARGO_TARGET_DIR: /cache/target
-    volumes: [sbt2-cache-gui-e2e:/cache:z]
-    depends_on: []
-    when: *gui_e2e
-    commands:
-      - uv --directory sbt2-backend sync --locked
-      - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
-      - . /cache/cargo/env
-      - cargo test --locked --manifest-path sbt2-gui/Cargo.toml -- --ignored

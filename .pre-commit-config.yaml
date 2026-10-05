@@ -100,6 +100,20 @@ repos:
         files: (^sbt2-backend/.*\.py$|^sbt2-backend/pyproject\.toml$)
         pass_filenames: false
 
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --manifest-path sbt2-gui/Cargo.toml --all --check
+        language: system
+        files: ^sbt2-gui/
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy --locked --manifest-path sbt2-gui/Cargo.toml --all-targets -- -D warnings
+        language: system
+        files: ^(sbt2-gui|sbt2-protocol)/
+        pass_filenames: false
+
       - id: check-nautilus-lock
         name: nautilus lock has no local version
         entry: scripts/check-nautilus-lock.sh

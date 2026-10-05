@@ -58,6 +58,7 @@
 ## Test-driven development
 
 - Use it for `feat` and `fix` work. A fix starts with a test that reproduces the bug.
+- In Rust code the levels follow the layout: unit is `#[cfg(test)]` in the module, integration is `tests/` against an in-process fake server, e2e is `tests/e2e_*.rs` marked `#[ignore]`.
 - A refactor adds no tests and must keep the existing ones passing unchanged. `docs`, `chore`, `ci` and `build` work skip it.
 - After the design questions, prepare the test plan and treat it as approved before writing any code.
 - Group the plan by module under test. For each test give:

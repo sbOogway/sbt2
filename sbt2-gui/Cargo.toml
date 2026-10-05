@@ -1,0 +1,9 @@
+[workspace]
+members = ["sbt2-client", "sbt2-gui"]
+resolver = "3"
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+license = "LGPL-3.0-or-later"
+publish = false

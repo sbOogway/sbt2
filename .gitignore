@@ -11,3 +11,4 @@ htmlcov/
 .release/
 coverage.xml
 junit.xml
+/sbt2-gui/target/
