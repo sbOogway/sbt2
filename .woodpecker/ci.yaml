@@ -129,6 +129,25 @@ steps:
         uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-strategies --file /cache/coverage.xml || true
         exit $status
 
+  - name: test-sbt2-cli
+    image: *image
+    environment:
+      <<: *env
+      CODECOV_TOKEN:
+        from_secret: codecov_token
+    volumes: [sbt2-cache-test-sbt2-cli:/cache:z]
+    depends_on: []
+    when: *backend
+    commands:
+      # only the member and what it declares, so an undeclared dependency fails here
+      - uv --directory sbt2-backend sync --locked --package sbt2-cli
+      - |
+        status=0
+        env -u CODECOV_TOKEN uv --directory sbt2-backend run --locked --package sbt2-cli pytest packages/sbt2-cli/tests --cov --cov-config=packages/sbt2-cli/pyproject.toml --cov-report=term --cov-report=xml:/cache/coverage.xml --junitxml=/cache/junit.xml -o junit_family=legacy -m "not live and not characterization and not realdata and not systemd" || status=$?
+        uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --report-type test_results --flag sbt2-cli --file /cache/junit.xml --disable-search || true
+        uvx --from codecov-cli==11.3.1 codecovcli upload-process --git-service github --flag sbt2-cli --file /cache/coverage.xml || true
+        exit $status
+
   - name: test-sbt2-server
     image: *image
     environment:

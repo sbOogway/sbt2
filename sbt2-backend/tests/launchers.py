@@ -12,7 +12,7 @@ from typing import override
 
 import pytest
 
-from sbt2.core import cli
+from sbt2 import cli
 from sbt2.core.run import Launcher
 from sbt2.core.run.batching import children as batch_children
 from sbt2.core.run.child import run_child

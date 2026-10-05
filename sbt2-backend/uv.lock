@@ -11,6 +11,7 @@ supported-markers = [
 [manifest]
 members = [
     "sbt2",
+    "sbt2-cli",
     "sbt2-core",
     "sbt2-papers",
     "sbt2-server",
@@ -570,6 +571,7 @@ wheels = [
 name = "sbt2"
 source = { editable = "." }
 dependencies = [
+    { name = "sbt2-cli", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sbt2-core", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sbt2-strategies", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
@@ -595,12 +597,14 @@ dev = [
     { name = "pytest", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pytest-cov", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pyyaml", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "sbt2-cli", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sbt2-papers", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sbt2-server", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "sbt2-cli", editable = "packages/sbt2-cli" },
     { name = "sbt2-core", editable = "packages/sbt2-core" },
     { name = "sbt2-papers", marker = "extra == 'all'", editable = "packages/sbt2-papers" },
     { name = "sbt2-papers", marker = "extra == 'papers'", editable = "packages/sbt2-papers" },
@@ -619,8 +623,35 @@ dev = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
+    { name = "sbt2-cli", editable = "packages/sbt2-cli" },
     { name = "sbt2-papers", editable = "packages/sbt2-papers" },
     { name = "sbt2-server", editable = "packages/sbt2-server" },
+]
+
+[[package]]
+name = "sbt2-cli"
+source = { editable = "packages/sbt2-cli" }
+dependencies = [
+    { name = "sbt2-core", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "typer", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "pytest-cov", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "sbt2-core", editable = "packages/sbt2-core" },
+    { name = "typer", specifier = ">=0.27.2" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
 ]
 
 [[package]]
@@ -634,7 +665,6 @@ dependencies = [
     { name = "pandas", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pyarrow", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "tomli-w", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "typer", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 
 [package.dev-dependencies]
@@ -652,7 +682,6 @@ requires-dist = [
     { name = "pandas", specifier = ">=3.0.6" },
     { name = "pyarrow", specifier = ">=25.0.1" },
     { name = "tomli-w", specifier = ">=1.2.0" },
-    { name = "typer", specifier = ">=0.27.2" },
 ]
 
 [package.metadata.requires-dev]
