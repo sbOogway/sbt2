@@ -13,6 +13,7 @@ use sbt2_client::Point;
 use crate::{dates, section::Section};
 
 const PLOT_HEIGHT: f32 = 300.0;
+const MAX_DRAWN: usize = 4_000;
 const MONTHS: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
@@ -278,6 +279,7 @@ fn line_series(line: &Line<'_>) -> Vec<Series> {
     let mut labelled = false;
     let mut series = Vec::new();
     for segment in segments(line.points) {
+        let segment = reduce(segment, MAX_DRAWN);
         let one = if segment.len() == 1 {
             Series::markers_only(segment, MarkerStyle::circle(3.0))
         } else {
@@ -354,6 +356,27 @@ fn heat_color(value: f64, scale: f64) -> Color {
         mix(NEUTRAL.g, target.g),
         mix(NEUTRAL.b, target.b),
     )
+}
+
+/// At most `limit` points: the lowest and the highest of each bucket, in time order.
+fn reduce(segment: Vec<[f64; 2]>, limit: usize) -> Vec<[f64; 2]> {
+    if segment.len() <= limit {
+        return segment;
+    }
+    let size = segment.len().div_ceil(limit / 2);
+    let mut reduced = Vec::with_capacity(limit);
+    for bucket in segment.chunks(size) {
+        let lowest = (0..bucket.len()).min_by(|a, b| bucket[*a][1].total_cmp(&bucket[*b][1]));
+        let highest = (0..bucket.len()).max_by(|a, b| bucket[*a][1].total_cmp(&bucket[*b][1]));
+        let (Some(lowest), Some(highest)) = (lowest, highest) else {
+            continue;
+        };
+        reduced.push(bucket[lowest.min(highest)]);
+        if lowest != highest {
+            reduced.push(bucket[lowest.max(highest)]);
+        }
+    }
+    reduced
 }
 
 /// The points as runs of consecutive defined values, as `[seconds, value]`;
@@ -483,6 +506,30 @@ mod tests {
                 vec![[7.0, 7.0], [8.0, 8.0]],
             ]
         );
+    }
+
+    #[test]
+    fn a_long_line_is_reduced_to_the_limit_keeping_its_extremes() {
+        let line: Vec<[f64; 2]> = (0..10_000)
+            .map(|index| [f64::from(index), f64::from(index % 100)])
+            .collect();
+        let mut line = line;
+        line[5_432][1] = 500.0;
+        line[7_001][1] = -300.0;
+
+        let reduced = reduce(line, 1_000);
+
+        assert!(reduced.len() <= 1_000);
+        assert!(reduced.windows(2).all(|pair| pair[0][0] < pair[1][0]));
+        assert!(reduced.iter().any(|point| point[1] == 500.0));
+        assert!(reduced.iter().any(|point| point[1] == -300.0));
+    }
+
+    #[test]
+    fn a_short_line_is_drawn_unchanged() {
+        let line: Vec<[f64; 2]> = (0..10).map(|index| [f64::from(index), 1.0]).collect();
+
+        assert_eq!(reduce(line.clone(), 1_000), line);
     }
 
     #[test]
