@@ -49,10 +49,26 @@ class Planned:
     run_ids: tuple[str, ...]
 
 
+class ConflictKind(StrEnum):
+    """How a run does not fit the study it names."""
+
+    CONTEXT = "context"
+    CODE = "code"
+    DUPLICATE_RUN = "duplicate_run"
+
+
+@dataclass(frozen=True)
+class Conflict:
+    kind: ConflictKind
+    context_keys: tuple[str, ...] = ()
+    run_id: str | None = None
+
+
 @dataclass(frozen=True)
 class Rejected:
     kind: Rejection
     message: str
+    conflict: Conflict | None = None
 
 
 @dataclass(frozen=True)
@@ -105,7 +121,9 @@ type Event = (
 
 _DECODERS: dict[str, Callable[[dict[str, Any]], Event]] = {
     "planned": lambda each: Planned(tuple(each["run_ids"])),
-    "rejected": lambda each: Rejected(Rejection(each["kind"]), each["message"]),
+    "rejected": lambda each: Rejected(
+        Rejection(each["kind"]), each["message"], _conflict(each.get("conflict"))
+    ),
     "started": lambda each: Started(each["run_id"]),
     "finished": lambda each: Finished(each["run_id"]),
     "failed": lambda each: Failed(each["run_id"], each["reason"]),
@@ -125,3 +143,13 @@ def decode(line: str) -> Event:
 
 def _iso(value: Any) -> str:
     return value.isoformat()
+
+
+def _conflict(payload: dict[str, Any] | None) -> Conflict | None:
+    if payload is None:
+        return None
+    return Conflict(
+        ConflictKind(payload["kind"]),
+        tuple(payload["context_keys"]),
+        payload["run_id"],
+    )

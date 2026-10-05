@@ -1,0 +1,7 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 15
+error {
+  code: ERROR_CODE_INVALID_ARGUMENT
+  message: "the module of example:Trend changed since study trend-sweep pinned it"
+  study_conflict { kind: STUDY_CONFLICT_KIND_CODE }
+}

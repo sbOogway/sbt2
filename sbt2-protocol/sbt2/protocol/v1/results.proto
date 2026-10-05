@@ -60,6 +60,45 @@ message RunList {
   repeated RunSummary runs = 3;
 }
 
+message ListStudies {}
+
+message StudySummary {
+  string name = 1;
+  string strategy = 2;
+  uint64 run_count = 3;
+}
+
+message StudyList {
+  uint64 index = 1;
+  bool last = 2;
+  repeated StudySummary studies = 3;
+}
+
+message GetStudy {
+  string name = 1;
+}
+
+message StudyRun {
+  string run_id = 1;
+  string part = 2;
+  // A JSON object of the parameters that vary across the study's runs.
+  string varying_params_json = 3;
+  HeadlineMetrics headline = 4;
+}
+
+message StudyDetail {
+  uint64 index = 1;
+  bool last = 2;
+  // name, strategy, context_json and source are set only in the chunk with index 0.
+  string name = 3;
+  string strategy = 4;
+  // A JSON object: the context every run of the study shares.
+  string context_json = 5;
+  // The module source the study pinned.
+  string source = 6;
+  repeated StudyRun runs = 7;
+}
+
 message GetMetrics {
   string run_id = 1;
 }

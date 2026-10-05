@@ -1,0 +1,7 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 13
+error {
+  code: ERROR_CODE_INVALID_ARGUMENT
+  message: "the run does not fit study trend-sweep's context: capital differs"
+  study_conflict { kind: STUDY_CONFLICT_KIND_CONTEXT context_keys: "capital" context_keys: "period" }
+}

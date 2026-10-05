@@ -18,7 +18,9 @@ class StudyError(RuntimeError):
 
 
 class StudyContextError(StudyError):
-    pass
+    def __init__(self, message: str, keys: tuple[str, ...]) -> None:
+        super().__init__(message)
+        self.keys = keys
 
 
 class StudyCodeError(StudyError):
@@ -26,4 +28,6 @@ class StudyCodeError(StudyError):
 
 
 class DuplicateStudyRunError(StudyError):
-    pass
+    def __init__(self, message: str, run_id: str) -> None:
+        super().__init__(message)
+        self.run_id = run_id

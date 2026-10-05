@@ -1,0 +1,16 @@
+# proto-message: sbt2.protocol.v1.ServerMessage
+request_id: 12
+study_detail {
+  index: 0
+  last: true
+  name: "trend-sweep"
+  strategy: "example:Trend"
+  context_json: "{\"instruments\":[\"BTCUSDT-LINEAR.BYBIT\"]}"
+  source: "class Trend: ..."
+  runs {
+    run_id: "run-1"
+    part: "train"
+    varying_params_json: "{\"fast\":5}"
+    headline { net_return: "0.12" trade_count: 4 total_fees: "1.5" total_carry: "0" }
+  }
+}

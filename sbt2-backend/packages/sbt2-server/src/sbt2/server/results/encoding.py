@@ -66,7 +66,7 @@ def summary(row: Mapping[Any, Any]) -> wire.RunSummary:
         part=row["part"],
         known_gaps=list(row["known_gaps"]),
         currency=row["currency"],
-        headline=_headline(row),
+        headline=headline(row),
     )
     for name in ("batch_id", "study"):
         if not pd.isna(row[name]):
@@ -76,7 +76,7 @@ def summary(row: Mapping[Any, Any]) -> wire.RunSummary:
     return result
 
 
-def _headline(row: Mapping[Any, Any]) -> wire.HeadlineMetrics:
+def headline(row: Mapping[Any, Any]) -> wire.HeadlineMetrics:
     result = wire.HeadlineMetrics(
         trade_count=int(row["trade_count"]),
         total_fees=str(row["total_fees"]),

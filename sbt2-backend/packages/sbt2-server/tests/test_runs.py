@@ -22,9 +22,9 @@ from runs_kit import (
 )
 
 from sbt2.core.config import Root
-from sbt2.core.results import ParquetResultStore
+from sbt2.core.results import ParquetResultStore, RunFilter
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
-from sbt2.protocol.v1.results_pb2 import GetRun
+from sbt2.protocol.v1.results_pb2 import GetRun, GetStudy
 from sbt2.protocol.v1.runs_pb2 import (
     CancelJob,
     Job,
@@ -36,7 +36,7 @@ from sbt2.protocol.v1.runs_pb2 import (
     SubscribeJob,
     Unsubscribe,
 )
-from sbt2.protocol.v1.types_pb2 import ErrorCode
+from sbt2.protocol.v1.types_pb2 import ErrorCode, StudyConflictKind
 from sbt2.server import results
 from sbt2.server import runs as area
 from sbt2.server.limits import MAX_ENVELOPE
@@ -662,3 +662,90 @@ def test_a_split_update_carries_the_job_state_in_its_last_push_only() -> None:
     assert messages[-1].job_update.state == JobState.JOB_STATE_FAILED
     assert messages[-1].job_update.reason == "broke"
     assert [r.run_id for each in messages for r in each.job_update.runs] == ["run-1"]
+
+
+async def submitted_into_study(session: Session, jobs: Jobs) -> str:
+    table = run_table(study="sweep", params={"hold_bars": 2})
+    reply = await session.ask(submit_run(table))
+    await finished(jobs, submitted_job(reply))
+    return reply.job_submitted.run_ids[0]
+
+
+@pytest.mark.integration
+def test_a_run_outside_the_study_context_is_rejected_with_the_differing_keys(
+    tmp_path: Path,
+) -> None:
+    async def scenario() -> None:
+        _, jobs = real_jobs(tmp_path)
+        session = Session(area.routes(jobs))
+        await submitted_into_study(session, jobs)
+        table = run_table(
+            study="sweep", params={"hold_bars": 3}, capital="5000 USDT", seed=7
+        )
+
+        reply = await session.ask(submit_run(table))
+
+        conflict = reply.error.study_conflict
+        assert reply.error.code == ErrorCode.ERROR_CODE_INVALID_ARGUMENT
+        assert conflict.kind == StudyConflictKind.STUDY_CONFLICT_KIND_CONTEXT
+        assert list(conflict.context_keys) == ["capital", "seed"]
+        assert "sweep" in reply.error.message
+
+    in_one_loop(scenario())
+
+
+@pytest.mark.integration
+def test_a_changed_strategy_is_rejected_as_a_code_conflict(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        _, jobs = real_jobs(tmp_path)
+        session = Session(area.routes(jobs))
+        await submitted_into_study(session, jobs)
+        changed = STRATEGY.replace("hold_bars: int = 3", "hold_bars: int = 4")
+        table = run_table(study="sweep", params={"hold_bars": 3})
+
+        reply = await session.ask(submit_run(table, changed))
+
+        conflict = reply.error.study_conflict
+        assert reply.error.code == ErrorCode.ERROR_CODE_INVALID_ARGUMENT
+        assert conflict.kind == StudyConflictKind.STUDY_CONFLICT_KIND_CODE
+        assert list(conflict.context_keys) == []
+        assert not conflict.HasField("run_id")
+
+    in_one_loop(scenario())
+
+
+@pytest.mark.integration
+def test_the_pinned_source_uploaded_again_runs_into_the_study(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        root, jobs = real_jobs(tmp_path)
+        session = Session({**area.routes(jobs), **results.routes(root)})
+        first = await submitted_into_study(session, jobs)
+        got = await session.ask(ClientMessage(get_study=GetStudy(name="sweep")))
+        table = run_table(study="sweep", params={"hold_bars": 3})
+
+        reply = await session.ask(submit_run(table, got.study_detail.source))
+        await finished(jobs, submitted_job(reply))
+
+        runs = ParquetResultStore(root.results).runs(RunFilter(study="sweep"))
+        assert sorted(runs["run_id"]) == sorted([first, *reply.job_submitted.run_ids])
+
+    in_one_loop(scenario())
+
+
+@pytest.mark.integration
+def test_a_repeated_run_is_rejected_with_the_existing_run_id(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        _, jobs = real_jobs(tmp_path)
+        session = Session(area.routes(jobs))
+        first = await submitted_into_study(session, jobs)
+
+        reply = await session.ask(
+            submit_run(run_table(study="sweep", params={"hold_bars": 2}))
+        )
+
+        conflict = reply.error.study_conflict
+        assert reply.error.code == ErrorCode.ERROR_CODE_INVALID_ARGUMENT
+        assert conflict.kind == StudyConflictKind.STUDY_CONFLICT_KIND_DUPLICATE_RUN
+        assert conflict.run_id == first
+
+    in_one_loop(scenario())

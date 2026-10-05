@@ -66,7 +66,8 @@ class _Studies:
         if stored is not None:
             raise DuplicateStudyRunError(
                 f"study {name} already holds the {spec.part} run with "
-                f"{dict(spec.strategy.params)}: run {stored}"
+                f"{dict(spec.strategy.params)}: run {stored}",
+                stored,
             )
 
 
@@ -82,7 +83,8 @@ def _check_context(study: Study, stored: StoredStudy) -> None:
             for key in differing
         )
         raise StudyContextError(
-            f"the run does not fit study {study.name}'s context: {described}"
+            f"the run does not fit study {study.name}'s context: {described}",
+            tuple(differing),
         )
 
 

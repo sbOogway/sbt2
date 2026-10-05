@@ -25,21 +25,21 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1esbt2/protocol/v1/results.proto\x12\x10sbt2.protocol.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x18\n\x06RunIds\x12\x0e\n\x06values\x18\x01 \x03(\t\"\xb2\x01\n\tRunFilter\x12\x15\n\x08strategy\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x11\n\x04part\x18\x02 \x01(\tH\x01\x88\x01\x01\x12\x12\n\x05\x62\x61tch\x18\x03 \x01(\tH\x02\x88\x01\x01\x12\x12\n\x05study\x18\x04 \x01(\tH\x03\x88\x01\x01\x12)\n\x07run_ids\x18\x05 \x01(\x0b\x32\x18.sbt2.protocol.v1.RunIdsB\x0b\n\t_strategyB\x07\n\x05_partB\x08\n\x06_batchB\x08\n\x06_study\"7\n\x08ListRuns\x12+\n\x06\x66ilter\x18\x01 \x01(\x0b\x32\x1b.sbt2.protocol.v1.RunFilter\"\x18\n\x06GetRun\x12\x0e\n\x06run_id\x18\x01 \x01(\t\"\xf9\x01\n\x0fHeadlineMetrics\x12\x17\n\nnet_return\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x1e\n\x11\x61nnualized_return\x18\x02 \x01(\tH\x01\x88\x01\x01\x12\x13\n\x06sharpe\x18\x03 \x01(\tH\x02\x88\x01\x01\x12\x19\n\x0cmax_drawdown\x18\x04 \x01(\tH\x03\x88\x01\x01\x12\x13\n\x0btrade_count\x18\x05 \x01(\x04\x12\x12\n\ntotal_fees\x18\x06 \x01(\t\x12\x13\n\x0btotal_carry\x18\x07 \x01(\tB\r\n\x0b_net_returnB\x14\n\x12_annualized_returnB\t\n\x07_sharpeB\x0f\n\r_max_drawdown\"\xbd\x03\n\nRunSummary\x12\x0e\n\x06run_id\x18\x01 \x01(\t\x12\x15\n\x08\x62\x61tch_id\x18\x02 \x01(\tH\x00\x88\x01\x01\x12\x12\n\x05study\x18\x03 \x01(\tH\x01\x88\x01\x01\x12\x11\n\tspec_hash\x18\x04 \x01(\t\x12\x10\n\x08strategy\x18\x05 \x01(\t\x12\x13\n\x0bparams_json\x18\x06 \x01(\t\x12\x13\n\x0binstruments\x18\x07 \x03(\t\x12,\n\x08start_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12*\n\x06\x65nd_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x12\n\nsplit_json\x18\n \x01(\t\x12\x0c\n\x04part\x18\x0b \x01(\t\x12\x12\n\nknown_gaps\x18\x0c \x03(\t\x12\x10\n\x08\x63urrency\x18\r \x01(\t\x12\x33\n\x08headline\x18\x0e \x01(\x0b\x32!.sbt2.protocol.v1.HeadlineMetrics\x12\x37\n\x13\x64rawdown_tripped_at\x18\x0f \x01(\x0b\x32\x1a.google.protobuf.TimestampB\x0b\n\t_batch_idB\x08\n\x06_study\"R\n\x07RunList\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04last\x18\x02 \x01(\x08\x12*\n\x04runs\x18\x03 \x03(\x0b\x32\x1c.sbt2.protocol.v1.RunSummary\"\x1c\n\nGetMetrics\x12\x0e\n\x06run_id\x18\x01 \x01(\t\"\x90\x01\n\x06Metric\x12,\n\x05group\x18\x01 \x01(\x0e\x32\x1d.sbt2.protocol.v1.MetricGroup\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x12\n\x05value\x18\x03 \x01(\tH\x00\x88\x01\x01\x12\x1a\n\rinstrument_id\x18\x04 \x01(\tH\x01\x88\x01\x01\x42\x08\n\x06_valueB\x10\n\x0e_instrument_id\"c\n\x07Metrics\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04last\x18\x02 \x01(\x08\x12\x10\n\x08\x63urrency\x18\x03 \x01(\t\x12)\n\x07\x65ntries\x18\x04 \x03(\x0b\x32\x18.sbt2.protocol.v1.Metric\"G\n\tGetSeries\x12\x0e\n\x06run_id\x18\x01 \x01(\t\x12*\n\x04kind\x18\x02 \x01(\x0e\x32\x1c.sbt2.protocol.v1.SeriesKind\"3\n\x06Series\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04last\x18\x02 \x01(\x08\x12\x0c\n\x04\x64\x61ta\x18\x03 \x01(\x0c\"q\n\x12\x42\x65nchmarkSelection\x12-\n\x04kind\x18\x01 \x01(\x0e\x32\x1f.sbt2.protocol.v1.BenchmarkKind\x12\x1a\n\rinstrument_id\x18\x02 \x01(\tH\x00\x88\x01\x01\x42\x10\n\x0e_instrument_id\"W\n\x0cGetTearsheet\x12\x0e\n\x06run_id\x18\x01 \x01(\t\x12\x37\n\tbenchmark\x18\x02 \x01(\x0b\x32$.sbt2.protocol.v1.BenchmarkSelection\"6\n\tTearsheet\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04last\x18\x02 \x01(\x08\x12\x0c\n\x04\x64\x61ta\x18\x03 \x01(\x0c\"~\n\x08GetPanel\x12\x0e\n\x06run_id\x18\x01 \x01(\t\x12)\n\x04kind\x18\x02 \x01(\x0e\x32\x1b.sbt2.protocol.v1.PanelKind\x12\x37\n\tbenchmark\x18\x03 \x01(\x0b\x32$.sbt2.protocol.v1.BenchmarkSelection\"2\n\x05Panel\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04last\x18\x02 \x01(\x08\x12\x0c\n\x04\x64\x61ta\x18\x03 \x01(\x0c*\xbf\x01\n\x0bMetricGroup\x12\x1c\n\x18METRIC_GROUP_UNSPECIFIED\x10\x00\x12\x15\n\x11METRIC_GROUP_PNLS\x10\x01\x12\x18\n\x14METRIC_GROUP_RETURNS\x10\x02\x12\x18\n\x14METRIC_GROUP_GENERAL\x10\x03\x12 \n\x1cMETRIC_GROUP_INSTRUMENT_PNLS\x10\x04\x12%\n!METRIC_GROUP_PROBABILISTIC_SHARPE\x10\x05*X\n\nSeriesKind\x12\x1b\n\x17SERIES_KIND_UNSPECIFIED\x10\x00\x12\x16\n\x12SERIES_KIND_EQUITY\x10\x01\x12\x15\n\x11SERIES_KIND_FILLS\x10\x02*\xa6\x01\n\rBenchmarkKind\x12\x1e\n\x1a\x42\x45NCHMARK_KIND_UNSPECIFIED\x10\x00\x12\x1a\n\x16\x42\x45NCHMARK_KIND_DEFAULT\x10\x01\x12\x17\n\x13\x42\x45NCHMARK_KIND_NONE\x10\x02\x12\x1f\n\x1b\x42\x45NCHMARK_KIND_BUY_AND_HOLD\x10\x03\x12\x1f\n\x1b\x42\x45NCHMARK_KIND_EQUAL_WEIGHT\x10\x04*\xd8\x01\n\tPanelKind\x12\x1a\n\x16PANEL_KIND_UNSPECIFIED\x10\x00\x12\x16\n\x12PANEL_KIND_RETURNS\x10\x01\x12 \n\x1cPANEL_KIND_BENCHMARK_RETURNS\x10\x02\x12\x17\n\x13PANEL_KIND_DRAWDOWN\x10\x03\x12\x1e\n\x1aPANEL_KIND_MONTHLY_RETURNS\x10\x04\x12\x1d\n\x19PANEL_KIND_YEARLY_RETURNS\x10\x05\x12\x1d\n\x19PANEL_KIND_ROLLING_SHARPE\x10\x06\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1esbt2/protocol/v1/results.proto\x12\x10sbt2.protocol.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x18\n\x06RunIds\x12\x0e\n\x06values\x18\x01 \x03(\t\"\xb2\x01\n\tRunFilter\x12\x15\n\x08strategy\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x11\n\x04part\x18\x02 \x01(\tH\x01\x88\x01\x01\x12\x12\n\x05\x62\x61tch\x18\x03 \x01(\tH\x02\x88\x01\x01\x12\x12\n\x05study\x18\x04 \x01(\tH\x03\x88\x01\x01\x12)\n\x07run_ids\x18\x05 \x01(\x0b\x32\x18.sbt2.protocol.v1.RunIdsB\x0b\n\t_strategyB\x07\n\x05_partB\x08\n\x06_batchB\x08\n\x06_study\"7\n\x08ListRuns\x12+\n\x06\x66ilter\x18\x01 \x01(\x0b\x32\x1b.sbt2.protocol.v1.RunFilter\"\x18\n\x06GetRun\x12\x0e\n\x06run_id\x18\x01 \x01(\t\"\xf9\x01\n\x0fHeadlineMetrics\x12\x17\n\nnet_return\x18\x01 \x01(\tH\x00\x88\x01\x01\x12\x1e\n\x11\x61nnualized_return\x18\x02 \x01(\tH\x01\x88\x01\x01\x12\x13\n\x06sharpe\x18\x03 \x01(\tH\x02\x88\x01\x01\x12\x19\n\x0cmax_drawdown\x18\x04 \x01(\tH\x03\x88\x01\x01\x12\x13\n\x0btrade_count\x18\x05 \x01(\x04\x12\x12\n\ntotal_fees\x18\x06 \x01(\t\x12\x13\n\x0btotal_carry\x18\x07 \x01(\tB\r\n\x0b_net_returnB\x14\n\x12_annualized_returnB\t\n\x07_sharpeB\x0f\n\r_max_drawdown\"\xbd\x03\n\nRunSummary\x12\x0e\n\x06run_id\x18\x01 \x01(\t\x12\x15\n\x08\x62\x61tch_id\x18\x02 \x01(\tH\x00\x88\x01\x01\x12\x12\n\x05study\x18\x03 \x01(\tH\x01\x88\x01\x01\x12\x11\n\tspec_hash\x18\x04 \x01(\t\x12\x10\n\x08strategy\x18\x05 \x01(\t\x12\x13\n\x0bparams_json\x18\x06 \x01(\t\x12\x13\n\x0binstruments\x18\x07 \x03(\t\x12,\n\x08start_at\x18\x08 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12*\n\x06\x65nd_at\x18\t \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x12\n\nsplit_json\x18\n \x01(\t\x12\x0c\n\x04part\x18\x0b \x01(\t\x12\x12\n\nknown_gaps\x18\x0c \x03(\t\x12\x10\n\x08\x63urrency\x18\r \x01(\t\x12\x33\n\x08headline\x18\x0e \x01(\x0b\x32!.sbt2.protocol.v1.HeadlineMetrics\x12\x37\n\x13\x64rawdown_tripped_at\x18\x0f \x01(\x0b\x32\x1a.google.protobuf.TimestampB\x0b\n\t_batch_idB\x08\n\x06_study\"R\n\x07RunList\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04last\x18\x02 \x01(\x08\x12*\n\x04runs\x18\x03 \x03(\x0b\x32\x1c.sbt2.protocol.v1.RunSummary\"\r\n\x0bListStudies\"A\n\x0cStudySummary\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x10\n\x08strategy\x18\x02 \x01(\t\x12\x11\n\trun_count\x18\x03 \x01(\x04\"Y\n\tStudyList\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04last\x18\x02 \x01(\x08\x12/\n\x07studies\x18\x03 \x03(\x0b\x32\x1e.sbt2.protocol.v1.StudySummary\"\x18\n\x08GetStudy\x12\x0c\n\x04name\x18\x01 \x01(\t\"z\n\x08StudyRun\x12\x0e\n\x06run_id\x18\x01 \x01(\t\x12\x0c\n\x04part\x18\x02 \x01(\t\x12\x1b\n\x13varying_params_json\x18\x03 \x01(\t\x12\x33\n\x08headline\x18\x04 \x01(\x0b\x32!.sbt2.protocol.v1.HeadlineMetrics\"\x9a\x01\n\x0bStudyDetail\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04last\x18\x02 \x01(\x08\x12\x0c\n\x04name\x18\x03 \x01(\t\x12\x10\n\x08strategy\x18\x04 \x01(\t\x12\x14\n\x0c\x63ontext_json\x18\x05 \x01(\t\x12\x0e\n\x06source\x18\x06 \x01(\t\x12(\n\x04runs\x18\x07 \x03(\x0b\x32\x1a.sbt2.protocol.v1.StudyRun\"\x1c\n\nGetMetrics\x12\x0e\n\x06run_id\x18\x01 \x01(\t\"\x90\x01\n\x06Metric\x12,\n\x05group\x18\x01 \x01(\x0e\x32\x1d.sbt2.protocol.v1.MetricGroup\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\x12\n\x05value\x18\x03 \x01(\tH\x00\x88\x01\x01\x12\x1a\n\rinstrument_id\x18\x04 \x01(\tH\x01\x88\x01\x01\x42\x08\n\x06_valueB\x10\n\x0e_instrument_id\"c\n\x07Metrics\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04last\x18\x02 \x01(\x08\x12\x10\n\x08\x63urrency\x18\x03 \x01(\t\x12)\n\x07\x65ntries\x18\x04 \x03(\x0b\x32\x18.sbt2.protocol.v1.Metric\"G\n\tGetSeries\x12\x0e\n\x06run_id\x18\x01 \x01(\t\x12*\n\x04kind\x18\x02 \x01(\x0e\x32\x1c.sbt2.protocol.v1.SeriesKind\"3\n\x06Series\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04last\x18\x02 \x01(\x08\x12\x0c\n\x04\x64\x61ta\x18\x03 \x01(\x0c\"q\n\x12\x42\x65nchmarkSelection\x12-\n\x04kind\x18\x01 \x01(\x0e\x32\x1f.sbt2.protocol.v1.BenchmarkKind\x12\x1a\n\rinstrument_id\x18\x02 \x01(\tH\x00\x88\x01\x01\x42\x10\n\x0e_instrument_id\"W\n\x0cGetTearsheet\x12\x0e\n\x06run_id\x18\x01 \x01(\t\x12\x37\n\tbenchmark\x18\x02 \x01(\x0b\x32$.sbt2.protocol.v1.BenchmarkSelection\"6\n\tTearsheet\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04last\x18\x02 \x01(\x08\x12\x0c\n\x04\x64\x61ta\x18\x03 \x01(\x0c\"~\n\x08GetPanel\x12\x0e\n\x06run_id\x18\x01 \x01(\t\x12)\n\x04kind\x18\x02 \x01(\x0e\x32\x1b.sbt2.protocol.v1.PanelKind\x12\x37\n\tbenchmark\x18\x03 \x01(\x0b\x32$.sbt2.protocol.v1.BenchmarkSelection\"2\n\x05Panel\x12\r\n\x05index\x18\x01 \x01(\x04\x12\x0c\n\x04last\x18\x02 \x01(\x08\x12\x0c\n\x04\x64\x61ta\x18\x03 \x01(\x0c*\xbf\x01\n\x0bMetricGroup\x12\x1c\n\x18METRIC_GROUP_UNSPECIFIED\x10\x00\x12\x15\n\x11METRIC_GROUP_PNLS\x10\x01\x12\x18\n\x14METRIC_GROUP_RETURNS\x10\x02\x12\x18\n\x14METRIC_GROUP_GENERAL\x10\x03\x12 \n\x1cMETRIC_GROUP_INSTRUMENT_PNLS\x10\x04\x12%\n!METRIC_GROUP_PROBABILISTIC_SHARPE\x10\x05*X\n\nSeriesKind\x12\x1b\n\x17SERIES_KIND_UNSPECIFIED\x10\x00\x12\x16\n\x12SERIES_KIND_EQUITY\x10\x01\x12\x15\n\x11SERIES_KIND_FILLS\x10\x02*\xa6\x01\n\rBenchmarkKind\x12\x1e\n\x1a\x42\x45NCHMARK_KIND_UNSPECIFIED\x10\x00\x12\x1a\n\x16\x42\x45NCHMARK_KIND_DEFAULT\x10\x01\x12\x17\n\x13\x42\x45NCHMARK_KIND_NONE\x10\x02\x12\x1f\n\x1b\x42\x45NCHMARK_KIND_BUY_AND_HOLD\x10\x03\x12\x1f\n\x1b\x42\x45NCHMARK_KIND_EQUAL_WEIGHT\x10\x04*\xd8\x01\n\tPanelKind\x12\x1a\n\x16PANEL_KIND_UNSPECIFIED\x10\x00\x12\x16\n\x12PANEL_KIND_RETURNS\x10\x01\x12 \n\x1cPANEL_KIND_BENCHMARK_RETURNS\x10\x02\x12\x17\n\x13PANEL_KIND_DRAWDOWN\x10\x03\x12\x1e\n\x1aPANEL_KIND_MONTHLY_RETURNS\x10\x04\x12\x1d\n\x19PANEL_KIND_YEARLY_RETURNS\x10\x05\x12\x1d\n\x19PANEL_KIND_ROLLING_SHARPE\x10\x06\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'sbt2.protocol.v1.results_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_METRICGROUP']._serialized_start=2004
-  _globals['_METRICGROUP']._serialized_end=2195
-  _globals['_SERIESKIND']._serialized_start=2197
-  _globals['_SERIESKIND']._serialized_end=2285
-  _globals['_BENCHMARKKIND']._serialized_start=2288
-  _globals['_BENCHMARKKIND']._serialized_end=2454
-  _globals['_PANELKIND']._serialized_start=2457
-  _globals['_PANELKIND']._serialized_end=2673
+  _globals['_METRICGROUP']._serialized_start=2484
+  _globals['_METRICGROUP']._serialized_end=2675
+  _globals['_SERIESKIND']._serialized_start=2677
+  _globals['_SERIESKIND']._serialized_end=2765
+  _globals['_BENCHMARKKIND']._serialized_start=2768
+  _globals['_BENCHMARKKIND']._serialized_end=2934
+  _globals['_PANELKIND']._serialized_start=2937
+  _globals['_PANELKIND']._serialized_end=3153
   _globals['_RUNIDS']._serialized_start=85
   _globals['_RUNIDS']._serialized_end=109
   _globals['_RUNFILTER']._serialized_start=112
@@ -54,24 +54,36 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_RUNSUMMARY']._serialized_end=1073
   _globals['_RUNLIST']._serialized_start=1075
   _globals['_RUNLIST']._serialized_end=1157
-  _globals['_GETMETRICS']._serialized_start=1159
-  _globals['_GETMETRICS']._serialized_end=1187
-  _globals['_METRIC']._serialized_start=1190
-  _globals['_METRIC']._serialized_end=1334
-  _globals['_METRICS']._serialized_start=1336
-  _globals['_METRICS']._serialized_end=1435
-  _globals['_GETSERIES']._serialized_start=1437
-  _globals['_GETSERIES']._serialized_end=1508
-  _globals['_SERIES']._serialized_start=1510
-  _globals['_SERIES']._serialized_end=1561
-  _globals['_BENCHMARKSELECTION']._serialized_start=1563
-  _globals['_BENCHMARKSELECTION']._serialized_end=1676
-  _globals['_GETTEARSHEET']._serialized_start=1678
-  _globals['_GETTEARSHEET']._serialized_end=1765
-  _globals['_TEARSHEET']._serialized_start=1767
-  _globals['_TEARSHEET']._serialized_end=1821
-  _globals['_GETPANEL']._serialized_start=1823
-  _globals['_GETPANEL']._serialized_end=1949
-  _globals['_PANEL']._serialized_start=1951
-  _globals['_PANEL']._serialized_end=2001
+  _globals['_LISTSTUDIES']._serialized_start=1159
+  _globals['_LISTSTUDIES']._serialized_end=1172
+  _globals['_STUDYSUMMARY']._serialized_start=1174
+  _globals['_STUDYSUMMARY']._serialized_end=1239
+  _globals['_STUDYLIST']._serialized_start=1241
+  _globals['_STUDYLIST']._serialized_end=1330
+  _globals['_GETSTUDY']._serialized_start=1332
+  _globals['_GETSTUDY']._serialized_end=1356
+  _globals['_STUDYRUN']._serialized_start=1358
+  _globals['_STUDYRUN']._serialized_end=1480
+  _globals['_STUDYDETAIL']._serialized_start=1483
+  _globals['_STUDYDETAIL']._serialized_end=1637
+  _globals['_GETMETRICS']._serialized_start=1639
+  _globals['_GETMETRICS']._serialized_end=1667
+  _globals['_METRIC']._serialized_start=1670
+  _globals['_METRIC']._serialized_end=1814
+  _globals['_METRICS']._serialized_start=1816
+  _globals['_METRICS']._serialized_end=1915
+  _globals['_GETSERIES']._serialized_start=1917
+  _globals['_GETSERIES']._serialized_end=1988
+  _globals['_SERIES']._serialized_start=1990
+  _globals['_SERIES']._serialized_end=2041
+  _globals['_BENCHMARKSELECTION']._serialized_start=2043
+  _globals['_BENCHMARKSELECTION']._serialized_end=2156
+  _globals['_GETTEARSHEET']._serialized_start=2158
+  _globals['_GETTEARSHEET']._serialized_end=2245
+  _globals['_TEARSHEET']._serialized_start=2247
+  _globals['_TEARSHEET']._serialized_end=2301
+  _globals['_GETPANEL']._serialized_start=2303
+  _globals['_GETPANEL']._serialized_end=2429
+  _globals['_PANEL']._serialized_start=2431
+  _globals['_PANEL']._serialized_end=2481
 # @@protoc_insertion_point(module_scope)

@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Coroutine
+from collections.abc import Coroutine, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import timedelta
 from pathlib import Path
@@ -10,7 +10,8 @@ from nautilus_run import START, RunOutput, round_trip_with_funding, spec
 from price_catalog import BTC, FEE_MODEL, PriceCatalog
 
 from sbt2.core.config import Root
-from sbt2.core.results import ParquetResultStore, ResultStore, RunIds
+from sbt2.core.results import ParquetResultStore, ResultStore, RunIds, StoredStudy
+from sbt2.core.spec import ResolvedRunSpec, Study
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
 from sbt2.server import Handler, Outbox, Router
 
@@ -75,21 +76,55 @@ def stored_without_fills(path: Path) -> StoredResults:
     return _stored(path, replace(output, reports=reports), BASE_STRATEGY)
 
 
+def stored_studies(
+    path: Path, studies: Mapping[str, Sequence[Mapping[str, Any]]]
+) -> StoredResults:
+    """Each study of ``studies`` with one run for each of its params; the
+    returned run is the last one stored."""
+    output = round_trip_with_funding()
+    root = Root(path)
+    store = ParquetResultStore(root.results)
+    last = ""
+    for name, runs in studies.items():
+        context = {
+            "strategy": BASE_STRATEGY,
+            "venue": "linear",
+            "capital": "10000 USDT",
+        }
+        store.new_study(StoredStudy(name, context, f"# pinned by {name}\n"))
+        for params in runs:
+            run = _spec(BASE_STRATEGY, params, Study(name, context))
+            last = _store_run(store, output, run)
+    return StoredResults(root, store, last)
+
+
 def _stored(path: Path, output: RunOutput, strategy: str) -> StoredResults:
     root = Root(path)
     store = ParquetResultStore(root.results)
-    run = spec()
-    run = replace(
-        run,
-        strategy=replace(run.strategy, strategy=strategy, params={}),
-        venue={**run.venue, "fee_model": FEE_MODEL},
+    return StoredResults(
+        root, store, _store_run(store, output, _spec(strategy, {}, None))
     )
+
+
+def _spec(
+    strategy: str, params: Mapping[str, Any], study: Study | None
+) -> ResolvedRunSpec:
+    run = spec()
+    return replace(
+        run,
+        strategy=replace(run.strategy, strategy=strategy, params=dict(params)),
+        venue={**run.venue, "fee_model": FEE_MODEL},
+        study=study,
+    )
+
+
+def _store_run(store: ResultStore, output: RunOutput, run: ResolvedRunSpec) -> str:
     sink = store.new_run(run, ids=RunIds(batch_id="batch-1"))
     sink.write_equity(output.snapshots)
     sink.write_carry(output.carry)
     sink.write_reports(output.reports)
     sink.finalize()
-    return StoredResults(root, store, sink.run_id)
+    return sink.run_id
 
 
 def priced(root: Root) -> None:

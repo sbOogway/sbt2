@@ -32,6 +32,8 @@ message ClientMessage {
     Unsubscribe unsubscribe = 19;
     DescribeStrategy describe_strategy = 20;
     GetPanel get_panel = 21;
+    ListStudies list_studies = 22;
+    GetStudy get_study = 23;
   }
 }
 
@@ -61,6 +63,8 @@ message ServerMessage {
     Unsubscribed unsubscribed = 19;
     StrategySchema strategy_schema = 20;
     Panel panel = 21;
+    StudyList study_list = 22;
+    StudyDetail study_detail = 23;
   }
 }
 
