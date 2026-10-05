@@ -27,6 +27,6 @@ test-protocol:
 	cargo test --locked --manifest-path sbt2-protocol/checks/rust/Cargo.toml
 
 test-gui:
-	cargo fmt --manifest-path sbt2-gui/Cargo.toml --all --check
-	cargo clippy --locked --manifest-path sbt2-gui/Cargo.toml --all-targets -- -D warnings
-	cargo test --locked --manifest-path sbt2-gui/Cargo.toml
+	cd sbt2-gui && cargo fmt --all --check
+	cd sbt2-gui && cargo clippy --locked --all-targets -- -D warnings
+	cd sbt2-gui && cargo test --locked
