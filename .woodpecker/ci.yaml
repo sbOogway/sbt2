@@ -1,7 +1,9 @@
+# PR pipelines test the merge result, so a push to main runs no tests; a nightly run catches
+# pull requests that pass alone but break together
 when:
   - event: pull_request
-  - event: push
-    branch: main
+  - event: cron
+    cron: nightly
   - event: manual
 
 variables:
@@ -19,14 +21,14 @@ variables:
         - sbt2-backend/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [cron, manual]
   - &protocol
     - event: pull_request
       path:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [cron, manual]
   - &gui
     - event: pull_request
       path:
@@ -34,7 +36,7 @@ variables:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [cron, manual]
   - &gui_e2e
     - event: pull_request
       path:
@@ -43,7 +45,7 @@ variables:
         - sbt2-backend/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [cron, manual]
   - &backend_or_protocol
     - event: pull_request
       path:
@@ -51,7 +53,7 @@ variables:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [cron, manual]
 
 # One workflow per pipeline: the agent runs one workflow at a time, so pipelines queue whole instead of interleaving.
 # Each step has its own cache volume because concurrent containers use different SELinux labels.
@@ -236,7 +238,7 @@ steps:
           - sbt2-backend/uv.lock
           - sbt2-backend/**/pyproject.toml
           - .woodpecker/ci.yaml
-      - event: [push, manual]
+      - event: [cron, manual]
     environment:
       # an unprivileged step can neither mount overlays nor set up namespaces
       STORAGE_DRIVER: vfs

@@ -2,9 +2,6 @@ when:
   - event: push
     branch: main
 
-depends_on:
-  - ci
-
 variables:
   - &image ghcr.io/astral-sh/uv:0.12.19-python3.14-trixie
   - &cache sbt2-cache-release:/cache:z
