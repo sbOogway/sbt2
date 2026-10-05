@@ -34,6 +34,16 @@ def benchmark_choice(selected: wire.BenchmarkSelection) -> Choice:
     return _BENCHMARKS[selected.kind], instrument
 
 
+def resolved_benchmark(run: core.StoredRun, choice: Choice) -> core.Benchmark | None:
+    name, argument = choice
+    if name is None:
+        return run.benchmark()
+    try:
+        return run.benchmark(name, argument)
+    except ValueError as invalid:
+        raise InvalidArgumentError from invalid
+
+
 def run_filter(selected: wire.RunFilter) -> core.RunFilter:
     fields = {
         name: getattr(selected, name) if selected.HasField(name) else None

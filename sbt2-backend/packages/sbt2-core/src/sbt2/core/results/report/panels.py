@@ -18,11 +18,11 @@ from nautilus_trader.analysis import (
 )
 
 from sbt2.core.results.costs import CostWaterfall
+from sbt2.core.results.report import series
 
 _COST_WATERFALL = "sbt2_cost_waterfall"
 _INSTRUMENT_BREAKDOWN = "sbt2_instrument_breakdown"
 _ROLLING_SHARPE = "sbt2_rolling_sharpe"
-_ROLLING_WINDOW = 60
 
 
 def rolling_sharpe(days_per_year: int) -> TearsheetChart:
@@ -44,12 +44,9 @@ def instrument_breakdown(rows: pd.DataFrame) -> TearsheetChart:
 
 
 def _draw_rolling_sharpe(fig: go.Figure, row: int, col: int, **panel: Any) -> None:
-    returns: pd.Series = panel["returns"]
-    if len(returns) < _ROLLING_WINDOW:
+    sharpe = series.rolling_sharpe(panel["returns"], panel["days_per_year"])
+    if sharpe.empty:
         return
-    rolling = returns.rolling(_ROLLING_WINDOW)
-    volatility = pd.Series(rolling.std()).replace(0, math.nan)
-    sharpe = pd.Series(rolling.mean() / volatility) * math.sqrt(panel["days_per_year"])
     colors = panel["theme_config"]["colors"]
     fig.add_trace(
         go.Scatter(
@@ -133,6 +130,6 @@ register_tearsheet_chart(
 register_tearsheet_chart(
     _ROLLING_SHARPE,
     "scatter",
-    f"Rolling Sharpe Ratio ({_ROLLING_WINDOW}-day)",
+    f"Rolling Sharpe Ratio ({series.ROLLING_WINDOW}-day)",
     _draw_rolling_sharpe,
 )

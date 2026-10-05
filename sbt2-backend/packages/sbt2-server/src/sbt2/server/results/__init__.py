@@ -10,8 +10,10 @@ from sbt2.core import results as core
 from sbt2.core.config import Root
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
 from sbt2.protocol.v1.results_pb2 import (
+    GetPanel,
     GetSeries,
     Metrics,
+    Panel,
     RunList,
     Series,
     SeriesKind,
@@ -28,6 +30,7 @@ from sbt2.server.results.encoding import (
     summary,
     write_arrow,
 )
+from sbt2.server.results.panels import Panels
 from sbt2.server.results.streaming import (
     TooLargeError,
     checked,
@@ -41,13 +44,14 @@ from sbt2.server.results.tearsheets import Tearsheets
 def routes(root: Root) -> dict[str, Handler]:
     """Handlers for browsing the results under ``root`` through core's public API."""
     store = core.store_at(root)
-    results = _Results(store, Tearsheets(root, store))
+    results = _Results(store, Tearsheets(root, store), Panels(root, store))
     return {
         "list_runs": _guard(results.list_runs),
         "get_run": _guard(results.get_run),
         "get_metrics": _guard(results.get_metrics),
         "get_series": _guard(results.get_series),
         "get_tearsheet": _guard(results.get_tearsheet),
+        "get_panel": _guard(results.get_panel),
     }
 
 
@@ -55,6 +59,7 @@ def routes(root: Root) -> dict[str, Handler]:
 class _Results:
     store: core.ResultStore
     tearsheets: Tearsheets
+    panels: Panels
 
     async def list_runs(self, request: ClientMessage, outbox: Outbox) -> ServerMessage:
         replies = await offloaded(self._listed)(request)
@@ -114,6 +119,17 @@ class _Results:
                 return self.store.load(selected.run_id, "fills")
             case _:
                 raise InvalidArgumentError
+
+    async def get_panel(self, request: ClientMessage, outbox: Outbox) -> ServerMessage:
+        """One panel of the run's tearsheet, with the columns ts and value."""
+        with tempfile.TemporaryFile() as staged:
+            await offloaded(self._stage_panel)(request.get_panel, staged)
+            template = ServerMessage(request_id=request.request_id, panel=Panel())
+            return await deliver(pieces(template, staged), outbox)
+
+    def _stage_panel(self, selected: GetPanel, staged: BinaryIO) -> None:
+        write_arrow(self.panels.table(selected), staged)
+        staged.seek(0)
 
     async def get_tearsheet(
         self, request: ClientMessage, outbox: Outbox

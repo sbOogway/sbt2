@@ -10,7 +10,7 @@ from sbt2.core import results as core
 from sbt2.core.config import Root
 from sbt2.core.data import Catalog
 from sbt2.server import offloaded
-from sbt2.server.results.encoding import Choice, InvalidArgumentError
+from sbt2.server.results.encoding import Choice, resolved_benchmark
 
 
 class Tearsheets:
@@ -40,7 +40,7 @@ class Tearsheets:
 
     def _render(self, run_id: str, choice: Choice, path: Path) -> None:
         run = self._store.stored_run(run_id)
-        benchmark = _benchmark(run, choice)
+        benchmark = resolved_benchmark(run, choice)
         priced = run.priced(Catalog(self._root.catalog))
         path.parent.mkdir(exist_ok=True)
         # the tearsheet's format follows the extension, so the staging file keeps it
@@ -52,13 +52,3 @@ class Tearsheets:
             staging.replace(path)
         finally:
             staging.unlink(missing_ok=True)
-
-
-def _benchmark(run: core.StoredRun, choice: Choice) -> core.Benchmark | None:
-    name, argument = choice
-    if name is None:
-        return run.benchmark()
-    try:
-        return run.benchmark(name, argument)
-    except ValueError as invalid:
-        raise InvalidArgumentError from invalid
