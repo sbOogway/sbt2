@@ -27,10 +27,8 @@ server and a protocol for a future GUI.
 ## Install
 
 Each [release](https://github.com/sbOogway/sbt2/releases) has the Python
-distributions. CI publishes them. The maintainer adds the Linux GUI and the
-server image afterwards, so they can follow some time later. `SHA256SUMS`
-covers every file of the release, and the notes name the server image with its
-digest.
+distributions, the Linux GUI and `SHA256SUMS`, which covers every file of the
+release. The notes name the server image with its digest.
 
 ### Server
 
@@ -72,21 +70,34 @@ commands, run from its directory.
 
 ## Release
 
-CI publishes the wheels of each release. The maintainer builds the GUI and the
-server image on their machine, with `GH_TOKEN` (or a `gh` login) and, for the
-image, `GHCR_TOKEN` (a classic token with `write:packages`) in the environment
-or in a git-ignored `.env` at the repo root (`GHCR_TOKEN=...`, mode 600). A
-variable set in the environment wins over `.env`:
+The maintainer cuts each release on their machine with `make release`. There is
+no release in CI. The target refuses to start unless:
+
+- `HEAD` is `origin/main` after a fetch, and the working tree is clean;
+- the last finished run of the Woodpecker cron `nightly` on `main` passed;
+- `make check` passes.
+
+It then picks the next version from the Conventional Commits since the last tag
+(`VERSION=X.Y.Z` overrides it), and refuses when there is nothing to release or
+the tag exists. It builds the wheels, the GUI and the server image, and
+smoke-tests the GUI and the image. Only then does it draft the release for
+`HEAD`, upload the files and `SHA256SUMS`, push the image as `:X.Y.Z` and
+`:latest`, and publish. Publishing creates the tag on GitHub. A failure before
+the publish leaves a draft; a re-run with the same version finishes it.
+
+The tokens come from the environment or from a git-ignored `.env` at the repo
+root (mode 600). A variable set in the environment wins over `.env`:
 
 ```sh
-make release-gui     # build the GUI and upload it to the release
-make release-image   # build the image, smoke-test it and push it to GHCR
-make release         # both
+GH_TOKEN=...          # or a gh login; can edit the releases
+GHCR_TOKEN=...        # classic token with write:packages
+WOODPECKER_TOKEN=...  # Woodpecker personal token
 ```
 
-They act on the newest `vX.Y.Z` tag. Use `TAG=vX.Y.Z` to pick another release.
-A target refuses when the release has its artifact already, unless `FORCE=1`.
-Each target builds the tag's commit in a temporary worktree.
+To add the GUI or the image to an existing release, use `make release-gui` or
+`make release-image`. They act on the newest `vX.Y.Z` tag; `TAG=vX.Y.Z` picks
+another release. A target refuses when the release has its artifact already,
+unless `FORCE=1`. Each builds the tag's commit in a temporary worktree.
 
 ## License
 
