@@ -3,12 +3,14 @@ from pathlib import Path
 import pytest
 from results_kit import stored
 from server_kit import TOKEN, ask, client, greet, run
+from strategies_kit import STRATEGY
 from typer.testing import CliRunner
 
 from sbt2.core import spec
 from sbt2.protocol.v1.config_pb2 import ListVenueProfiles
 from sbt2.protocol.v1.envelope_pb2 import Capability, ClientMessage, Welcome
 from sbt2.protocol.v1.results_pb2 import ListRuns
+from sbt2.protocol.v1.runs_pb2 import DescribeStrategy, StrategyModule
 from sbt2.server import Address, Server
 from sbt2.server.cli import app
 
@@ -187,3 +189,27 @@ def test_welcome_announces_the_runs_capability(
     server, _ = served(monkeypatch, [])
 
     assert Capability.CAPABILITY_RUNS in browsed(server)[0].capabilities
+
+
+@pytest.mark.integration
+def test_the_server_command_answers_describe_strategy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("SBT2_SERVER_TOKEN", TOKEN)
+    monkeypatch.setenv("SBT2_DATA", str(tmp_path / "data"))
+    server, _ = served(monkeypatch, [])
+    schemas: list[str] = []
+
+    async def scenario(url: str) -> None:
+        async with client(url) as connection:
+            await greet(connection)
+            module = StrategyModule(name="cli_cross", source=STRATEGY)
+            request = ClientMessage(
+                request_id=2, describe_strategy=DescribeStrategy(strategy=module)
+            )
+            reply = await ask(connection, request.SerializeToString())
+        schemas.append(reply.strategy_schema.strategy)
+
+    run(scenario, server)
+
+    assert schemas == ["cli_cross:Cross"]
