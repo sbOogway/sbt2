@@ -7,7 +7,7 @@ import pytest
 from golden_catalog import build_catalog
 from typer.testing import CliRunner, Result
 
-from sbt2.core.cli import app
+from sbt2.cli import app
 from sbt2.core.results import ParquetResultStore
 
 HERE = Path(__file__).parent

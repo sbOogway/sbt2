@@ -1,19 +1,19 @@
 [project]
-name = "sbt2-core"
-dynamic = ["version"]
-description = "Backtesting framework on nautilus_trader"
+name = "sbt2-cli"
+dynamic = ["version", "dependencies"]
+description = "The sbt2 command"
 license = "LGPL-3.0-or-later"
 license-files = ["COPYING", "COPYING.LESSER"]
 requires-python = ">=3.14"
+
+[tool.hatch.metadata.hooks.uv-dynamic-versioning]
 dependencies = [
-    "duckdb>=1.5.6",
-    "httpx>=0.28.1",
-    "jeepney>=0.9.0",
-    "nautilus-trader[visualization]==2.0.0rc6",
-    "pandas>=3.0.6",
-    "pyarrow>=25.0.1",
-    "tomli-w>=1.2.0",
+    "sbt2-core=={{ version }}",
+    "typer>=0.27.2",
 ]
+
+[project.scripts]
+sbt2 = "sbt2.cli:app"
 
 [build-system]
 requires = ["hatchling>=1.27", "uv-dynamic-versioning>=0.8"]
@@ -29,7 +29,7 @@ packages = ["src/sbt2"]
 dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0"]
 
 [tool.coverage.run]
-source_pkgs = ["sbt2.core"]
+source_pkgs = ["sbt2.cli"]
 branch = true
 concurrency = ["multiprocessing"]
 patch = ["subprocess"]

@@ -14,7 +14,11 @@ build-backend = "hatchling.build"
 source = "uv-dynamic-versioning"
 
 [tool.hatch.metadata.hooks.uv-dynamic-versioning]
-dependencies = ["sbt2-core=={{ version }}", "sbt2-strategies=={{ version }}"]
+dependencies = [
+    "sbt2-core=={{ version }}",
+    "sbt2-cli=={{ version }}",
+    "sbt2-strategies=={{ version }}",
+]
 
 [tool.hatch.metadata.hooks.uv-dynamic-versioning.optional-dependencies]
 papers = ["sbt2-papers=={{ version }}"]
@@ -42,6 +46,7 @@ members = ["packages/*"]
 [tool.uv.sources]
 nautilus-trader = { index = "nautech" }
 sbt2-core = { workspace = true }
+sbt2-cli = { workspace = true }
 sbt2-strategies = { workspace = true }
 sbt2-papers = { workspace = true }
 sbt2-server = { workspace = true }
@@ -55,6 +60,7 @@ dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "pyyaml>=6.0.3",
+    "sbt2-cli",
     "sbt2-papers",
     "sbt2-server",
 ]
@@ -64,6 +70,8 @@ include = ["packages", "tests"]
 # the core tests share helpers with the root tests
 extraPaths = [
     "tests",
+    "packages/sbt2-core/tests",
+    "packages/sbt2-cli/tests",
     "packages/sbt2-core/tests/results",
     "packages/sbt2-core/tests/run",
 ]
@@ -94,6 +102,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # Typer reads each command option from a parameter of its own
 "packages/*/src/sbt2/*/cli.py" = ["FBT001", "FBT002", "PLR0913", "PLR0917"]
+"packages/sbt2-cli/src/sbt2/cli/*.py" = ["FBT001", "FBT002", "PLR0913", "PLR0917"]
 # pytest hands fixtures in as arguments
 "**/test_*.py" = ["PLR0913", "PLR0917"]
 "**/conftest.py" = ["PLR0913", "PLR0917"]
@@ -108,14 +117,13 @@ max-args = 3
 max-positional-args = 3
 
 [tool.importlinter]
-root_packages = ["sbt2.core", "sbt2.strategies", "sbt2.papers", "sbt2.server", "sbt2.protocol"]
+root_packages = ["sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server", "sbt2.protocol"]
 exclude_type_checking_imports = true
 
 [[tool.importlinter.contracts]]
 name = "Higher packages may import lower ones, never the reverse"
 type = "layers"
 layers = [
-    "sbt2.core.cli",
     "sbt2.core.run",
     "sbt2.core.results",
     "sbt2.core.spec",
@@ -261,10 +269,16 @@ source_modules = ["sbt2.core", "sbt2.strategies", "sbt2.papers"]
 forbidden_modules = ["sbt2.server", "sbt2.protocol"]
 
 [[tool.importlinter.contracts]]
+name = "The libraries never import the CLI"
+type = "forbidden"
+source_modules = ["sbt2.core", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
+forbidden_modules = ["sbt2.cli"]
+
+[[tool.importlinter.contracts]]
 name = "The protocol is generated code and imports nothing of sbt2"
 type = "forbidden"
 source_modules = ["sbt2.protocol"]
-forbidden_modules = ["sbt2.core", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
+forbidden_modules = ["sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
 
 [[tool.importlinter.contracts]]
 name = "sbt2 never imports the paper pipeline"
@@ -281,6 +295,7 @@ forbidden_modules = ["sbt2.core", "sbt2.strategies"]
 [tool.pytest.ini_options]
 testpaths = [
     "packages/sbt2-core/tests",
+    "packages/sbt2-cli/tests",
     "packages/sbt2-strategies/tests",
     "packages/sbt2-server/tests",
     "packages/sbt2-papers/tests",
@@ -292,7 +307,6 @@ pythonpath = [
     "tests/characterization/nautilus",
     "tests/golden",
     "packages/sbt2-core/tests",
-    "packages/sbt2-core/tests/cli",
     "packages/sbt2-core/tests/data",
     "packages/sbt2-core/tests/data/catalog",
     "packages/sbt2-core/tests/data/sources",
@@ -300,6 +314,7 @@ pythonpath = [
     "packages/sbt2-core/tests/run",
     "packages/sbt2-core/tests/spec",
     "packages/sbt2-core/tests/strategy",
+    "packages/sbt2-cli/tests",
     "packages/sbt2-strategies/tests",
     "packages/sbt2-server/tests",
     "packages/sbt2-papers/tests",
@@ -323,7 +338,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source_pkgs = ["sbt2.core", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
+source_pkgs = ["sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
 branch = true
 concurrency = ["multiprocessing"]
 patch = ["subprocess"]

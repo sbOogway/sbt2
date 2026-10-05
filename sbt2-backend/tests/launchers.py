@@ -12,7 +12,6 @@ from typing import override
 
 import pytest
 
-from sbt2.core import cli
 from sbt2.core.run import Launcher
 from sbt2.core.run.batching import children as batch_children
 from sbt2.core.run.child import run_child
@@ -111,10 +110,3 @@ class ScriptedLauncher(PlainLauncher):
         child, pipe = forked(self._scripts[len(self.started)])
         self.started.append(child)
         return child, pipe
-
-
-def uncapped(monkeypatch: pytest.MonkeyPatch) -> PlainLauncher:
-    """Has ``sbt2 run`` start its children with a ``PlainLauncher``."""
-    launcher = PlainLauncher()
-    monkeypatch.setattr(cli, "launcher_named", lambda _: launcher)
-    return launcher

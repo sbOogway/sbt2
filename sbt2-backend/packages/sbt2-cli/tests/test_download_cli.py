@@ -8,8 +8,8 @@ import pytest
 from nautilus_trader.model import InstrumentId, TradeTick
 from typer.testing import CliRunner
 
+from sbt2.cli import app
 from sbt2.core import data
-from sbt2.core.cli import app
 from sbt2.core.data.sources import MissingAtSourceError, RawFile, Source
 
 runner = CliRunner()

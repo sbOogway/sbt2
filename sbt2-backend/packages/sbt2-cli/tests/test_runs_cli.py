@@ -7,8 +7,8 @@ from served_source import ServedSource
 from served_spec import DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
 
+from sbt2.cli import app
 from sbt2.core import spec
-from sbt2.core.cli import app
 from sbt2.core.results import ParquetResultStore
 
 runner = CliRunner()

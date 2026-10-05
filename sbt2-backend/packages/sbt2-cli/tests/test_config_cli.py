@@ -5,7 +5,7 @@ from served_source import ServedSource
 from served_spec import DAY, NEXT_DAY, VENUES, served
 from typer.testing import CliRunner
 
-from sbt2.core.cli import app
+from sbt2.cli import app
 from sbt2.core.results import ParquetResultStore
 
 runner = CliRunner()

@@ -1,5 +1,6 @@
 import pytest
-from launchers import PlainLauncher, uncapped
+from cli_launchers import uncapped
+from launchers import PlainLauncher
 
 
 @pytest.fixture(autouse=True)

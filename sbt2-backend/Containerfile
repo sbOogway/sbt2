@@ -12,6 +12,7 @@ ENV UV_DYNAMIC_VERSIONING_BYPASS=${SBT2_VERSION} \
 WORKDIR /src
 COPY uv.lock pyproject.toml COPYING COPYING.LESSER ./
 COPY packages/sbt2-core/pyproject.toml packages/sbt2-core/
+COPY packages/sbt2-cli/pyproject.toml packages/sbt2-cli/
 COPY packages/sbt2-strategies/pyproject.toml packages/sbt2-strategies/
 COPY packages/sbt2-papers/pyproject.toml packages/sbt2-papers/
 COPY packages/sbt2-server/pyproject.toml packages/sbt2-server/

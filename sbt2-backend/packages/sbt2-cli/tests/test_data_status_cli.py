@@ -16,7 +16,7 @@ from nautilus_trader.model import (
 )
 from typer.testing import CliRunner
 
-from sbt2.core.cli import app
+from sbt2.cli import app
 
 runner = CliRunner()
 
