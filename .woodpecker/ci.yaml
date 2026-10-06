@@ -1,7 +1,9 @@
+# PR pipelines test the merge result, so a push to main runs no tests; a nightly run catches
+# pull requests that pass alone but break together
 when:
   - event: pull_request
-  - event: push
-    branch: main
+  - event: cron
+    cron: nightly
   - event: manual
 
 variables:
@@ -19,14 +21,14 @@ variables:
         - sbt2-backend/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [cron, manual]
   - &protocol
     - event: pull_request
       path:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [cron, manual]
   - &gui
     - event: pull_request
       path:
@@ -34,7 +36,7 @@ variables:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [cron, manual]
   - &gui_e2e
     - event: pull_request
       path:
@@ -43,7 +45,7 @@ variables:
         - sbt2-backend/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [cron, manual]
   - &backend_or_protocol
     - event: pull_request
       path:
@@ -51,16 +53,18 @@ variables:
         - sbt2-protocol/**
         - '{.woodpecker,.github,scripts}/**'
         - '{.*,Makefile,*.toml,*.yaml,*.yml,*.lock}'
-    - event: [push, manual]
+    - event: [cron, manual]
 
 # One workflow per pipeline: the agent runs one workflow at a time, so pipelines queue whole instead of interleaving.
 # Each step has its own cache volume because concurrent containers use different SELinux labels.
+# Each step cancels the pipeline when it fails, so a failure ends the run without waiting for the slow steps.
 steps:
   - name: repo-hooks
     image: *image
     environment: *env
     volumes: [sbt2-cache-repo-hooks:/cache:z]
     depends_on: []
+    failure: cancel
     commands:
       - |
         for hook in check-toml check-yaml end-of-file-fixer trailing-whitespace check-added-large-files shellcheck shfmt; do
@@ -72,6 +76,7 @@ steps:
     environment: *env
     volumes: [sbt2-cache-generate-protocol:/cache:z]
     depends_on: []
+    failure: cancel
     when: *backend_or_protocol
     commands:
       - uv --directory sbt2-backend sync --locked
@@ -82,6 +87,7 @@ steps:
     environment: *env
     volumes: [sbt2-cache-lint:/cache:z]
     depends_on: []
+    failure: cancel
     when: *backend
     commands:
       - uv --directory sbt2-backend sync --locked
@@ -99,6 +105,7 @@ steps:
         from_secret: codecov_token
     volumes: [sbt2-cache-test-sbt2-core:/cache:z]
     depends_on: []
+    failure: cancel
     when: *backend
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
@@ -118,6 +125,7 @@ steps:
         from_secret: codecov_token
     volumes: [sbt2-cache-test-sbt2-strategies:/cache:z]
     depends_on: []
+    failure: cancel
     when: *backend
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
@@ -137,6 +145,7 @@ steps:
         from_secret: codecov_token
     volumes: [sbt2-cache-test-sbt2-cli:/cache:z]
     depends_on: []
+    failure: cancel
     when: *backend
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
@@ -156,6 +165,7 @@ steps:
         from_secret: codecov_token
     volumes: [sbt2-cache-test-sbt2-server:/cache:z]
     depends_on: []
+    failure: cancel
     when: *backend
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
@@ -175,6 +185,7 @@ steps:
         from_secret: codecov_token
     volumes: [sbt2-cache-test-sbt2-papers:/cache:z]
     depends_on: []
+    failure: cancel
     when: *backend
     commands:
       # only the member and what it declares, so an undeclared dependency fails here
@@ -195,6 +206,7 @@ steps:
         from_secret: codecov_token
     volumes: [sbt2-cache-test:/cache:z]
     depends_on: []
+    failure: cancel
     when: *backend
     commands:
       - uv --directory sbt2-backend sync --locked
@@ -215,6 +227,7 @@ steps:
         from_secret: codecov_token
     volumes: [sbt2-cache-characterization:/cache:z]
     depends_on: []
+    failure: cancel
     when: *backend
     commands:
       - uv --directory sbt2-backend sync --locked
@@ -236,7 +249,7 @@ steps:
           - sbt2-backend/uv.lock
           - sbt2-backend/**/pyproject.toml
           - .woodpecker/ci.yaml
-      - event: [push, manual]
+      - event: [cron, manual]
     environment:
       # an unprivileged step can neither mount overlays nor set up namespaces
       STORAGE_DRIVER: vfs
@@ -246,6 +259,7 @@ steps:
       XDG_CACHE_HOME: /cache
     volumes: [sbt2-cache-image:/cache:z]
     depends_on: []
+    failure: cancel
     commands:
       - mkdir -p /cache/tmp
       - buildah --root=/cache/storage build --format=docker --tag=sbt2-server:ci --file=sbt2-backend/Containerfile sbt2-backend
@@ -258,6 +272,7 @@ steps:
     environment: *env
     volumes: [sbt2-cache-protocol-tests:/cache:z]
     depends_on: []
+    failure: cancel
     when: *protocol
     commands:
       - uv --directory sbt2-protocol sync --locked
@@ -274,6 +289,7 @@ steps:
       CARGO_TARGET_DIR: /cache/target
     volumes: [sbt2-cache-protocol-rust:/cache:z]
     depends_on: []
+    failure: cancel
     when: *protocol
     commands:
       - cargo test --locked --manifest-path sbt2-protocol/checks/rust/Cargo.toml
@@ -286,6 +302,7 @@ steps:
       CARGO_TARGET_DIR: /cache/target
     volumes: [sbt2-cache-gui:/cache:z]
     depends_on: []
+    failure: cancel
     when: *gui
     commands:
       - cd sbt2-gui
@@ -305,6 +322,7 @@ steps:
       XDG_CACHE_HOME: /cache
     volumes: [sbt2-cache-gui-e2e:/cache:z]
     depends_on: []
+    failure: cancel
     when: *gui_e2e
     commands:
       - apt-get update && apt-get install -y --no-install-recommends curl ca-certificates git
