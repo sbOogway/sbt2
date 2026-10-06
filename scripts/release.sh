@@ -5,7 +5,8 @@
 # no new version gets none. The newest of these merges is the release; $VERSION makes HEAD the
 # release with that version. Builds the wheels, the GUI and the image of the release first, then
 # drafts it, uploads the files and pushes the image. Last, it pushes the tags of the older merges
-# and publishes, which creates the release's tag on GitHub. A re-run finishes the draft.
+# and publishes, which creates the release's tag on GitHub. A re-run finishes the draft. Then it
+# updates the sbt2-server service on this machine, if there is one.
 # Needs GH_TOKEN or a gh login, and GHCR_TOKEN (classic, write:packages).
 # SBT2_RELEASE_CHECK replaces the make check command; only the tests of this script use it.
 set -euo pipefail
@@ -188,5 +189,6 @@ digest=$(push_image "$version")
 name_image_in_notes "$id" "$IMAGE_REPOSITORY:$version@$digest"
 push_older_tags
 publish "$id"
+deploy
 git fetch --quiet --tags origin
 echo "release: published $tag, and tagged $(head -n -1 "$WORK/tags" | wc -l) older merges"
