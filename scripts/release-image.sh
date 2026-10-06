@@ -26,7 +26,7 @@ fi
 
 start_work "refs/tags/$tag"
 # the build runs third-party build backends, which have no use for the tokens
-env -u GH_TOKEN -u GHCR_TOKEN -u WOODPECKER_TOKEN "$here/build-image.sh" "$version" "$WORK/src"
+env -u GH_TOKEN -u GHCR_TOKEN "$here/build-image.sh" "$version" "$WORK/src"
 digest=$(push_image "$version")
 name_image_in_notes "$id" "$IMAGE_REPOSITORY:$version@$digest"
 echo "release-image: pushed $IMAGE_REPOSITORY:$version@$digest"

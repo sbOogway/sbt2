@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Cuts a whole release from the maintainer's machine. Refuses unless HEAD is origin/main with a
-# clean tree, the last nightly run on main passed and make check passes. Each merge on main since
+# clean tree and make check passes. Each merge on main since
 # the newest tag gets a tag with the version git-cliff picks for it; a merge that git-cliff gives
 # no new version gets none. The newest of these merges is the release; $VERSION makes HEAD the
 # release with that version. Builds the wheels, the GUI and the image of the release first, then
 # drafts it, uploads the files and pushes the image. Last, it pushes the tags of the older merges
 # and publishes, which creates the release's tag on GitHub. A re-run finishes the draft.
-# Needs GH_TOKEN or a gh login, GHCR_TOKEN (classic, write:packages) and WOODPECKER_TOKEN.
+# Needs GH_TOKEN or a gh login, and GHCR_TOKEN (classic, write:packages).
 # SBT2_RELEASE_CHECK replaces the make check command; only the tests of this script use it.
 set -euo pipefail
 shopt -s inherit_errexit
@@ -16,12 +16,6 @@ here=$(cd "$(dirname "$0")" && pwd)
 . "$here/release-lib.sh"
 
 CLIFF=(uvx git-cliff==2.14.2)
-FINISHED_STATUSES='["success", "failure", "error", "killed", "declined"]'
-
-# The header goes through a file descriptor, so the token stays out of the process list
-woodpecker_api() {
-    curl -fsS -H @<(echo "Authorization: Bearer $WOODPECKER_TOKEN") "$@"
-}
 
 check_head_is_origin_main() {
     git fetch --quiet --tags origin main || die "cannot fetch origin"
@@ -30,27 +24,6 @@ check_head_is_origin_main() {
 
 check_tree_is_clean() {
     [ -z "$(git status --porcelain)" ] || die "the working tree is not clean"
-}
-
-# The status of the last finished run of the cron nightly on main, or none
-nightly_status() {
-    local repo_id
-    repo_id=$(woodpecker_api "$WOODPECKER_URL/api/repos/lookup/$REPO" | jq -r .id) ||
-        die "cannot read $REPO from Woodpecker at $WOODPECKER_URL"
-    woodpecker_api "$WOODPECKER_URL/api/repos/$repo_id/pipelines?event=cron&branch=main&perPage=100" |
-        jq -r --argjson finished "$FINISHED_STATUSES" \
-            '[.[] | select(.cron == "nightly" and (.status | IN($finished[])))][0].status // "none"' ||
-        die "cannot read the pipelines of $REPO from Woodpecker"
-}
-
-check_nightly_passed() {
-    local status
-    status=$(nightly_status)
-    case $status in
-    success) ;;
-    none) die "no finished nightly run on main exists yet; create the Woodpecker cron nightly and let it run" ;;
-    *) die "the last nightly run on main ended with $status" ;;
-    esac
 }
 
 check_make_check() {
@@ -139,10 +112,10 @@ build_all() {
     local version=$1 files=$WORK/files
     mkdir -p "$files"
     # the builds run third-party build backends, which have no use for the tokens
-    env -u GH_TOKEN -u GHCR_TOKEN -u WOODPECKER_TOKEN UV_DYNAMIC_VERSIONING_BYPASS="$version" \
+    env -u GH_TOKEN -u GHCR_TOKEN UV_DYNAMIC_VERSIONING_BYPASS="$version" \
         uv build --project "$WORK/src/sbt2-backend" --all-packages --out-dir "$files"
-    env -u GH_TOKEN -u GHCR_TOKEN -u WOODPECKER_TOKEN "$here/build-gui.sh" "$version" "$WORK/src" "$files"
-    env -u GH_TOKEN -u GHCR_TOKEN -u WOODPECKER_TOKEN "$here/build-image.sh" "$version" "$WORK/src"
+    env -u GH_TOKEN -u GHCR_TOKEN "$here/build-gui.sh" "$version" "$WORK/src" "$files"
+    env -u GH_TOKEN -u GHCR_TOKEN "$here/build-image.sh" "$version" "$WORK/src"
     (cd "$files" && sha256sum -- * >"$WORK/SHA256SUMS")
     mv "$WORK/SHA256SUMS" "$files/"
 }
@@ -197,11 +170,9 @@ publish() {
 }
 
 [ -n "${GHCR_TOKEN:-}" ] || die "set GHCR_TOKEN to a classic token with write:packages"
-[ -n "${WOODPECKER_TOKEN:-}" ] || die "set WOODPECKER_TOKEN to a Woodpecker personal token"
 use_github_token
 check_head_is_origin_main
 check_tree_is_clean
-check_nightly_passed
 make_work
 plan_tags
 check_make_check

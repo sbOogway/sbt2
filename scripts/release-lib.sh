@@ -7,14 +7,13 @@ GITHUB_UPLOADS=${GITHUB_UPLOADS:-https://uploads.github.com}
 IMAGE_REGISTRY=${IMAGE_REGISTRY:-ghcr.io}
 IMAGE_REPOSITORY=$IMAGE_REGISTRY/${REPO%%/*}/sbt2-server
 IMAGE_REPOSITORY=${IMAGE_REPOSITORY,,}
-WOODPECKER_URL=${WOODPECKER_URL:-https://woodpecker.mattiapapaccioli.com}
 GHCR_TOKEN=${GHCR_TOKEN:-}
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root" || exit 1
 
-# Takes GH_TOKEN, GHCR_TOKEN and WOODPECKER_TOKEN from $1 when the environment lacks them.
-# The file is parsed, never run, so nothing in it but these KEY=value lines has any effect.
+# Takes GH_TOKEN and GHCR_TOKEN from $1 when the environment lacks them. The file is
+# parsed, never run, so nothing in it but these two KEY=value lines has any effect.
 load_tokens() {
     local file=$1 line key value
     [ -f "$file" ] || return 0
@@ -22,7 +21,7 @@ load_tokens() {
         echo "${0##*/}: other users can read $file; run chmod 600 $file" >&2
     fi
     while IFS= read -r line || [ -n "$line" ]; do
-        [[ $line =~ ^[[:space:]]*(export[[:space:]]+)?(GH_TOKEN|GHCR_TOKEN|WOODPECKER_TOKEN)=(.*)$ ]] || continue
+        [[ $line =~ ^[[:space:]]*(export[[:space:]]+)?(GH_TOKEN|GHCR_TOKEN)=(.*)$ ]] || continue
         key=${BASH_REMATCH[2]}
         value=${BASH_REMATCH[3]%$'\r'}
         if [[ $value =~ ^\"(.*)\"$ || $value =~ ^\'(.*)\'$ ]]; then

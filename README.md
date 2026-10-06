@@ -71,10 +71,9 @@ commands, run from its directory.
 ## Release
 
 The maintainer cuts each release on their machine with `make release`. There is
-no release in CI. The target refuses to start unless:
+no release in CI, and for now no CI: the tests run locally. The target refuses to start unless:
 
 - `HEAD` is `origin/main` after a fetch, and the working tree is clean;
-- the last finished run of the Woodpecker cron `nightly` on `main` passed;
 - `make check` passes.
 
 It then tags each merge on `main` since the last tag with the version that
@@ -94,9 +93,8 @@ The tokens come from the environment or from a git-ignored `.env` at the repo
 root (mode 600). A variable set in the environment wins over `.env`:
 
 ```sh
-GH_TOKEN=...          # or a gh login; can edit the releases
-GHCR_TOKEN=...        # classic token with write:packages
-WOODPECKER_TOKEN=...  # Woodpecker personal token
+GH_TOKEN=...    # or a gh login; can edit the releases
+GHCR_TOKEN=...  # classic token with write:packages
 ```
 
 To add the GUI or the image to an existing release, use `make release-gui` or
