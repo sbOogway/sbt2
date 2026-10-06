@@ -77,13 +77,18 @@ no release in CI. The target refuses to start unless:
 - the last finished run of the Woodpecker cron `nightly` on `main` passed;
 - `make check` passes.
 
-It then picks the next version from the Conventional Commits since the last tag
-(`VERSION=X.Y.Z` overrides it), and refuses when there is nothing to release or
-the tag exists. It builds the wheels, the GUI and the server image, and
-smoke-tests the GUI and the image. Only then does it draft the release for
-`HEAD`, upload the files and `SHA256SUMS`, push the image as `:X.Y.Z` and
-`:latest`, and publish. Publishing creates the tag on GitHub. A failure before
-the publish leaves a draft; a re-run with the same version finishes it.
+It then tags each merge on `main` since the last tag with the version that
+git-cliff picks from its Conventional Commits. A merge with no `feat`, `fix`,
+`perf`, `refactor` or `revert` change gets no new version, so it gets no tag.
+The newest tagged merge is the release; `VERSION=X.Y.Z` makes `HEAD` the
+release with that version. The target refuses when there is nothing to release.
+It builds the wheels, the GUI and the server image of the release, and
+smoke-tests the GUI and the image. Only then does it draft the release, upload
+the files and `SHA256SUMS`, and push the image as `:X.Y.Z` and `:latest`. Last,
+it pushes the tags of the older merges and publishes. Publishing creates the
+release's tag on GitHub. The older merges get a tag only; the notes of the
+release list every change since the last release, by version. A failure before
+the publish leaves a draft; a re-run finishes it.
 
 The tokens come from the environment or from a git-ignored `.env` at the repo
 root (mode 600). A variable set in the environment wins over `.env`:

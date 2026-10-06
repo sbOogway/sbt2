@@ -120,12 +120,20 @@ refresh_checksums() {
     rm -rf "$dir"
 }
 
-# Checks out the git ref $1 into a git worktree $WORK/src, so no local edit leaks into a release.
-# The worktree goes when the script ends, even on failure.
-start_work() {
+# Makes the scratch directory $WORK, which goes when the script ends, even on failure
+make_work() {
     WORK=$(mktemp -d)
     trap finish_work EXIT
+}
+
+# Checks out the git ref $1 into a git worktree $WORK/src, so no local edit leaks into a release
+check_out_source() {
     git worktree add --quiet --detach "$WORK/src" "$1"
+}
+
+start_work() {
+    make_work
+    check_out_source "$1"
 }
 
 finish_work() {

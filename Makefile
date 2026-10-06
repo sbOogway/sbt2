@@ -10,7 +10,7 @@ help:
 	@echo "make test-gui      run the GUI's format, lint and test checks"
 	@echo "make release-gui   backfill: build the Linux GUI and upload it to a release"
 	@echo "make release-image backfill: build the image, test it and push it to GHCR"
-	@echo "make release       check the guards, build everything, publish; VERSION=X.Y.Z overrides"
+	@echo "make release       tag the merges since the last tag, build and publish the newest"
 
 sync:
 	uv --directory sbt2-backend sync --locked
