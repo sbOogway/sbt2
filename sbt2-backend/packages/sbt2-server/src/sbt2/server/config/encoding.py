@@ -5,7 +5,8 @@ from typing import Any
 from google.protobuf import json_format
 from google.protobuf.struct_pb2 import Value
 
-from sbt2.core import data, spec
+from sbt2 import data
+from sbt2.core import spec
 from sbt2.protocol.v1.config_pb2 import (
     AssetClass,
     InstrumentClass,

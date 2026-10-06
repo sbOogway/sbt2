@@ -5,9 +5,9 @@ from functools import cached_property
 import pandas as pd
 from nautilus_trader.model import InstrumentId
 
-from sbt2.core.data import Catalog, Gap, Selection, Window
 from sbt2.core.results.metrics import RunTables, Segment, equity_curve
 from sbt2.core.spec import ResolvedRunSpec
+from sbt2.data import Catalog, Gap, Selection, Window
 
 
 class MissingPricesError(LookupError):

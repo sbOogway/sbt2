@@ -3,7 +3,8 @@ from dataclasses import dataclass, field
 from functools import wraps
 from pathlib import Path
 
-from sbt2.core import data, spec
+from sbt2 import data
+from sbt2.core import spec
 from sbt2.core.config import ConfigFolder, Root
 from sbt2.protocol.v1.config_pb2 import ConfigWritten, KnownGaps, VenueProfiles
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage

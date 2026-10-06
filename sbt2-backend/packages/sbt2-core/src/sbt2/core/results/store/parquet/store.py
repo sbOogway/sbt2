@@ -8,7 +8,6 @@ from typing import Any, Self, override
 import duckdb
 import pandas as pd
 
-from sbt2.core.data import Gap
 from sbt2.core.results.metrics import RunTables
 from sbt2.core.results.store.base import (
     MissingTableError,
@@ -31,6 +30,7 @@ from sbt2.core.results.store.parquet.sink import (
 from sbt2.core.results.store.parquet.tables import read_table
 from sbt2.core.results.store.sink import OutputSink
 from sbt2.core.spec import ResolvedRunSpec
+from sbt2.data import Gap
 
 _SUMMARIES = f"*/{SUMMARY}.parquet"
 _SPEC = "spec.json"

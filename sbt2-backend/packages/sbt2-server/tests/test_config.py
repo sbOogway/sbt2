@@ -5,7 +5,8 @@ import pytest
 from google.protobuf.struct_pb2 import Struct, Value
 from results_kit import ask, ask_together
 
-from sbt2.core import data, spec
+from sbt2 import data
+from sbt2.core import spec
 from sbt2.core.config import ConfigFolder, Root
 from sbt2.protocol.v1.config_pb2 import (
     AddKnownGaps,

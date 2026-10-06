@@ -4,9 +4,10 @@ from typing import Annotated
 import pandas as pd
 import typer
 
+from sbt2 import data
 from sbt2.cli import tables
 from sbt2.cli.options import data_option, failing, logger
-from sbt2.core import data, results
+from sbt2.core import results
 from sbt2.core.config import Root
 from sbt2.core.results import Benchmark, StoredRun
 

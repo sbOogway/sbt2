@@ -1,12 +1,12 @@
 from pathlib import Path
 
 import pytest
-from served_source import ServedSource
 from served_spec import DAY, NEXT_DAY, served
 from typer.testing import CliRunner
 
 from sbt2.cli import app
 from sbt2.core.results import ParquetResultStore
+from sbt2.data.testing import ServedSource
 
 runner = CliRunner()
 

@@ -3,15 +3,15 @@ from pathlib import Path
 import pytest
 from launchers import PlainLauncher
 from nautilus_trader.model import FundingRateUpdate
-from served_source import INSTRUMENT_ID, ServedSource
 from served_spec import DAY, NEXT_DAY, VALIDATION_DAY, served, without_a_part
 from typer.testing import CliRunner
 
 from sbt2.cli import app
 from sbt2.cli import run as cli
-from sbt2.core.data.sources import Gap
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import Launcher, launcher_named
+from sbt2.data import Gap
+from sbt2.data.testing import INSTRUMENT_ID, ServedSource
 
 runner = CliRunner()
 FAILING = """

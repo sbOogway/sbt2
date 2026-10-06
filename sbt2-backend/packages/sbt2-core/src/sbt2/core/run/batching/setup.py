@@ -4,14 +4,14 @@ from typing import Protocol, Self
 
 from nautilus_trader.common import LogLevel
 
-from sbt2.core import data
+from sbt2 import data
 from sbt2.core.config import Root
-from sbt2.core.data import Source
 from sbt2.core.results import ResultStore, store_at
 from sbt2.core.run.batching.memory import Memory
 from sbt2.core.run.execute import RunSettings
 from sbt2.core.run.launchers import Launcher
 from sbt2.core.run.preflighting import DataFolders
+from sbt2.data import Source
 
 
 class BatchProgress(Protocol):

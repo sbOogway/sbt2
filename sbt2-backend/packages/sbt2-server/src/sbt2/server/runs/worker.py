@@ -20,7 +20,8 @@ from types import FrameType
 
 from nautilus_trader.common import LogLevel
 
-from sbt2.core import data, spec
+from sbt2 import data
+from sbt2.core import spec
 from sbt2.core.config import Root
 from sbt2.core.run import (
     BatchSetup,

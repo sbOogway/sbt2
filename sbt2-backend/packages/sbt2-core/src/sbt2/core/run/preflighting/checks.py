@@ -2,7 +2,6 @@ from datetime import timedelta
 
 from nautilus_trader.model import QuoteTick
 
-from sbt2.core.data import Catalog, Gap, Source
 from sbt2.core.run.preflighting.errors import (
     InstrumentAssetClassError,
     LiquidationWithoutQuotesError,
@@ -11,6 +10,7 @@ from sbt2.core.run.preflighting.errors import (
 )
 from sbt2.core.run.preflighting.fetch import DataFolders, check_coverage
 from sbt2.core.spec import ResolvedRunSpec
+from sbt2.data import Catalog, Gap, Source
 
 # Nautilus keeps at most this many portfolio snapshots per account, in a ring buffer.
 SNAPSHOT_BUFFER = 1_000_000

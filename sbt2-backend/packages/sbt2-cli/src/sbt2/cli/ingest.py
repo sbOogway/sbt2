@@ -5,9 +5,9 @@ from typing import Annotated
 
 import typer
 
+from sbt2 import data
 from sbt2.cli import progress
 from sbt2.cli.options import DAY, data_option, failing, logger
-from sbt2.core import data
 from sbt2.core.config import Root
 
 app = typer.Typer()

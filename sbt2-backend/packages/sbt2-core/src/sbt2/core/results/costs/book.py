@@ -7,10 +7,10 @@ import numpy as np
 import pandas as pd
 from nautilus_trader.model import InstrumentId
 
-from sbt2.core.data import Catalog
 from sbt2.core.results.costs.records import InverseInstrumentError
 from sbt2.core.results.metrics import Segment, closed_trades, total
 from sbt2.core.results.pricing import MissingPricesError, PricedRun, on_grid
+from sbt2.data import Catalog
 
 
 class Book:

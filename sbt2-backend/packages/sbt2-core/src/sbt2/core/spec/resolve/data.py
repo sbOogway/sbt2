@@ -5,8 +5,8 @@ from typing import Any
 from nautilus_trader.model import BarSpecification, InstrumentId, NautilusDataType
 
 from sbt2.core.assets import AssetProfile
-from sbt2.core.data import candle_type
 from sbt2.core.spec.bars import BarSource
+from sbt2.data import candle_type
 
 
 def data_types(

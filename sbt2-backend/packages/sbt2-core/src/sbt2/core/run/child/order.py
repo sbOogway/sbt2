@@ -16,10 +16,10 @@ from typing import Any
 
 from nautilus_trader.common import LogLevel
 
-from sbt2.core.data import Gap
 from sbt2.core.results import ResultStore, open_store
 from sbt2.core.run.execute import RunSettings
 from sbt2.core.spec import ResolvedRunSpec, Study
+from sbt2.data import Gap
 
 type Document = dict[str, Any]
 

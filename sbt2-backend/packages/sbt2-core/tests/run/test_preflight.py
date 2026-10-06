@@ -6,21 +6,8 @@ from typing import Any
 
 import pytest
 from nautilus_trader.model import Bar, FundingRateUpdate, TradeTick
-from served_source import INSTRUMENT_ID, SYMBOL, ServedSource, spot_pair
 
 from sbt2.core.assets import Calendar
-from sbt2.core.data import (
-    Catalog,
-    DayRange,
-    DownloadOptions,
-    DownloadRequest,
-    IngestOptions,
-    IngestRequest,
-    Window,
-    download,
-    ingest,
-)
-from sbt2.core.data.sources import Gap, UnsupportedDataTypeError
 from sbt2.core.run import (
     DataFolders,
     InstrumentAssetClassError,
@@ -30,6 +17,20 @@ from sbt2.core.run import (
     preflight,
 )
 from sbt2.core.spec import ResolvedRunSpec, load
+from sbt2.data import (
+    Catalog,
+    DayRange,
+    DownloadOptions,
+    DownloadRequest,
+    Gap,
+    IngestOptions,
+    IngestRequest,
+    UnsupportedDataTypeError,
+    Window,
+    download,
+    ingest,
+)
+from sbt2.data.testing import INSTRUMENT_ID, SYMBOL, ServedSource, spot_pair
 
 VENUES = """
 [test_linear]

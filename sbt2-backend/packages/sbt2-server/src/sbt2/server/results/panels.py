@@ -2,7 +2,7 @@ import pandas as pd
 
 from sbt2.core import results as core
 from sbt2.core.config import Root
-from sbt2.core.data import Catalog
+from sbt2.data import Catalog
 from sbt2.protocol.v1 import results_pb2 as wire
 from sbt2.server.results.encoding import (
     InvalidArgumentError,
