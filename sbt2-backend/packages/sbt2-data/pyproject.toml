@@ -7,7 +7,7 @@ license-files = ["COPYING", "COPYING.LESSER"]
 requires-python = ">=3.14"
 dependencies = [
     "httpx>=0.28.1",
-    "nautilus-trader==2.0.0rc6",
+    "nautilus-trader==2.0.0rc7.dev20261005",
     "pandas>=3.0.6",
     "pyarrow>=25.0.1",
     "tomli-w>=1.2.0",

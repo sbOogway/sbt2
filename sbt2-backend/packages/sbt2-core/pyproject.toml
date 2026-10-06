@@ -5,15 +5,6 @@ description = "Backtesting framework on nautilus_trader"
 license = "LGPL-3.0-or-later"
 license-files = ["COPYING", "COPYING.LESSER"]
 requires-python = ">=3.14"
-dependencies = [
-    "duckdb>=1.5.6",
-    "httpx>=0.28.1",
-    "jeepney>=0.9.0",
-    "nautilus-trader[visualization]==2.0.0rc7.dev20261005",
-    "pandas>=3.0.6",
-    "pyarrow>=25.0.1",
-    "tomli-w>=1.2.0",
-]
 
 [build-system]
 requires = ["hatchling>=1.27", "uv-dynamic-versioning>=0.8"]
@@ -26,7 +17,7 @@ source = "uv-dynamic-versioning"
 dependencies = [
     "duckdb>=1.5.6",
     "jeepney>=0.9.0",
-    "nautilus-trader[visualization]==2.0.0rc6",
+    "nautilus-trader[visualization]==2.0.0rc7.dev20261005",
     "pandas>=3.0.6",
     "pyarrow>=25.0.1",
     "sbt2-data=={{ version }}",
