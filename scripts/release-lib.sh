@@ -1,12 +1,13 @@
 # shellcheck shell=bash
 # Sourced by the release scripts, which run on the maintainer's machine from any directory.
-# The GitHub token comes from $GH_TOKEN or the gh login. It is never printed or written.
+# The GitHub token comes from $GH_TOKEN or the gh login. No token is ever printed or written.
 REPO=${SBT2_REPO:-sbOogway/sbt2}
 GITHUB_API=${GITHUB_API:-https://api.github.com}
 GITHUB_UPLOADS=${GITHUB_UPLOADS:-https://uploads.github.com}
 IMAGE_REGISTRY=${IMAGE_REGISTRY:-ghcr.io}
 IMAGE_REPOSITORY=$IMAGE_REGISTRY/${REPO%%/*}/sbt2-server
 IMAGE_REPOSITORY=${IMAGE_REPOSITORY,,}
+GHCR_TOKEN=${GHCR_TOKEN:-}
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root" || exit 1
@@ -118,16 +119,67 @@ refresh_checksums() {
     rm -rf "$dir"
 }
 
-# Checks out the tag $1 into a git worktree $WORK/src, so no local edit leaks into a release.
-# The worktree goes when the script ends, even on failure.
-start_work() {
+# Makes the scratch directory $WORK, which goes when the script ends, even on failure
+make_work() {
     WORK=$(mktemp -d)
     trap finish_work EXIT
-    git worktree add --quiet --detach "$WORK/src" "refs/tags/$1"
+}
+
+# Checks out the git ref $1 into a git worktree $WORK/src, so no local edit leaks into a release
+check_out_source() {
+    git worktree add --quiet --detach "$WORK/src" "$1"
+}
+
+start_work() {
+    make_work
+    check_out_source "$1"
 }
 
 finish_work() {
     git worktree remove --force "$WORK/src" 2>/dev/null || true
     git worktree prune
     rm -rf "$WORK"
+}
+
+# Succeeds when the version $1 is not older than the newest vX.Y.Z tag
+is_newest_version() {
+    local newest
+    newest=$(newest_tag)
+    [ -z "$newest" ] || [ "$(printf '%s\n' "$newest" "v$1" | sort -V | tail -n 1)" = "v$1" ]
+}
+
+NOTES_IMAGE_HEADING="## Container image"
+
+# The GHCR token goes to podman through stdin, and into a file in $WORK, which goes when the script ends
+login() {
+    podman login --authfile "$WORK/auth.json" --username "${REPO%%/*}" --password-stdin "$IMAGE_REGISTRY" <<<"$GHCR_TOKEN" >&2
+}
+
+# Pushes the local image of version $1 as the tag $2 of the repository, and prints its digest
+push_tag() {
+    local version=$1 tag=$2
+    podman push --authfile "$WORK/auth.json" --digestfile "$WORK/digest" \
+        "localhost/sbt2-server:$version" "docker://$IMAGE_REPOSITORY:$tag" >&2
+    cat "$WORK/digest"
+}
+
+# Pushes the image of version $1 as :$1, and as :latest when the version is the newest
+push_image() {
+    local version=$1 digest
+    login
+    digest=$(push_tag "$version" "$version")
+    if is_newest_version "$version"; then
+        push_tag "$version" latest >/dev/null
+    fi
+    echo "$digest"
+}
+
+# Puts the image reference $2 in the notes of the release $1, in place of an older one
+name_image_in_notes() {
+    local id=$1 reference=$2 notes
+    notes=$(github_api "$GITHUB_API/repos/$REPO/releases/$id" | jq -r '.body // ""')
+    notes=${notes%%$'\n\n'"$NOTES_IMAGE_HEADING"*}
+    notes+=$'\n\n'"$NOTES_IMAGE_HEADING"$'\n\n'"\`$reference\`"
+    jq -n --arg body "$notes" '{body: $body}' |
+        github_api -X PATCH -d @- "$GITHUB_API/repos/$REPO/releases/$id" >/dev/null
 }

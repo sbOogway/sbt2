@@ -27,10 +27,8 @@ server and a protocol for a future GUI.
 ## Install
 
 Each [release](https://github.com/sbOogway/sbt2/releases) has the Python
-distributions. CI publishes them. The maintainer adds the Linux GUI and the
-server image afterwards, so they can follow some time later. `SHA256SUMS`
-covers every file of the release, and the notes name the server image with its
-digest.
+distributions, the Linux GUI and `SHA256SUMS`, which covers every file of the
+release. The notes name the server image with its digest.
 
 ### Server
 
@@ -72,21 +70,37 @@ commands, run from its directory.
 
 ## Release
 
-CI publishes the wheels of each release. The maintainer builds the GUI and the
-server image on their machine, with `GH_TOKEN` (or a `gh` login) and, for the
-image, `GHCR_TOKEN` (a classic token with `write:packages`) in the environment
-or in a git-ignored `.env` at the repo root (`GHCR_TOKEN=...`, mode 600). A
-variable set in the environment wins over `.env`:
+The maintainer cuts each release on their machine with `make release`. There is
+no release in CI, and for now no CI: the tests run locally. The target refuses to start unless:
+
+- `HEAD` is `origin/main` after a fetch, and the working tree is clean;
+- `make check` passes.
+
+It then tags each merge on `main` since the last tag with the version that
+git-cliff picks from its Conventional Commits. A merge with no `feat`, `fix`,
+`perf`, `refactor` or `revert` change gets no new version, so it gets no tag.
+The newest tagged merge is the release; `VERSION=X.Y.Z` makes `HEAD` the
+release with that version. The target refuses when there is nothing to release.
+It builds the wheels, the GUI and the server image of the release, and
+smoke-tests the GUI and the image. Only then does it draft the release, upload
+the files and `SHA256SUMS`, and push the image as `:X.Y.Z` and `:latest`. Last,
+it pushes the tags of the older merges and publishes. Publishing creates the
+release's tag on GitHub. The older merges get a tag only; the notes of the
+release list every change since the last release, by version. A failure before
+the publish leaves a draft; a re-run finishes it.
+
+The tokens come from the environment or from a git-ignored `.env` at the repo
+root (mode 600). A variable set in the environment wins over `.env`:
 
 ```sh
-make release-gui     # build the GUI and upload it to the release
-make release-image   # build the image, smoke-test it and push it to GHCR
-make release         # both
+GH_TOKEN=...    # or a gh login; can edit the releases
+GHCR_TOKEN=...  # classic token with write:packages
 ```
 
-They act on the newest `vX.Y.Z` tag. Use `TAG=vX.Y.Z` to pick another release.
-A target refuses when the release has its artifact already, unless `FORCE=1`.
-Each target builds the tag's commit in a temporary worktree.
+To add the GUI or the image to an existing release, use `make release-gui` or
+`make release-image`. They act on the newest `vX.Y.Z` tag; `TAG=vX.Y.Z` picks
+another release. A target refuses when the release has its artifact already,
+unless `FORCE=1`. Each builds the tag's commit in a temporary worktree.
 
 ## License
 
