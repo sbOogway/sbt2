@@ -1,0 +1,27 @@
+# Runs the server as a rootless user service. Copy to ~/.config/containers/systemd/,
+# put SBT2_SERVER_TOKEN=<token> in ~/.config/sbt2/server.env (chmod 600), then run
+# systemctl --user daemon-reload && systemctl --user start sbt2-server
+[Unit]
+Description=sbt2 server
+
+[Container]
+Image=ghcr.io/sboogway/sbt2-server:latest
+AutoUpdate=registry
+EnvironmentFile=%h/.config/sbt2/server.env
+Volume=sbt2-data:/data
+Volume=sbt2-config:/config
+PublishPort=127.0.0.1:8765:8765
+HealthCmd=python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=4)"
+HealthInterval=10s
+HealthTimeout=5s
+HealthStartPeriod=30s
+HealthRetries=3
+# podman auto-update rolls back an image that does not become healthy
+Notify=healthy
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target
