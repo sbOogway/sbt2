@@ -1,8 +1,14 @@
 //! The sbt2 GUI.
 
 mod app;
+mod benchmark;
+pub mod charts;
+mod dates;
+mod fills_table;
 mod navigation;
+pub mod run_detail;
 mod runs_table;
+mod section;
 mod settings;
 mod token_store;
 

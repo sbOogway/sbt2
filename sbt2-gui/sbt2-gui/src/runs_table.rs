@@ -1,12 +1,15 @@
 use std::cmp::Ordering;
 
 use iced::{
-    Element, Length,
-    widget::{button, column, row, scrollable, text},
+    Element, Length, Task,
+    widget::{button, column, operation, row, scrollable, text},
 };
 use sbt2_client::{ClientError, protocol::RunSummary};
 
+use crate::dates;
+
 const NO_VALUE: &str = "-";
+const ROWS: &str = "runs-rows";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Column {
@@ -126,6 +129,8 @@ pub enum Direction {
 pub enum Message {
     Sort(Column),
     Refresh,
+    Open(String),
+    Scrolled(scrollable::AbsoluteOffset),
     Loaded(Result<Vec<RunSummary>, ClientError>),
 }
 
@@ -141,6 +146,7 @@ enum Load {
 pub struct RunsTable {
     runs: Vec<RunSummary>,
     sort: Option<(Column, Direction)>,
+    offset: scrollable::AbsoluteOffset,
     load: Load,
 }
 
@@ -149,6 +155,7 @@ impl Default for RunsTable {
         Self {
             runs: Vec::new(),
             sort: None,
+            offset: scrollable::AbsoluteOffset::default(),
             load: Load::Loading,
         }
     }
@@ -163,6 +170,8 @@ impl RunsTable {
                 self.load = Load::Loading;
                 return true;
             }
+            Message::Open(_) => {}
+            Message::Scrolled(offset) => self.offset = offset,
             Message::Loaded(Ok(runs)) => {
                 self.runs = runs;
                 self.load = Load::Loaded;
@@ -179,9 +188,15 @@ impl RunsTable {
             Load::Failed(error) => format!("Could not load the runs: {error}"),
         };
         let toolbar = row![button("Refresh").on_press(Message::Refresh), text(status)].spacing(12);
-        column![toolbar, self.header(), scrollable(self.rows())]
-            .spacing(8)
-            .into()
+        let rows = scrollable(self.rows())
+            .id(ROWS)
+            .on_scroll(|viewport| Message::Scrolled(viewport.absolute_offset()));
+        column![toolbar, self.header(), rows].spacing(8).into()
+    }
+
+    /// Scrolls the rows back to where they were before the table was hidden.
+    pub fn restore_scroll(&self) -> Task<Message> {
+        operation::scroll_to(ROWS, self.offset)
     }
 
     fn sort_by(&mut self, column: Column) {
@@ -192,7 +207,7 @@ impl RunsTable {
         self.sort = Some((column, direction));
     }
 
-    fn sorted(&self) -> Vec<&RunSummary> {
+    pub(crate) fn sorted(&self) -> Vec<&RunSummary> {
         let mut runs: Vec<_> = self.runs.iter().collect();
         if let Some((column, direction)) = self.sort {
             runs.sort_by(|left, right| {
@@ -229,7 +244,12 @@ impl RunsTable {
                     .width(Length::FillPortion(column.portion()))
                     .into()
             });
-            row(cells).padding([2, 10]).into()
+            button(row(cells))
+                .on_press(Message::Open(run.run_id.clone()))
+                .padding([2, 10])
+                .style(button::text)
+                .width(Length::Fill)
+                .into()
         });
         column(rows).into()
     }
@@ -249,30 +269,13 @@ fn fixed(value: Option<&str>, places: usize) -> String {
     )
 }
 
-/// `YYYY-MM-DD` of a Unix time in seconds, in UTC.
 fn date(seconds: Option<i64>) -> String {
-    let Some(seconds) = seconds else {
-        return NO_VALUE.to_owned();
-    };
-    let days = seconds.div_euclid(86_400) + 719_468;
-    let era = days.div_euclid(146_097);
-    let day_of_era = days.rem_euclid(146_097);
-    let year_of_era =
-        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
-    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
-    let shifted_month = (5 * day_of_year + 2) / 153;
-    let day = day_of_year - (153 * shifted_month + 2) / 5 + 1;
-    let month = if shifted_month < 10 {
-        shifted_month + 3
-    } else {
-        shifted_month - 9
-    };
-    let year = year_of_era + era * 400 + i64::from(month <= 2);
-    format!("{year:04}-{month:02}-{day:02}")
+    seconds.map_or_else(|| NO_VALUE.to_owned(), dates::utc_day)
 }
 
 #[cfg(test)]
 mod tests {
+    use iced_test::simulator;
     use sbt2_client::protocol::HeadlineMetrics;
 
     use super::*;
@@ -348,10 +351,19 @@ mod tests {
 
     #[test]
     fn dates_show_as_utc_days() {
-        assert_eq!(date(Some(0)), "1970-01-01");
         assert_eq!(date(Some(1_704_067_200)), "2024-01-01");
-        assert_eq!(date(Some(1_709_164_800)), "2024-02-29");
         assert_eq!(date(None), "-");
         assert_eq!(percent(Some("0.0123")), "1.23%");
+    }
+
+    #[test]
+    fn clicking_a_row_asks_to_open_its_run() {
+        let table = table(vec![run("a", "momentum", 1), run("b", "carry", 2)]);
+
+        let mut ui = simulator(table.view());
+        ui.click("carry").unwrap();
+        let messages: Vec<Message> = ui.into_messages().collect();
+
+        assert!(matches!(messages.last(), Some(Message::Open(id)) if id == "b"));
     }
 }

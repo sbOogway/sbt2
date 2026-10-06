@@ -12,6 +12,7 @@ use sbt2_client::{
 
 use crate::{
     navigation::{self, Area},
+    run_detail::{self, Load, RunDetail},
     runs_table::{self, RunsTable},
     settings::{self, Settings},
     token_store::{Storage, TokenStore},
@@ -42,6 +43,7 @@ pub enum Message {
     StateChanged(ConnectionState),
     Show(Area),
     Runs(runs_table::Message),
+    Detail(run_detail::Message),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,6 +97,7 @@ pub struct App {
     warnings: Vec<Warning>,
     connected: Option<Connected>,
     runs: RunsTable,
+    detail: RunDetail,
 }
 
 impl App {
@@ -110,6 +113,7 @@ impl App {
             warnings: Vec::new(),
             connected: None,
             runs: RunsTable::default(),
+            detail: RunDetail::default(),
         };
         (app, Task::none())
     }
@@ -125,6 +129,7 @@ impl App {
             Message::StateChanged(state) => return self.state_changed(state),
             Message::Show(area) => self.show(area),
             Message::Runs(message) => return self.update_runs(message),
+            Message::Detail(message) => return self.update_detail(message),
         }
         Task::none()
     }
@@ -168,6 +173,7 @@ impl App {
         let states = watch_states(&connected.session);
         self.connected = Some(connected);
         self.runs = RunsTable::default();
+        self.detail = RunDetail::default();
         Task::batch([states, self.load_runs()])
     }
 
@@ -175,6 +181,7 @@ impl App {
         if let Some(connected) = self.connected.take() {
             connected.session.close();
         }
+        self.detail = RunDetail::default();
         self.status = Status::Idle;
     }
 
@@ -199,11 +206,44 @@ impl App {
     }
 
     fn update_runs(&mut self, message: runs_table::Message) -> Task<Message> {
+        if let runs_table::Message::Open(run_id) = &message {
+            let loads = self.detail.open(run_id);
+            return self.start(loads);
+        }
         if self.runs.update(message) {
             self.load_runs()
         } else {
             Task::none()
         }
+    }
+
+    fn update_detail(&mut self, message: run_detail::Message) -> Task<Message> {
+        let back = matches!(message, run_detail::Message::Back);
+        let loads = self.detail.update(message);
+        let loading = self.start(loads);
+        if back {
+            Task::batch([loading, self.runs.restore_scroll().map(Message::Runs)])
+        } else {
+            loading
+        }
+    }
+
+    fn start(&self, loads: Vec<Load>) -> Task<Message> {
+        let (Some(connected), Some(run_id)) = (&self.connected, self.detail.run_id()) else {
+            return Task::none();
+        };
+        let tasks = loads.into_iter().map(|load| {
+            let session = connected.session.clone();
+            let run_id = run_id.to_owned();
+            Task::perform(
+                async move {
+                    let loaded = load.fetch(&session, &run_id).await;
+                    run_detail::Message::Loaded(run_id, loaded)
+                },
+                Message::Detail,
+            )
+        });
+        Task::batch(tasks)
     }
 
     fn load_runs(&self) -> Task<Message> {
@@ -302,6 +342,7 @@ impl App {
 
     fn area<'a>(&'a self, connected: &Connected) -> Element<'a, Message> {
         match connected.area {
+            Some(Area::Runs) if self.detail.is_open() => self.detail.view().map(Message::Detail),
             Some(Area::Runs) => self.runs.view().map(Message::Runs),
             Some(Area::Config) => text("Config comes in a later version.").into(),
             None => text("The server offers nothing this GUI can show.").into(),
@@ -334,7 +375,7 @@ fn watch_states(session: &Session) -> Task<Message> {
 mod tests {
     use std::{fs, os::unix::fs::PermissionsExt};
 
-    use sbt2_client::protocol::{Capability, Welcome};
+    use sbt2_client::protocol::{Capability, HeadlineMetrics, RunSummary, Welcome};
     use tempfile::TempDir;
 
     use super::*;
@@ -473,5 +514,65 @@ mod tests {
 
         assert!(app.connected.is_none());
         assert_eq!(app.status, Status::Idle);
+    }
+
+    fn connected_app(folder: &TempDir) -> App {
+        let mut app = app_in(folder, TokenStore::new(None, folder.path()));
+        filled(&mut app, "ws://127.0.0.1:1");
+        let session = offline_session(&[Capability::Results]);
+        let _ = app.update(Message::Connected(Ok(session)));
+        app
+    }
+
+    fn run(id: &str, trades: u64) -> RunSummary {
+        RunSummary {
+            run_id: id.to_owned(),
+            headline: Some(HeadlineMetrics {
+                trade_count: trades,
+                ..HeadlineMetrics::default()
+            }),
+            ..RunSummary::default()
+        }
+    }
+
+    fn order(app: &App) -> Vec<&str> {
+        app.runs
+            .sorted()
+            .iter()
+            .map(|run| run.run_id.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn opening_a_run_shows_its_detail_and_back_returns_to_the_table_with_its_sort() {
+        let folder = TempDir::new().unwrap();
+        let mut app = connected_app(&folder);
+        let runs = vec![run("a", 3), run("b", 1)];
+        let _ = app.update(Message::Runs(runs_table::Message::Loaded(Ok(runs))));
+        let _ = app.update(Message::Runs(runs_table::Message::Sort(
+            runs_table::Column::Trades,
+        )));
+
+        let _ = app.update(Message::Runs(runs_table::Message::Open("a".to_owned())));
+        assert_eq!(app.detail.run_id(), Some("a"));
+
+        let _ = app.update(Message::Detail(run_detail::Message::Back));
+        assert!(!app.detail.is_open());
+        assert_eq!(order(&app), ["b", "a"]);
+    }
+
+    #[test]
+    fn a_disconnect_clears_the_cached_runs() {
+        let folder = TempDir::new().unwrap();
+        let mut app = connected_app(&folder);
+        let _ = app.update(Message::Runs(runs_table::Message::Open("a".to_owned())));
+        let _ = app.update(Message::Detail(run_detail::Message::Back));
+        assert_eq!(app.detail.open("a"), []);
+
+        let _ = app.update(Message::Disconnect);
+        let session = offline_session(&[Capability::Results]);
+        let _ = app.update(Message::Connected(Ok(session)));
+
+        assert_eq!(app.detail.open("a"), [Load::Summary, Load::Metrics]);
     }
 }
