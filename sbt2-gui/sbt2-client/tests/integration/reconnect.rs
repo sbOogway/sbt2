@@ -1,13 +1,10 @@
-#[path = "support/runs.rs"]
-mod runs;
-mod support;
-
 use std::time::Duration;
 
-use runs::run_chunk;
 use sbt2_client::{Backoff, Client, ClientError, ConnectionState, Token, protocol::RunFilter};
-use support::{TOKEN, serve};
 use tokio::time::timeout;
+
+use crate::runs::run_chunk;
+use crate::support::{TOKEN, serve};
 
 #[tokio::test]
 async fn a_dropped_connection_fails_outstanding_requests_and_reconnects_with_hello() {

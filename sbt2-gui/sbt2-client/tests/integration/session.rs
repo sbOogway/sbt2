@@ -1,16 +1,13 @@
-#[path = "support/runs.rs"]
-mod runs;
-mod support;
-
 use std::time::Duration;
 
-use runs::run_chunk;
 use sbt2_client::{
     Client, ClientError, ServerAddress, Token,
     protocol::{Capability, RunFilter, client_message},
 };
-use support::{TOKEN, serve};
 use tokio::time::timeout;
+
+use crate::runs::run_chunk;
+use crate::support::{TOKEN, serve};
 
 async fn connected(address: ServerAddress) -> sbt2_client::Session {
     timeout(

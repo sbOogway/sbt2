@@ -1,5 +1,3 @@
-mod support;
-
 use std::time::Duration;
 
 use std::sync::Arc;
@@ -15,8 +13,9 @@ use sbt2_client::{
         RunSummary, Series, SeriesKind, ServerMessage, client_message, server_message::Body,
     },
 };
-use support::{TOKEN, reply, serve};
 use tokio::time::timeout;
+
+use crate::support::{TOKEN, reply, serve};
 
 async fn connected(address: ServerAddress) -> Session {
     timeout(
