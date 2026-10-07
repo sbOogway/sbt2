@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# Rebases every open local branch onto main after main is pulled, and force-pushes
-# the ones that track a remote branch. Leaves a branch alone when it is checked out
-# in a worktree, when its remote has commits it lacks, or when the rebase conflicts.
+# Rebases every open local branch onto origin/main, fetched first, and force-pushes
+# the ones that track a remote branch. Runs from any branch, by hand or as the
+# post-merge hook. Leaves a branch alone when it is checked out in a worktree, when
+# its remote has commits it lacks, or when the rebase conflicts.
 set -euo pipefail
 
 # git exports these to hooks; they would point every git call below at this checkout
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 
 base=main
+remote=origin
+target=$remote/$base
 
 say() {
     echo "rebase-open-branches: $*" >&2
@@ -28,11 +31,15 @@ behind_its_remote() {
     ! git merge-base --is-ancestor "$upstream" "$1"
 }
 
+fetch_base() {
+    git fetch --quiet "$remote" "$base" || say "cannot fetch $remote; using the last fetched $target"
+}
+
 rebase_in_worktree() {
     local branch=$1 tmp status=0
     tmp=$(mktemp -d)
     git worktree add --quiet "$tmp" "$branch"
-    if ! git -C "$tmp" rebase --quiet "$base" >/dev/null 2>&1; then
+    if ! git -C "$tmp" rebase --quiet "$target" >/dev/null 2>&1; then
         git -C "$tmp" rebase --abort
         status=1
     fi
@@ -50,7 +57,7 @@ push() {
 
 rebase() {
     local branch=$1
-    if git merge-base --is-ancestor "$base" "$branch"; then
+    if git merge-base --is-ancestor "$target" "$branch"; then
         return
     fi
     if behind_its_remote "$branch"; then
@@ -68,8 +75,7 @@ rebase() {
     fi
 }
 
-[[ "$(git branch --show-current)" == "$base" ]] || exit 0
-
+fetch_base
 busy=$(checked_out)
 open_branches | while read -r branch; do
     if grep -qxF "$branch" <<<"$busy"; then

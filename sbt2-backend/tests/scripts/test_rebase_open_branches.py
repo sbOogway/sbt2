@@ -182,16 +182,33 @@ def test_a_branch_that_already_contains_main_is_not_touched(repos: Repos) -> Non
 
 
 @pytest.mark.integration
-def test_nothing_happens_off_main(repos: Repos) -> None:
+def test_off_main_the_other_branches_are_rebased_too(repos: Repos) -> None:
     repos.pushed_branch("feature")
     repos.pushed_branch("other")
     repos.merge_into_main()
     git(repos.me, "switch", "--quiet", "other")
-    before = repos.local("feature")
+    before = repos.local("other")
+
+    messages = repos.run()
+
+    assert repos.on_main("feature")
+    assert repos.remote("feature") == repos.local("feature")
+    assert repos.local("other") == repos.remote("other") == before
+    assert "skipped other, it is checked out in a worktree" in messages
+
+
+@pytest.mark.integration
+def test_a_main_not_yet_pulled_is_fetched_first(repos: Repos) -> None:
+    repos.pushed_branch("feature")
+    git(repos.other, "pull", "--quiet", "--ff-only")
+    commit(repos.other, "base.txt", "changed on main\n")
+    git(repos.other, "push", "--quiet", "origin", "main")
 
     repos.run()
 
-    assert repos.local("feature") == repos.remote("feature") == before
+    pushed_main = repos.remote("main")
+    assert is_ancestor(repos.me, pushed_main, "feature")
+    assert repos.remote("feature") == repos.local("feature")
 
 
 @pytest.mark.integration
