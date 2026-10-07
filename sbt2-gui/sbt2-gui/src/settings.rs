@@ -1,8 +1,9 @@
 use std::{
-    env, fs, io,
+    fs, io,
     path::{Path, PathBuf},
 };
 
+use directories::BaseDirs;
 use serde::{Deserialize, Serialize};
 
 const FILE: &str = "settings.toml";
@@ -30,18 +31,13 @@ impl Settings {
     }
 }
 
-/// `$XDG_CONFIG_HOME/sbt2-gui`, or `~/.config/sbt2-gui`.
+/// `sbt2-gui` in the OS config folder, or in the working folder without a home folder.
 pub fn config_dir() -> PathBuf {
-    config_dir_in(env::var_os("XDG_CONFIG_HOME"), env::var_os("HOME"))
+    config_dir_in(BaseDirs::new().map(|dirs| dirs.config_dir().to_path_buf()))
 }
 
-fn config_dir_in(xdg: Option<std::ffi::OsString>, home: Option<std::ffi::OsString>) -> PathBuf {
-    let base = match (xdg.filter(|dir| !dir.is_empty()), home) {
-        (Some(xdg), _) => PathBuf::from(xdg),
-        (None, Some(home)) => PathBuf::from(home).join(".config"),
-        (None, None) => PathBuf::from("."),
-    };
-    base.join(APP_FOLDER)
+fn config_dir_in(base: Option<PathBuf>) -> PathBuf {
+    base.unwrap_or_else(|| PathBuf::from(".")).join(APP_FOLDER)
 }
 
 #[cfg(test)]
@@ -72,16 +68,15 @@ mod tests {
     }
 
     #[test]
-    fn the_config_folder_follows_xdg_then_home() {
-        let path = |xdg: Option<&str>, home: Option<&str>| {
-            config_dir_in(xdg.map(Into::into), home.map(Into::into))
-        };
-
-        assert_eq!(path(Some("/x"), Some("/h")), PathBuf::from("/x/sbt2-gui"));
-        assert_eq!(path(None, Some("/h")), PathBuf::from("/h/.config/sbt2-gui"));
+    fn the_config_folder_is_sbt2_gui_in_the_os_config_folder() {
         assert_eq!(
-            path(Some(""), Some("/h")),
-            PathBuf::from("/h/.config/sbt2-gui")
+            config_dir_in(Some(PathBuf::from("/c"))),
+            PathBuf::from("/c/sbt2-gui")
         );
+    }
+
+    #[test]
+    fn without_a_home_the_config_folder_is_sbt2_gui_in_the_working_folder() {
+        assert_eq!(config_dir_in(None), PathBuf::from("./sbt2-gui"));
     }
 }

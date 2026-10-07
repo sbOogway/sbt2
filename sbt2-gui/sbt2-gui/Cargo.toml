@@ -9,6 +9,7 @@ publish.workspace = true
 [dependencies]
 sbt2-client = { path = "../sbt2-client" }
 iced = { version = "=0.14.0", features = ["tokio"] }
+directories = "6"
 keyring-core = "1"
 zbus-secret-service-keyring-store = { version = "1", features = ["crypto-rust"] }
 serde = { version = "1", features = ["derive"] }
