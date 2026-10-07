@@ -104,4 +104,4 @@ The server's protobuf messages live in [sbt2-protocol](../sbt2-protocol), in the
 
 ## License
 
-sbt2 is licensed under the [GNU Lesser General Public License v3.0 or later](COPYING.LESSER), which builds on the [GNU General Public License v3.0](COPYING).
+sbt2 is licensed under the [GNU Lesser General Public License v3.0 or later](../COPYING.LESSER), which builds on the [GNU General Public License v3.0](../COPYING).

@@ -1,8 +1,6 @@
 *
 !pyproject.toml
 !uv.lock
-!COPYING
-!COPYING.LESSER
 !packages
 packages/*/tests
 **/__pycache__

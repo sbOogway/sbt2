@@ -3,7 +3,6 @@ name = "sbt2-papers"
 dynamic = ["version"]
 description = "Research papers to structured, source-grounded records"
 license = "LGPL-3.0-or-later"
-license-files = ["COPYING", "COPYING.LESSER"]
 requires-python = ">=3.14"
 dependencies = ["pydantic>=2.13"]
 

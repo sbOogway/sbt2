@@ -124,4 +124,4 @@ Both re-encode deterministically, as `buf convert` does: map entries sorted by k
 
 ## License
 
-LGPL-3.0-or-later, see [COPYING.LESSER](COPYING.LESSER) and [COPYING](COPYING).
+LGPL-3.0-or-later, see [COPYING.LESSER](../COPYING.LESSER) and [COPYING](../COPYING).

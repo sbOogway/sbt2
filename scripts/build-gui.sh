@@ -18,7 +18,7 @@ stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 mkdir "$stage/$name"
 cp "$CARGO_TARGET_DIR/release/sbt2-gui" "$stage/$name/"
-cp "$source/sbt2-gui/README.md" "$source/sbt2-gui/COPYING" "$source/sbt2-gui/COPYING.LESSER" "$stage/$name/"
+cp "$source/sbt2-gui/README.md" "$stage/$name/"
 
 printed=$("$stage/$name/sbt2-gui" --version)
 if [ "$printed" != "$version" ]; then
