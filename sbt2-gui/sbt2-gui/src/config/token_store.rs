@@ -8,6 +8,8 @@ use std::{
 
 use keyring_core::{CredentialStore, Entry};
 
+use super::owner_only::open_owner_only;
+
 const SERVICE: &str = "sbt2-gui";
 const FALLBACK_FILE: &str = "tokens.toml";
 
@@ -102,30 +104,6 @@ fn native_keyring() -> Option<Arc<CredentialStore>> {
 #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
 fn native_keyring() -> Option<Arc<CredentialStore>> {
     None
-}
-
-#[cfg(unix)]
-fn open_owner_only(path: &Path) -> io::Result<fs::File> {
-    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
-
-    const OWNER_ONLY: u32 = 0o600;
-    let file = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .mode(OWNER_ONLY)
-        .open(path)?;
-    file.set_permissions(fs::Permissions::from_mode(OWNER_ONLY))?;
-    Ok(file)
-}
-
-#[cfg(not(unix))]
-fn open_owner_only(path: &Path) -> io::Result<fs::File> {
-    fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(path)
 }
 
 #[cfg(test)]

@@ -1,6 +1,7 @@
 //! What the GUI remembers between runs, in the config folder: its settings and the
 //! server tokens.
 
+mod owner_only;
 mod settings;
 mod token_store;
 

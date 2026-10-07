@@ -68,6 +68,13 @@ The last server URL is remembered in `settings.toml` in the same folder. The
 same file can hold `theme = "light"` or `theme = "dark"`; the GUI opens light
 without it.
 
+To connect at start, add `server = "wss://..."` to `settings.toml`. The GUI then
+connects at once, with the stored token of that server. A `token = "..."` key in
+the same file wins over the stored token. The GUI never writes this key itself.
+Prefer the keyring or the token file: a token in `settings.toml` is plain text.
+When the file holds a token, the GUI saves it as `0600` and warns when others
+can read it. Run `chmod 600` on it then.
+
 ## License
 
 LGPL-3.0-or-later, see [COPYING.LESSER](../COPYING.LESSER) and [COPYING](../COPYING).

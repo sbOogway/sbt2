@@ -53,6 +53,7 @@ enum Warning {
     NoKeyring,
     NotSaved(String),
     VersionMismatch { server: String },
+    TokenFileReadable,
 }
 
 impl fmt::Display for Warning {
@@ -61,6 +62,9 @@ impl fmt::Display for Warning {
             Self::NoKeyring => formatter
                 .write_str("No OS keyring: the token is kept in a file that only you can read."),
             Self::NotSaved(reason) => write!(formatter, "Could not save the connection: {reason}"),
+            Self::TokenFileReadable => formatter.write_str(
+                "settings.toml holds a token that others can read. Run chmod 600 on it.",
+            ),
             Self::VersionMismatch { server } => write!(
                 formatter,
                 "The server is version {server} but this GUI is version {}.",
@@ -93,19 +97,29 @@ pub struct App {
 impl App {
     pub fn new(env: Environment) -> (Self, Task<Message>) {
         let settings = Settings::load(&env.config_dir);
-        let url = settings.last_server.unwrap_or_default();
-        let token = env.tokens.load(&url).unwrap_or_default();
-        let app = Self {
+        let configured = settings.server.as_ref().is_some_and(|url| !url.is_empty());
+        let form = start_form(&settings, &env.tokens);
+        let warnings = if Settings::exposes_token(&env.config_dir) {
+            vec![Warning::TokenFileReadable]
+        } else {
+            Vec::new()
+        };
+        let mut app = Self {
             env,
-            form: Form { url, token },
+            form,
             status: Status::Idle,
-            warnings: Vec::new(),
+            warnings,
             connected: None,
             runs: RunsTable::default(),
             detail: RunDetail::default(),
             theme: settings.theme,
         };
-        (app, Task::none())
+        let start = if configured {
+            app.connect()
+        } else {
+            Task::none()
+        };
+        (app, start)
     }
 
     pub fn theme(&self) -> iced::Theme {
@@ -325,6 +339,24 @@ fn state_text(state: ConnectionState) -> &'static str {
         ConnectionState::Connected => "connected",
         ConnectionState::Reconnecting => "reconnecting",
         ConnectionState::Disconnected => "disconnected",
+    }
+}
+
+/// The configured server with its token, else the last server with its stored token.
+fn start_form(settings: &Settings, tokens: &TokenStore) -> Form {
+    match settings.server.as_deref().filter(|url| !url.is_empty()) {
+        Some(url) => {
+            let token = settings.token.clone().or_else(|| tokens.load(url));
+            Form {
+                url: url.to_owned(),
+                token: token.unwrap_or_default(),
+            }
+        }
+        None => {
+            let url = settings.last_server.clone().unwrap_or_default();
+            let token = tokens.load(&url).unwrap_or_default();
+            Form { url, token }
+        }
     }
 }
 
@@ -577,5 +609,126 @@ mod tests {
         let saved = Settings::load(folder.path());
         assert_eq!(saved.theme, Theme::Dark);
         assert_eq!(saved.last_server.as_deref(), Some("ws://127.0.0.1:1"));
+    }
+
+    const SERVER: &str = "wss://configured.example";
+
+    fn configure(folder: &TempDir, token: Option<&str>) {
+        let settings = Settings {
+            server: Some(SERVER.to_owned()),
+            token: token.map(str::to_owned),
+            ..Settings::default()
+        };
+        settings.save(folder.path()).unwrap();
+    }
+
+    fn configured_app(folder: &TempDir) -> (App, Task<Message>) {
+        let env = Environment {
+            config_dir: folder.path().to_path_buf(),
+            tokens: TokenStore::new(None, folder.path()),
+        };
+        App::new(env)
+    }
+
+    #[test]
+    fn a_configured_server_is_connected_at_start() {
+        let folder = TempDir::new().unwrap();
+        configure(&folder, Some("s3cret"));
+
+        let (app, _task) = configured_app(&folder);
+
+        assert_eq!(app.form.url, SERVER);
+        assert_eq!(app.status, Status::Connecting);
+        assert!(app.connected.is_none());
+    }
+
+    #[test]
+    fn without_a_configured_server_the_form_opens() {
+        let folder = TempDir::new().unwrap();
+        let settings = Settings {
+            last_server: Some("wss://last.example".to_owned()),
+            token: Some("ignored".to_owned()),
+            ..Settings::default()
+        };
+        settings.save(folder.path()).unwrap();
+
+        let (app, _task) = configured_app(&folder);
+
+        assert_eq!(app.status, Status::Idle);
+        assert_eq!(app.form.url, "wss://last.example");
+        assert_eq!(app.form.token, "");
+    }
+
+    #[test]
+    fn the_token_of_the_settings_wins_over_the_token_store() {
+        let folder = TempDir::new().unwrap();
+        configure(&folder, Some("from-settings"));
+        TokenStore::new(None, folder.path())
+            .save(SERVER, "from-store")
+            .unwrap();
+
+        let (app, _task) = configured_app(&folder);
+
+        assert_eq!(app.form.token, "from-settings");
+    }
+
+    #[test]
+    fn without_a_token_in_the_settings_the_stored_token_is_used() {
+        let folder = TempDir::new().unwrap();
+        configure(&folder, None);
+        TokenStore::new(None, folder.path())
+            .save(SERVER, "from-store")
+            .unwrap();
+
+        let (app, _task) = configured_app(&folder);
+
+        assert_eq!(app.form.token, "from-store");
+    }
+
+    #[test]
+    fn a_failed_connect_at_start_shows_the_filled_form_with_the_error() {
+        let folder = TempDir::new().unwrap();
+        configure(&folder, Some("s3cret"));
+        let (mut app, _task) = configured_app(&folder);
+
+        let _ = app.update(Message::Connected(Err(ClientError::Unauthorized)));
+
+        assert!(app.connected.is_none());
+        assert_eq!(
+            app.status,
+            Status::Failed("the server refused the token".to_owned())
+        );
+        assert_eq!(app.form.url, SERVER);
+        assert_eq!(app.form.token, "s3cret");
+    }
+
+    #[test]
+    fn connecting_keeps_the_configured_server_and_token() {
+        let folder = TempDir::new().unwrap();
+        configure(&folder, Some("s3cret"));
+        let (mut app, _task) = configured_app(&folder);
+
+        let _ = app.update(Message::Connected(Ok(offline_session(&[]))));
+
+        let saved = Settings::load(folder.path());
+        assert_eq!(saved.server.as_deref(), Some(SERVER));
+        assert_eq!(saved.token.as_deref(), Some("s3cret"));
+        assert_eq!(saved.last_server.as_deref(), Some(SERVER));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_token_file_others_can_read_gives_a_warning() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let folder = TempDir::new().unwrap();
+        configure(&folder, Some("s3cret"));
+        let file = folder.path().join("settings.toml");
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o644)).unwrap();
+
+        let (app, _task) = configured_app(&folder);
+
+        assert_eq!(app.warnings, [Warning::TokenFileReadable]);
+        assert!(app.warnings[0].to_string().contains("chmod 600"));
     }
 }
