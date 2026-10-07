@@ -1,5 +1,5 @@
 import re
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 from enum import StrEnum
@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import pandas as pd
+from nautilus_trader.model import InstrumentId
 
 from sbt2.data.catalog import Bounds, CatalogWriter, DayFile
 from sbt2.data.days import DayRange
@@ -117,31 +118,57 @@ def _planned_days(source: Source, days: DayRange) -> int:
 
 
 def _ingest_symbol(job: _Job, symbol: str) -> Iterator[DayResult]:
-    instrument = _pinned_instrument(job, symbol)
+    snapshot = _newest_snapshot(job, symbol)
+    instruments = _Instruments(job, symbol, job.source.parse_instruments(snapshot))
     symbol_days = replace(job.request.days, symbols=(symbol,))
     for _, data_type, day in symbol_days.plan(job.source):
-        result = _ingest_day(job, instrument, Day(symbol, data_type.__name__, day))
+        result = _ingest_day(job, instruments, Day(symbol, data_type.__name__, day))
         job.options.progress.finished(result)
         yield result
 
 
-def _pinned_instrument(job: _Job, symbol: str) -> Any:
-    """The newest snapshot's instrument, once the catalog holds it."""
-    newest = job.source.parse_instrument(_newest_snapshot(job, symbol))
-    stored = job.writer.instrument(newest.id)
-    if stored is None:
+class _Instruments:
+    """A symbol's snapshot instruments, each pinned in the catalog when first used."""
+
+    def __init__(
+        self, job: _Job, symbol: str, snapshot: Mapping[InstrumentId, Any]
+    ) -> None:
+        self._job = job
+        self._symbol = symbol
+        self.snapshot = snapshot
+        self._pinned: dict[InstrumentId, Any] = {}
+
+    def pinned(self, instrument_id: InstrumentId) -> Any:
+        if instrument_id not in self._pinned:
+            self._pinned[instrument_id] = self._pin(self._newest(instrument_id))
+        return self._pinned[instrument_id]
+
+    def _newest(self, instrument_id: InstrumentId) -> Any:
+        try:
+            return self.snapshot[instrument_id]
+        except KeyError:
+            raise NoSnapshotError(
+                f"the {self._symbol} snapshot lacks {instrument_id}"
+            ) from None
+
+    def _pin(self, newest: Any) -> Any:
+        """The newest snapshot's instrument, once the catalog holds it."""
+        job = self._job
+        stored = job.writer.instrument(newest.id)
+        if stored is None:
+            job.writer.write_instrument(newest)
+            return newest
+        if _same_spec(stored, newest):
+            return stored
+        if not job.request.reingest:
+            raise InstrumentChangedError(
+                f"the {self._symbol} snapshot of {_day_of(newest.ts_init)} differs "
+                f"from the catalog's instrument of {_day_of(stored.ts_init)}; "
+                "re-ingest to replace it"
+            )
+        job.writer.remove(newest.id, job.source.data_types)
         job.writer.write_instrument(newest)
         return newest
-    if _same_spec(stored, newest):
-        return stored
-    if not job.request.reingest:
-        raise InstrumentChangedError(
-            f"the {symbol} snapshot of {_day_of(newest.ts_init)} differs from the "
-            f"catalog's instrument of {_day_of(stored.ts_init)}; re-ingest to replace it"
-        )
-    job.writer.remove(newest.id, job.source.data_types)
-    job.writer.write_instrument(newest)
-    return newest
 
 
 def _newest_snapshot(job: _Job, symbol: str) -> Path:
@@ -180,19 +207,35 @@ def _day_of(nanos: int) -> date:
     return datetime.fromtimestamp(nanos // 1_000_000_000, UTC).date()
 
 
-def _ingest_day(job: _Job, instrument: Any, day: Day) -> DayResult:
+def _ingest_day(job: _Job, instruments: _Instruments, day: Day) -> DayResult:
     data_type = _data_type(job.source, day.data)
-    target = DayFile(data_type, instrument, _bounds(day.day))
-    if job.writer.has(target):
-        return DayResult(day, IngestOutcome.SKIPPED)
     raw = job.options.raw / job.source.day_file(day.symbol, data_type, day.day).path
+    ids = job.source.day_instrument_ids(raw, instruments.snapshot)
+    pinned = {each: instruments.pinned(each) for each in ids}
+    targets = [DayFile(data_type, each, _bounds(day.day)) for each in pinned.values()]
+    pending = [each for each in targets if not job.writer.has(each)]
+    if targets and not pending:
+        return DayResult(day, IngestOutcome.SKIPPED)
     if not raw.is_file():
         return DayResult(day, IngestOutcome.MISSING)
-    records = list(job.source.parse(raw, data_type, instrument))
-    _check_inside(records, target.bounds, raw)
-    job.writer.write(target, records)
-    outcome = IngestOutcome.WRITTEN if records else IngestOutcome.EMPTY
-    return DayResult(day, outcome)
+    records = job.source.parse_day(raw, data_type, pinned)
+    _check_inside(
+        [each for own in records.values() for each in own], _bounds(day.day), raw
+    )
+    return DayResult(day, _write(job.writer, pending, records))
+
+
+def _write(
+    writer: CatalogWriter,
+    targets: Sequence[DayFile],
+    records: Mapping[InstrumentId, Sequence[Any]],
+) -> IngestOutcome:
+    written = False
+    for target in targets:
+        own = records.get(target.instrument.id, ())
+        writer.write(target, own)
+        written = written or bool(own)
+    return IngestOutcome.WRITTEN if written else IngestOutcome.EMPTY
 
 
 def _data_type(source: Source, name: str) -> type:

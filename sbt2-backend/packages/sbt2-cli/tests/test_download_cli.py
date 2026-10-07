@@ -48,7 +48,7 @@ class ApiSource(Source):
     def parse(self, path: Path, data_type: type, instrument: Any) -> Iterator[Any]:
         raise NotImplementedError
 
-    def parse_instrument(self, path: Path) -> Any:
+    def parse_instruments(self, path: Path) -> Mapping[InstrumentId, Any]:
         raise NotImplementedError
 
     def _raw(self, path: str) -> RawFile:

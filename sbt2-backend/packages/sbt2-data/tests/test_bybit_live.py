@@ -38,9 +38,9 @@ def day_file(raw: tuple[Source, Path], data_type: type) -> Path:
 def instrument(raw: tuple[Source, Path]) -> Any:
     bybit, root = raw
     today = datetime.now(UTC).date()
-    return bybit.parse_instrument(
-        root / bybit.instrument_snapshot("BTCUSDT", today).path
-    )
+    snapshot = root / bybit.instrument_snapshot("BTCUSDT", today).path
+    (instrument,) = bybit.parse_instruments(snapshot).values()
+    return instrument
 
 
 @pytest.mark.live

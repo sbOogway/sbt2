@@ -15,6 +15,7 @@ from sbt2.data.sources import (
     remove_known_gaps,
     source,
 )
+from sbt2.data.sources.deribit import DeribitSource
 
 
 @pytest.mark.unit
@@ -53,6 +54,23 @@ def test_known_gaps_can_name_candles(tmp_path: Path) -> None:
 def test_unknown_source_is_refused(tmp_path: Path) -> None:
     with pytest.raises(UnknownSourceError, match="known: bybit"):
         source("nope", tmp_path / "known_gaps.toml")
+
+
+@pytest.mark.unit
+def test_deribit_is_a_listed_source(tmp_path: Path) -> None:
+    assert isinstance(source("deribit", tmp_path / "known_gaps.toml"), DeribitSource)
+
+
+@pytest.mark.unit
+def test_deribit_known_gaps_name_a_currency_and_its_trades(tmp_path: Path) -> None:
+    file = tmp_path / "known_gaps.toml"
+    file.write_text(
+        'deribit = [{ symbol = "BTC", data = "trades", day = 2020-03-25 }]\n'
+    )
+
+    assert source("deribit", file).known_gaps == {
+        Gap(InstrumentId.from_str("BTC-OPTIONS.DERIBIT"), TradeTick, date(2020, 3, 25))
+    }
 
 
 @pytest.mark.unit

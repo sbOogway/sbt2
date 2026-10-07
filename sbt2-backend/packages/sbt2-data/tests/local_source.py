@@ -1,7 +1,7 @@
 """A source whose raw day files are JSON lists of timestamps, written by the tests."""
 
 import json
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path, PurePosixPath
@@ -55,8 +55,9 @@ class LocalSource(Source):
         for ts in json.loads(path.read_text()):
             yield _RECORDS[data_type](instrument.id, ts)
 
-    def parse_instrument(self, path: Path) -> Any:
-        return CryptoPerpetual.from_dict(json.loads(path.read_text()))
+    def parse_instruments(self, path: Path) -> Mapping[InstrumentId, Any]:
+        instrument = CryptoPerpetual.from_dict(json.loads(path.read_text()))
+        return {instrument.id: instrument}
 
 
 def write_snapshot(raw: Path, taken_on: date, margin_init: str = "0.01") -> Path:

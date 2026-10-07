@@ -46,7 +46,8 @@ def saved(raw: RawFile, root: Path) -> Path:
 @pytest.fixture
 def instrument(replayed: Source, tmp_path: Path) -> Any:
     snapshot = saved(replayed.instrument_snapshot("BTCUSDT", DAY), tmp_path)
-    return replayed.parse_instrument(snapshot)
+    (instrument,) = replayed.parse_instruments(snapshot).values()
+    return instrument
 
 
 @pytest.fixture
