@@ -64,7 +64,9 @@ from source as above.
 
 The token is kept in the OS keyring (Secret Service). Without a keyring it goes
 to a `0600` file in `$XDG_CONFIG_HOME/sbt2-gui/`, and the GUI shows a warning.
-The last server URL is remembered in `settings.toml` in the same folder.
+The last server URL is remembered in `settings.toml` in the same folder. The
+same file can hold `theme = "light"` or `theme = "dark"`; the GUI opens light
+without it.
 
 ## License
 

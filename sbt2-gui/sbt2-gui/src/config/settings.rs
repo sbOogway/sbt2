@@ -8,6 +8,18 @@ const FILE: &str = "settings.toml";
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Settings {
     pub last_server: Option<String>,
+    #[serde(default)]
+    pub theme: Theme,
+}
+
+/// The colour theme of the GUI; an unknown value in the file means light.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    Dark,
+    #[default]
+    #[serde(other)]
+    Light,
 }
 
 impl Settings {
@@ -37,6 +49,7 @@ mod tests {
         let folder = TempDir::new().unwrap();
         let settings = Settings {
             last_server: Some("wss://sbt2.example.com".to_owned()),
+            ..Settings::default()
         };
 
         settings.save(folder.path()).unwrap();
@@ -51,5 +64,43 @@ mod tests {
 
         fs::write(folder.path().join(FILE), "not = [toml").unwrap();
         assert_eq!(Settings::load(folder.path()), Settings::default());
+    }
+
+    #[test]
+    fn a_missing_theme_loads_as_light() {
+        let folder = TempDir::new().unwrap();
+        fs::write(folder.path().join(FILE), "last_server = \"wss://a\"\n").unwrap();
+
+        let settings = Settings::load(folder.path());
+
+        assert_eq!(settings.theme, Theme::Light);
+        assert_eq!(settings.last_server.as_deref(), Some("wss://a"));
+    }
+
+    #[test]
+    fn the_dark_theme_is_remembered() {
+        let folder = TempDir::new().unwrap();
+        let settings = Settings {
+            theme: Theme::Dark,
+            ..Settings::default()
+        };
+
+        settings.save(folder.path()).unwrap();
+
+        assert_eq!(Settings::load(folder.path()), settings);
+        let text = fs::read_to_string(folder.path().join(FILE)).unwrap();
+        assert!(text.contains("theme = \"dark\""));
+    }
+
+    #[test]
+    fn an_unknown_theme_loads_as_light_and_keeps_the_other_settings() {
+        let folder = TempDir::new().unwrap();
+        let text = "theme = \"blue\"\nlast_server = \"wss://a\"\n";
+        fs::write(folder.path().join(FILE), text).unwrap();
+
+        let settings = Settings::load(folder.path());
+
+        assert_eq!(settings.theme, Theme::Light);
+        assert_eq!(settings.last_server.as_deref(), Some("wss://a"));
     }
 }
