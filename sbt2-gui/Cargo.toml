@@ -7,3 +7,11 @@ version = "0.0.0"
 edition = "2024"
 license = "LGPL-3.0-or-later"
 publish = false
+
+# Debug info is most of the build's disk writes and link time: our crates keep
+# line tables for backtraces, dependencies none.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
