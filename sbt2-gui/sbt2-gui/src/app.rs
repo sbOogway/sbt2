@@ -11,11 +11,12 @@ use sbt2_client::{
 };
 
 use crate::{
-    navigation::{self, Area},
-    run_detail::{self, Load, RunDetail},
-    runs_table::{self, RunsTable},
-    settings::{self, Settings},
-    token_store::{Storage, TokenStore},
+    config::{self, Settings, Storage, TokenStore},
+    screens::{
+        navigation::{self, Area},
+        run_detail::{self, Load, RunDetail},
+        runs::{self, RunsTable},
+    },
 };
 
 /// Where the app keeps what it remembers.
@@ -27,7 +28,7 @@ pub struct Environment {
 impl Environment {
     /// The XDG config folder and the OS keyring.
     pub fn system() -> Self {
-        let config_dir = settings::config_dir();
+        let config_dir = config::config_dir();
         let tokens = TokenStore::system(&config_dir);
         Self { config_dir, tokens }
     }
@@ -42,7 +43,7 @@ pub enum Message {
     Disconnect,
     StateChanged(ConnectionState),
     Show(Area),
-    Runs(runs_table::Message),
+    Runs(runs::Message),
     Detail(run_detail::Message),
 }
 
@@ -205,8 +206,8 @@ impl App {
         }
     }
 
-    fn update_runs(&mut self, message: runs_table::Message) -> Task<Message> {
-        if let runs_table::Message::Open(run_id) = &message {
+    fn update_runs(&mut self, message: runs::Message) -> Task<Message> {
+        if let runs::Message::Open(run_id) = &message {
             let loads = self.detail.open(run_id);
             return self.start(loads);
         }
@@ -256,7 +257,7 @@ impl App {
         let session = connected.session.clone();
         Task::perform(
             async move { session.list_runs(RunFilter::default()).await },
-            |runs| Message::Runs(runs_table::Message::Loaded(runs)),
+            |runs| Message::Runs(runs::Message::Loaded(runs)),
         )
     }
 
@@ -553,12 +554,10 @@ mod tests {
         let folder = TempDir::new().unwrap();
         let mut app = connected_app(&folder);
         let runs = vec![run("a", 3), run("b", 1)];
-        let _ = app.update(Message::Runs(runs_table::Message::Loaded(Ok(runs))));
-        let _ = app.update(Message::Runs(runs_table::Message::Sort(
-            runs_table::Column::Trades,
-        )));
+        let _ = app.update(Message::Runs(runs::Message::Loaded(Ok(runs))));
+        let _ = app.update(Message::Runs(runs::Message::Sort(runs::Column::Trades)));
 
-        let _ = app.update(Message::Runs(runs_table::Message::Open("a".to_owned())));
+        let _ = app.update(Message::Runs(runs::Message::Open("a".to_owned())));
         assert_eq!(app.detail.run_id(), Some("a"));
 
         let _ = app.update(Message::Detail(run_detail::Message::Back));
@@ -570,7 +569,7 @@ mod tests {
     fn a_disconnect_clears_the_cached_runs() {
         let folder = TempDir::new().unwrap();
         let mut app = connected_app(&folder);
-        let _ = app.update(Message::Runs(runs_table::Message::Open("a".to_owned())));
+        let _ = app.update(Message::Runs(runs::Message::Open("a".to_owned())));
         let _ = app.update(Message::Detail(run_detail::Message::Back));
         assert_eq!(app.detail.open("a"), []);
 

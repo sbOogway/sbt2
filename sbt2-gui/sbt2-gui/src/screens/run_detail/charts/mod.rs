@@ -10,7 +10,7 @@ use iced_plot::{
 };
 use sbt2_client::Point;
 
-use crate::{dates, section::Section};
+use crate::{format, screens::section::Section};
 
 const PLOT_HEIGHT: f32 = 300.0;
 const MAX_DRAWN: usize = 4_000;
@@ -400,7 +400,7 @@ fn segments(points: &[Point]) -> Vec<Vec<[f64; 2]>> {
 }
 
 fn date_label(seconds: f64) -> String {
-    dates::utc_day(seconds.floor() as i64)
+    format::utc_day(seconds.floor() as i64)
 }
 
 /// Midnights of UTC days, spaced so that about eight or fewer fall in the range.
@@ -451,7 +451,7 @@ fn monthly_grid(points: &[Point]) -> Vec<MonthCell> {
     points
         .iter()
         .map(|point| {
-            let (year, month, _) = dates::civil(point.ts.div_euclid(1_000_000_000));
+            let (year, month, _) = format::civil(point.ts.div_euclid(1_000_000_000));
             MonthCell {
                 year,
                 month,
@@ -466,7 +466,7 @@ fn yearly_values(points: &[Point]) -> Vec<(i64, f64)> {
         .iter()
         .filter(|point| !point.value.is_nan())
         .map(|point| {
-            let (year, _, _) = dates::civil(point.ts.div_euclid(1_000_000_000));
+            let (year, _, _) = format::civil(point.ts.div_euclid(1_000_000_000));
             (year, point.value)
         })
         .collect()

@@ -11,12 +11,17 @@ use sbt2_client::{
     protocol::{BenchmarkSelection, Metric, MetricGroup, PanelKind, RunSummary},
 };
 
-use crate::{
-    benchmark::{self, Benchmark},
-    charts::{self, Chart, Charts},
-    dates,
-    fills_table::{self, FillsTable},
-    section::Section,
+pub mod charts;
+
+mod benchmark;
+mod fills;
+
+use crate::{format, screens::section::Section};
+
+use self::{
+    benchmark::Benchmark,
+    charts::{Chart, Charts},
+    fills::FillsTable,
 };
 
 /// A request the detail needs a client call for.
@@ -101,7 +106,7 @@ pub enum Message {
     Benchmark(benchmark::Kind),
     Instrument(String),
     Charts(charts::Message),
-    Fills(fills_table::Message),
+    Fills(fills::Message),
     Loaded(String, Loaded),
 }
 
@@ -278,7 +283,7 @@ impl RunDetail {
         }
     }
 
-    fn update_fills(&mut self, message: fills_table::Message) {
+    fn update_fills(&mut self, message: fills::Message) {
         if let Some(Section::Ready(fills)) = self.data_mut().map(|data| &mut data.fills) {
             fills.update(message);
         }
@@ -364,7 +369,7 @@ fn labelled<'a>(lines: Vec<(String, String)>) -> Element<'a, Message> {
 }
 
 fn header_lines(run: &RunSummary) -> Vec<(String, String)> {
-    let day = |seconds: Option<i64>| seconds.map(dates::utc_day).unwrap_or_default();
+    let day = |seconds: Option<i64>| seconds.map(format::utc_day).unwrap_or_default();
     let start = day(run.start_at.as_ref().map(|at| at.seconds));
     let end = day(run.end_at.as_ref().map(|at| at.seconds));
     let tripped = day(run.drawdown_tripped_at.as_ref().map(|at| at.seconds));

@@ -8,7 +8,7 @@ use iced::{
 };
 use sbt2_client::{Cell, Table};
 
-use crate::dates;
+use crate::format;
 
 const PAGE_SIZE: usize = 500;
 
@@ -177,7 +177,7 @@ fn show(cell: &Cell) -> String {
         Cell::Int(value) => value.to_string(),
         Cell::Float(value) => value.to_string(),
         Cell::Text(text) => text.clone(),
-        Cell::Time(nanos) => dates::utc_datetime(*nanos),
+        Cell::Time(nanos) => format::utc_datetime(*nanos),
         Cell::Bool(value) => value.to_string(),
     }
 }
