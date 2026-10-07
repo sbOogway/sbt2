@@ -1,9 +1,11 @@
+from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import override
 
 import pytest
+from deribit_replay import deribit_replay
 from local_source import (
     INSTRUMENT_ID,
     SYMBOL,
@@ -31,9 +33,21 @@ from nautilus_trader.model import (
     Quantity,
     TradeTick,
 )
+from nautilus_trader.persistence import ParquetDataCatalog
 from nautilus_trader.trading import Strategy
 
-from sbt2.data import DayRange, IngestOptions, IngestRequest, ingest
+from sbt2.data import (
+    DayRange,
+    DownloadOptions,
+    DownloadRequest,
+    IngestOptions,
+    IngestOutcome,
+    IngestRequest,
+    Outcome,
+    Source,
+    download,
+    ingest,
+)
 
 DAY = date(2024, 1, 1)
 HOUR = 3_600_000_000_000
@@ -115,3 +129,87 @@ def test_ingested_funding_streams_back_and_the_venue_settles_it(
     cache = run_long_one_btc(ingest_one_day(tmp_path))
 
     assert funding_payments(cache) == [Money.from_str("-5.00 USDT")] * 2
+
+
+DERIBIT_DAY = date(2025, 1, 1)
+DERIBIT_SNAPSHOT_DAY = date(2026, 10, 7)
+PUT_88K = "BTC-10JAN25-88000-P.DERIBIT"
+TRADED = {
+    "BTC-10JAN25-88000-P.DERIBIT": 4,
+    "BTC-31JAN25-135000-C.DERIBIT": 1,
+    "BTC-31JAN25-83000-P.DERIBIT": 2,
+    "BTC-3JAN25-96000-P.DERIBIT": 1,
+}
+
+
+@pytest.fixture
+def deribit() -> Iterator[Source]:
+    with deribit_replay() as source:
+        yield source
+
+
+def download_and_ingest(source: Source, tmp_path: Path) -> list[IngestOutcome]:
+    days = DayRange(("BTC",), DERIBIT_DAY, DERIBIT_DAY)
+    fetched = download(
+        source,
+        DownloadRequest(days, DERIBIT_SNAPSHOT_DAY),
+        DownloadOptions(tmp_path / "raw"),
+    )
+    assert {each.outcome for each in fetched.results} == {Outcome.FETCHED}
+    tally = ingest(
+        source,
+        IngestRequest(days),
+        IngestOptions(tmp_path / "raw", tmp_path / "catalog"),
+    )
+    return [each.outcome for each in tally.results]
+
+
+def stored_trades(tmp_path: Path, instrument_id: str) -> list[TradeTick]:
+    catalog = ParquetDataCatalog(str(tmp_path / "catalog"))
+    return list(catalog.query(NautilusDataType.TradeTick, [instrument_id]))
+
+
+@pytest.mark.integration
+def test_deribit_option_trades_round_trip_through_the_catalog(
+    deribit: Source, tmp_path: Path
+) -> None:
+    assert download_and_ingest(deribit, tmp_path) == [IngestOutcome.WRITTEN]
+
+    stored = {each: stored_trades(tmp_path, each) for each in TRADED}
+
+    assert {each: len(ticks) for each, ticks in stored.items()} == TRADED
+    first = stored[PUT_88K][0]
+    assert (str(first.price), str(first.size), str(first.trade_id)) == (
+        "0.0120",
+        "3.2",
+        "338110741",
+    )
+    assert first.ts_event == 1_735_689_642_010 * 1_000_000
+
+
+@pytest.mark.integration
+def test_only_the_contracts_traded_are_stored_as_instruments(
+    deribit: Source, tmp_path: Path
+) -> None:
+    download_and_ingest(deribit, tmp_path)
+
+    stored = ParquetDataCatalog(str(tmp_path / "catalog")).instruments()
+
+    assert {str(each.id) for each in stored} == set(TRADED)
+
+
+@pytest.mark.integration
+def test_a_rerun_skips_the_day_already_in_the_catalog(
+    deribit: Source, tmp_path: Path
+) -> None:
+    download_and_ingest(deribit, tmp_path)
+    days = DayRange(("BTC",), DERIBIT_DAY, DERIBIT_DAY)
+
+    tally = ingest(
+        deribit,
+        IngestRequest(days),
+        IngestOptions(tmp_path / "raw", tmp_path / "catalog"),
+    )
+
+    assert [each.outcome for each in tally.results] == [IngestOutcome.SKIPPED]
+    assert len(stored_trades(tmp_path, PUT_88K)) == TRADED[PUT_88K]

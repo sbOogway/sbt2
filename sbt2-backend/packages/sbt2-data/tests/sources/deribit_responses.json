@@ -1,0 +1,409 @@
+[
+ {
+  "request": "/api/v2/public/get_last_trades_by_currency_and_time?currency=BTC&kind=option&start_timestamp=1735689600000&end_timestamp=1735775999999&count=1000&sorting=asc",
+  "response": {
+   "result": {
+    "trades": [
+     {
+      "trade_seq": 738,
+      "trade_id": "338110691",
+      "timestamp": 1735689600017,
+      "tick_direction": 0,
+      "price": 0.004,
+      "mark_price": 0.00376973,
+      "iv": 71.19,
+      "instrument_name": "BTC-31JAN25-135000-C",
+      "index_price": 93369.56,
+      "direction": "buy",
+      "contracts": 0.1,
+      "amount": 0.1
+     },
+     {
+      "trade_seq": 287,
+      "trade_id": "338110702",
+      "timestamp": 1735689605718,
+      "tick_direction": 1,
+      "price": 0.0205,
+      "mark_price": 0.02054091,
+      "iv": 58.71,
+      "instrument_name": "BTC-31JAN25-83000-P",
+      "index_price": 93366.92,
+      "direction": "buy",
+      "contracts": 0.1,
+      "amount": 0.1
+     },
+     {
+      "trade_seq": 288,
+      "trade_id": "338110703",
+      "timestamp": 1735689607616,
+      "tick_direction": 1,
+      "price": 0.0205,
+      "mark_price": 0.0205572,
+      "iv": 58.67,
+      "instrument_name": "BTC-31JAN25-83000-P",
+      "index_price": 93354.26,
+      "direction": "buy",
+      "contracts": 0.1,
+      "amount": 0.1
+     },
+     {
+      "trade_seq": 688,
+      "trade_id": "338110737",
+      "timestamp": 1735689640933,
+      "tick_direction": 0,
+      "price": 0.0335,
+      "mark_price": 0.03370106,
+      "iv": 53.2,
+      "instrument_name": "BTC-3JAN25-96000-P",
+      "index_price": 93374.45,
+      "direction": "buy",
+      "contracts": 0.9,
+      "amount": 0.9
+     }
+    ],
+    "has_more": true
+   }
+  }
+ },
+ {
+  "request": "/api/v2/public/get_last_trades_by_currency_and_time?currency=BTC&kind=option&start_timestamp=1735689640933&end_timestamp=1735775999999&count=1000&sorting=asc",
+  "response": {
+   "result": {
+    "trades": [
+     {
+      "trade_seq": 688,
+      "trade_id": "338110737",
+      "timestamp": 1735689640933,
+      "tick_direction": 0,
+      "price": 0.0335,
+      "mark_price": 0.03370106,
+      "iv": 53.2,
+      "instrument_name": "BTC-3JAN25-96000-P",
+      "index_price": 93374.45,
+      "direction": "buy",
+      "contracts": 0.9,
+      "amount": 0.9
+     },
+     {
+      "trade_seq": 377,
+      "trade_id": "338110745",
+      "timestamp": 1735689642010,
+      "tick_direction": 1,
+      "price": 0.012,
+      "mark_price": 0.01163879,
+      "iv": 55.44,
+      "instrument_name": "BTC-10JAN25-88000-P",
+      "index_price": 93374.45,
+      "direction": "buy",
+      "contracts": 0.2,
+      "amount": 0.2
+     },
+     {
+      "trade_seq": 376,
+      "trade_id": "338110744",
+      "timestamp": 1735689642010,
+      "tick_direction": 1,
+      "price": 0.012,
+      "mark_price": 0.01163879,
+      "iv": 55.44,
+      "instrument_name": "BTC-10JAN25-88000-P",
+      "index_price": 93374.45,
+      "direction": "buy",
+      "contracts": 0.1,
+      "amount": 0.1
+     },
+     {
+      "trade_seq": 374,
+      "trade_id": "338110742",
+      "timestamp": 1735689642010,
+      "tick_direction": 1,
+      "price": 0.012,
+      "mark_price": 0.01163879,
+      "iv": 55.44,
+      "instrument_name": "BTC-10JAN25-88000-P",
+      "index_price": 93374.45,
+      "direction": "buy",
+      "contracts": 5.0,
+      "amount": 5.0
+     }
+    ],
+    "has_more": true
+   }
+  }
+ },
+ {
+  "request": "/api/v2/public/get_last_trades_by_currency_and_time?currency=BTC&kind=option&start_timestamp=1735689642010&end_timestamp=1735775999999&count=1000&sorting=asc",
+  "response": {
+   "result": {
+    "trades": [
+     {
+      "trade_seq": 377,
+      "trade_id": "338110745",
+      "timestamp": 1735689642010,
+      "tick_direction": 1,
+      "price": 0.012,
+      "mark_price": 0.01163879,
+      "iv": 55.44,
+      "instrument_name": "BTC-10JAN25-88000-P",
+      "index_price": 93374.45,
+      "direction": "buy",
+      "contracts": 0.2,
+      "amount": 0.2
+     },
+     {
+      "trade_seq": 376,
+      "trade_id": "338110744",
+      "timestamp": 1735689642010,
+      "tick_direction": 1,
+      "price": 0.012,
+      "mark_price": 0.01163879,
+      "iv": 55.44,
+      "instrument_name": "BTC-10JAN25-88000-P",
+      "index_price": 93374.45,
+      "direction": "buy",
+      "contracts": 0.1,
+      "amount": 0.1
+     },
+     {
+      "trade_seq": 374,
+      "trade_id": "338110742",
+      "timestamp": 1735689642010,
+      "tick_direction": 1,
+      "price": 0.012,
+      "mark_price": 0.01163879,
+      "iv": 55.44,
+      "instrument_name": "BTC-10JAN25-88000-P",
+      "index_price": 93374.45,
+      "direction": "buy",
+      "contracts": 5.0,
+      "amount": 5.0
+     },
+     {
+      "trade_seq": 373,
+      "trade_id": "338110741",
+      "timestamp": 1735689642010,
+      "tick_direction": 1,
+      "price": 0.012,
+      "mark_price": 0.01163879,
+      "iv": 55.44,
+      "instrument_name": "BTC-10JAN25-88000-P",
+      "index_price": 93374.45,
+      "direction": "buy",
+      "contracts": 3.2,
+      "amount": 3.2
+     }
+    ],
+    "has_more": false
+   }
+  }
+ },
+ {
+  "request": "/api/v2/public/get_instruments?currency=BTC&kind=option&expired=false",
+  "response": {
+   "result": [
+    {
+     "tick_size_steps": [
+      {
+       "tick_size": 0.0005,
+       "above_price": 0.005
+      }
+     ],
+     "tick_size": 0.0001,
+     "taker_commission": 0.0003,
+     "strike": 35000.0,
+     "settlement_period": "month",
+     "settlement_currency": "BTC",
+     "rfq": false,
+     "quote_currency": "BTC",
+     "price_index": "btc_usd",
+     "option_type": "call",
+     "min_trade_amount": 0.1,
+     "maker_commission": 0.0003,
+     "kind": "option",
+     "is_active": true,
+     "instrument_name": "BTC-25DEC26-35000-C",
+     "instrument_id": 573922,
+     "expiration_timestamp": 1798185600000,
+     "creation_timestamp": 1768232790000,
+     "counter_currency": "USD",
+     "contract_size": 1.0,
+     "block_trade_tick_size": 0.0001,
+     "block_trade_min_trade_amount": 50,
+     "block_trade_commission": 0.0003,
+     "base_currency": "BTC"
+    },
+    {
+     "tick_size_steps": [
+      {
+       "tick_size": 0.0005,
+       "above_price": 0.005
+      }
+     ],
+     "tick_size": 0.0001,
+     "taker_commission": 0.0003,
+     "strike": 35000.0,
+     "settlement_period": "month",
+     "settlement_currency": "BTC",
+     "rfq": false,
+     "quote_currency": "BTC",
+     "price_index": "btc_usd",
+     "option_type": "put",
+     "min_trade_amount": 0.1,
+     "maker_commission": 0.0003,
+     "kind": "option",
+     "is_active": true,
+     "instrument_name": "BTC-25DEC26-35000-P",
+     "instrument_id": 573923,
+     "expiration_timestamp": 1798185600000,
+     "creation_timestamp": 1768232790000,
+     "counter_currency": "USD",
+     "contract_size": 1.0,
+     "block_trade_tick_size": 0.0001,
+     "block_trade_min_trade_amount": 50,
+     "block_trade_commission": 0.0003,
+     "base_currency": "BTC"
+    }
+   ]
+  }
+ },
+ {
+  "request": "/api/v2/public/get_instruments?currency=BTC&kind=option&expired=true",
+  "response": {
+   "result": [
+    {
+     "tick_size_steps": [
+      {
+       "tick_size": 0.0005,
+       "above_price": 0.005
+      }
+     ],
+     "tick_size": 0.0001,
+     "taker_commission": 0.0003,
+     "strike": 88000.0,
+     "settlement_period": "week",
+     "settlement_currency": "BTC",
+     "rfq": false,
+     "quote_currency": "BTC",
+     "price_index": "btc_usd",
+     "option_type": "put",
+     "min_trade_amount": 0.1,
+     "maker_commission": 0.0003,
+     "kind": "option",
+     "is_active": false,
+     "instrument_name": "BTC-10JAN25-88000-P",
+     "instrument_id": 411718,
+     "expiration_timestamp": 1736496000000,
+     "creation_timestamp": 1734637920000,
+     "counter_currency": "USD",
+     "contract_size": 1.0,
+     "block_trade_tick_size": 0.0001,
+     "block_trade_min_trade_amount": 50,
+     "block_trade_commission": 0.0003,
+     "base_currency": "BTC"
+    },
+    {
+     "tick_size_steps": [
+      {
+       "tick_size": 0.0005,
+       "above_price": 0.005
+      }
+     ],
+     "tick_size": 0.0001,
+     "taker_commission": 0.0003,
+     "strike": 135000.0,
+     "settlement_period": "month",
+     "settlement_currency": "BTC",
+     "rfq": false,
+     "quote_currency": "BTC",
+     "price_index": "btc_usd",
+     "option_type": "call",
+     "min_trade_amount": 0.1,
+     "maker_commission": 0.0003,
+     "kind": "option",
+     "is_active": false,
+     "instrument_name": "BTC-31JAN25-135000-C",
+     "instrument_id": 388393,
+     "expiration_timestamp": 1738310400000,
+     "creation_timestamp": 1731073969000,
+     "counter_currency": "USD",
+     "contract_size": 1.0,
+     "block_trade_tick_size": 0.0001,
+     "block_trade_min_trade_amount": 50,
+     "block_trade_commission": 0.0003,
+     "base_currency": "BTC"
+    },
+    {
+     "tick_size_steps": [
+      {
+       "tick_size": 0.0005,
+       "above_price": 0.005
+      }
+     ],
+     "tick_size": 0.0001,
+     "taker_commission": 0.0003,
+     "strike": 83000.0,
+     "settlement_period": "month",
+     "settlement_currency": "BTC",
+     "rfq": false,
+     "quote_currency": "BTC",
+     "price_index": "btc_usd",
+     "option_type": "put",
+     "min_trade_amount": 0.1,
+     "maker_commission": 0.0003,
+     "kind": "option",
+     "is_active": false,
+     "instrument_name": "BTC-31JAN25-83000-P",
+     "instrument_id": 386886,
+     "expiration_timestamp": 1738310400000,
+     "creation_timestamp": 1730876280000,
+     "counter_currency": "USD",
+     "contract_size": 1.0,
+     "block_trade_tick_size": 0.0001,
+     "block_trade_min_trade_amount": 50,
+     "block_trade_commission": 0.0003,
+     "base_currency": "BTC"
+    },
+    {
+     "tick_size_steps": [
+      {
+       "tick_size": 0.0005,
+       "above_price": 0.005
+      }
+     ],
+     "tick_size": 0.0001,
+     "taker_commission": 0.0003,
+     "strike": 96000.0,
+     "settlement_period": "week",
+     "settlement_currency": "BTC",
+     "rfq": false,
+     "quote_currency": "BTC",
+     "price_index": "btc_usd",
+     "option_type": "put",
+     "min_trade_amount": 0.1,
+     "maker_commission": 0.0003,
+     "kind": "option",
+     "is_active": false,
+     "instrument_name": "BTC-3JAN25-96000-P",
+     "instrument_id": 408500,
+     "expiration_timestamp": 1735891200000,
+     "creation_timestamp": 1733990460000,
+     "counter_currency": "USD",
+     "contract_size": 1.0,
+     "block_trade_tick_size": 0.0001,
+     "block_trade_min_trade_amount": 50,
+     "block_trade_commission": 0.0003,
+     "base_currency": "BTC"
+    }
+   ]
+  }
+ },
+ {
+  "request": "/api/v2/public/get_last_trades_by_currency_and_time?currency=BTC&kind=option&start_timestamp=1451606400000&end_timestamp=1451692799999&count=1000&sorting=asc",
+  "response": {
+   "result": {
+    "trades": [],
+    "has_more": false
+   }
+  }
+ }
+]

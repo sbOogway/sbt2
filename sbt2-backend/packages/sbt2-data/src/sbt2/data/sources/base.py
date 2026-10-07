@@ -160,7 +160,7 @@ class Source(ABC):
         return {instrument.id: instrument}
 
     def day_instrument_ids(
-        self, _path: Path, instruments: Mapping[InstrumentId, Any]
+        self, _path: Path, instruments: Mapping[InstrumentId, Any], /
     ) -> tuple[InstrumentId, ...]:
         """The ids of the ``instruments`` the raw day file holds records of; none
         when the file is missing."""
