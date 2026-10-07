@@ -1,5 +1,12 @@
 from abc import ABC, abstractmethod
-from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping
+from collections.abc import (
+    Awaitable,
+    Callable,
+    Iterable,
+    Iterator,
+    Mapping,
+    Sequence,
+)
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path, PurePosixPath
@@ -142,3 +149,27 @@ class Source(ABC):
     @abstractmethod
     def parse_instrument(self, path: Path) -> Any:
         """The instrument of a snapshot, initialised at the start of its day."""
+
+    def parse_instruments(self, path: Path) -> Mapping[InstrumentId, Any]:
+        """The instruments of a snapshot by id; the lookup may build them on demand.
+
+        A source whose raw file holds many instruments overrides this, ``parse_day``
+        and ``day_instrument_ids``; the default is the snapshot's one instrument.
+        """
+        instrument = self.parse_instrument(path)
+        return {instrument.id: instrument}
+
+    def day_instrument_ids(
+        self, _path: Path, instruments: Mapping[InstrumentId, Any]
+    ) -> tuple[InstrumentId, ...]:
+        """The ids of the ``instruments`` the raw day file holds records of; none
+        when the file is missing."""
+        return tuple(instruments)
+
+    def parse_day(
+        self, path: Path, data_type: type, instruments: Mapping[InstrumentId, Any]
+    ) -> Mapping[InstrumentId, Sequence[Any]]:
+        """The ``data_type`` records of one raw day file, in time order, by the
+        instrument they belong to."""
+        (instrument,) = instruments.values()
+        return {instrument.id: list(self.parse(path, data_type, instrument))}
