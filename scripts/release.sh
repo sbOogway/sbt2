@@ -112,11 +112,10 @@ write_notes() {
 build_all() {
     local version=$1 files=$WORK/files
     mkdir -p "$files"
-    # the builds run third-party build backends, which have no use for the tokens
-    env -u GH_TOKEN -u GHCR_TOKEN UV_DYNAMIC_VERSIONING_BYPASS="$version" \
+    run_build env UV_DYNAMIC_VERSIONING_BYPASS="$version" \
         uv build --project "$WORK/src/sbt2-backend" --all-packages --out-dir "$files"
-    env -u GH_TOKEN -u GHCR_TOKEN "$here/build-gui.sh" "$version" "$WORK/src" "$files"
-    env -u GH_TOKEN -u GHCR_TOKEN "$here/build-image.sh" "$version" "$WORK/src"
+    run_build "$here/build-gui.sh" "$version" "$WORK/src" "$files"
+    run_build "$here/build-image.sh" "$version" "$WORK/src"
     (cd "$files" && sha256sum -- * >"$WORK/SHA256SUMS")
     mv "$WORK/SHA256SUMS" "$files/"
 }

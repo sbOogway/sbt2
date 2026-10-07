@@ -119,6 +119,16 @@ refresh_checksums() {
     rm -rf "$dir"
 }
 
+# Runs the build command "$@" without the tokens, which third-party build backends have no
+# use for, at the lowest CPU and disk priority and with $SBT2_BUILD_JOBS cargo jobs, half the
+# cores by default, so the machine stays usable while a release builds
+run_build() {
+    local cores
+    cores=$(nproc)
+    env -u GH_TOKEN -u GHCR_TOKEN CARGO_BUILD_JOBS="${SBT2_BUILD_JOBS:-$(((cores + 1) / 2))}" \
+        nice -n 19 ionice -c 3 "$@"
+}
+
 # Makes the scratch directory $WORK, which goes when the script ends, even on failure
 make_work() {
     WORK=$(mktemp -d)
