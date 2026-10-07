@@ -1,22 +1,15 @@
 //! The client of the sbt2 server.
 
-mod address;
-mod arrow;
-mod backoff;
-mod connection;
-mod dispatch;
 mod error;
-mod ids;
+mod net;
 mod results;
 mod session;
-mod transport;
 #[cfg(test)]
 #[path = "version.rs"]
 mod version_format;
 
-pub use address::{ServerAddress, Token};
-pub use backoff::Backoff;
 pub use error::ClientError;
+pub use net::{Backoff, ServerAddress, Token};
 pub use results::{Cell, Point, RunMetrics, Table};
 pub use session::{Client, ConnectionState, Session, Subscription};
 

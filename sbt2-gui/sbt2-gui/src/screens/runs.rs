@@ -6,7 +6,7 @@ use iced::{
 };
 use sbt2_client::{ClientError, protocol::RunSummary};
 
-use crate::dates;
+use crate::format;
 
 const NO_VALUE: &str = "-";
 const ROWS: &str = "runs-rows";
@@ -270,7 +270,7 @@ fn fixed(value: Option<&str>, places: usize) -> String {
 }
 
 fn date(seconds: Option<i64>) -> String {
-    seconds.map_or_else(|| NO_VALUE.to_owned(), dates::utc_day)
+    seconds.map_or_else(|| NO_VALUE.to_owned(), format::utc_day)
 }
 
 #[cfg(test)]

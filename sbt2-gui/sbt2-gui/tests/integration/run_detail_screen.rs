@@ -3,10 +3,7 @@ use sbt2_client::{
     Point, RunMetrics,
     protocol::{Metric, MetricGroup, RunSummary},
 };
-use sbt2_gui::{
-    charts::Chart,
-    run_detail::{Loaded, Message, RunDetail, Tab},
-};
+use sbt2_gui::screens::run_detail::{Loaded, Message, RunDetail, Tab, charts::Chart};
 
 fn metric(group: MetricGroup, name: &str, value: Option<&str>) -> Metric {
     Metric {
