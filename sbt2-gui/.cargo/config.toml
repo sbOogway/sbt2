@@ -1,0 +1,4 @@
+[env]
+# The tests draw on the CPU: in parallel tests, NVIDIA's Vulkan driver can hang
+# for ever when wgpu destroys a device.
+ICED_TEST_BACKEND = "tiny-skia"
