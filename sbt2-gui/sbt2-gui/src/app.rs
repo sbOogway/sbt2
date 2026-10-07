@@ -519,6 +519,7 @@ mod tests {
     #[test]
     fn the_last_server_and_its_token_prefill_the_next_start() {
         let folder = TempDir::new().unwrap();
+        fs::write(folder.path().join("settings.toml"), "").unwrap();
         let mut first = app_in(&folder, TokenStore::new(None, folder.path()));
         filled(&mut first, "ws://127.0.0.1:1");
         let _ = first.update(Message::Connected(Ok(offline_session(&[]))));

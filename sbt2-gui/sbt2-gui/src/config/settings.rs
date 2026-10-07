@@ -12,8 +12,8 @@ const FILE: &str = "settings.toml";
 const TEMPLATE: &str = r#"# sbt2-gui settings. The GUI reads this file at start.
 
 # A server to connect to at start, and its token.
-# server = "wss://sbt2.example.com"
-# token = "..."
+server = "ws://192.168.0.77:8765"
+token = "test_token"
 
 # "light" or "dark"
 theme = "light"
@@ -178,10 +178,10 @@ mod tests {
 
         Settings::create_default(folder.path()).unwrap();
 
-        let text = fs::read_to_string(folder.path().join(FILE)).unwrap();
-        assert!(text.contains("# server = "));
-        assert!(text.contains("# token = "));
-        assert_eq!(Settings::load(folder.path()), Settings::default());
+        let settings = Settings::load(folder.path());
+        assert_eq!(settings.server.as_deref(), Some("ws://192.168.0.77:8765"));
+        assert_eq!(settings.token.as_deref(), Some("test_token"));
+        assert_eq!(settings.theme, Theme::Light);
     }
 
     #[test]
