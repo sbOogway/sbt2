@@ -130,7 +130,7 @@ repos:
         pass_filenames: false
         verbose: true
 
-      # after prune-merged-branches, whose fetch it relies on
+      # after prune-merged-branches, so it skips the branches that one deleted
       - id: rebase-open-branches
         name: rebase open branches
         entry: scripts/rebase-open-branches.sh

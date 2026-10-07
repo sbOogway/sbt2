@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help sync check test-backend test-protocol test-gui release release-gui release-image
+.PHONY: help sync check test-backend test-protocol test-gui release release-gui release-image rebase-open-branches
 
 help:
 	@echo "make sync          prepare the locked backend and protocol environments"
@@ -11,6 +11,7 @@ help:
 	@echo "make release-gui   backfill: build the Linux GUI and upload it to a release"
 	@echo "make release-image backfill: build the image, test it and push it to GHCR"
 	@echo "make release       tag the merges since the last tag, build and publish the newest"
+	@echo "make rebase-open-branches  rebase the open local branches onto origin/main and push them"
 
 sync:
 	uv --directory sbt2-backend sync --locked
@@ -42,3 +43,6 @@ release-image:
 
 release:
 	scripts/release.sh
+
+rebase-open-branches:
+	scripts/rebase-open-branches.sh
