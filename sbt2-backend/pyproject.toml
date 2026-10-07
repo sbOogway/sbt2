@@ -3,7 +3,6 @@ name = "sbt2"
 dynamic = ["version", "dependencies", "optional-dependencies"]
 description = "Backtesting framework on nautilus_trader"
 license = "LGPL-3.0-or-later"
-license-files = ["COPYING", "COPYING.LESSER"]
 requires-python = ">=3.14"
 
 [build-system]
@@ -31,7 +30,7 @@ all = ["sbt2-papers=={{ version }}", "sbt2-server=={{ version }}"]
 bypass-selection = true
 
 [tool.hatch.build.targets.sdist]
-include = ["/pyproject.toml", "/README.md", "/COPYING", "/COPYING.LESSER"]
+include = ["/pyproject.toml", "/README.md"]
 
 [tool.uv]
 environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]

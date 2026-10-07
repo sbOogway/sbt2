@@ -46,4 +46,4 @@ The last server URL is remembered in `settings.toml` in the same folder.
 
 ## License
 
-LGPL-3.0-or-later, see [COPYING.LESSER](COPYING.LESSER) and [COPYING](COPYING).
+LGPL-3.0-or-later, see [COPYING.LESSER](../COPYING.LESSER) and [COPYING](../COPYING).

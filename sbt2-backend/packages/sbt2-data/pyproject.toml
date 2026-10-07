@@ -3,7 +3,6 @@ name = "sbt2-data"
 dynamic = ["version"]
 description = "Downloads, ingests and catalogs market data"
 license = "LGPL-3.0-or-later"
-license-files = ["COPYING", "COPYING.LESSER"]
 requires-python = ">=3.14"
 dependencies = [
     "httpx>=0.28.1",
