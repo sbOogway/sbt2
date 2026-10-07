@@ -174,14 +174,28 @@ push_image() {
     echo "$digest"
 }
 
+# Applies the JSON fields on stdin to the release $1 with tag $2 at commit $3. Every edit
+# names the tag, as GitHub resets the tag of a draft that an edit leaves it out of.
+edit_release() {
+    local id=$1 tag=$2 commit=$3
+    jq --arg tag "$tag" --arg commit "$commit" '. + {tag_name: $tag, target_commitish: $commit}' |
+        github_api -X PATCH -d @- "$GITHUB_API/repos/$REPO/releases/$id" >/dev/null
+}
+
+# Publishes the release $1, which creates its tag $2 at commit $3 on GitHub
+publish() {
+    echo '{"draft": false}' | edit_release "$@"
+}
+
 # Puts the image reference $2 in the notes of the release $1, in place of an older one
 name_image_in_notes() {
-    local id=$1 reference=$2 notes
-    notes=$(github_api "$GITHUB_API/repos/$REPO/releases/$id" | jq -r '.body // ""')
+    local id=$1 reference=$2 release notes
+    release=$(github_api "$GITHUB_API/repos/$REPO/releases/$id")
+    notes=$(jq -r '.body // ""' <<<"$release")
     notes=${notes%%$'\n\n'"$NOTES_IMAGE_HEADING"*}
     notes+=$'\n\n'"$NOTES_IMAGE_HEADING"$'\n\n'"\`$reference\`"
     jq -n --arg body "$notes" '{body: $body}' |
-        github_api -X PATCH -d @- "$GITHUB_API/repos/$REPO/releases/$id" >/dev/null
+        edit_release "$id" "$(jq -r .tag_name <<<"$release")" "$(jq -r .target_commitish <<<"$release")"
 }
 
 SERVER_SERVICE=sbt2-server.service

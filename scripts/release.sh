@@ -146,8 +146,7 @@ draft_release() {
     if [ -z "$id" ]; then
         id=$(create_draft "$tag" "$commit")
     else
-        jq -n --rawfile body "$WORK/notes.md" '{body: $body}' |
-            github_api -X PATCH -d @- "$GITHUB_API/repos/$REPO/releases/$id" >/dev/null
+        jq -n --rawfile body "$WORK/notes.md" '{body: $body}' | edit_release "$id" "$tag" "$commit"
     fi
     echo "$id"
 }
@@ -164,10 +163,6 @@ push_older_tags() {
     local refspecs
     mapfile -t refspecs < <(head -n -1 "$WORK/tags" | awk '{ print $1 ":refs/tags/" $2 }')
     [ "${#refspecs[@]}" -eq 0 ] || git push --quiet --atomic origin "${refspecs[@]}"
-}
-
-publish() {
-    echo '{"draft": false}' | github_api -X PATCH -d @- "$GITHUB_API/repos/$REPO/releases/$1" >/dev/null
 }
 
 [ -n "${GHCR_TOKEN:-}" ] || die "set GHCR_TOKEN to a classic token with write:packages"
@@ -188,7 +183,7 @@ upload_files "$id"
 digest=$(push_image "$version")
 name_image_in_notes "$id" "$IMAGE_REPOSITORY:$version@$digest"
 push_older_tags
-publish "$id"
+publish "$id" "$tag" "$commit"
 deploy
 git fetch --quiet --tags origin
 echo "release: published $tag, and tagged $(head -n -1 "$WORK/tags" | wc -l) older merges"
