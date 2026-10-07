@@ -45,6 +45,23 @@ Use `:X.Y.Z` instead of `:latest` to pin a version. With
 [sbt2-backend/compose.yaml](sbt2-backend/compose.yaml), set `SBT2_VERSION=X.Y.Z`
 to run that version.
 
+To run it as a rootless user service that follows `:latest`, use the Quadlet
+unit [sbt2-backend/sbt2-server.container](sbt2-backend/sbt2-server.container):
+
+```sh
+mkdir -p ~/.config/containers/systemd ~/.config/sbt2
+cp sbt2-backend/sbt2-server.container ~/.config/containers/systemd/
+echo 'SBT2_SERVER_TOKEN=<token>' >~/.config/sbt2/server.env
+chmod 600 ~/.config/sbt2/server.env
+systemctl --user daemon-reload
+systemctl --user start sbt2-server
+loginctl enable-linger "$USER"  # keeps it running after logout
+```
+
+The server listens on `127.0.0.1:8765`. `podman auto-update` pulls a new
+`:latest` and restarts the service. If the new image does not become healthy,
+it rolls back to the old one.
+
 ### GUI
 
 The GUI is for Linux x86_64. The maintainer builds it on Fedora 44, so the
@@ -88,6 +105,10 @@ it pushes the tags of the older merges and publishes. Publishing creates the
 release's tag on GitHub. The older merges get a tag only; the notes of the
 release list every change since the last release, by version. A failure before
 the publish leaves a draft; a re-run finishes it.
+
+After the publish, the target runs `podman auto-update` when the `sbt2-server`
+user service exists, so the server on the maintainer's machine runs the new
+image. A failed update only gives a warning.
 
 The tokens come from the environment or from a git-ignored `.env` at the repo
 root (mode 600). A variable set in the environment wins over `.env`:

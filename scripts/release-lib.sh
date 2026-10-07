@@ -183,3 +183,15 @@ name_image_in_notes() {
     jq -n --arg body "$notes" '{body: $body}' |
         github_api -X PATCH -d @- "$GITHUB_API/repos/$REPO/releases/$id" >/dev/null
 }
+
+SERVER_SERVICE=sbt2-server.service
+
+# Updates the server on this machine to the new :latest. A failure only warns, as the
+# release is already published.
+deploy() {
+    if ! systemctl --user cat "$SERVER_SERVICE" >/dev/null 2>&1; then
+        echo "${0##*/}: no sbt2-server service in the user session; skipped the deploy" >&2
+        return 0
+    fi
+    podman auto-update >&2 || echo "${0##*/}: the deploy failed; run podman auto-update again" >&2
+}
