@@ -140,3 +140,15 @@ fn a_tripped_drawdown_shows_its_day_in_a_badge() {
 
     assert!(ui.find("2024-01-01").is_ok());
 }
+
+#[test]
+fn a_loading_overview_shows_no_loading_text() {
+    let mut detail = RunDetail::default();
+    detail.open("run-1");
+
+    let mut ui = simulator(detail.view());
+
+    for text in ["Loading the run...", "Loading the metrics..."] {
+        assert!(ui.find(text).is_err(), "{text} is shown");
+    }
+}

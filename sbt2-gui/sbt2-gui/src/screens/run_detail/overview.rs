@@ -4,7 +4,7 @@ use iced::{
     Element, Length,
     widget::{column, container, responsive, row, text},
 };
-use iced_aw::{Badge, Card, style::badge};
+use iced_aw::{Badge, Card, Spinner, style::badge};
 use sbt2_client::{
     RunMetrics,
     protocol::{Metric, MetricGroup, RunSummary},
@@ -53,7 +53,7 @@ fn spread(groups: Vec<Group>, columns: usize) -> Vec<Vec<Group>> {
 
 fn header(summary: &Section<Box<RunSummary>>) -> Element<'_, Message> {
     match summary {
-        Section::Loading => text("Loading the run...").into(),
+        Section::Loading => loading(),
         Section::Failed(error) => text(format!("Could not load the run: {error}")).into(),
         Section::Ready(run) => tile("Run", run_body(run)),
     }
@@ -61,10 +61,19 @@ fn header(summary: &Section<Box<RunSummary>>) -> Element<'_, Message> {
 
 fn metrics(metrics: &Section<RunMetrics>, columns: usize) -> Element<'_, Message> {
     match metrics {
-        Section::Loading => text("Loading the metrics...").into(),
+        Section::Loading => loading(),
         Section::Failed(error) => text(format!("Could not load the metrics: {error}")).into(),
         Section::Ready(metrics) => bento(spread(metric_groups(metrics), columns)),
     }
+}
+
+fn loading<'a>() -> Element<'a, Message> {
+    container(Spinner::new())
+        .padding(style::PADDING)
+        .width(Length::Fill)
+        .center_x(Length::Fill)
+        .style(style::card)
+        .into()
 }
 
 fn bento<'a>(columns: Vec<Vec<Group>>) -> Element<'a, Message> {
