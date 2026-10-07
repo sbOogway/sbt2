@@ -8,6 +8,12 @@ const FILE: &str = "settings.toml";
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Settings {
     pub last_server: Option<String>,
+    /// A server to connect to at start, written by the user.
+    #[serde(default)]
+    pub server: Option<String>,
+    /// The token for `server`, written by the user; the GUI never writes it itself.
+    #[serde(default)]
+    pub token: Option<String>,
     #[serde(default)]
     pub theme: Theme,
 }
@@ -102,5 +108,32 @@ mod tests {
 
         assert_eq!(settings.theme, Theme::Light);
         assert_eq!(settings.last_server.as_deref(), Some("wss://a"));
+    }
+
+    #[test]
+    fn a_configured_server_and_token_load_from_the_file() {
+        let folder = TempDir::new().unwrap();
+        let text = "server = \"wss://a\"\ntoken = \"s3cret\"\n";
+        fs::write(folder.path().join(FILE), text).unwrap();
+
+        let settings = Settings::load(folder.path());
+
+        assert_eq!(settings.server.as_deref(), Some("wss://a"));
+        assert_eq!(settings.token.as_deref(), Some("s3cret"));
+        assert_eq!(settings.last_server, None);
+    }
+
+    #[test]
+    fn the_server_and_token_survive_a_save() {
+        let folder = TempDir::new().unwrap();
+        let settings = Settings {
+            server: Some("wss://a".to_owned()),
+            token: Some("s3cret".to_owned()),
+            ..Settings::default()
+        };
+
+        settings.save(folder.path()).unwrap();
+
+        assert_eq!(Settings::load(folder.path()), settings);
     }
 }
