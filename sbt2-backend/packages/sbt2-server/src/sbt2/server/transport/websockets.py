@@ -11,6 +11,7 @@ from sbt2.server.transport.base import (
     Channel,
     Endpoint,
     HttpRequest,
+    HttpResponse,
     Transport,
 )
 
@@ -50,7 +51,7 @@ class WebsocketsTransport(Transport):
             response = endpoint.respond(_http_request(request))
             if response is None:
                 return None
-            return connection.respond(response.status, response.text)
+            return _response(connection, response)
 
         async with serve(
             handle,
@@ -69,3 +70,11 @@ def _http_request(request: Request) -> HttpRequest:
         path=request.path,
         authorization=request.headers.get("Authorization"),
     )
+
+
+def _response(connection: ServerConnection, response: HttpResponse) -> Response:
+    answer = connection.respond(response.status, response.text)
+    # assigning to Headers adds a second value instead of replacing the first
+    del answer.headers["Content-Type"]
+    answer.headers["Content-Type"] = response.content_type
+    return answer

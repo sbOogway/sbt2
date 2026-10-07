@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections.abc import Iterable, Mapping
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass, field
@@ -76,10 +77,15 @@ class _Endpoint(Endpoint):
         self._token = BearerToken(settings.token)
         self._queue_size = settings.queue_size
         self._router = router
+        self._health = HttpResponse(
+            HTTPStatus.OK,
+            json.dumps({"status": "ok", "version": version("sbt2-server")}),
+            "application/json",
+        )
 
     def respond(self, request: HttpRequest) -> HttpResponse | None:
         if request.method == "GET" and request.path == HEALTH:
-            return HttpResponse(HTTPStatus.OK, "OK")
+            return self._health
         if not self._token.admits(request.authorization):
             return HttpResponse(HTTPStatus.UNAUTHORIZED, "Unauthorized")
         return None
