@@ -373,7 +373,7 @@ fn watch_states(session: &Session) -> Task<Message> {
 
 #[cfg(test)]
 mod tests {
-    use std::{fs, os::unix::fs::PermissionsExt};
+    use std::fs;
 
     use sbt2_client::protocol::{Capability, HeadlineMetrics, RunSummary, Welcome};
     use tempfile::TempDir;
@@ -484,9 +484,14 @@ mod tests {
 
         let _ = app.update(Message::Connected(Ok(offline_session(&[]))));
 
-        let file = folder.path().join("tokens.toml");
-        let mode = fs::metadata(file).unwrap().permissions().mode();
-        assert_eq!(mode & 0o777, 0o600);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let file = folder.path().join("tokens.toml");
+            let mode = fs::metadata(file).unwrap().permissions().mode();
+            assert_eq!(mode & 0o777, 0o600);
+        }
         assert_eq!(app.warnings, [Warning::NoKeyring]);
     }
 

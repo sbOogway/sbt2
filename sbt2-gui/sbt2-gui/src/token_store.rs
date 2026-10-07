@@ -2,7 +2,6 @@ use std::{
     collections::BTreeMap,
     fs,
     io::{self, Write},
-    os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -11,7 +10,6 @@ use keyring_core::{CredentialStore, Entry};
 
 const SERVICE: &str = "sbt2-gui";
 const FALLBACK_FILE: &str = "tokens.toml";
-const OWNER_ONLY: u32 = 0o600;
 
 /// Where a token was kept.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,8 +19,8 @@ pub enum Storage {
     File,
 }
 
-/// Keeps the token of each server in the OS keyring, or in a `0600` file in the
-/// config folder when there is no keyring.
+/// Keeps the token of each server in the OS keyring, or in a file only its owner
+/// can read (`0600` on Unix) in the config folder when there is no keyring.
 pub struct TokenStore {
     keyring: Option<Arc<CredentialStore>>,
     fallback: PathBuf,
@@ -36,12 +34,9 @@ impl TokenStore {
         }
     }
 
-    /// A store on the Secret Service, or on the file alone when it is not reachable.
+    /// A store on the keyring of the OS, or on the file alone when it is not reachable.
     pub fn system(config_dir: &Path) -> Self {
-        let keyring = zbus_secret_service_keyring_store::Store::new()
-            .ok()
-            .map(|store| -> Arc<CredentialStore> { store });
-        Self::new(keyring, config_dir)
+        Self::new(native_keyring(), config_dir)
     }
 
     pub fn save(&self, server: &str, token: &str) -> io::Result<Storage> {
@@ -74,13 +69,7 @@ impl TokenStore {
         if let Some(folder) = self.fallback.parent() {
             fs::create_dir_all(folder)?;
         }
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(OWNER_ONLY)
-            .open(&self.fallback)?;
-        file.set_permissions(fs::Permissions::from_mode(OWNER_ONLY))?;
+        let mut file = open_owner_only(&self.fallback)?;
         file.write_all(text.as_bytes())
     }
 
@@ -90,6 +79,53 @@ impl TokenStore {
             .and_then(|text| toml::from_str(&text).ok())
             .unwrap_or_default()
     }
+}
+
+#[cfg(target_os = "linux")]
+fn native_keyring() -> Option<Arc<CredentialStore>> {
+    let store = zbus_secret_service_keyring_store::Store::new().ok()?;
+    Some(store)
+}
+
+#[cfg(target_os = "macos")]
+fn native_keyring() -> Option<Arc<CredentialStore>> {
+    let store = apple_native_keyring_store::keychain::Store::new().ok()?;
+    Some(store)
+}
+
+#[cfg(target_os = "windows")]
+fn native_keyring() -> Option<Arc<CredentialStore>> {
+    let store = windows_native_keyring_store::Store::new().ok()?;
+    Some(store)
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+fn native_keyring() -> Option<Arc<CredentialStore>> {
+    None
+}
+
+#[cfg(unix)]
+fn open_owner_only(path: &Path) -> io::Result<fs::File> {
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+
+    const OWNER_ONLY: u32 = 0o600;
+    let file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .mode(OWNER_ONLY)
+        .open(path)?;
+    file.set_permissions(fs::Permissions::from_mode(OWNER_ONLY))?;
+    Ok(file)
+}
+
+#[cfg(not(unix))]
+fn open_owner_only(path: &Path) -> io::Result<fs::File> {
+    fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(path)
 }
 
 #[cfg(test)]
@@ -128,11 +164,16 @@ mod tests {
         let saved = store.save(SERVER, "s3cret").unwrap();
 
         assert_eq!(saved, Storage::File);
-        let mode = fs::metadata(folder.path().join(FALLBACK_FILE))
-            .unwrap()
-            .permissions()
-            .mode();
-        assert_eq!(mode & 0o777, 0o600);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let mode = fs::metadata(folder.path().join(FALLBACK_FILE))
+                .unwrap()
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o600);
+        }
         assert_eq!(store.load(SERVER).as_deref(), Some("s3cret"));
     }
 

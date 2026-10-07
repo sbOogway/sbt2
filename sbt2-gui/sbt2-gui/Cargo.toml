@@ -11,11 +11,19 @@ sbt2-client = { path = "../sbt2-client" }
 iced = { version = "=0.14.0", features = ["tokio"] }
 directories = "6"
 keyring-core = "1"
-zbus-secret-service-keyring-store = { version = "1", features = ["crypto-rust"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0.9"
 tokio = { version = "1", features = ["rt", "sync"] }
 iced_plot = { version = "=0.5.0", features = ["canvas"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus-secret-service-keyring-store = { version = "1", features = ["crypto-rust"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apple-native-keyring-store = { version = "1", features = ["keychain"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows-native-keyring-store = "1"
 
 [dev-dependencies]
 sbt2-client = { path = "../sbt2-client", features = ["test-support"] }
