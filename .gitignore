@@ -9,6 +9,7 @@ __pycache__/
 htmlcov/
 .claude/worktrees/
 .release/
+/dist/
 .env
 coverage.xml
 junit.xml

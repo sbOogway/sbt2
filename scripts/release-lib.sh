@@ -12,6 +12,10 @@ GHCR_TOKEN=${GHCR_TOKEN:-}
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root" || exit 1
 
+# make build writes the release here and make publish reads it: the planned tags, the commit
+# built from, the notes and the files. The image stays in the local podman store.
+RELEASE_DIR=${SBT2_RELEASE_DIR:-$root/dist/release}
+
 # Takes GH_TOKEN and GHCR_TOKEN from $1 when the environment lacks them. The file is
 # parsed, never run, so nothing in it but these two KEY=value lines has any effect.
 load_tokens() {
@@ -51,6 +55,14 @@ use_github_token() {
 # The header goes through a file descriptor, so the token stays out of the process list
 github_api() {
     curl -fsS -H @<(echo "Authorization: Bearer $GH_TOKEN") -H "Accept: application/vnd.github+json" "$@"
+}
+
+# Refuses unless $RELEASE_DIR holds a build of the current origin/main
+check_build() {
+    [ -f "$RELEASE_DIR/head" ] || die "there is no build in $RELEASE_DIR; run make build first"
+    git fetch --quiet --tags origin main || die "cannot fetch origin"
+    [ "$(cat "$RELEASE_DIR/head")" = "$(git rev-parse origin/main)" ] ||
+        die "origin/main moved since the build; run make build again"
 }
 
 newest_tag() {

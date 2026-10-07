@@ -87,26 +87,34 @@ commands, run from its directory.
 
 ## Release
 
-The maintainer cuts each release on their machine with `make release`. There is
-no release in CI, and for now no CI: the tests run locally. The target refuses to start unless:
+The maintainer cuts each release on their machine in two steps: `make build`,
+then `make publish`. `make release` runs both. There is no release in CI, and
+for now no CI: the tests run locally.
+
+`make build` refuses to start unless:
 
 - `HEAD` is `origin/main` after a fetch, and the working tree is clean;
 - `make check` passes.
 
-It then tags each merge on `main` since the last tag with the version that
-git-cliff picks from its Conventional Commits. A merge with no `feat`, `fix`,
-`perf`, `refactor` or `revert` change gets no new version, so it gets no tag.
-The newest tagged merge is the release; `VERSION=X.Y.Z` makes `HEAD` the
-release with that version. The target refuses when there is nothing to release.
-It builds the wheels, the GUI and the server image of the release, and
-smoke-tests the GUI and the image. Only then does it draft the release, upload
-the files and `SHA256SUMS`, and push the image as `:X.Y.Z` and `:latest`. Last,
-it pushes the tags of the older merges and publishes. Publishing creates the
-release's tag on GitHub. The older merges get a tag only; the notes of the
-release list every change since the last release, by version. A failure before
-the publish leaves a draft; a re-run finishes it.
+It then plans a tag for each merge on `main` since the last tag, with the
+version that git-cliff picks from its Conventional Commits. A merge with no
+`feat`, `fix`, `perf`, `refactor` or `revert` change gets no new version, so it
+gets no tag. The newest tagged merge is the release; `VERSION=X.Y.Z` makes
+`HEAD` the release with that version. The target refuses when there is nothing
+to release. It builds the wheels, the GUI and the server image of the release,
+and smoke-tests the GUI and the image. It writes the files, `SHA256SUMS`, the
+notes and the planned tags to the git-ignored `dist/release/`; the image stays
+in the local podman store. Nothing leaves the machine.
 
-After the publish, the target runs `podman auto-update` when the `sbt2-server`
+`make publish` refuses unless `dist/release/` holds a build of the current
+`origin/main`. It drafts the release, uploads the files and pushes the image as
+`:X.Y.Z` and `:latest`. Last, it pushes the tags of the older merges and
+publishes. Publishing creates the release's tag on GitHub. The older merges get
+a tag only; the notes of the release list every change since the last release,
+by version. A failure before the publish leaves a draft; a re-run of
+`make publish` finishes it. After the publish, it removes `dist/release/`.
+
+After the publish, `make publish` runs `podman auto-update` when the `sbt2-server`
 user service exists, so the server on the maintainer's machine runs the new
 image. A failed update only gives a warning.
 

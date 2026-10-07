@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# Cuts a whole release from the maintainer's machine. Refuses unless HEAD is origin/main with a
-# clean tree and make check passes. Each merge on main since
-# the newest tag gets a tag with the version git-cliff picks for it; a merge that git-cliff gives
-# no new version gets none. The newest of these merges is the release; $VERSION makes HEAD the
-# release with that version. Builds the wheels, the GUI and the image of the release first, then
-# drafts it, uploads the files and pushes the image. Last, it pushes the tags of the older merges
-# and publishes, which creates the release's tag on GitHub. A re-run finishes the draft. Then it
-# updates the sbt2-server service on this machine, if there is one.
-# Needs GH_TOKEN or a gh login, and GHCR_TOKEN (classic, write:packages).
+# Builds a release on the maintainer's machine into $RELEASE_DIR for make publish. Refuses unless
+# HEAD is origin/main with a clean tree and make check passes. Each merge on main since the newest
+# tag gets a planned tag with the version git-cliff picks for it; a merge that git-cliff gives no
+# new version gets none. The newest of these merges is the release; $VERSION makes HEAD the
+# release with that version. Builds its wheels, GUI and image, and writes its notes. No tag
+# leaves this machine.
+# Needs GH_TOKEN or a gh login, to find the last release for the notes.
 # SBT2_RELEASE_CHECK replaces the make check command; only the tests of this script use it.
 set -euo pipefail
 shopt -s inherit_errexit
@@ -120,51 +118,14 @@ build_all() {
     mv "$WORK/SHA256SUMS" "$files/"
 }
 
-# Prints the id of the draft for tag $1 and commit $2, or nothing. Refuses a draft for another commit.
-find_draft() {
-    local tag=$1 commit=$2 draft id target
-    draft=$(github_api "$GITHUB_API/repos/$REPO/releases?per_page=100" |
-        jq -r --arg tag "$tag" '[.[] | select(.draft and .tag_name == $tag)][0] // empty | "\(.id) \(.target_commitish)"')
-    [ -n "$draft" ] || return 0
-    read -r id target <<<"$draft"
-    [ "$target" = "$commit" ] || die "the draft of $tag targets $target, not $commit; delete it first"
-    echo "$id"
+# Replaces the build in $RELEASE_DIR with the one in $WORK
+save_build() {
+    rm -rf "$RELEASE_DIR"
+    mkdir -p "$RELEASE_DIR"
+    mv "$WORK/files" "$WORK/notes.md" "$WORK/tags" "$RELEASE_DIR/"
+    git rev-parse HEAD >"$RELEASE_DIR/head"
 }
 
-create_draft() {
-    local tag=$1 commit=$2
-    jq -n --arg tag "$tag" --arg commit "$commit" --rawfile body "$WORK/notes.md" \
-        '{tag_name: $tag, target_commitish: $commit, name: $tag, body: $body, draft: true}' |
-        github_api -X POST -d @- "$GITHUB_API/repos/$REPO/releases" | jq -r .id
-}
-
-# Makes the draft for tag $1 and commit $2, or finds the one an earlier run left. Prints its id.
-draft_release() {
-    local tag=$1 commit=$2 id
-    id=$(find_draft "$tag" "$commit")
-    if [ -z "$id" ]; then
-        id=$(create_draft "$tag" "$commit")
-    else
-        jq -n --rawfile body "$WORK/notes.md" '{body: $body}' | edit_release "$id" "$tag" "$commit"
-    fi
-    echo "$id"
-}
-
-upload_files() {
-    local id=$1 file
-    for file in "$WORK"/files/*; do
-        upload_asset "$id" "$file"
-    done
-}
-
-# Pushes the planned tags of the merges older than the release, all or none
-push_older_tags() {
-    local refspecs
-    mapfile -t refspecs < <(head -n -1 "$WORK/tags" | awk '{ print $1 ":refs/tags/" $2 }')
-    [ "${#refspecs[@]}" -eq 0 ] || git push --quiet --atomic origin "${refspecs[@]}"
-}
-
-[ -n "${GHCR_TOKEN:-}" ] || die "set GHCR_TOKEN to a classic token with write:packages"
 use_github_token
 check_head_is_origin_main
 check_tree_is_clean
@@ -177,12 +138,5 @@ version=${tag#v}
 write_notes "$commit"
 check_out_source "$commit"
 build_all "$version"
-id=$(draft_release "$tag" "$commit")
-upload_files "$id"
-digest=$(push_image "$version")
-name_image_in_notes "$id" "$IMAGE_REPOSITORY:$version@$digest"
-push_older_tags
-publish "$id" "$tag" "$commit"
-deploy
-git fetch --quiet --tags origin
-echo "release: published $tag, and tagged $(head -n -1 "$WORK/tags" | wc -l) older merges"
+save_build
+echo "release-build: built $tag into $RELEASE_DIR; run make publish to publish it"
