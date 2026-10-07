@@ -90,7 +90,7 @@ fn bento<'a>(columns: Vec<Vec<Group>>) -> Element<'a, Message> {
 }
 
 fn tile<'a>(title: &str, body: Element<'a, Message>) -> Element<'a, Message> {
-    let card = Card::new(text(title.to_owned()).size(18), body);
+    let card = Card::new(text(title.to_owned()).size(18), body).style(style::aw_card);
     container(card).width(Length::Fill).into()
 }
 
