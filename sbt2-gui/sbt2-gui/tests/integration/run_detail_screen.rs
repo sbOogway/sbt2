@@ -110,3 +110,14 @@ fn the_charts_tab_draws_each_chart_with_its_title() {
         assert!(ui.find(title).is_ok(), "{title} is not shown");
     }
 }
+
+#[test]
+fn each_metric_group_shows_its_title_in_a_card() {
+    let detail = overview_detail();
+
+    let mut ui = simulator(detail.view());
+
+    for title in ["PnLs", "Returns"] {
+        assert!(ui.find(title).is_ok(), "{title} is not shown");
+    }
+}

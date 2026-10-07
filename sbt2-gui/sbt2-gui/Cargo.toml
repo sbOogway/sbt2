@@ -15,6 +15,7 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.9"
 tokio = { version = "1", features = ["rt", "sync"] }
 iced_plot = { version = "=0.5.0", features = ["canvas"] }
+iced_aw = { version = "=0.14.1", default-features = false, features = ["card", "badge", "spinner"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus-secret-service-keyring-store = { version = "1", features = ["crypto-rust"] }
