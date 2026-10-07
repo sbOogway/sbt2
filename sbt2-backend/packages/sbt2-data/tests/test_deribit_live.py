@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from nautilus_trader.model import NautilusDataType, OptionContract, TradeTick
+from nautilus_trader.model import CryptoOption, NautilusDataType, TradeTick
 from nautilus_trader.persistence import ParquetDataCatalog
 
 from sbt2.data import (
@@ -41,7 +41,7 @@ def test_one_day_of_btc_option_trades_downloads_and_ingests(tmp_path: Path) -> N
     stored = ParquetDataCatalog(str(catalog))
     contracts = stored.instruments()
     assert len(contracts) > 50
-    assert all(isinstance(each, OptionContract) for each in contracts)
+    assert all(isinstance(each, CryptoOption) for each in contracts)
     ticks = stored.query(NautilusDataType.TradeTick)
     assert len(ticks) > 1000
     assert all(isinstance(each, TradeTick) for each in ticks)

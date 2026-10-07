@@ -8,10 +8,9 @@ from typing import Any
 import pandas as pd
 from nautilus_trader.model import (
     AggressorSide,
-    AssetClass,
+    CryptoOption,
     Currency,
     InstrumentId,
-    OptionContract,
     OptionKind,
     Price,
     Quantity,
@@ -31,15 +30,15 @@ def contract_id(name: str) -> InstrumentId:
     return InstrumentId.from_str(f"{name}.{VENUE}")
 
 
-class Contracts(Mapping[InstrumentId, OptionContract]):
+class Contracts(Mapping[InstrumentId, CryptoOption]):
     """The option contracts of a snapshot, each built when first asked for."""
 
     def __init__(self, specs: Sequence[Mapping[str, Any]], ts_init: int) -> None:
         self._specs = {contract_id(each["instrument_name"]): each for each in specs}
         self._ts_init = ts_init
-        self._built: dict[InstrumentId, OptionContract] = {}
+        self._built: dict[InstrumentId, CryptoOption] = {}
 
-    def __getitem__(self, instrument_id: InstrumentId) -> OptionContract:
+    def __getitem__(self, instrument_id: InstrumentId) -> CryptoOption:
         if instrument_id not in self._built:
             self._built[instrument_id] = _contract(
                 self._specs[instrument_id], self._ts_init
@@ -77,12 +76,12 @@ def trades(
     return ticks
 
 
-def _tick(trade: Mapping[str, Any], contract: OptionContract) -> TradeTick:
+def _tick(trade: Mapping[str, Any], contract: CryptoOption) -> TradeTick:
     ts = int(trade["timestamp"]) * _NANOS_PER_MILLI
     return TradeTick(
         contract.id,
         Price(trade["price"], contract.price_precision),
-        Quantity(trade["amount"], contract.lot_size.precision),
+        Quantity(trade["amount"], contract.size_precision),
         _AGGRESSOR_SIDES[trade["direction"]],
         TradeId(str(trade["trade_id"])),
         ts,
@@ -90,25 +89,27 @@ def _tick(trade: Mapping[str, Any], contract: OptionContract) -> TradeTick:
     )
 
 
-def _contract(spec: Mapping[str, Any], ts_init: int) -> OptionContract:
+def _contract(spec: Mapping[str, Any], ts_init: int) -> CryptoOption:
     tick = _decimals(spec["tick_size"])
-    strike = _decimals(spec["strike"])
-    return OptionContract(
+    lot = _decimals(spec["min_trade_amount"])
+    return CryptoOption(
         contract_id(spec["instrument_name"]),
         Symbol(spec["instrument_name"]),
-        AssetClass.CRYPTOCURRENCY,
-        spec["base_currency"],
-        _OPTION_KINDS[spec["option_type"]],
-        Price(spec["strike"], strike),
+        Currency.from_str(spec["base_currency"]),
+        Currency.from_str(spec["quote_currency"]),
         Currency.from_str(spec["settlement_currency"]),
+        True,
+        _OPTION_KINDS[spec["option_type"]],
+        Price(spec["strike"], _decimals(spec["strike"])),
         int(spec["creation_timestamp"]) * _NANOS_PER_MILLI,
         int(spec["expiration_timestamp"]) * _NANOS_PER_MILLI,
         tick,
+        lot,
         Price(spec["tick_size"], tick),
-        Quantity(spec["contract_size"], _decimals(spec["contract_size"])),
-        Quantity(spec["min_trade_amount"], _decimals(spec["min_trade_amount"])),
+        Quantity(spec["min_trade_amount"], lot),
         ts_init,
         ts_init,
+        multiplier=Quantity(spec["contract_size"], _decimals(spec["contract_size"])),
     )
 
 

@@ -10,8 +10,8 @@ import pytest
 from nautilus_trader.model import (
     AggressorSide,
     Bar,
+    CryptoOption,
     InstrumentId,
-    OptionContract,
     OptionKind,
     TradeTick,
 )
@@ -173,7 +173,7 @@ def test_the_instrument_snapshot_lists_live_and_expired_options(
         "BTC-31JAN25-83000-P.DERIBIT",
         "BTC-3JAN25-96000-P.DERIBIT",
     }
-    assert all(isinstance(instruments[each], OptionContract) for each in instruments)
+    assert all(isinstance(instruments[each], CryptoOption) for each in instruments)
 
 
 @pytest.mark.unit
@@ -190,10 +190,15 @@ def test_an_option_contract_carries_its_strike_expiry_kind_and_currency(
     assert str(contract.strike_price) == "88000"
     assert contract.expiration_ns == 1_736_496_000_000 * 1_000_000
     assert contract.activation_ns == 1_734_637_920_000 * 1_000_000
-    assert str(contract.currency) == "BTC"
-    assert contract.underlying == "BTC"
+    assert str(contract.underlying) == "BTC"
+    assert str(contract.quote_currency) == "BTC"
+    assert str(contract.settlement_currency) == "BTC"
+    assert contract.is_inverse
+    assert str(contract.multiplier) == "1"
     assert contract.price_precision == 4
-    assert str(contract.lot_size) == "0.1"
+    assert str(contract.price_increment) == "0.0001"
+    assert contract.size_precision == 1
+    assert str(contract.size_increment) == "0.1"
 
 
 @pytest.mark.unit
