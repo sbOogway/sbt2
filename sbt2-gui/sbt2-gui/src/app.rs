@@ -257,6 +257,7 @@ impl App {
         self.warnings.clear();
         let settings = Settings {
             last_server: Some(self.form.url.clone()),
+            ..Settings::load(&self.env.config_dir)
         };
         if let Err(error) = settings.save(&self.env.config_dir) {
             self.warnings.push(Warning::NotSaved(error.to_string()));
