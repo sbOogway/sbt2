@@ -54,6 +54,7 @@ enum Warning {
     NotSaved(String),
     VersionMismatch { server: String },
     TokenFileReadable,
+    NoConfigFolder(String),
 }
 
 impl fmt::Display for Warning {
@@ -62,6 +63,9 @@ impl fmt::Display for Warning {
             Self::NoKeyring => formatter
                 .write_str("No OS keyring: the token is kept in a file that only you can read."),
             Self::NotSaved(reason) => write!(formatter, "Could not save the connection: {reason}"),
+            Self::NoConfigFolder(reason) => {
+                write!(formatter, "Could not create the config folder: {reason}")
+            }
             Self::TokenFileReadable => formatter.write_str(
                 "settings.toml holds a token that others can read. Run chmod 600 on it.",
             ),
@@ -99,11 +103,13 @@ impl App {
         let settings = Settings::load(&env.config_dir);
         let configured = settings.server.as_ref().is_some_and(|url| !url.is_empty());
         let form = start_form(&settings, &env.tokens);
-        let warnings = if Settings::exposes_token(&env.config_dir) {
-            vec![Warning::TokenFileReadable]
-        } else {
-            Vec::new()
-        };
+        let mut warnings = Vec::new();
+        if let Err(error) = config::create_folder(&env.config_dir) {
+            warnings.push(Warning::NoConfigFolder(error.to_string()));
+        }
+        if Settings::exposes_token(&env.config_dir) {
+            warnings.push(Warning::TokenFileReadable);
+        }
         let mut app = Self {
             env,
             form,
@@ -730,5 +736,39 @@ mod tests {
 
         assert_eq!(app.warnings, [Warning::TokenFileReadable]);
         assert!(app.warnings[0].to_string().contains("chmod 600"));
+    }
+
+    #[test]
+    fn the_app_creates_a_missing_config_folder() {
+        let root = TempDir::new().unwrap();
+        let config_dir = root.path().join("sbt2-gui");
+        let env = Environment {
+            tokens: TokenStore::new(None, &config_dir),
+            config_dir: config_dir.clone(),
+        };
+
+        let _ = App::new(env);
+
+        assert!(config_dir.is_dir());
+    }
+
+    #[test]
+    fn a_config_folder_that_cannot_be_created_gives_a_warning() {
+        let root = TempDir::new().unwrap();
+        let file = root.path().join("a-file");
+        fs::write(&file, "").unwrap();
+        let config_dir = file.join("sbt2-gui");
+        let env = Environment {
+            tokens: TokenStore::new(None, &config_dir),
+            config_dir,
+        };
+
+        let (app, _) = App::new(env);
+
+        assert!(
+            app.warnings
+                .iter()
+                .any(|warning| matches!(warning, Warning::NoConfigFolder(_)))
+        );
     }
 }

@@ -62,9 +62,14 @@ from source as above.
 
 ## Connection
 
-The token is kept in the OS keyring (Secret Service). Without a keyring it goes
-to a `0600` file in `$XDG_CONFIG_HOME/sbt2-gui/`, and the GUI shows a warning.
-The last server URL is remembered in `settings.toml` in the same folder. The
+The GUI keeps its files in the `sbt2-gui` folder of the OS config folder:
+`$XDG_CONFIG_HOME/sbt2-gui` (`~/.config/sbt2-gui`) on Linux,
+`~/Library/Application Support/sbt2-gui` on macOS and `%APPDATA%\sbt2-gui` on
+Windows. It creates the folder at start when it is missing, owner-only on Unix.
+
+The token is kept in the OS keyring. Without a keyring it goes to a `0600` file
+in the config folder, and the GUI shows a warning. The last server URL is
+remembered in `settings.toml` in the same folder. The
 same file can hold `theme = "light"` or `theme = "dark"`; the GUI opens light
 without it.
 
