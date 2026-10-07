@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use directories::BaseDirs;
 
-pub use settings::Settings;
+pub use settings::{Settings, Theme};
 pub use token_store::{Storage, TokenStore};
 
 const APP_FOLDER: &str = "sbt2-gui";

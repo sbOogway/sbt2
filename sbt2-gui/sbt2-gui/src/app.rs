@@ -11,7 +11,7 @@ use sbt2_client::{
 };
 
 use crate::{
-    config::{self, Settings, Storage, TokenStore},
+    config::{self, Settings, Storage, Theme, TokenStore},
     screens::{
         connection::{self, Form, Status},
         navigation::{self, Area},
@@ -87,13 +87,13 @@ pub struct App {
     connected: Option<Connected>,
     runs: RunsTable,
     detail: RunDetail,
+    theme: Theme,
 }
 
 impl App {
     pub fn new(env: Environment) -> (Self, Task<Message>) {
-        let url = Settings::load(&env.config_dir)
-            .last_server
-            .unwrap_or_default();
+        let settings = Settings::load(&env.config_dir);
+        let url = settings.last_server.unwrap_or_default();
         let token = env.tokens.load(&url).unwrap_or_default();
         let app = Self {
             env,
@@ -103,8 +103,16 @@ impl App {
             connected: None,
             runs: RunsTable::default(),
             detail: RunDetail::default(),
+            theme: settings.theme,
         };
         (app, Task::none())
+    }
+
+    pub fn theme(&self) -> iced::Theme {
+        match self.theme {
+            Theme::Light => iced::Theme::Light,
+            Theme::Dark => iced::Theme::Dark,
+        }
     }
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
@@ -536,5 +544,38 @@ mod tests {
         let _ = app.update(Message::Connected(Ok(session)));
 
         assert_eq!(app.detail.open("a"), [Load::Summary, Load::Metrics]);
+    }
+
+    fn save_theme(folder: &TempDir, theme: Theme) {
+        let settings = Settings {
+            theme,
+            ..Settings::default()
+        };
+        settings.save(folder.path()).unwrap();
+    }
+
+    #[test]
+    fn the_app_opens_with_the_theme_of_the_settings() {
+        let folder = TempDir::new().unwrap();
+        let tokens = || TokenStore::new(None, folder.path());
+        assert_eq!(app_in(&folder, tokens()).theme(), iced::Theme::Light);
+
+        save_theme(&folder, Theme::Dark);
+
+        assert_eq!(app_in(&folder, tokens()).theme(), iced::Theme::Dark);
+    }
+
+    #[test]
+    fn connecting_keeps_the_chosen_theme() {
+        let folder = TempDir::new().unwrap();
+        save_theme(&folder, Theme::Dark);
+        let mut app = app_in(&folder, TokenStore::new(None, folder.path()));
+        filled(&mut app, "ws://127.0.0.1:1");
+
+        let _ = app.update(Message::Connected(Ok(offline_session(&[]))));
+
+        let saved = Settings::load(folder.path());
+        assert_eq!(saved.theme, Theme::Dark);
+        assert_eq!(saved.last_server.as_deref(), Some("ws://127.0.0.1:1"));
     }
 }
