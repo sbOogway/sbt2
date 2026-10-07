@@ -5,7 +5,7 @@ nautilus's own instrument dicts.
 """
 
 import json
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from functools import partial
@@ -95,9 +95,10 @@ class ServedSource(Source):
         for ts in json.loads(path.read_text()):
             yield _RECORDS[data_type](instrument.id, ts)
 
-    def parse_instrument(self, path: Path) -> Any:
+    def parse_instruments(self, path: Path) -> Mapping[InstrumentId, Any]:
         fields = json.loads(path.read_text())
-        return getattr(nautilus_trader.model, fields["type"]).from_dict(fields)
+        instrument = getattr(nautilus_trader.model, fields["type"]).from_dict(fields)
+        return {instrument.id: instrument}
 
     async def _fetch(self, path: PurePosixPath) -> bytes:
         self.fetched.append(path)

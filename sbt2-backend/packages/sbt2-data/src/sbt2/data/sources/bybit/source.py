@@ -1,4 +1,4 @@
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from datetime import date
 from functools import partial
@@ -66,8 +66,9 @@ class BybitSource(Source):
     def parse(self, path: Path, data_type: type, instrument: Any) -> Iterator[Any]:
         return channel(data_type).parser(path, instrument)
 
-    def parse_instrument(self, path: Path) -> Any:
-        return parse.instrument(path)
+    def parse_instruments(self, path: Path) -> Mapping[InstrumentId, Any]:
+        instrument = parse.instrument(path)
+        return {instrument.id: instrument}
 
     def _listed_data_type(self, name: str) -> type:
         return named(name).data_type

@@ -147,23 +147,17 @@ class Source(ABC):
         """The ``data_type`` records of one raw day file, in time order."""
 
     @abstractmethod
-    def parse_instrument(self, path: Path) -> Any:
-        """The instrument of a snapshot, initialised at the start of its day."""
-
     def parse_instruments(self, path: Path) -> Mapping[InstrumentId, Any]:
-        """The instruments of a snapshot by id; the lookup may build them on demand.
-
-        A source whose raw file holds many instruments overrides this, ``parse_day``
-        and ``day_instrument_ids``; the default is the snapshot's one instrument.
-        """
-        instrument = self.parse_instrument(path)
-        return {instrument.id: instrument}
+        """The instruments of a snapshot by id, each initialised at the start of its
+        day; the lookup may build them on demand."""
 
     def day_instrument_ids(
-        self, _path: Path, instruments: Mapping[InstrumentId, Any], /
+        self, path: Path, instruments: Mapping[InstrumentId, Any]
     ) -> tuple[InstrumentId, ...]:
-        """The ids of the ``instruments`` the raw day file holds records of; none
-        when the file is missing."""
+        """The ids of the ``instruments`` the raw day file holds records of; by
+        default all of them. A source whose raw file holds many instruments
+        overrides this and ``parse_day``."""
+        del path
         return tuple(instruments)
 
     def parse_day(

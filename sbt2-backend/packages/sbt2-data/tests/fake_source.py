@@ -1,7 +1,7 @@
 """A source serving trades as files from a ``FileServer`` and funding from a fake API."""
 
 import asyncio
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from datetime import date
 from functools import partial
 from pathlib import Path, PurePosixPath
@@ -80,7 +80,7 @@ class FakeSource(Source):
     def parse(self, path: Path, data_type: type, instrument: Any) -> Iterator[Any]:
         raise NotImplementedError
 
-    def parse_instrument(self, path: Path) -> Any:
+    def parse_instruments(self, path: Path) -> Mapping[InstrumentId, Any]:
         raise NotImplementedError
 
 

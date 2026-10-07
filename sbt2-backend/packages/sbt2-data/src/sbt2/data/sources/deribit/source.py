@@ -76,16 +76,13 @@ class DeribitSource(Source):
         parsed = self.parse_day(path, data_type, {instrument.id: instrument})
         return iter(parsed[instrument.id])
 
-    def parse_instrument(self, path: Path) -> Any:
-        raise NotImplementedError("a deribit snapshot lists many instruments")
-
     @override
     def parse_instruments(self, path: Path) -> Mapping[InstrumentId, Any]:
         return parse.contracts(path)
 
     @override
     def day_instrument_ids(
-        self, path: Path, instruments: Mapping[InstrumentId, Any], /
+        self, path: Path, instruments: Mapping[InstrumentId, Any]
     ) -> tuple[InstrumentId, ...]:
         return parse.traded_ids(path)
 
