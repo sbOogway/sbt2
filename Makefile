@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help sync check test-backend test-protocol test-gui release release-gui release-image rebase-open-branches
+.PHONY: help sync check test-backend test-protocol test-gui build publish release release-gui release-image rebase-open-branches
 
 help:
 	@echo "make sync          prepare the locked backend and protocol environments"
@@ -10,7 +10,9 @@ help:
 	@echo "make test-gui      run the GUI's format, lint and test checks"
 	@echo "make release-gui   backfill: build the Linux GUI and upload it to a release"
 	@echo "make release-image backfill: build the image, test it and push it to GHCR"
-	@echo "make release       tag the merges since the last tag, build and publish the newest"
+	@echo "make build         plan the tags of the merges since the last tag and build the newest"
+	@echo "make publish       publish the release that make build left"
+	@echo "make release       make build, then make publish"
 	@echo "make rebase-open-branches  rebase the open local branches onto origin/main and push them"
 
 sync:
@@ -41,8 +43,15 @@ release-gui:
 release-image:
 	scripts/release-image.sh
 
+build:
+	scripts/release-build.sh
+
+publish:
+	scripts/release-publish.sh
+
 release:
-	scripts/release.sh
+	$(MAKE) build
+	$(MAKE) publish
 
 rebase-open-branches:
 	scripts/rebase-open-branches.sh
