@@ -16,6 +16,8 @@ use crate::{format, screens::section::Section, style};
 /// Below this width the tiles go in one column.
 const WIDE_WINDOW: f32 = 900.0;
 
+const LABEL_WIDTH: f32 = 280.0;
+
 type Lines = Vec<(String, String)>;
 type Group = (String, Lines);
 
@@ -97,8 +99,14 @@ fn tile<'a>(title: &str, body: Element<'a, Message>) -> Element<'a, Message> {
 fn labelled<'a>(lines: Lines) -> Element<'a, Message> {
     let rows = lines
         .into_iter()
-        .map(|(label, value)| row![text(label).width(280), text(value)].spacing(12).into());
+        .map(|(label, value)| line(label, text(value).into()));
     column(rows).into()
+}
+
+fn line<'a>(label: String, value: Element<'a, Message>) -> Element<'a, Message> {
+    row![text(label).width(LABEL_WIDTH), value]
+        .spacing(style::GAP)
+        .into()
 }
 
 fn run_body<'a>(run: &RunSummary) -> Element<'a, Message> {
@@ -108,7 +116,7 @@ fn run_body<'a>(run: &RunSummary) -> Element<'a, Message> {
     } else {
         Badge::new(text(tripped)).style(badge::danger).into()
     };
-    let trip = row![text("Drawdown trip").width(280), value].spacing(12);
+    let trip = line("Drawdown trip".to_owned(), value);
     column![labelled(header_lines(run)), trip].into()
 }
 
