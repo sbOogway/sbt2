@@ -23,7 +23,11 @@ cargo build --locked
 cargo run --locked -p sbt2-gui
 cargo test --locked                  # unit and integration tests
 cargo test --locked -- --ignored     # e2e tests; they start the real server with uv
+cargo test --locked run_detail       # only the tests whose path has "run_detail"
 ```
+
+The integration tests of each crate build into one binary,
+`tests/integration/main.rs`, as every test binary links all dependencies.
 
 From the repository root, `make test-gui` runs `cargo fmt --check`,
 `cargo clippy -D warnings` and the tests.
@@ -31,6 +35,24 @@ From the repository root, `make test-gui` runs `cargo fmt --check`,
 The e2e test starts `sbt2-server` from `../sbt2-backend` with a temporary data
 folder holding one stored run. `SBT2_E2E_UV` names the `uv` command, and
 `SBT2_E2E_PORT` the port; a free port is the default.
+
+### Faster builds
+
+Dev builds keep only line tables as debug info, so a debugger shows lines but
+no variables. For full debug info in our crates, build with
+`CARGO_PROFILE_DEV_DEBUG=true`.
+
+Rust 1.90 and later link with `rust-lld` on Linux already, so `mold` gains
+nothing here. The Cranelift backend compiles debug builds without LLVM, but
+needs nightly Rust; the repository pins stable. To try it:
+
+```sh
+rustup component add rustc-codegen-cranelift-preview --toolchain nightly
+cargo +nightly -Zcodegen-backend test \
+  --config 'profile.dev.codegen-backend="cranelift"'
+```
+
+`cargo clean` removes old builds, which `target/` keeps for ever.
 
 ## Release binary
 
