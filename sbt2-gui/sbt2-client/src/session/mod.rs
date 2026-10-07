@@ -1,18 +1,25 @@
+mod connection;
+mod dispatch;
+mod ids;
+
 use std::sync::Arc;
 
 use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::{
-    Backoff, ClientError, ServerAddress, Token, arrow,
-    connection::{Command, Connection, Dial},
-    dispatch::{Dispatcher, Reply},
-    ids::RequestIds,
+    Backoff, ClientError, ServerAddress, Token,
     protocol::{
         BenchmarkSelection, ClientMessage, GetMetrics, GetPanel, GetRun, GetSeries, ListRuns,
         PanelKind, RunFilter, RunSummary, SeriesKind, Welcome, client_message,
         server_message::Body,
     },
-    results::{Point, RunMetrics, Table},
+    results::{Point, RunMetrics, Table, arrow},
+};
+
+use self::{
+    connection::{Command, Connection, Dial},
+    dispatch::{Dispatcher, Reply},
+    ids::RequestIds,
 };
 
 /// Whether the session has a working connection.

@@ -4,12 +4,15 @@ use tokio::sync::{mpsc, oneshot, watch};
 
 use crate::{
     Backoff, ClientError, ConnectionState, ServerAddress, Token,
-    dispatch::{Dispatcher, Reply},
-    ids::RequestIds,
+    net::Link,
     protocol::{
         ClientMessage, Hello, ServerMessage, Welcome, client_message, server_message::Body,
     },
-    transport::Link,
+};
+
+use super::{
+    dispatch::{Dispatcher, Reply},
+    ids::RequestIds,
 };
 
 pub(crate) enum Command {

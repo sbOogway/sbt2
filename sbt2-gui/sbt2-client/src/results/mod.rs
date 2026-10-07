@@ -1,5 +1,7 @@
 //! The decoded results of a run.
 
+pub(crate) mod arrow;
+
 use crate::protocol::Metric;
 
 /// One sample of a series: a UTC time and a value, NaN where it is undefined.
