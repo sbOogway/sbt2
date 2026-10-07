@@ -6,9 +6,18 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use super::owner_only::{open_owner_only, others_can_read};
+use super::owner_only::{create_owner_only, open_owner_only, others_can_read};
 
 const FILE: &str = "settings.toml";
+const TEMPLATE: &str = r#"# sbt2-gui settings. The GUI reads this file at start.
+
+# A server to connect to at start, and its token.
+server = "ws://192.168.0.77:8765"
+token = "test_token"
+
+# "light" or "dark"
+theme = "light"
+"#;
 
 /// What the GUI remembers between runs, in `settings.toml` in the config folder.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,6 +56,16 @@ impl Settings {
     pub fn exposes_token(config_dir: &Path) -> bool {
         let path = config_dir.join(FILE);
         Self::load(config_dir).token.is_some() && others_can_read(&path)
+    }
+
+    /// Writes the commented template to a missing settings file, owner-only as the user
+    /// can add a token to it. An existing file is left as it is.
+    pub fn create_default(config_dir: &Path) -> io::Result<()> {
+        match create_owner_only(&config_dir.join(FILE)) {
+            Ok(mut file) => file.write_all(TEMPLATE.as_bytes()),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => Ok(()),
+            Err(error) => Err(error),
+        }
     }
 
     pub fn save(&self, config_dir: &Path) -> io::Result<()> {
@@ -151,6 +170,45 @@ mod tests {
         settings.save(folder.path()).unwrap();
 
         assert_eq!(Settings::load(folder.path()), settings);
+    }
+
+    #[test]
+    fn a_missing_settings_file_is_created_from_the_template() {
+        let folder = TempDir::new().unwrap();
+
+        Settings::create_default(folder.path()).unwrap();
+
+        let settings = Settings::load(folder.path());
+        assert_eq!(settings.server.as_deref(), Some("ws://192.168.0.77:8765"));
+        assert_eq!(settings.token.as_deref(), Some("test_token"));
+        assert_eq!(settings.theme, Theme::Light);
+    }
+
+    #[test]
+    fn an_existing_settings_file_is_left_as_it_is() {
+        let folder = TempDir::new().unwrap();
+        fs::write(folder.path().join(FILE), "theme = \"dark\"\n").unwrap();
+
+        Settings::create_default(folder.path()).unwrap();
+
+        let text = fs::read_to_string(folder.path().join(FILE)).unwrap();
+        assert_eq!(text, "theme = \"dark\"\n");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_new_settings_file_is_owner_only() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let folder = TempDir::new().unwrap();
+
+        Settings::create_default(folder.path()).unwrap();
+
+        let mode = fs::metadata(folder.path().join(FILE))
+            .unwrap()
+            .permissions()
+            .mode();
+        assert_eq!(mode & 0o777, 0o600);
     }
 
     #[cfg(unix)]

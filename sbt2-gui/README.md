@@ -65,7 +65,9 @@ from source as above.
 The GUI keeps its files in the `sbt2-gui` folder of the OS config folder:
 `$XDG_CONFIG_HOME/sbt2-gui` (`~/.config/sbt2-gui`) on Linux,
 `~/Library/Application Support/sbt2-gui` on macOS and `%APPDATA%\sbt2-gui` on
-Windows. It creates the folder at start when it is missing, owner-only on Unix.
+Windows. It creates the folder at start when it is missing, owner-only on Unix,
+and a commented `settings.toml` (`0600`) that lists the keys you can set. Its
+default `server` is `ws://192.168.0.77:8765`, with the token `test_token`.
 
 The token is kept in the OS keyring. Without a keyring it goes to a `0600` file
 in the config folder, and the GUI shows a warning. The last server URL is

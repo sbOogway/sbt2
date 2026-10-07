@@ -26,6 +26,26 @@ pub(super) fn open_owner_only(path: &Path) -> io::Result<fs::File> {
         .open(path)
 }
 
+/// Creates the file `path` owner-only; fails with `AlreadyExists` when it exists.
+#[cfg(unix)]
+pub(super) fn create_owner_only(path: &Path) -> io::Result<fs::File> {
+    use std::os::unix::fs::OpenOptionsExt;
+
+    fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .open(path)
+}
+
+#[cfg(not(unix))]
+pub(super) fn create_owner_only(path: &Path) -> io::Result<fs::File> {
+    fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+}
+
 /// Whether group or others can read the file.
 #[cfg(unix)]
 pub(super) fn others_can_read(path: &Path) -> bool {
