@@ -1,9 +1,9 @@
 use std::{fmt, path::PathBuf};
 
 use iced::{
-    Element, Length, Task,
+    Element, Task,
     futures::stream,
-    widget::{self, button, column, container, row, text, text_input},
+    widget::{self, button, column, row, text},
 };
 use sbt2_client::{
     Client, ClientError, ConnectionState, ServerAddress, Session, Token, VERSION,
@@ -13,6 +13,7 @@ use sbt2_client::{
 use crate::{
     config::{self, Settings, Storage, TokenStore},
     screens::{
+        connection::{self, Form, Status},
         navigation::{self, Area},
         run_detail::{self, Load, RunDetail},
         runs::{self, RunsTable},
@@ -67,19 +68,6 @@ impl fmt::Display for Warning {
             ),
         }
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Status {
-    Idle,
-    Connecting,
-    Failed(String),
-}
-
-#[derive(Debug, Default)]
-struct Form {
-    url: String,
-    token: String,
 }
 
 struct Connected {
@@ -138,7 +126,11 @@ impl App {
     pub fn view(&self) -> Element<'_, Message> {
         match &self.connected {
             Some(connected) => self.shell(connected),
-            None => self.connection_screen(),
+            None => connection::view(
+                &self.form,
+                &self.status,
+                self.warnings.iter().map(ToString::to_string),
+            ),
         }
     }
 
@@ -285,38 +277,6 @@ impl App {
         }
     }
 
-    fn connection_screen(&self) -> Element<'_, Message> {
-        let mut form = column![
-            text("Connect to an sbt2 server").size(24),
-            text_input("ws://host:8765 or wss://host", &self.form.url)
-                .id(URL_INPUT)
-                .on_input(Message::UrlChanged)
-                .on_submit(Message::Connect),
-            text_input("API token", &self.form.token)
-                .id(TOKEN_INPUT)
-                .secure(true)
-                .on_input(Message::TokenChanged)
-                .on_submit(Message::Connect),
-            button("Connect")
-                .on_press_maybe((self.status != Status::Connecting).then_some(Message::Connect)),
-        ]
-        .spacing(12)
-        .max_width(480);
-        form = form.push(text(self.status_text()));
-        for warning in &self.warnings {
-            form = form.push(text(warning.to_string()));
-        }
-        container(form).center(Length::Fill).into()
-    }
-
-    fn status_text(&self) -> String {
-        match &self.status {
-            Status::Idle => String::new(),
-            Status::Connecting => "Connecting...".to_owned(),
-            Status::Failed(error) => format!("Connection failed: {error}"),
-        }
-    }
-
     fn shell<'a>(&'a self, connected: &'a Connected) -> Element<'a, Message> {
         let navigation = connected.areas.iter().map(|area| {
             let label = button(text(area.title()));
@@ -350,9 +310,6 @@ impl App {
         }
     }
 }
-
-const URL_INPUT: &str = "server-url";
-const TOKEN_INPUT: &str = "server-token";
 
 fn state_text(state: ConnectionState) -> &'static str {
     match state {
