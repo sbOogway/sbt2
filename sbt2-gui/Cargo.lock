@@ -3715,6 +3715,7 @@ dependencies = [
  "iced_plot",
  "iced_test",
  "keyring-core",
+ "prost-types",
  "sbt2-client",
  "serde",
  "tempfile",

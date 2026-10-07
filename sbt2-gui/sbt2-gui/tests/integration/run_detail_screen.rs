@@ -121,3 +121,22 @@ fn each_metric_group_shows_its_title_in_a_card() {
         assert!(ui.find(title).is_ok(), "{title} is not shown");
     }
 }
+
+#[test]
+fn a_tripped_drawdown_shows_its_day_in_a_badge() {
+    let mut detail = RunDetail::default();
+    detail.open("run-1");
+    let summary = RunSummary {
+        drawdown_tripped_at: Some(prost_types::Timestamp {
+            seconds: 1_704_067_200,
+            nanos: 0,
+        }),
+        ..RunSummary::default()
+    };
+    let loaded = Loaded::Summary(Ok(Box::new(summary)));
+    detail.update(Message::Loaded("run-1".to_owned(), loaded));
+
+    let mut ui = simulator(detail.view());
+
+    assert!(ui.find("2024-01-01").is_ok());
+}

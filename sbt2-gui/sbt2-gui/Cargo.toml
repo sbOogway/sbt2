@@ -29,4 +29,5 @@ windows-native-keyring-store = "1"
 [dev-dependencies]
 sbt2-client = { path = "../sbt2-client", features = ["test-support"] }
 iced_test = "=0.14.0"
+prost-types = "=0.14.4"
 tempfile = "3"

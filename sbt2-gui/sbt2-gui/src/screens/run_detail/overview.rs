@@ -4,7 +4,7 @@ use iced::{
     Element, Length,
     widget::{column, container, responsive, row, text},
 };
-use iced_aw::Card;
+use iced_aw::{Badge, Card, style::badge};
 use sbt2_client::{
     RunMetrics,
     protocol::{Metric, MetricGroup, RunSummary},
@@ -55,7 +55,7 @@ fn header(summary: &Section<Box<RunSummary>>) -> Element<'_, Message> {
     match summary {
         Section::Loading => text("Loading the run...").into(),
         Section::Failed(error) => text(format!("Could not load the run: {error}")).into(),
-        Section::Ready(run) => tile("Run", header_lines(run)),
+        Section::Ready(run) => tile("Run", run_body(run)),
     }
 }
 
@@ -69,7 +69,9 @@ fn metrics(metrics: &Section<RunMetrics>, columns: usize) -> Element<'_, Message
 
 fn bento<'a>(columns: Vec<Vec<Group>>) -> Element<'a, Message> {
     let columns = columns.into_iter().map(|groups| {
-        let tiles = groups.into_iter().map(|(title, lines)| tile(&title, lines));
+        let tiles = groups
+            .into_iter()
+            .map(|(title, lines)| tile(&title, labelled(lines)));
         column(tiles)
             .spacing(style::GAP)
             .width(Length::FillPortion(1))
@@ -78,8 +80,8 @@ fn bento<'a>(columns: Vec<Vec<Group>>) -> Element<'a, Message> {
     row(columns).spacing(style::GAP).into()
 }
 
-fn tile<'a>(title: &str, lines: Lines) -> Element<'a, Message> {
-    let card = Card::new(text(title.to_owned()).size(18), labelled(lines));
+fn tile<'a>(title: &str, body: Element<'a, Message>) -> Element<'a, Message> {
+    let card = Card::new(text(title.to_owned()).size(18), body);
     container(card).width(Length::Fill).into()
 }
 
@@ -90,11 +92,24 @@ fn labelled<'a>(lines: Lines) -> Element<'a, Message> {
     column(rows).into()
 }
 
+fn run_body<'a>(run: &RunSummary) -> Element<'a, Message> {
+    let tripped = day(run.drawdown_tripped_at.as_ref().map(|at| at.seconds));
+    let value: Element<'a, Message> = if tripped.is_empty() {
+        text(tripped).into()
+    } else {
+        Badge::new(text(tripped)).style(badge::danger).into()
+    };
+    let trip = row![text("Drawdown trip").width(280), value].spacing(12);
+    column![labelled(header_lines(run)), trip].into()
+}
+
+fn day(seconds: Option<i64>) -> String {
+    seconds.map(format::utc_day).unwrap_or_default()
+}
+
 fn header_lines(run: &RunSummary) -> Lines {
-    let day = |seconds: Option<i64>| seconds.map(format::utc_day).unwrap_or_default();
     let start = day(run.start_at.as_ref().map(|at| at.seconds));
     let end = day(run.end_at.as_ref().map(|at| at.seconds));
-    let tripped = day(run.drawdown_tripped_at.as_ref().map(|at| at.seconds));
     let lines = [
         ("Strategy", run.strategy.clone()),
         ("Parameters", run.params_json.clone()),
@@ -102,7 +117,6 @@ fn header_lines(run: &RunSummary) -> Lines {
         ("Period", format!("{start} to {end}")),
         ("Instruments", run.instruments.join(", ")),
         ("Known gaps", run.known_gaps.join(", ")),
-        ("Drawdown trip", tripped),
     ];
     lines
         .into_iter()
