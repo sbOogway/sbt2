@@ -24,6 +24,7 @@ class HttpRequest:
 class HttpResponse:
     status: int
     text: str
+    content_type: str = "text/plain; charset=utf-8"
 
 
 class Channel(ABC):

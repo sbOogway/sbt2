@@ -1,4 +1,5 @@
 import asyncio
+import json
 import threading
 import time
 import urllib.request
@@ -99,15 +100,20 @@ def test_a_malformed_frame_gets_an_invalid_message_error(frame: bytes | str) -> 
 
 
 @pytest.mark.e2e
-def test_health_answers_ok_without_a_token() -> None:
-    def get(url: str) -> tuple[int, str]:
+def test_health_answers_its_status_and_version_as_json_without_a_token() -> None:
+    def get(url: str) -> tuple[int, str, Any]:
         with urllib.request.urlopen(
             url.replace("ws://", "http://") + "/health"
         ) as response:
-            return response.status, response.read().decode()
+            body = json.loads(response.read())
+            return response.status, response.headers["Content-Type"], body
 
     async def scenario(url: str) -> None:
-        assert await asyncio.to_thread(get, url) == (200, "OK")
+        status, content_type, body = await asyncio.to_thread(get, url)
+
+        assert status == 200
+        assert content_type == "application/json"
+        assert body == {"status": "ok", "version": version("sbt2-server")}
 
     run(scenario)
 
