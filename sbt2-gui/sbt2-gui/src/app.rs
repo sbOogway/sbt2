@@ -1,4 +1,7 @@
-use std::{fmt, path::PathBuf};
+use std::{
+    fmt,
+    path::{Path, PathBuf},
+};
 
 use iced::{
     Element, Task,
@@ -55,6 +58,7 @@ enum Warning {
     VersionMismatch { server: String },
     TokenFileReadable,
     NoConfigFolder(String),
+    NoSettingsFile(String),
 }
 
 impl fmt::Display for Warning {
@@ -65,6 +69,9 @@ impl fmt::Display for Warning {
             Self::NotSaved(reason) => write!(formatter, "Could not save the connection: {reason}"),
             Self::NoConfigFolder(reason) => {
                 write!(formatter, "Could not create the config folder: {reason}")
+            }
+            Self::NoSettingsFile(reason) => {
+                write!(formatter, "Could not create settings.toml: {reason}")
             }
             Self::TokenFileReadable => formatter.write_str(
                 "settings.toml holds a token that others can read. Run chmod 600 on it.",
@@ -103,10 +110,7 @@ impl App {
         let settings = Settings::load(&env.config_dir);
         let configured = settings.server.as_ref().is_some_and(|url| !url.is_empty());
         let form = start_form(&settings, &env.tokens);
-        let mut warnings = Vec::new();
-        if let Err(error) = config::create_folder(&env.config_dir) {
-            warnings.push(Warning::NoConfigFolder(error.to_string()));
-        }
+        let mut warnings = create_config(&env.config_dir);
         if Settings::exposes_token(&env.config_dir) {
             warnings.push(Warning::TokenFileReadable);
         }
@@ -349,6 +353,18 @@ fn state_text(state: ConnectionState) -> &'static str {
 }
 
 /// The configured server with its token, else the last server with its stored token.
+/// Creates the config folder and a default settings file when they are missing, and
+/// returns a warning for each one that cannot be created.
+fn create_config(config_dir: &Path) -> Vec<Warning> {
+    if let Err(error) = config::create_folder(config_dir) {
+        return vec![Warning::NoConfigFolder(error.to_string())];
+    }
+    match Settings::create_default(config_dir) {
+        Ok(()) => Vec::new(),
+        Err(error) => vec![Warning::NoSettingsFile(error.to_string())],
+    }
+}
+
 fn start_form(settings: &Settings, tokens: &TokenStore) -> Form {
     match settings.server.as_deref().filter(|url| !url.is_empty()) {
         Some(url) => {
@@ -750,6 +766,44 @@ mod tests {
         let _ = App::new(env);
 
         assert!(config_dir.is_dir());
+    }
+
+    #[test]
+    fn the_app_creates_a_default_settings_file() {
+        let root = TempDir::new().unwrap();
+        let config_dir = root.path().join("sbt2-gui");
+        let env = Environment {
+            tokens: TokenStore::new(None, &config_dir),
+            config_dir: config_dir.clone(),
+        };
+
+        let (app, _) = App::new(env);
+
+        assert!(config_dir.join("settings.toml").is_file());
+        assert!(app.warnings.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_settings_file_that_cannot_be_created_gives_a_warning() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = TempDir::new().unwrap();
+        let config_dir = root.path().join("sbt2-gui");
+        fs::create_dir(&config_dir).unwrap();
+        fs::set_permissions(&config_dir, fs::Permissions::from_mode(0o500)).unwrap();
+        let env = Environment {
+            tokens: TokenStore::new(None, &config_dir),
+            config_dir,
+        };
+
+        let (app, _) = App::new(env);
+
+        assert!(
+            app.warnings
+                .iter()
+                .any(|warning| matches!(warning, Warning::NoSettingsFile(_)))
+        );
     }
 
     #[test]
