@@ -1,5 +1,6 @@
 import logging
 
+import pandas as pd
 import pytest
 from lab_kit import TOKEN, FakeServer, finished, replying, run, serve_job, summary
 
@@ -138,3 +139,20 @@ def test_job_log_lines_go_to_the_lab_logger(caplog: pytest.LogCaptureFixture) ->
         "run-1 started",
         "run-1 at 2024-02-01",
     ]
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
+def test_runs_show_their_headline_metrics_as_a_table() -> None:
+    server = FakeServer()
+    serve_job(server, [summary("run-1"), summary("run-2", sharpe="0.7")])
+
+    runs = ran(server)
+
+    table = runs.table()
+    assert list(table.index) == ["run-1", "run-2"]
+    assert table.loc["run-2", "sharpe"] == 0.7
+    assert table.loc["run-1", "part"] == "train"
+    assert table.loc["run-1", "fast"] == 10
+    assert pd.isna(table.loc["run-1", "net_return"])
+    assert "run-2" in runs._repr_html_()

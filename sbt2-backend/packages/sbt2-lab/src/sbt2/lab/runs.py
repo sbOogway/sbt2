@@ -24,6 +24,15 @@ from sbt2.protocol.v1.results_pb2 import (
     SeriesKind,
 )
 
+_HEADLINE_NUMBERS = (
+    "net_return",
+    "annualized_return",
+    "sharpe",
+    "max_drawdown",
+    "total_fees",
+    "total_carry",
+)
+
 
 class Run:
     """A run the server stored; its results are fetched when asked for."""
@@ -114,6 +123,19 @@ class Runs(Sequence[Run]):
 
     def __iter__(self) -> Iterator[Run]:
         return iter(self._runs)
+
+    def table(self) -> pd.DataFrame:
+        """One row per run: its part, parameters and headline metrics, as
+        numbers; NaN is undefined, not zero."""
+        rows = [{"part": each.part, **each.params, **each.headline} for each in self]
+        table = pd.DataFrame(rows, index=pd.Index([each.run_id for each in self]))
+        for name in _HEADLINE_NUMBERS:
+            if name in table:
+                table[name] = pd.to_numeric(table[name])
+        return table
+
+    def _repr_html_(self) -> str:
+        return self.table().to_html()
 
 
 async def stored_runs(session: Session, run_ids: Sequence[str]) -> Runs:
