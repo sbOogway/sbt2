@@ -2,11 +2,16 @@ import json
 from collections.abc import Iterator, Sequence
 from typing import Any, overload
 
+import pandas as pd
+
 from sbt2.lab.session import Session
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage
 from sbt2.protocol.v1.results_pb2 import (
+    GetMetrics,
     HeadlineMetrics,
     ListRuns,
+    Metric,
+    MetricGroup,
     RunFilter,
     RunIds,
     RunSummary,
@@ -40,6 +45,13 @@ class Run:
     def headline(self) -> dict[str, str | int | None]:
         """The headline metrics; ``None`` is undefined, not zero."""
         return _headline(self._summary.headline)
+
+    async def metrics(self) -> pd.DataFrame:
+        """Every metric of the run, one per row; NaN is undefined, not zero."""
+        request = ClientMessage(get_metrics=GetMetrics(run_id=self.run_id))
+        chunks = await self._session.ask(request)
+        rows = [_metric(each) for chunk in chunks for each in chunk.metrics.entries]
+        return pd.DataFrame(rows, columns=["group", "name", "instrument_id", "value"])
 
     def __repr__(self) -> str:
         return f"Run({self.run_id!r}, {self.strategy!r}, {self.part!r})"
@@ -90,3 +102,12 @@ def _headline(headline: HeadlineMetrics) -> dict[str, str | int | None]:
         "total_fees": headline.total_fees,
         "total_carry": headline.total_carry,
     }
+
+
+def _metric(metric: Metric) -> tuple[str, str, str | None, float]:
+    return (
+        MetricGroup.Name(metric.group).removeprefix("METRIC_GROUP_").lower(),
+        metric.name,
+        metric.instrument_id if metric.HasField("instrument_id") else None,
+        float(metric.value) if metric.HasField("value") else float("nan"),
+    )
