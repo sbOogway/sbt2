@@ -6,11 +6,13 @@ import pandas as pd
 import pyarrow as pa
 
 from sbt2.lab.session import Session
+from sbt2.lab.tearsheet import Tearsheet
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage
 from sbt2.protocol.v1.results_pb2 import (
     GetMetrics,
     GetPanel,
     GetSeries,
+    GetTearsheet,
     HeadlineMetrics,
     ListRuns,
     Metric,
@@ -74,6 +76,12 @@ class Run:
         frame = _frame(b"".join(each.panel.data for each in chunks))
         index = pd.Index(frame["ts"], name="ts")
         return pd.Series(frame["value"].to_numpy(), index=index, name=kind)
+
+    async def tearsheet(self) -> Tearsheet:
+        """The tearsheet against the default benchmark."""
+        request = GetTearsheet(run_id=self.run_id)
+        chunks = await self._session.ask(ClientMessage(get_tearsheet=request))
+        return Tearsheet(b"".join(each.tearsheet.data for each in chunks).decode())
 
     async def _series(self, kind: SeriesKind.ValueType) -> pd.DataFrame:
         request = GetSeries(run_id=self.run_id, kind=kind)

@@ -17,6 +17,7 @@ from sbt2.protocol.v1.results_pb2 import (
     PanelKind,
     Series,
     SeriesKind,
+    Tearsheet,
 )
 from sbt2.server import Handler, Outbox
 
@@ -171,3 +172,26 @@ def test_an_unknown_panel_kind_lists_the_known_kinds() -> None:
     fetched(server, unknown)
 
     assert server.received("get_panel") == []
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
+def test_the_tearsheet_shows_its_html_in_the_notebook() -> None:
+    server = FakeServer()
+    html = '<html><body><p class="title">Cross & "co"</p></body></html>'
+    data = html.encode()
+    server.answer(
+        "get_tearsheet",
+        chunked(
+            ServerMessage(tearsheet=Tearsheet(index=0, data=data[:20])),
+            ServerMessage(tearsheet=Tearsheet(index=1, last=True, data=data[20:])),
+        ),
+    )
+
+    tearsheet = fetched(server, Run.tearsheet)
+
+    assert tearsheet.html == html
+    shown = tearsheet._repr_html_()
+    assert shown.startswith("<iframe ")
+    assert 'srcdoc="&lt;html&gt;&lt;body&gt;&lt;p class=&quot;title&quot;&gt;' in shown
+    assert "Cross &amp; &quot;co&quot;" in shown
