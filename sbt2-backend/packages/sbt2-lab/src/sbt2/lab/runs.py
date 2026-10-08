@@ -9,11 +9,13 @@ from sbt2.lab.session import Session
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage
 from sbt2.protocol.v1.results_pb2 import (
     GetMetrics,
+    GetPanel,
     GetSeries,
     HeadlineMetrics,
     ListRuns,
     Metric,
     MetricGroup,
+    PanelKind,
     RunFilter,
     RunIds,
     RunSummary,
@@ -63,6 +65,15 @@ class Run:
     async def fills(self) -> pd.DataFrame:
         """The fills report, as the server encoded it."""
         return await self._series(SeriesKind.SERIES_KIND_FILLS)
+
+    async def panel(self, kind: str) -> pd.Series:
+        """A panel of the tearsheet by its kind, such as ``"drawdown"``, as
+        fractions indexed by time; it compares against the default benchmark."""
+        request = GetPanel(run_id=self.run_id, kind=_panel_kind(kind))
+        chunks = await self._session.ask(ClientMessage(get_panel=request))
+        frame = _frame(b"".join(each.panel.data for each in chunks))
+        index = pd.Index(frame["ts"], name="ts")
+        return pd.Series(frame["value"].to_numpy(), index=index, name=kind)
 
     async def _series(self, kind: SeriesKind.ValueType) -> pd.DataFrame:
         request = GetSeries(run_id=self.run_id, kind=kind)
@@ -127,6 +138,17 @@ def _metric(metric: Metric) -> tuple[str, str, str | None, float]:
         metric.instrument_id if metric.HasField("instrument_id") else None,
         float(metric.value) if metric.HasField("value") else float("nan"),
     )
+
+
+def _panel_kind(kind: str) -> PanelKind.ValueType:
+    kinds = {
+        name.removeprefix("PANEL_KIND_").lower(): value
+        for name, value in PanelKind.items()
+        if value != PanelKind.PANEL_KIND_UNSPECIFIED
+    }
+    if kind not in kinds:
+        raise ValueError(f"unknown panel {kind!r}; known: {', '.join(sorted(kinds))}")
+    return kinds[kind]
 
 
 def _frame(arrow: bytes) -> pd.DataFrame:

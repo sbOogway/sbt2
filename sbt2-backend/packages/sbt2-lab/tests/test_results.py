@@ -13,6 +13,8 @@ from sbt2.protocol.v1.results_pb2 import (
     Metric,
     MetricGroup,
     Metrics,
+    Panel,
+    PanelKind,
     Series,
     SeriesKind,
 )
@@ -137,3 +139,35 @@ def test_fills_come_as_the_frame_the_server_encoded() -> None:
     pd.testing.assert_frame_equal(fetched_fills, fills)
     [asked] = server.received("get_series")
     assert asked.get_series.kind == SeriesKind.SERIES_KIND_FILLS
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
+def test_a_panel_comes_as_a_series_of_its_kind() -> None:
+    server = FakeServer()
+    ts = pd.to_datetime(["2024-01-01", "2024-01-02"], utc=True)
+    data = arrow(pd.DataFrame({"ts": ts, "value": [0.0, -0.02]}))
+    server.answer(
+        "get_panel", chunked(ServerMessage(panel=Panel(last=True, data=data)))
+    )
+
+    drawdown = fetched(server, lambda ran: ran.panel("drawdown"))
+
+    expected = pd.Series([0.0, -0.02], index=pd.Index(ts, name="ts"), name="drawdown")
+    pd.testing.assert_series_equal(drawdown, expected)
+    [asked] = server.received("get_panel")
+    assert asked.get_panel.kind == PanelKind.PANEL_KIND_DRAWDOWN
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
+def test_an_unknown_panel_kind_lists_the_known_kinds() -> None:
+    server = FakeServer()
+
+    async def unknown(ran: Run) -> None:
+        with pytest.raises(ValueError, match="drawdown, monthly_returns"):
+            await ran.panel("sortino")
+
+    fetched(server, unknown)
+
+    assert server.received("get_panel") == []
