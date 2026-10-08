@@ -6,7 +6,7 @@ import pytest
 
 ROOT = Path(__file__).parents[3]
 SCRIPT = ROOT / "scripts" / "generate-protocol.sh"
-GENERATED = ROOT / "sbt2-backend/packages/sbt2-server/src/sbt2/protocol"
+GENERATED = ROOT / "sbt2-backend/packages/sbt2-protocol/src/sbt2/protocol"
 
 
 @pytest.mark.integration

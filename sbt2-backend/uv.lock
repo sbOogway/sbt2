@@ -15,6 +15,7 @@ members = [
     "sbt2-core",
     "sbt2-data",
     "sbt2-papers",
+    "sbt2-protocol",
     "sbt2-server",
     "sbt2-strategies",
 ]
@@ -746,13 +747,23 @@ dev = [
 ]
 
 [[package]]
+name = "sbt2-protocol"
+source = { editable = "packages/sbt2-protocol" }
+dependencies = [
+    { name = "protobuf", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "protobuf", specifier = ">=7.36.2,<8" }]
+
+[[package]]
 name = "sbt2-server"
 source = { editable = "packages/sbt2-server" }
 dependencies = [
     { name = "pandas", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
-    { name = "protobuf", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pyarrow", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sbt2-core", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "sbt2-protocol", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "typer", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "websockets", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
@@ -766,9 +777,9 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "pandas", specifier = ">=3.0.6" },
-    { name = "protobuf", specifier = ">=7.36.2,<8" },
     { name = "pyarrow", specifier = ">=25.0.1" },
     { name = "sbt2-core", editable = "packages/sbt2-core" },
+    { name = "sbt2-protocol", editable = "packages/sbt2-protocol" },
     { name = "typer", specifier = ">=0.27.2" },
     { name = "websockets", specifier = ">=17.1" },
 ]
