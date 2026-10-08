@@ -1,5 +1,6 @@
 from sbt2.lab.errors import (
     ConnectError,
+    JobFailedError,
     LabError,
     MissingCapabilityError,
     ServerError,
@@ -10,6 +11,7 @@ from sbt2.lab.runs import Run, Runs
 
 __all__ = [
     "ConnectError",
+    "JobFailedError",
     "Lab",
     "LabError",
     "MissingCapabilityError",

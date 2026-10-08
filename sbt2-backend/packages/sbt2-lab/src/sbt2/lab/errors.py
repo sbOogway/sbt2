@@ -24,3 +24,7 @@ class ServerError(LabError):
 
 class StrategyModuleError(LabError):
     pass
+
+
+class JobFailedError(LabError):
+    """A job that did not finish: it failed or was cancelled."""

@@ -4,7 +4,7 @@ from types import TracebackType
 from typing import Any, Self
 
 from sbt2.lab.errors import MissingCapabilityError
-from sbt2.lab.jobs import followed
+from sbt2.lab.jobs import finished
 from sbt2.lab.runs import Runs, stored_runs
 from sbt2.lab.session import Session
 from sbt2.lab.submission import submit_run
@@ -35,7 +35,7 @@ class Lab:
         return cls(session)
 
     async def run(self, spec: Mapping[str, Any], strategy: str) -> Runs:
-        """Run ``spec`` on the server and return its runs once the job is over.
+        """Run ``spec`` on the server and return its runs once the job finishes.
 
         ``spec`` holds the keys of a spec file but ``strategy``, which is
         ``"module:Class"``. The module is sent as source, so it may import only
@@ -44,7 +44,7 @@ class Lab:
         request = submit_run(spec, strategy)
         [reply] = await self._session.ask(ClientMessage(submit_run=request))
         submitted = reply.job_submitted
-        await followed(self._session, submitted.job_id)
+        await finished(self._session, submitted.job_id)
         return await stored_runs(self._session, submitted.run_ids)
 
     async def close(self) -> None:
