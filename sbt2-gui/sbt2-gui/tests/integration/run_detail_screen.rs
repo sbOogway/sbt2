@@ -110,3 +110,45 @@ fn the_charts_tab_draws_each_chart_with_its_title() {
         assert!(ui.find(title).is_ok(), "{title} is not shown");
     }
 }
+
+#[test]
+fn each_metric_group_shows_its_title_in_a_card() {
+    let detail = overview_detail();
+
+    let mut ui = simulator(detail.view());
+
+    for title in ["PnLs", "Returns"] {
+        assert!(ui.find(title).is_ok(), "{title} is not shown");
+    }
+}
+
+#[test]
+fn a_tripped_drawdown_shows_its_day_in_a_badge() {
+    let mut detail = RunDetail::default();
+    detail.open("run-1");
+    let summary = RunSummary {
+        drawdown_tripped_at: Some(prost_types::Timestamp {
+            seconds: 1_704_067_200,
+            nanos: 0,
+        }),
+        ..RunSummary::default()
+    };
+    let loaded = Loaded::Summary(Ok(Box::new(summary)));
+    detail.update(Message::Loaded("run-1".to_owned(), loaded));
+
+    let mut ui = simulator(detail.view());
+
+    assert!(ui.find("2024-01-01").is_ok());
+}
+
+#[test]
+fn a_loading_overview_shows_no_loading_text() {
+    let mut detail = RunDetail::default();
+    detail.open("run-1");
+
+    let mut ui = simulator(detail.view());
+
+    for text in ["Loading the run...", "Loading the metrics..."] {
+        assert!(ui.find(text).is_err(), "{text} is shown");
+    }
+}
