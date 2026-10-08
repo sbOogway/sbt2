@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import AsyncGenerator, Awaitable, Callable, Iterable
+from collections.abc import AsyncGenerator, Awaitable, Callable, Iterable, Sequence
 from contextlib import asynccontextmanager
 
 from sbt2.protocol.v1.envelope_pb2 import (
@@ -7,6 +7,16 @@ from sbt2.protocol.v1.envelope_pb2 import (
     ClientMessage,
     ServerMessage,
     Welcome,
+)
+from sbt2.protocol.v1.results_pb2 import HeadlineMetrics, RunList, RunSummary
+from sbt2.protocol.v1.runs_pb2 import (
+    Job,
+    JobState,
+    JobSubmitted,
+    JobSubscribed,
+    JobUpdate,
+    RunState,
+    RunStatus,
 )
 from sbt2.server import Address, Handler, Outbox, Server, Settings
 
@@ -62,3 +72,70 @@ def replying(message: ServerMessage) -> Handler:
         return message
 
     return reply
+
+
+JOB_ID = "job-1"
+SUBSCRIPTION_ID = 7
+CROSS = """from sbt2.core.strategy import Strategy
+
+
+class Cross(Strategy):
+    pass
+"""
+
+
+def summary(run_id: str, sharpe: str = "1.5") -> RunSummary:
+    return RunSummary(
+        run_id=run_id,
+        strategy="my_strats:Cross",
+        part="train",
+        params_json='{"fast": 10}',
+        currency="USDT",
+        headline=HeadlineMetrics(sharpe=sharpe, trade_count=3, total_fees="1.2"),
+    )
+
+
+def serve_job(
+    server: FakeServer, runs: Sequence[RunSummary], updates: Sequence[JobUpdate] = ()
+) -> None:
+    """A job of ``runs``; it is over when subscribed unless ``updates`` follow."""
+    run_ids = [each.run_id for each in runs]
+    state = JobState.JOB_STATE_RUNNING if updates else JobState.JOB_STATE_FINISHED
+    server.answer(
+        "submit_run",
+        replying(
+            ServerMessage(job_submitted=JobSubmitted(job_id=JOB_ID, run_ids=run_ids))
+        ),
+    )
+    server.answer(
+        "subscribe_job", _subscriber(Job(job_id=JOB_ID, state=state), updates)
+    )
+    server.answer(
+        "list_runs", replying(ServerMessage(run_list=RunList(last=True, runs=runs)))
+    )
+
+
+def _subscriber(job: Job, updates: Sequence[JobUpdate]) -> Handler:
+    async def push(outbox: Outbox) -> None:
+        for update in updates:
+            await asyncio.sleep(0)
+            outbox.push(
+                ServerMessage(subscription_id=SUBSCRIPTION_ID, job_update=update)
+            )
+
+    async def subscribe(_request: ClientMessage, outbox: Outbox) -> ServerMessage:
+        outbox.spawn(push(outbox))
+        subscribed = JobSubscribed(subscription_id=SUBSCRIPTION_ID, job=job)
+        return ServerMessage(job_subscribed=subscribed)
+
+    return subscribe
+
+
+def finished(*run_ids: str) -> JobUpdate:
+    return JobUpdate(
+        state=JobState.JOB_STATE_FINISHED,
+        runs=[
+            RunState(run_id=each, state=RunStatus.RUN_STATUS_FINISHED)
+            for each in run_ids
+        ],
+    )

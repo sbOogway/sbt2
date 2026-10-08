@@ -1,9 +1,13 @@
+from collections.abc import Mapping
 from importlib.metadata import version
 from types import TracebackType
-from typing import Self
+from typing import Any, Self
 
 from sbt2.lab.errors import MissingCapabilityError
+from sbt2.lab.jobs import followed
+from sbt2.lab.runs import Runs, stored_runs
 from sbt2.lab.session import Session
+from sbt2.lab.submission import submit_run
 from sbt2.protocol.v1.envelope_pb2 import Capability, ClientMessage, Hello, Welcome
 
 _NEEDED = {
@@ -29,6 +33,19 @@ class Lab:
             await session.close()
             raise
         return cls(session)
+
+    async def run(self, spec: Mapping[str, Any], strategy: str) -> Runs:
+        """Run ``spec`` on the server and return its runs once the job is over.
+
+        ``spec`` holds the keys of a spec file but ``strategy``, which is
+        ``"module:Class"``. The module is sent as source, so it may import only
+        what the server has: sbt2, nautilus and the standard library.
+        """
+        request = submit_run(spec, strategy)
+        [reply] = await self._session.ask(ClientMessage(submit_run=request))
+        submitted = reply.job_submitted
+        await followed(self._session, submitted.job_id)
+        return await stored_runs(self._session, submitted.run_ids)
 
     async def close(self) -> None:
         await self._session.close()

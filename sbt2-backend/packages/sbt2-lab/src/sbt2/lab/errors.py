@@ -20,3 +20,7 @@ class ServerError(LabError):
         self.code = ErrorCode.Name(error.code)
         self.message = error.message
         super().__init__(f"{self.code}: {self.message}")
+
+
+class StrategyModuleError(LabError):
+    pass
