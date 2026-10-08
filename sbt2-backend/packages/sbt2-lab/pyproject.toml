@@ -1,0 +1,36 @@
+[project]
+name = "sbt2-lab"
+dynamic = ["version", "dependencies"]
+description = "Run and inspect sbt2 strategies on an sbt2 server from a notebook"
+license = "LGPL-3.0-or-later"
+requires-python = ">=3.14"
+
+[build-system]
+requires = ["hatchling>=1.27", "uv-dynamic-versioning>=0.8"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.metadata.hooks.uv-dynamic-versioning]
+dependencies = [
+    "sbt2-protocol=={{ version }}",
+    "pandas>=3.0.6",
+    "pyarrow>=25.0.1",
+    "tqdm>=4.67.1",
+    "websockets>=17.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sbt2"]
+
+[dependency-groups]
+dev = ["pytest>=9.1.1", "pytest-cov>=7.1.0", "sbt2-server"]
+
+[tool.coverage.run]
+source_pkgs = ["sbt2.lab"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true

@@ -14,6 +14,7 @@ members = [
     "sbt2-cli",
     "sbt2-core",
     "sbt2-data",
+    "sbt2-lab",
     "sbt2-papers",
     "sbt2-protocol",
     "sbt2-server",
@@ -581,8 +582,12 @@ dependencies = [
 
 [package.optional-dependencies]
 all = [
+    { name = "sbt2-lab", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sbt2-papers", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sbt2-server", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+]
+lab = [
+    { name = "sbt2-lab", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
 papers = [
     { name = "sbt2-papers", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -601,6 +606,7 @@ dev = [
     { name = "pytest-cov", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "pyyaml", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sbt2-cli", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "sbt2-lab", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sbt2-papers", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "sbt2-server", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
 ]
@@ -610,13 +616,15 @@ requires-dist = [
     { name = "sbt2-cli", editable = "packages/sbt2-cli" },
     { name = "sbt2-core", editable = "packages/sbt2-core" },
     { name = "sbt2-data", editable = "packages/sbt2-data" },
+    { name = "sbt2-lab", marker = "extra == 'all'", editable = "packages/sbt2-lab" },
+    { name = "sbt2-lab", marker = "extra == 'lab'", editable = "packages/sbt2-lab" },
     { name = "sbt2-papers", marker = "extra == 'all'", editable = "packages/sbt2-papers" },
     { name = "sbt2-papers", marker = "extra == 'papers'", editable = "packages/sbt2-papers" },
     { name = "sbt2-server", marker = "extra == 'all'", editable = "packages/sbt2-server" },
     { name = "sbt2-server", marker = "extra == 'server'", editable = "packages/sbt2-server" },
     { name = "sbt2-strategies", editable = "packages/sbt2-strategies" },
 ]
-provides-extras = ["all", "papers", "server"]
+provides-extras = ["all", "lab", "papers", "server"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -628,6 +636,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "sbt2-cli", editable = "packages/sbt2-cli" },
+    { name = "sbt2-lab", editable = "packages/sbt2-lab" },
     { name = "sbt2-papers", editable = "packages/sbt2-papers" },
     { name = "sbt2-server", editable = "packages/sbt2-server" },
 ]
@@ -722,6 +731,40 @@ requires-dist = [
 dev = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
+]
+
+[[package]]
+name = "sbt2-lab"
+source = { editable = "packages/sbt2-lab" }
+dependencies = [
+    { name = "pandas", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "pyarrow", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "sbt2-protocol", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "tqdm", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "websockets", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "pytest-cov", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+    { name = "sbt2-server", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pandas", specifier = ">=3.0.6" },
+    { name = "pyarrow", specifier = ">=25.0.1" },
+    { name = "sbt2-protocol", editable = "packages/sbt2-protocol" },
+    { name = "tqdm", specifier = ">=4.67.1" },
+    { name = "websockets", specifier = ">=17.1" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=9.1.1" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "sbt2-server", editable = "packages/sbt2-server" },
 ]
 
 [[package]]
@@ -859,6 +902,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/19/75/241269d1da26b624c0d5e110e8149093c759b7a286138f4efd61a60e75fe/tomli_w-1.2.0.tar.gz", hash = "sha256:2dd14fac5a47c27be9cd4c976af5a12d87fb1f0b4512f81d69cce3b35ae25021", size = 7184, upload-time = "2025-01-15T12:07:24.262Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl", hash = "sha256:188306098d013b691fcadc011abd66727d3c414c571bb01b1a174ba8c983cf90", size = 6675, upload-time = "2025-01-15T12:07:22.074Z" },
+]
+
+[[package]]
+name = "tqdm"
+version = "4.70.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0d/ea/b2a5bd54b28a324dae8211928b2d730b6547500342c7e6c6dea08bd0a485/tqdm-4.70.1.tar.gz", hash = "sha256:cefd0eca11b2a37a3aee776544d4f4ae913f02688135b5556b8788dfa474afc4", size = 171846, upload-time = "2026-09-11T07:25:16.601Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl", hash = "sha256:c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73", size = 80199, upload-time = "2026-09-11T07:25:14.599Z" },
 ]
 
 [[package]]

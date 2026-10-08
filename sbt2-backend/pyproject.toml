@@ -22,8 +22,9 @@ dependencies = [
 
 [tool.hatch.metadata.hooks.uv-dynamic-versioning.optional-dependencies]
 papers = ["sbt2-papers=={{ version }}"]
+lab = ["sbt2-lab=={{ version }}"]
 server = ["sbt2-server=={{ version }}"]
-all = ["sbt2-papers=={{ version }}", "sbt2-server=={{ version }}"]
+all = ["sbt2-papers=={{ version }}", "sbt2-server=={{ version }}", "sbt2-lab=={{ version }}"]
 
 # a meta distribution: it only pulls in the members
 [tool.hatch.build.targets.wheel]
@@ -51,6 +52,7 @@ sbt2-cli = { workspace = true }
 sbt2-strategies = { workspace = true }
 sbt2-papers = { workspace = true }
 sbt2-protocol = { workspace = true }
+sbt2-lab = { workspace = true }
 sbt2-server = { workspace = true }
 
 [dependency-groups]
@@ -63,6 +65,7 @@ dev = [
     "pytest-cov>=7.1.0",
     "pyyaml>=6.0.3",
     "sbt2-cli",
+    "sbt2-lab",
     "sbt2-papers",
     "sbt2-server",
 ]
@@ -74,6 +77,7 @@ extraPaths = [
     "tests",
     "packages/sbt2-core/tests",
     "packages/sbt2-cli/tests",
+    "packages/sbt2-lab/tests",
     "packages/sbt2-data/tests",
     "packages/sbt2-data/tests/catalog",
     "packages/sbt2-data/tests/sources",
@@ -122,7 +126,7 @@ max-args = 3
 max-positional-args = 3
 
 [tool.importlinter]
-root_packages = ["sbt2.data", "sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server", "sbt2.protocol"]
+root_packages = ["sbt2.data", "sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server", "sbt2.protocol", "sbt2.lab"]
 exclude_type_checking_imports = true
 
 [[tool.importlinter.contracts]]
@@ -258,6 +262,12 @@ protected_modules = ["sbt2.core.strategy.*"]
 allowed_importers = ["sbt2.core.strategy"]
 
 [[tool.importlinter.contracts]]
+name = "Only sbt2.lab imports its own internals"
+type = "protected"
+protected_modules = ["sbt2.lab.*"]
+allowed_importers = ["sbt2.lab"]
+
+[[tool.importlinter.contracts]]
 name = "Only sbt2.server.transport imports its own internals"
 type = "protected"
 protected_modules = ["sbt2.server.transport.*"]
@@ -294,10 +304,16 @@ source_modules = ["sbt2.core", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
 forbidden_modules = ["sbt2.cli"]
 
 [[tool.importlinter.contracts]]
+name = "The lab talks to the server only through the protocol"
+type = "forbidden"
+source_modules = ["sbt2.lab"]
+forbidden_modules = ["sbt2.data", "sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
+
+[[tool.importlinter.contracts]]
 name = "The protocol is generated code and imports nothing of sbt2"
 type = "forbidden"
 source_modules = ["sbt2.protocol"]
-forbidden_modules = ["sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
+forbidden_modules = ["sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server", "sbt2.lab"]
 
 [[tool.importlinter.contracts]]
 name = "sbt2 never imports the paper pipeline"
@@ -316,6 +332,7 @@ testpaths = [
     "packages/sbt2-core/tests",
     "packages/sbt2-cli/tests",
     "packages/sbt2-data/tests",
+    "packages/sbt2-lab/tests",
     "packages/sbt2-strategies/tests",
     "packages/sbt2-server/tests",
     "packages/sbt2-papers/tests",
@@ -335,6 +352,7 @@ pythonpath = [
     "packages/sbt2-core/tests/spec",
     "packages/sbt2-core/tests/strategy",
     "packages/sbt2-cli/tests",
+    "packages/sbt2-lab/tests",
     "packages/sbt2-strategies/tests",
     "packages/sbt2-server/tests",
     "packages/sbt2-papers/tests",
@@ -358,7 +376,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source_pkgs = ["sbt2.data", "sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server"]
+source_pkgs = ["sbt2.data", "sbt2.core", "sbt2.cli", "sbt2.strategies", "sbt2.papers", "sbt2.server", "sbt2.lab"]
 branch = true
 concurrency = ["multiprocessing"]
 patch = ["subprocess"]
