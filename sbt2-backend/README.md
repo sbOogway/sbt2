@@ -76,7 +76,7 @@ quantity = "0.100"
 
 ## Notebook lab
 
-`sbt2-lab` runs strategies on a server from a Jupyter notebook. Install it with `uv pip install 'sbt2-lab @ git+https://github.com/sbOogway/sbt2.git#subdirectory=sbt2-backend/packages/sbt2-lab'`, or with the `lab` extra of `sbt2`. Put the strategy in a module of its own, for example `my_strats.py` next to the notebook:
+`sbt2-lab` runs strategies on a server from a Jupyter notebook. Install it with the `lab` extra: `uv pip install 'sbt2[lab] @ git+https://github.com/sbOogway/sbt2.git#subdirectory=sbt2-backend'`. Put the strategy in a module of its own, for example `my_strats.py` next to the notebook:
 
 ```python
 from sbt2.lab import Lab
