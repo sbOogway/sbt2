@@ -1,13 +1,21 @@
+import io
 import math
 from collections.abc import Awaitable, Callable
 
 import pandas as pd
+import pyarrow as pa
 import pytest
 from lab_kit import TOKEN, FakeServer, run, serve_job, summary
 
 from sbt2.lab import Lab, Run
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
-from sbt2.protocol.v1.results_pb2 import Metric, MetricGroup, Metrics
+from sbt2.protocol.v1.results_pb2 import (
+    Metric,
+    MetricGroup,
+    Metrics,
+    Series,
+    SeriesKind,
+)
 from sbt2.server import Handler, Outbox
 
 SPEC = {
@@ -44,6 +52,32 @@ def fetched[T](server: FakeServer, fetch: Callable[[Run], Awaitable[T]]) -> T:
     return results[0]
 
 
+EQUITY = pd.DataFrame(
+    {
+        "ts_event": pd.to_datetime(["2024-01-01", "2024-01-02"], utc=True),
+        "currency": ["USDT", "USDT"],
+        "total_equity": [10000.0, 10012.5],
+    }
+)
+
+
+def arrow(frame: pd.DataFrame) -> bytes:
+    sink = io.BytesIO()
+    table = pa.Table.from_pandas(frame)
+    with pa.ipc.new_stream(sink, table.schema) as writer:
+        writer.write_table(table)
+    return sink.getvalue()
+
+
+def series_in_pieces(frame: pd.DataFrame) -> Handler:
+    data = arrow(frame)
+    middle = len(data) // 2
+    return chunked(
+        ServerMessage(series=Series(index=0, data=data[:middle])),
+        ServerMessage(series=Series(index=1, last=True, data=data[middle:])),
+    )
+
+
 @pytest.mark.integration
 @pytest.mark.usefixtures("strategies")
 def test_metrics_come_as_a_table_with_absent_values_as_nan() -> None:
@@ -76,3 +110,30 @@ def test_metrics_come_as_a_table_with_absent_values_as_nan() -> None:
     assert math.isnan(metrics.iloc[1]["value"])
     [asked] = server.received("get_metrics")
     assert asked.get_metrics.run_id == "run-1"
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
+def test_equity_comes_as_the_frame_the_server_encoded() -> None:
+    server = FakeServer()
+    server.answer("get_series", series_in_pieces(EQUITY))
+
+    equity = fetched(server, Run.equity)
+
+    pd.testing.assert_frame_equal(equity, EQUITY)
+    [asked] = server.received("get_series")
+    assert asked.get_series.kind == SeriesKind.SERIES_KIND_EQUITY
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
+def test_fills_come_as_the_frame_the_server_encoded() -> None:
+    server = FakeServer()
+    fills = pd.DataFrame({"side": ["BUY", "SELL"], "last_qty": [0.1, 0.1]})
+    server.answer("get_series", series_in_pieces(fills))
+
+    fetched_fills = fetched(server, Run.fills)
+
+    pd.testing.assert_frame_equal(fetched_fills, fills)
+    [asked] = server.received("get_series")
+    assert asked.get_series.kind == SeriesKind.SERIES_KIND_FILLS

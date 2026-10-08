@@ -3,11 +3,13 @@ from collections.abc import Iterator, Sequence
 from typing import Any, overload
 
 import pandas as pd
+import pyarrow as pa
 
 from sbt2.lab.session import Session
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage
 from sbt2.protocol.v1.results_pb2 import (
     GetMetrics,
+    GetSeries,
     HeadlineMetrics,
     ListRuns,
     Metric,
@@ -15,6 +17,7 @@ from sbt2.protocol.v1.results_pb2 import (
     RunFilter,
     RunIds,
     RunSummary,
+    SeriesKind,
 )
 
 
@@ -52,6 +55,19 @@ class Run:
         chunks = await self._session.ask(request)
         rows = [_metric(each) for chunk in chunks for each in chunk.metrics.entries]
         return pd.DataFrame(rows, columns=["group", "name", "instrument_id", "value"])
+
+    async def equity(self) -> pd.DataFrame:
+        """The equity curve, as the server encoded it."""
+        return await self._series(SeriesKind.SERIES_KIND_EQUITY)
+
+    async def fills(self) -> pd.DataFrame:
+        """The fills report, as the server encoded it."""
+        return await self._series(SeriesKind.SERIES_KIND_FILLS)
+
+    async def _series(self, kind: SeriesKind.ValueType) -> pd.DataFrame:
+        request = GetSeries(run_id=self.run_id, kind=kind)
+        chunks = await self._session.ask(ClientMessage(get_series=request))
+        return _frame(b"".join(each.series.data for each in chunks))
 
     def __repr__(self) -> str:
         return f"Run({self.run_id!r}, {self.strategy!r}, {self.part!r})"
@@ -111,3 +127,7 @@ def _metric(metric: Metric) -> tuple[str, str, str | None, float]:
         metric.instrument_id if metric.HasField("instrument_id") else None,
         float(metric.value) if metric.HasField("value") else float("nan"),
     )
+
+
+def _frame(arrow: bytes) -> pd.DataFrame:
+    return pa.ipc.open_stream(arrow).read_pandas()
