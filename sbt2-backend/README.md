@@ -74,6 +74,31 @@ quantity = "0.100"
 
 `sbt2 run` ends with the headline metrics of each part. Results are stored under `$SBT2_DATA/results`; list them with `uv run sbt2 runs list`, and write a run's tearsheet with `uv run sbt2 report tearsheet <run_id>`.
 
+## Notebook lab
+
+`sbt2-lab` runs strategies on a server from a Jupyter notebook. Install it with the `lab` extra: `uv pip install 'sbt2[lab] @ git+https://github.com/sbOogway/sbt2.git#subdirectory=sbt2-backend'`. Put the strategy in a module of its own, for example `my_strats.py` next to the notebook:
+
+```python
+from sbt2.lab import Lab
+
+lab = await Lab.connect("ws://localhost:8765", token)
+runs = await lab.run(
+    {
+        "instruments": ["BTCUSDT-PERP.BYBIT"],
+        "period": ["2024-01-01", "2024-07-01"],
+        "venue": "bybit",
+        "capital": "10000 USDT",
+        "split": {"validation": 0.2, "test": 0.2},
+        "params": {"fast": [5, 10]},
+    },
+    "my_strats:Cross",
+)
+runs  # the headline metrics, one row per run
+await runs[0].tearsheet()
+```
+
+The lab sends the module as source and does not run it. The module can import only what the server has: sbt2, nautilus and the standard library. A run also gives `metrics()`, `equity()`, `fills()` and `panel(kind)`.
+
 ## Deployment
 
 `Containerfile`, `compose.yaml` and `.dockerignore` live in this directory, which is the image's build context. From the repository root:
