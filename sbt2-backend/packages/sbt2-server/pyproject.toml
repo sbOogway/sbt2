@@ -7,10 +7,9 @@ requires-python = ">=3.14"
 [tool.hatch.metadata.hooks.uv-dynamic-versioning]
 dependencies = [
     "sbt2-core=={{ version }}",
+    "sbt2-protocol=={{ version }}",
     "pyarrow>=25.0.1",
     "pandas>=3.0.6",
-    # the generated code refuses a runtime older than the protoc that wrote it, or of another major
-    "protobuf>=7.36.2,<8",
     "typer>=0.27.2",
     "websockets>=17.1",
 ]

@@ -100,7 +100,7 @@ make sync
 
 From the repository root, `make test-backend` runs this suite and `make check` runs every check of the repository.
 
-The server's protobuf messages live in [sbt2-protocol](../sbt2-protocol), in the same repository. The `generate-protocol` hook regenerates `sbt2-server`'s Python from them, offline with the locked `protoc` and `mypy-protobuf`, and fails when the committed code is stale.
+The server's protobuf messages live in [sbt2-protocol](../sbt2-protocol), in the same repository. The `generate-protocol` hook regenerates the Python of the `sbt2-protocol` member from them, offline with the locked `protoc` and `mypy-protobuf`, and fails when the committed code is stale.
 
 ## License
 

@@ -1,0 +1,22 @@
+[project]
+name = "sbt2-protocol"
+dynamic = ["version", "dependencies"]
+description = "The generated Python code of sbt2's server protocol"
+license = "LGPL-3.0-or-later"
+requires-python = ">=3.14"
+
+[build-system]
+requires = ["hatchling>=1.27", "uv-dynamic-versioning>=0.8"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.metadata.hooks.uv-dynamic-versioning]
+dependencies = [
+    # the generated code refuses a runtime older than the protoc that wrote it, or of another major
+    "protobuf>=7.36.2,<8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sbt2"]

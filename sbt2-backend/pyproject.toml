@@ -50,6 +50,7 @@ sbt2-data = { workspace = true }
 sbt2-cli = { workspace = true }
 sbt2-strategies = { workspace = true }
 sbt2-papers = { workspace = true }
+sbt2-protocol = { workspace = true }
 sbt2-server = { workspace = true }
 
 [dependency-groups]
@@ -84,7 +85,7 @@ reportDeprecated = "error"
 # mypy-protobuf's stubs narrow Message.DESCRIPTOR, which typeshed declares as a union;
 # mypy-protobuf turns this rule off for generated code too
 [[tool.pyright.executionEnvironments]]
-root = "packages/sbt2-server/src/sbt2/protocol"
+root = "packages/sbt2-protocol/src/sbt2/protocol"
 reportIncompatibleVariableOverride = false
 
 [tool.ruff]

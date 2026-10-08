@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Regenerates sbt2-server's protocol modules from sbt2-protocol/ with the
+# Regenerates the Python modules of the sbt2-protocol member from sbt2-protocol/ with the
 # locked protoc and mypy-protobuf, removing the modules of deleted .proto files.
 # Generates aside first, so a failure keeps the old ones.
 set -euo pipefail
 
-generated=sbt2-backend/packages/sbt2-server/src/sbt2/protocol
+generated=sbt2-backend/packages/sbt2-protocol/src/sbt2/protocol
 staging=$(mktemp -d)
 trap 'rm -rf "$staging"' EXIT
 
