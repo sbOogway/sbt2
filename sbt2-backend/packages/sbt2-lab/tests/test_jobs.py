@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 from lab_kit import TOKEN, FakeServer, finished, replying, run, serve_job, summary
 
@@ -102,3 +104,37 @@ def test_a_server_error_raises_with_its_code_and_message() -> None:
             )
 
     run(scenario, server)
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
+def test_progress_shows_the_finished_runs(capsys: pytest.CaptureFixture[str]) -> None:
+    server = FakeServer()
+    running = JobUpdate(
+        runs=[RunState(run_id="run-1", state=RunStatus.RUN_STATUS_RUNNING)]
+    )
+    serve_job(
+        server,
+        [summary("run-1"), summary("run-2")],
+        [running, finished("run-1", "run-2")],
+    )
+
+    ran(server)
+
+    assert "2/2" in capsys.readouterr().err
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
+def test_job_log_lines_go_to_the_lab_logger(caplog: pytest.LogCaptureFixture) -> None:
+    server = FakeServer()
+    printed = JobUpdate(log_lines=["run-1 started", "run-1 at 2024-02-01"])
+    serve_job(server, [summary("run-1")], [printed, finished("run-1")])
+
+    with caplog.at_level(logging.INFO, logger="sbt2.lab"):
+        ran(server)
+
+    assert [each.getMessage() for each in caplog.records] == [
+        "run-1 started",
+        "run-1 at 2024-02-01",
+    ]

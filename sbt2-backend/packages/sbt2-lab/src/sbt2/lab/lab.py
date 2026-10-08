@@ -44,7 +44,7 @@ class Lab:
         request = submit_run(spec, strategy)
         [reply] = await self._session.ask(ClientMessage(submit_run=request))
         submitted = reply.job_submitted
-        await finished(self._session, submitted.job_id)
+        await finished(self._session, submitted)
         return await stored_runs(self._session, submitted.run_ids)
 
     async def close(self) -> None:
