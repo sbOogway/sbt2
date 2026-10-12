@@ -23,6 +23,8 @@ server and a protocol for a future GUI.
   its GUI. Its [README](sbt2-protocol/README.md) has the protocol rules.
 - [sbt2-gui/](sbt2-gui): the GUI, written in Rust with
   [iced](https://iced.rs). Its [README](sbt2-gui/README.md) has the build.
+- [sbt2-notebooks/](sbt2-notebooks): Jupyter notebooks that run strategies on
+  the server. Its [README](sbt2-notebooks/README.md) shows how to start them.
 
 ## Install
 

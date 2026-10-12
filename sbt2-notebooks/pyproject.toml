@@ -1,0 +1,20 @@
+# Only the notebooks' environment: this folder ships no Python package.
+[project]
+name = "sbt2-notebooks"
+version = "0"
+requires-python = ">=3.14"
+dependencies = [
+    "ipywidgets>=8.1.9",
+    "jupyterlab>=4.6.4",
+    "sbt2-lab",
+]
+
+[tool.uv]
+package = false
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[tool.uv.sources]
+sbt2-lab = { path = "../sbt2-backend/packages/sbt2-lab", editable = true }
+
+[tool.ruff]
+extend = "../sbt2-backend/pyproject.toml"
