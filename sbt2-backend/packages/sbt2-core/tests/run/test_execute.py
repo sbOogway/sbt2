@@ -8,7 +8,7 @@ import pytest
 from nautilus_trader.model import Money
 from synthetic_catalog import START, build_catalog
 
-from sbt2.core.results import ParquetResultStore
+from sbt2.core.results import MissingTableError, ParquetResultStore
 from sbt2.core.run import BacktestError, RunSettings, execute
 from sbt2.core.spec import ResolvedRunSpec, load
 
@@ -74,6 +74,14 @@ def test_a_finished_run_is_listed_with_its_headline_metrics(
     assert summary["trade_count"] == 2
     assert summary["total_fees"] == pytest.approx(2 * TAKER_FEE)
     assert summary["total_carry"] == pytest.approx(2 * FUNDING)
+
+
+@pytest.mark.integration
+def test_a_perpetual_run_records_no_margin_table(tmp_path: Path, catalog: Path) -> None:
+    store, run_id = run(tmp_path, catalog)
+
+    with pytest.raises(MissingTableError, match="margin"):
+        store.load(run_id, "margin")
 
 
 @pytest.mark.integration

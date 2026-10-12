@@ -18,6 +18,7 @@ from sbt2.core.results.metrics import (
 from sbt2.core.results.store.parquet.tables import (
     carry_table,
     equity_table,
+    margin_table,
     write_table,
 )
 from sbt2.core.results.store.sink import IncompleteRunError, Reports
@@ -81,6 +82,9 @@ class ParquetSink:
         corrections: pd.DataFrame | None = None,
     ) -> None:
         self._write("equity", equity_table(snapshots, corrections))
+
+    def write_margin(self, margin: pd.DataFrame) -> None:
+        self._write("margin", margin_table(margin))
 
     def write_carry(self, adjustments: Sequence[PositionAdjusted]) -> None:
         self._write("carry", carry_table(adjustments))

@@ -118,15 +118,31 @@ def _run(backtest: _Backtest, run: StrategyRun) -> Strategy[Any]:
 
 def _write_output(backtest: _Backtest, spec: ResolvedRunSpec, sink: OutputSink) -> None:
     cache = backtest.node.get_engine_cache(backtest.config_id)
-    account = cache.account_for_venue(backtest.venue)
-    if account is None:
-        raise NoAccountError(f"the run opened no account on {backtest.venue}")
+    account = _account(cache, backtest.venue)
     portfolio = backtest.node.get_engine_portfolio(backtest.config_id)
     sink.write_equity(
         portfolio.snapshots(account.id), spec.asset.equity.corrections(cache)
     )
+    _write_margin(backtest, spec, sink)
     sink.write_carry(_funding(cache))
     sink.write_reports(_reports(cache, account))
+
+
+def _account(cache: Cache, venue: Venue) -> Any:
+    account = cache.account_for_venue(venue)
+    if account is None:
+        raise NoAccountError(f"the run opened no account on {venue}")
+    return account
+
+
+def _write_margin(backtest: _Backtest, spec: ResolvedRunSpec, sink: OutputSink) -> None:
+    if backtest.margin is None:
+        return
+    cache = backtest.node.get_engine_cache(backtest.config_id)
+    account = _account(cache, backtest.venue)
+    portfolio = backtest.node.get_engine_portfolio(backtest.config_id)
+    grid = sorted(each.ts_event for each in portfolio.snapshots(account.id))
+    sink.write_margin(backtest.margin.used(cache, grid, spec.currency))
 
 
 def _write_drawdown_trip(strategy: Strategy[Any], sink: OutputSink) -> None:

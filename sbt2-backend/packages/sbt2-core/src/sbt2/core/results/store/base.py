@@ -13,7 +13,9 @@ from sbt2.core.spec import ResolvedRunSpec
 from sbt2.core.strategy import import_strategy
 from sbt2.data import Catalog, Gap
 
-Table = Literal["equity", "carry", "fills", "positions", "account", "orders", "summary"]
+Table = Literal[
+    "equity", "margin", "carry", "fills", "positions", "account", "orders", "summary"
+]
 
 
 @dataclass(frozen=True)

@@ -80,6 +80,7 @@ class NoBuyAndHold(BuyAndHoldConvention):
 
 
 CORRECTION_COLUMNS = ["ts_event", "currency", "amount"]
+MARGIN_COLUMNS = ["ts_event", "currency", "margin_used", "maintenance_margin"]
 
 
 class EquityConvention(ABC):
@@ -213,8 +214,21 @@ class MarginModel(ABC):
         ...
 
     @abstractmethod
+    def maintenance(self, instrument: Any, quantity: Decimal, ts: int) -> Decimal:
+        """What the position must keep reserved, as of ``ts``."""
+        ...
+
+    @abstractmethod
     def value(self, instrument: Any, quantity: Decimal, ts: int) -> Decimal:
         """What the position is worth at the mark as of ``ts``."""
+        ...
+
+    @abstractmethod
+    def used(self, cache: Cache, grid: Sequence[int], currency: str) -> pd.DataFrame:
+        """The margin the run's positions reserved at each time of ``grid``, in
+        nanoseconds, as the ``MARGIN_COLUMNS`` hold: the ``margin_used`` and the
+        ``maintenance_margin`` in ``currency``. A fill counts from the next
+        time on, as in the equity."""
         ...
 
 
