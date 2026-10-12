@@ -12,7 +12,7 @@ from sbt2.protocol.v1.runs_pb2 import SpecFile, SpecPeriod, StrategyModule, Subm
 
 _PLAIN = ("instruments", "venue", "capital", "seed", "equity_interval")
 _OPTIONAL = ("liquidation", "bars", "study")
-_TABLES = ("split", "params", "risk")
+_TABLES = ("split", "params", "risk", "chain")
 _KEYS = {*_PLAIN, *_OPTIONAL, *_TABLES, "period", "part"}
 
 type Moment = date | datetime | str

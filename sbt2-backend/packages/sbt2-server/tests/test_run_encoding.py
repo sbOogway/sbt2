@@ -49,6 +49,16 @@ def test_spec_file_message_round_trips_to_the_spec_table() -> None:
 
 
 @pytest.mark.unit
+def test_spec_file_message_carries_the_chain_table() -> None:
+    chain = {"min_dte": 7, "max_dte": 45, "strike_band": "0.2"}
+
+    table = spec_table(spec_message({**TABLE, "chain": chain}))
+
+    assert table["chain"] == chain
+    assert isinstance(table["chain"]["min_dte"], int)
+
+
+@pytest.mark.unit
 def test_spec_file_message_keeps_integral_numbers_as_integers() -> None:
     table = spec_table(spec_message(TABLE))
 

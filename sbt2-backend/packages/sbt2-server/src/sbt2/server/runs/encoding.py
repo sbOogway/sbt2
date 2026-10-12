@@ -10,7 +10,7 @@ from sbt2.server.runs.jobs import Module, Submission
 
 _REQUIRED = ("strategy", "instruments", "period", "venue", "capital")
 _OPTIONAL = ("seed", "equity_interval", "liquidation", "bars", "study")
-_TABLES = ("split", "params", "risk")
+_TABLES = ("split", "params", "risk", "chain")
 
 
 class InvalidArgumentError(ValueError):
