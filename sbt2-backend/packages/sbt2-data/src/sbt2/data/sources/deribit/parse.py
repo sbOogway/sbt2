@@ -30,6 +30,8 @@ VENUE = "DERIBIT"
 
 _NANOS_PER_MILLI = 1_000_000
 _INDEX_PRECISION = 2
+# Deribit sends marks with up to 8 decimals, finer than the contract tick.
+_MARK_PRECISION = 8
 _YEAR_NANOS = 365 * 86_400 * 1_000_000_000
 _AGGRESSOR_SIDES = {"buy": AggressorSide.BUY, "sell": AggressorSide.SELL}
 _OPTION_KINDS = {"call": OptionKind.CALL, "put": OptionKind.PUT}
@@ -144,7 +146,7 @@ def _tick(trade: Mapping[str, Any], contract: CryptoOption) -> TradeTick:
 def _mark_price(trade: Mapping[str, Any], contract: CryptoOption) -> MarkPriceUpdate:
     ts = int(trade["timestamp"]) * _NANOS_PER_MILLI
     return MarkPriceUpdate(
-        contract.id, Price(trade["mark_price"], contract.price_precision), ts, ts
+        contract.id, Price(trade["mark_price"], _MARK_PRECISION), ts, ts
     )
 
 

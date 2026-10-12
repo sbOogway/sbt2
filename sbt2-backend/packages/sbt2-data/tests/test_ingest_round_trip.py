@@ -204,7 +204,7 @@ def test_deribit_mark_prices_round_trip_through_the_catalog(
 
     assert {each: len(marks) for each, marks in stored.items()} == TRADED
     first = stored[PUT_88K][0]
-    assert str(first.value) == "0.0116"
+    assert str(first.value) == "0.01163879"
     assert first.ts_event == 1_735_689_642_010 * 1_000_000
 
 

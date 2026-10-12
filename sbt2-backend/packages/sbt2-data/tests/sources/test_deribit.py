@@ -344,6 +344,18 @@ def test_the_aggressor_side_is_the_direction_of_the_trade(
 
 
 @pytest.mark.unit
+def test_mark_prices_keep_deribits_decimals(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+
+    (lone,) = parsed_of(source, MarkPriceUpdate, tmp_path)[CALL_135K]
+
+    assert lone.value.precision == 8
+    assert lone.value.as_double() == 0.00376973
+
+
+@pytest.mark.unit
 def test_a_trade_without_an_iv_gives_no_option_greeks(
     deribit: Source, tmp_path: Path
 ) -> None:
@@ -374,14 +386,14 @@ def test_parse_gives_each_trades_mark_price_as_a_mark_price_update_of_its_contra
 
     marks = parsed_of(source, MarkPriceUpdate, tmp_path)
 
-    assert [str(each.value) for each in marks[PUT_88K]] == ["0.0116"] * 4
+    assert [str(each.value) for each in marks[PUT_88K]] == ["0.01163879"] * 4
     assert [each.ts_event for each in marks[PUT_88K]] == [
         1_735_689_642_010 * 1_000_000
     ] * 4
     (lone,) = marks[CALL_135K]
     assert lone == MarkPriceUpdate.from_dict(lone.to_dict())
     assert lone.instrument_id == CALL_135K
-    assert str(lone.value) == "0.0038"
+    assert str(lone.value) == "0.00376973"
     assert (lone.ts_event, lone.ts_init) == (1_735_689_600_017 * 1_000_000,) * 2
     assert sum(len(each) for each in marks.values()) == len(BTC_TRADE_IDS)
 
