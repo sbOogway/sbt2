@@ -180,6 +180,15 @@ CHAIN_LISTING = {
 }
 
 
+LADDER_LISTING = {
+    "12JAN24": (datetime(2024, 1, 12, 8, tzinfo=UTC), (40000, 45000, 50000)),
+    "15FEB24": (
+        datetime(2024, 2, 15, 8, tzinfo=UTC),
+        (30000, 35000, 40000, 45000, 50000, 55000, 60000),
+    ),
+}
+
+
 def chain_contract_id(label: str, strike: int, kind: str) -> InstrumentId:
     return InstrumentId.from_str(f"BTC-{label}-{strike}-{kind}.DERIBIT")
 
@@ -193,9 +202,27 @@ def build_chain_catalog(
     records every hour while they live, an hourly BTC index of ``index_prices``
     (``INDEX_PRICE`` by default), and the delivery price of 2 January unless
     ``delivery`` is ``None``."""
+    catalog = _new_catalog(path)
+    _write_contracts(catalog, _chain_contracts(CHAIN_LISTING))
+    _write_index(catalog, index_prices or [INDEX_PRICE] * HOURS, delivery)
+
+
+def build_ladder_catalog(path: Path) -> None:
+    """Two days of the ``LADDER_LISTING`` contracts, calls and puts, like
+    ``build_chain_catalog`` with a flat index and the default delivery."""
+    catalog = _new_catalog(path)
+    _write_contracts(catalog, _chain_contracts(LADDER_LISTING))
+    _write_index(catalog, [INDEX_PRICE] * HOURS, CHAIN_DELIVERY)
+
+
+def _new_catalog(path: Path) -> ParquetDataCatalog:
     path.mkdir(parents=True, exist_ok=True)
-    catalog = ParquetDataCatalog(str(path))
-    contracts = _chain_contracts()
+    return ParquetDataCatalog(str(path))
+
+
+def _write_contracts(
+    catalog: ParquetDataCatalog, contracts: list[CryptoOption]
+) -> None:
     catalog.write_instruments(
         [*contracts, _index_instrument(INDEX_ID), _index_instrument(DVOL_ID)]
     )
@@ -209,7 +236,12 @@ def build_chain_catalog(
             catalog.write_option_greeks(
                 [_greeks(hour, each.id) for hour in range(alive)], first, last
             )
-    prices = index_prices or [INDEX_PRICE] * HOURS
+
+
+def _write_index(
+    catalog: ParquetDataCatalog, prices: Sequence[float], delivery: float | None
+) -> None:
+    first, last = _nanos(0), _nanos(HOURS) - 1
     catalog.write_index_price_updates(
         [_index(hour, price) for hour, price in enumerate(prices)], first, last
     )
@@ -245,13 +277,15 @@ def write_dvol(path: Path, dvol: Mapping[int, float]) -> None:
     )
 
 
-def _chain_contracts() -> list[CryptoOption]:
+def _chain_contracts(
+    listing: Mapping[str, tuple[datetime, tuple[int, ...]]],
+) -> list[CryptoOption]:
     return [
         listed_option(
             chain_contract_id(label, strike, suffix),
             Terms(kind, expiry, str(strike)),
         )
-        for label, (expiry, strikes) in CHAIN_LISTING.items()
+        for label, (expiry, strikes) in listing.items()
         for strike in strikes
         for suffix, kind in (("C", OptionKind.CALL), ("P", OptionKind.PUT))
     ]

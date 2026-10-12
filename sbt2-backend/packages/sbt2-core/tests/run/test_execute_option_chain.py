@@ -11,6 +11,7 @@ from option_catalog import (
     MARK_IV,
     START,
     build_chain_catalog,
+    build_ladder_catalog,
     chain_contract_id,
     mark_at,
 )
@@ -245,3 +246,19 @@ def test_a_chain_strategy_reads_the_iv_and_greeks_of_a_contract(
         assert delta == pytest.approx(
             call_delta(prices[min(hour, 47)], hours_left), abs=1e-5
         )
+
+
+@pytest.mark.integration
+def test_a_chain_strategy_sells_the_16_delta_put_of_the_expiry_nearest_45_dte(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "ladder"
+    build_ladder_catalog(path)
+
+    store, run_id = run(tmp_path, path, "run_strategies:SellDeltaPut")
+
+    [entry] = store.load(run_id, "fills").to_dict("records")
+    # by hand, the 15 February puts have a delta of -0.098 at 35000 and -0.254 at
+    # 40000; the 12 January 40000 put, at -0.12, is nearer but of a nearer expiry
+    assert entry["instrument_id"] == str(chain_contract_id("15FEB24", 35000, "P"))
+    assert entry["order_side"] == "SELL"

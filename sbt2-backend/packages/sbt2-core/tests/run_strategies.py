@@ -297,6 +297,29 @@ class GreekChain(OnSchedule):
         self.seen[now] = (self.chain.iv(call), self.chain.greeks(call).delta)
 
 
+class SellDeltaPut(OnSchedule):
+    """Sells the 16 delta put of the expiry nearest 45 days, on its first tick."""
+
+    @override
+    def on_start(self) -> None:
+        super().on_start()
+        self.sold = False
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        expiry = self.chain.nearest_expiry(45)
+        if self.sold or expiry is None:
+            return
+        pick = self.chain.nearest_delta(expiry, -0.16)
+        if pick is not None:
+            self.sold = True
+            self.submit_order(
+                self.order_factory.market(
+                    pick.id, OrderSide.SELL, Quantity.from_str("1.0")
+                )
+            )
+
+
 class SellChainPut(OnSchedule):
     """Sells one put near the money, of the nearest expiry, on its first tick
     after warm-up."""

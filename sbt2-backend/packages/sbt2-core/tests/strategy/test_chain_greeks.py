@@ -1,13 +1,12 @@
-from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from math import erf, exp, pi, sqrt
 
 import pytest
-from nautilus_trader.core import dt_to_unix_nanos
-from nautilus_trader.model import CryptoOption, InstrumentId, OptionKind, QuoteTick
+from chain_kit import chain_of, clock, ns
+from nautilus_trader.model import CryptoOption, InstrumentId, OptionKind
 from option_catalog import Terms, listed_option
 
-from sbt2.core.strategy import CachedChain, ChainRecords, NoMarketError
+from sbt2.core.strategy import ChainRecords, NoMarketError
 
 NOW = datetime(2024, 1, 2, tzinfo=UTC)
 EXPIRY = NOW + timedelta(days=73)
@@ -19,27 +18,8 @@ CALL_ID = InstrumentId.from_str("BTC-15MAR24-45000-C.DERIBIT")
 PUT_ID = InstrumentId.from_str("BTC-15MAR24-45000-P.DERIBIT")
 
 
-def ns(moment: datetime) -> int:
-    return dt_to_unix_nanos(moment)
-
-
 def contract(instrument_id: InstrumentId, kind: OptionKind) -> CryptoOption:
     return listed_option(instrument_id, Terms(kind, EXPIRY, str(STRIKE)))
-
-
-class FakeCache:
-    def __init__(self, contracts: tuple[CryptoOption, ...]) -> None:
-        self._contracts = {each.id: each for each in contracts}
-
-    def instrument(self, instrument_id: InstrumentId, /) -> CryptoOption | None:
-        return self._contracts.get(instrument_id)
-
-    def quote(self, _instrument_id: InstrumentId, /) -> QuoteTick | None:
-        return None
-
-
-def chain_of(records: ChainRecords, *contracts: CryptoOption) -> CachedChain:
-    return CachedChain(FakeCache(contracts), [each.id for each in contracts], records)
 
 
 def cdf(x: float) -> float:
@@ -53,10 +33,6 @@ def pdf(x: float) -> float:
 def d1() -> float:
     spread = IV * sqrt(YEARS)
     return (0.5 * IV**2 * YEARS) / spread
-
-
-def clock(moment: datetime) -> Callable[[], int]:
-    return lambda: ns(moment)
 
 
 @pytest.fixture

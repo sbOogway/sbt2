@@ -49,6 +49,20 @@ class Chain(ABC):
         ...
 
     @abstractmethod
+    def nearest_expiry(self, dte: float) -> datetime | None:
+        """The expiry alive now whose days to expiry are nearest ``dte``, the
+        earlier one on a tie; none on an empty chain."""
+        ...
+
+    @abstractmethod
+    def nearest_delta(self, expiry: datetime, delta: float) -> CryptoOption | None:
+        """The contract of ``expiry`` whose delta is nearest ``delta``, the lower
+        strike on a tie. A call has a positive delta and a put a negative one,
+        so ``delta`` picks the kind; ``ValueError`` for 0. A contract with no
+        quote or no IV yet is passed over; none when no contract is left."""
+        ...
+
+    @abstractmethod
     def iv(self, contract: CryptoOption) -> float:
         """The latest implied volatility of ``contract`` as a fraction, Deribit's
         own; ``NoMarketError`` before its first."""
@@ -98,6 +112,25 @@ class CachedChain(Chain):
     def quote(self, contract: CryptoOption) -> QuoteTick | None:
         return self._cache.quote(contract.id)
 
+    def nearest_expiry(self, dte: float) -> datetime | None:
+        now = self._records.now_ns()
+        return min(
+            self.expiries(),
+            key=lambda each: abs((dt_to_unix_nanos(each) - now) / _DAY_NS - dte),
+            default=None,
+        )
+
+    def nearest_delta(self, expiry: datetime, delta: float) -> CryptoOption | None:
+        if delta == 0:
+            raise ValueError("a delta is above 0 for a call and below 0 for a put")
+        kind = OptionKind.CALL if delta > 0 else OptionKind.PUT
+        offered = self.contracts(ChainFilter(kind=kind, expiry=expiry))
+        return min(
+            (each for each in offered if self._is_priced(each)),
+            key=lambda each: abs(self.greeks(each).delta - delta),
+            default=None,
+        )
+
     def iv(self, contract: CryptoOption) -> float:
         found = self._records.iv(contract.id)
         if found is None:
@@ -110,6 +143,10 @@ class CachedChain(Chain):
         if index is None:
             raise NoMarketError("the chain has heard no index price yet")
         return greeks_of(contract, Market(index, self.iv(contract)), now)
+
+    def _is_priced(self, contract: CryptoOption) -> bool:
+        has_iv = self._records.iv(contract.id) is not None
+        return has_iv and self.quote(contract) is not None
 
     def _loaded(self) -> list[CryptoOption]:
         found = (self._cache.instrument(each) for each in self._instrument_ids)
