@@ -4,6 +4,7 @@ import pytest
 from nautilus_trader.model import InstrumentId, Money
 from option_catalog import EXPIRING_CALL, EXPIRING_PUT, build_expiring_catalog
 
+from sbt2.core.assets import NoDeliveryPriceError
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
 from sbt2.core.spec import load
@@ -125,3 +126,14 @@ def test_a_worthless_option_expires_without_a_delivery_fee(
     assert equity == pytest.approx(
         BALANCE - commission(entry) - float(entry["last_px"])
     )
+
+
+@pytest.mark.integration
+def test_a_run_with_an_expiry_but_no_delivery_price_names_the_missing_day(
+    tmp_path: Path,
+) -> None:
+    bare = tmp_path / "bare_catalog"
+    build_expiring_catalog(bare, None)
+
+    with pytest.raises(NoDeliveryPriceError, match="2024-01-02"):
+        run(tmp_path, bare, EXPIRING_CALL, "run_strategies:BuyOneOption")
