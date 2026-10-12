@@ -10,6 +10,7 @@ from sbt2.core.assets.base import (
 )
 from sbt2.core.assets.crypto_option import CRYPTO_OPTION
 from sbt2.core.assets.crypto_perp import CRYPTO_PERP
+from sbt2.core.assets.option_quotes import OptionHistory, QuoteSettings, quote_ticks
 
 __all__ = [
     "AssetProfile",
@@ -18,8 +19,11 @@ __all__ = [
     "Carry",
     "NoBuyAndHoldError",
     "NoTakerRateError",
+    "OptionHistory",
+    "QuoteSettings",
     "UnknownAssetClassError",
     "asset_profile",
+    "quote_ticks",
 ]
 
 _PROFILES = {
