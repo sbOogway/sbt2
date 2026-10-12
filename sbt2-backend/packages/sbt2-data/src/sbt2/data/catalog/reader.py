@@ -147,6 +147,13 @@ class Catalog:
             latest[each.id] = each
         return latest
 
+    def instrument_ids(self) -> tuple[InstrumentId, ...]:
+        """The ids of every instrument in the catalog, sorted."""
+        if not self._path.is_dir():
+            return ()
+        names = self._nautilus.list_instruments(NautilusDataType.Instrument)
+        return tuple(InstrumentId.from_str(each) for each in sorted(names))
+
     def frame(
         self, instrument_id: InstrumentId, data_type: type, window: Window
     ) -> pd.DataFrame:
