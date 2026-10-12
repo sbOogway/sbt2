@@ -180,3 +180,41 @@ def test_a_contract_has_no_quote_after_its_expiry() -> None:
     )
 
     assert quote_times(quotes) == [begin + timedelta(minutes=m) for m in range(5)]
+
+
+def quote_at_start(mark: float, settings: QuoteSettings) -> QuoteTick:
+    [quote] = quote_ticks(history(contract(), {START: mark}, {}), settings, span(1))
+    return quote
+
+
+def bid_ask(quote: QuoteTick) -> tuple[float, float]:
+    return round(float(quote.bid_price), 4), round(float(quote.ask_price), 4)
+
+
+@pytest.mark.unit
+def test_the_half_spread_is_the_larger_of_the_ticks_and_the_fraction() -> None:
+    settings = QuoteSettings(ticks=1, fraction=0.05)
+
+    wide = quote_at_start(0.0500, settings)
+    narrow = quote_at_start(0.0010, settings)
+
+    assert bid_ask(wide) == (0.0475, 0.0525)
+    assert bid_ask(narrow) == (0.0009, 0.0011)
+
+
+@pytest.mark.unit
+def test_bid_and_ask_round_outward_to_the_contracts_tick() -> None:
+    settings = QuoteSettings(ticks=1, fraction=0.0)
+
+    quote = quote_at_start(0.05003, settings)
+
+    assert bid_ask(quote) == (0.0499, 0.0502)
+
+
+@pytest.mark.unit
+def test_a_bid_below_one_tick_becomes_one_tick() -> None:
+    settings = QuoteSettings(ticks=2, fraction=0.0)
+
+    quote = quote_at_start(0.00015, settings)
+
+    assert bid_ask(quote) == (0.0001, 0.0004)

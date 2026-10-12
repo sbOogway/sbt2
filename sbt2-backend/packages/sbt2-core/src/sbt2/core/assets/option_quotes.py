@@ -16,15 +16,18 @@ from nautilus_trader.model import (
 
 _YEAR_NANOS = 365 * 86_400 * 10**9
 _QUOTE_SIZE = 1_000_000
+# The solver's float noise, in ticks, must not move a rounded price.
+_NOISE_DIGITS = 2
 
 
 @dataclass(frozen=True)
 class QuoteSettings:
     """The spread model: a quote every ``interval_seconds``, half a spread of
-    ``ticks`` ticks."""
+    ``ticks`` ticks or ``fraction`` of the price, whichever is larger."""
 
     interval_seconds: int = 60
     ticks: int = 1
+    fraction: float = 0.05
 
 
 @dataclass(frozen=True)
@@ -173,5 +176,8 @@ def _quote(
 
 
 def _tick_counts(mid: float, settings: QuoteSettings) -> tuple[int, int]:
-    bid = max(round(mid - settings.ticks), 1)
-    return bid, max(round(mid + settings.ticks), bid + 1)
+    """Bid down and ask up to a tick; the bid is at least one tick."""
+    half = max(settings.ticks, settings.fraction * mid)
+    bid = max(math.floor(round(mid - half, _NOISE_DIGITS)), 1)
+    ask = max(math.ceil(round(mid + half, _NOISE_DIGITS)), bid + 1)
+    return bid, ask
