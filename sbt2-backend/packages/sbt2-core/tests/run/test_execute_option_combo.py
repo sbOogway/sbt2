@@ -93,3 +93,24 @@ def test_a_combos_margin_is_that_of_its_legs(tmp_path: Path, ladder: Path) -> No
     [(margin, held)] = OpenStrangle.margins
     assert margin > 0
     assert margin == held
+
+
+@pytest.mark.integration
+def test_a_combo_closes_all_its_legs_together(tmp_path: Path, ladder: Path) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run(tmp_path, ladder, "combo_strategies:CloseStrangleAtOnce")
+
+    fills = store.load(run_id, "fills").to_dict("records")
+    assert [(each["instrument_id"], each["order_side"]) for each in fills] == [
+        (PUT, "SELL"),
+        (CALL, "SELL"),
+        (PUT, "BUY"),
+        (CALL, "BUY"),
+    ]
+    assert tags_of_fills(store, run_id) == [["COMBO:C1"]] * 4
+    [closed] = OpenStrangle.closed
+    assert closed.id == "C1"
+    assert OpenStrangle.settled == []
+    assert OpenStrangle.seen[-1][1] == ()
+    assert set(store.load(run_id, "positions")["side"]) == {"FLAT"}
