@@ -144,14 +144,19 @@ class ComboExit:
     loss_target: Decimal | None = None
 
     def reached(self, combo: Combo, now: datetime, quote: Quotes) -> bool:
+        """Whether a rule closes ``combo``; a leg with no quote yet leaves the
+        two targets unreached."""
         if self.dte is not None and combo.dte(now) <= self.dte:
             return True
-        if self.profit_target is None and self.loss_target is None:
+        try:
+            return self._targeted(combo.pl_percent(quote))
+        except NoMarketError:
             return False
-        percent = combo.pl_percent(quote)
-        return (self.profit_target is not None and percent >= self.profit_target) or (
-            self.loss_target is not None and percent <= -self.loss_target
-        )
+
+    def _targeted(self, percent: Decimal) -> bool:
+        profit = self.profit_target is not None and percent >= self.profit_target
+        loss = self.loss_target is not None and percent <= -self.loss_target
+        return profit or loss
 
 
 def _selling(

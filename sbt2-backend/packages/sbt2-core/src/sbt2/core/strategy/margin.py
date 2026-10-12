@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
 from typing import Any, Protocol
 
@@ -36,6 +36,17 @@ class MarginDesk:
             )
             for instrument_id, quantity in self._held().items()
         }
+
+    def of_quantities(self, quantities: Mapping[InstrumentId, Decimal]) -> Decimal:
+        """The initial margin of the signed quantities, each held alone."""
+        ts = self._trader.clock.timestamp_ns()
+        return sum(
+            (
+                self._model.initial(self._trader.cache.instrument(each), quantity, ts)
+                for each, quantity in quantities.items()
+            ),
+            Decimal(0),
+        )
 
     def refusal(self, orders: Sequence[Any]) -> str | None:
         """Why the orders cannot be sent, or none when the free equity covers
