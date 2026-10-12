@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
@@ -17,6 +17,8 @@ from nautilus_trader.model import (
     MarkPriceUpdate,
 )
 from nautilus_trader.portfolio import PortfolioConfig
+
+from sbt2.data import Selection
 
 
 class Calendar(Protocol):
@@ -155,6 +157,49 @@ class NoQuotes(QuoteConvention):
         return []
 
 
+class SettlementConvention(ABC):
+    """How the venue settles a position at its contract's expiry."""
+
+    @abstractmethod
+    def complete(self, venue: Mapping[str, Any]) -> dict[str, Any]:
+        """The venue arguments with the settlement settings filled in with their
+        defaults; ``ValueError`` when the settings are invalid."""
+        ...
+
+    @abstractmethod
+    def fee_model(self, base: Any, venue: Mapping[str, Any], tag: str) -> Any:
+        """The venue's fee model ``base``, or none, made to charge the fee of a
+        settlement on the orders tagged ``tag``, which close the positions of
+        an expired contract."""
+        ...
+
+    @abstractmethod
+    def delivery_selections(
+        self, instruments: Iterable[Any], window: tuple[datetime, datetime]
+    ) -> list[Selection]:
+        """The delivery data a run of ``instruments`` over ``window`` settles at."""
+        ...
+
+
+class NoSettlement(SettlementConvention):
+    """The instruments never expire."""
+
+    def complete(self, venue: Mapping[str, Any]) -> dict[str, Any]:
+        if "delivery_fee" in venue:
+            raise ValueError("this asset class takes no delivery_fee setting")
+        return dict(venue)
+
+    def fee_model(self, base: Any, venue: Mapping[str, Any], tag: str) -> Any:
+        del venue, tag
+        return base
+
+    def delivery_selections(
+        self, instruments: Iterable[Any], window: tuple[datetime, datetime]
+    ) -> list[Selection]:
+        del instruments, window
+        return []
+
+
 @dataclass(frozen=True)
 class AssetProfile:
     """What sbt2 needs to know about one nautilus asset class and instrument class."""
@@ -170,6 +215,7 @@ class AssetProfile:
     buy_and_hold: BuyAndHoldConvention
     equity: EquityConvention = field(default_factory=NativeEquity)
     quotes: QuoteConvention = field(default_factory=NoQuotes)
+    settlement: SettlementConvention = field(default_factory=NoSettlement)
 
     def covers(self, instrument: Any) -> bool:
         return (

@@ -40,7 +40,10 @@ def check_coverage(
     """Fetch the days the catalog lacks, and return the known gaps."""
     folders.catalog.mkdir(parents=True, exist_ok=True)
     uncovered = _uncovered(spec, Catalog(folders.catalog), source.known_gaps)
-    if uncovered.missing:
+    # The first fetch brings the contracts, which tell what delivery data is due.
+    for _ in range(2):
+        if not uncovered.missing:
+            break
         _fetch(source, uncovered.missing, folders)
         uncovered = _uncovered(spec, Catalog(folders.catalog), source.known_gaps)
     if uncovered.missing:
@@ -87,14 +90,23 @@ class _Uncovered:
 def _uncovered(
     spec: ResolvedRunSpec, catalog: Catalog, known_gaps: frozenset[Gap]
 ) -> _Uncovered:
-    selection = _selection(spec)
-    window = selection.window
-    trading = frozenset(spec.asset.calendar.trading_days(window.start, window.end))
-    coverage = catalog.coverage(selection, known_gaps)
+    trading: set[date] = set()
+    coverage: list[Coverage] = []
+    for selection in _selections(spec, catalog):
+        window = selection.window
+        trading.update(spec.asset.calendar.trading_days(window.start, window.end))
+        coverage.extend(catalog.coverage(selection, known_gaps))
     return _Uncovered(
-        missing=tuple(_gaps(coverage, trading, attrgetter("missing"))),
-        known_gaps=tuple(_gaps(coverage, trading, attrgetter("known_gaps"))),
+        missing=tuple(_gaps(coverage, frozenset(trading), attrgetter("missing"))),
+        known_gaps=tuple(_gaps(coverage, frozenset(trading), attrgetter("known_gaps"))),
     )
+
+
+def _selections(spec: ResolvedRunSpec, catalog: Catalog) -> list[Selection]:
+    """The run's own data, and the delivery prices of the contracts it holds."""
+    contracts = catalog.instruments(spec.instrument_ids).values()
+    deliveries = spec.asset.settlement.delivery_selections(contracts, spec.data_window)
+    return [_selection(spec), *deliveries]
 
 
 def _gaps(

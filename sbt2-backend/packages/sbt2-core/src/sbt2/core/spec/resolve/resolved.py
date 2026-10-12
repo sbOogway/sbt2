@@ -19,7 +19,7 @@ from sbt2.core.spec.resolve.canonical import canonical_hash, canonical_json
 from sbt2.core.spec.resolve.document import spec_fields
 from sbt2.core.spec.resolve.models import venue_objects
 from sbt2.core.spec.split import Splitter
-from sbt2.core.strategy import StrategyRun
+from sbt2.core.strategy import SETTLEMENT_TAG, StrategyRun
 
 
 @dataclass(frozen=True)
@@ -131,7 +131,7 @@ class ResolvedRunSpec:
         ``quotes`` stream the quotes made at run time.
         """
         return BacktestRunConfig(
-            [BacktestVenueConfig(**venue_objects(self.venue))],
+            [self._venue_config()],
             [
                 *(
                     BacktestDataConfig(catalog_path=catalog_path, **arguments)
@@ -148,6 +148,15 @@ class ResolvedRunSpec:
             end=self.end,
             **machine,
         )
+
+    def _venue_config(self) -> BacktestVenueConfig:
+        objects = venue_objects(self.venue)
+        fee_model = self.asset.settlement.fee_model(
+            objects.get("fee_model"), self.venue, SETTLEMENT_TAG
+        )
+        if fee_model is not None:
+            objects["fee_model"] = fee_model
+        return BacktestVenueConfig(**objects)
 
     @property
     def _first_data(self) -> Mapping[str, Any]:

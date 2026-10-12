@@ -8,11 +8,14 @@ from nautilus_trader.model import (
     InstrumentId,
     MarkPriceUpdate,
     OptionGreeks,
+    QuoteTick,
 )
 from nautilus_trader.persistence import ParquetDataCatalog
 
 from sbt2.core.assets.base import QuoteJob
+from sbt2.core.assets.option_delivery import delivery_price, expires_within
 from sbt2.core.assets.option_quotes import OptionHistory, QuoteSettings, quote_ticks
+from sbt2.core.assets.option_settlement import settlement_price, settlement_quotes
 from sbt2.data import Catalog, Window
 
 type Span = tuple[datetime, datetime]
@@ -52,10 +55,18 @@ class _Quoter:
         history = _history(self._catalog, contract, (self._job.window[1], index))
         quotes = quote_ticks(history, self._settings, self._job.window)
         if quotes:
+            quotes += self._settlement(contract)
             self._target.write_quote_ticks(
                 quotes, quotes[0].ts_event, quotes[-1].ts_event
             )
         return bool(quotes)
+
+    def _settlement(self, contract: CryptoOption) -> list[QuoteTick]:
+        """The closing quotes of a contract that expires within the run."""
+        if not expires_within(contract, self._job.window):
+            return []
+        delivery = delivery_price(self._catalog, contract)
+        return settlement_quotes(contract, settlement_price(contract, delivery))
 
     def _index(self, index_id: InstrumentId) -> pd.Series:
         if index_id not in self._indexes:

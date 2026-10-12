@@ -30,6 +30,11 @@ MARK_IV = 0.6
 FIRST_MARK = Decimal("0.0500")
 MARK_STEP = Decimal("0.0010")
 BTC = Currency.from_str("BTC")
+EXPIRING_CALL = InstrumentId.from_str("BTC-2JAN24-50000-C.DERIBIT")
+EXPIRING_PUT = InstrumentId.from_str("BTC-2JAN24-50000-P.DERIBIT")
+DELIVERY_ID = InstrumentId.from_str("BTC_USD_DELIVERY.DERIBIT")
+EXPIRY_HOUR = 32
+EXPIRY = START + timedelta(hours=EXPIRY_HOUR)
 
 
 def mark_at(hour: int) -> Decimal:
@@ -54,18 +59,22 @@ def build_option_catalog(path: Path, trade_price: str = TRADE_PRICE) -> None:
     )
 
 
-def option() -> CryptoOption:
+def option(
+    instrument_id: InstrumentId = OPTION_ID,
+    kind: OptionKind = OptionKind.CALL,
+    expiry: datetime = datetime(2024, 2, 1, tzinfo=UTC),
+) -> CryptoOption:
     return CryptoOption(
-        OPTION_ID,
-        Symbol(OPTION_ID.symbol.value),
+        instrument_id,
+        Symbol(instrument_id.symbol.value),
         BTC,
         BTC,
         BTC,
         True,
-        OptionKind.CALL,
+        kind,
         Price.from_str("50000"),
         _nanos(0),
-        dt_to_unix_nanos(datetime(2024, 2, 1, tzinfo=UTC)),
+        dt_to_unix_nanos(expiry),
         4,
         1,
         Price.from_str("0.0001"),
@@ -94,15 +103,15 @@ def _trade(ts: int, price: str) -> TradeTick:
     )
 
 
-def _mark(hour: int) -> MarkPriceUpdate:
+def _mark(hour: int, instrument_id: InstrumentId = OPTION_ID) -> MarkPriceUpdate:
     ts = _nanos(hour)
-    return MarkPriceUpdate(OPTION_ID, Price(float(mark_at(hour)), 4), ts, ts)
+    return MarkPriceUpdate(instrument_id, Price(float(mark_at(hour)), 4), ts, ts)
 
 
-def _greeks(hour: int) -> OptionGreeks:
+def _greeks(hour: int, instrument_id: InstrumentId = OPTION_ID) -> OptionGreeks:
     ts = _nanos(hour)
     return OptionGreeks(
-        OPTION_ID,
+        instrument_id,
         0.3,
         0.0001,
         10.0,
@@ -117,3 +126,28 @@ def _greeks(hour: int) -> OptionGreeks:
 def _index(hour: int) -> IndexPriceUpdate:
     ts = _nanos(hour)
     return IndexPriceUpdate(INDEX_ID, Price(INDEX_PRICE, 2), ts, ts)
+
+
+def build_expiring_catalog(path: Path, delivery: float | None) -> None:
+    """Two days of an expiring call and put: marks and IV records every hour until
+    the expiry, the BTC index every hour, and the delivery price of the expiry day
+    unless ``delivery`` is ``None``."""
+    path.mkdir(parents=True, exist_ok=True)
+    catalog = ParquetDataCatalog(str(path))
+    contracts = [
+        option(EXPIRING_CALL, OptionKind.CALL, EXPIRY),
+        option(EXPIRING_PUT, OptionKind.PUT, EXPIRY),
+    ]
+    catalog.write_instruments(contracts)
+    first, last = _nanos(0), _nanos(HOURS) - 1
+    for each in contracts:
+        marks = [_mark(hour, each.id) for hour in range(EXPIRY_HOUR)]
+        catalog.write_mark_price_updates(marks, first, last)
+        greeks = [_greeks(hour, each.id) for hour in range(EXPIRY_HOUR)]
+        catalog.write_option_greeks(greeks, first, last)
+    indexes = [_index(hour) for hour in range(HOURS)]
+    catalog.write_index_price_updates(indexes, first, last)
+    if delivery is not None:
+        expiry = _nanos(EXPIRY_HOUR)
+        update = IndexPriceUpdate(DELIVERY_ID, Price(delivery, 2), expiry, expiry)
+        catalog.write_index_price_updates([update], expiry, expiry)

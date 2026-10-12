@@ -115,15 +115,19 @@ def _type(annotation: Any, default: Any) -> type:
     return str
 
 
+_RUN_SETTINGS = frozenset({"quotes", "delivery_fee"})
+
+
 def venue_objects(arguments: Mapping[str, Any]) -> dict[str, Any]:
     """The ``BacktestVenueConfig`` arguments of the venue arguments: each
-    ``{kind, config}`` model table built, the run's own ``quotes`` setting left out."""
+    ``{kind, config}`` model table built, the run's own settings left out."""
     built = {
         argument: _built(argument, value)
         for argument, value in arguments.items()
         if argument in _MODELS
     }
-    return {**{k: v for k, v in arguments.items() if k != "quotes"}, **built}
+    own = {k: v for k, v in arguments.items() if k not in _RUN_SETTINGS}
+    return {**own, **built}
 
 
 def model_tables(

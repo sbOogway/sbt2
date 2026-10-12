@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from nautilus_trader.execution import CappedOptionFeeModel, MakerTakerFeeModel
+from nautilus_trader.execution import FeeModel, MakerTakerFeeModel
 from nautilus_trader.model import InstrumentClass, OmsType
 
 from sbt2.core.config import ConfigFolder
@@ -56,7 +56,7 @@ def test_deribit_option_builds_a_nautilus_venue(tmp_path: Path) -> None:
     assert venue.name == "DERIBIT"
     assert venue.oms_type == OmsType.NETTING
     assert venue.liquidation_enabled is False
-    assert isinstance(venue.fee_model, CappedOptionFeeModel)
+    assert isinstance(venue.fee_model, FeeModel)
 
 
 OPTION_PARAMS = 'params = { bar = "1-HOUR-MID" }'
@@ -101,6 +101,33 @@ def test_a_partial_quote_table_keeps_the_defaults_of_the_rest(tmp_path: Path) ->
     venue = option_venue(tmp_path, "quotes = { ticks = 3 }")
 
     assert venue["quotes"] == {"interval_seconds": 60, "ticks": 3, "fraction": 0.05}
+
+
+@pytest.mark.unit
+def test_a_deribit_option_profile_reads_its_delivery_fee_rates(tmp_path: Path) -> None:
+    venue = option_venue(
+        tmp_path, 'delivery_fee = { rate = "0.0002", cap_rate = "0.1" }'
+    )
+
+    assert venue["delivery_fee"] == {"rate": "0.0002", "cap_rate": "0.1"}
+
+
+@pytest.mark.unit
+def test_a_deribit_option_profile_without_delivery_fee_rates_uses_the_defaults(
+    tmp_path: Path,
+) -> None:
+    venue = option_venue(tmp_path, "")
+
+    assert venue["delivery_fee"] == {"rate": "0.00015", "cap_rate": "0.125"}
+
+
+@pytest.mark.unit
+def test_a_partial_delivery_fee_table_keeps_the_defaults_of_the_rest(
+    tmp_path: Path,
+) -> None:
+    venue = option_venue(tmp_path, "delivery_fee = { rate = 0.0002 }")
+
+    assert venue["delivery_fee"] == {"rate": "0.0002", "cap_rate": "0.125"}
 
 
 @pytest.mark.unit
@@ -283,4 +310,28 @@ def test_an_invalid_quote_setting_is_rejected(
     profile = {**PROFILE, "instrument_class": instrument_class, "quotes": quotes}
 
     with pytest.raises(InvalidVenueProfileError, match="quotes"):
+        put_venue_profile(venues, "p", profile)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("instrument_class", "delivery_fee"),
+    [
+        ("OPTION", {"charge": "1"}),
+        ("OPTION", {"rate": "-0.1"}),
+        ("OPTION", {"cap_rate": "abc"}),
+        ("SWAP", {"rate": "0.1"}),
+    ],
+)
+def test_an_invalid_delivery_fee_setting_is_rejected(
+    tmp_path: Path, instrument_class: str, delivery_fee: dict[str, Any]
+) -> None:
+    venues = ConfigFolder(tmp_path / "config").venues
+    profile = {
+        **PROFILE,
+        "instrument_class": instrument_class,
+        "delivery_fee": delivery_fee,
+    }
+
+    with pytest.raises(InvalidVenueProfileError, match="delivery_fee"):
         put_venue_profile(venues, "p", profile)
