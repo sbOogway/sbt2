@@ -4,6 +4,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from deribit_replay import RECORDED as DERIBIT_RECORDED
 from fake_source import (
     FakeApi,
     FakeSource,
@@ -14,6 +15,7 @@ from fake_source import (
 )
 from file_server import FileServer
 from nautilus_trader.model import TradeTick
+from replay import replay
 
 from sbt2.data import (
     INSTRUMENT,
@@ -26,6 +28,7 @@ from sbt2.data import (
     download,
 )
 from sbt2.data.sources import Gap, UnsupportedDataTypeError
+from sbt2.data.sources.deribit import DeribitSource, Endpoints
 
 DAY = date(2025, 1, 1)
 NEXT_DAY = DAY + timedelta(days=1)
@@ -344,6 +347,21 @@ def test_progress_hears_of_every_file_and_byte(
     assert progress.files == 3
     assert progress.size == len(TRADES) + len(b"[]") + len(b"{}")
     assert set(progress.results) == set(tally.results)
+
+
+@pytest.mark.unit
+def test_a_raw_file_shared_by_data_types_is_fetched_once(tmp_path: Path) -> None:
+    with replay(DERIBIT_RECORDED) as served:
+        deribit = DeribitSource(frozenset(), Endpoints(api=served.url))
+        days = DayRange(("BTC",), DAY, DAY)
+
+        tally = download(
+            deribit, DownloadRequest(days, date(2026, 10, 7)), options(tmp_path)
+        )
+
+    assert {each.outcome for each in tally.results} == {Outcome.FETCHED}
+    trade_pages = [each for each in served.requests if "get_last_trades" in each]
+    assert len(trade_pages) == 3
 
 
 @pytest.mark.unit

@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from enum import StrEnum
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Protocol
 
 import httpx
@@ -112,9 +112,12 @@ def _snapshots(source: Source, request: DownloadRequest) -> Iterator[Item]:
 
 
 def _day_files(source: Source, request: DownloadRequest) -> Iterator[Item]:
+    planned: set[PurePosixPath] = set()
     for symbol, data_type, day in request.days.plan(source):
         raw = source.day_file(symbol, data_type, day)
-        yield Item(symbol, data_type.__name__, day, raw)
+        if raw.path not in planned:
+            planned.add(raw.path)
+            yield Item(symbol, data_type.__name__, day, raw)
 
 
 async def _download_all(

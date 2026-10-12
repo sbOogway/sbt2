@@ -74,6 +74,23 @@ def test_deribit_known_gaps_name_a_currency_and_its_trades(tmp_path: Path) -> No
 
 
 @pytest.mark.unit
+def test_a_deribit_known_gap_of_trades_covers_every_data_type_of_the_day(
+    tmp_path: Path,
+) -> None:
+    file = tmp_path / "known_gaps.toml"
+    file.write_text(
+        'deribit = [{ symbol = "BTC", data = "trades", day = 2020-03-25 }]\n'
+    )
+    deribit = source("deribit", file)
+
+    assert all(
+        deribit.is_known_gap("BTC", each, date(2020, 3, 25))
+        for each in deribit.data_types
+    )
+    assert not deribit.is_known_gap("BTC", TradeTick, date(2020, 3, 26))
+
+
+@pytest.mark.unit
 def test_known_gaps_combine_every_configured_source(tmp_path: Path) -> None:
     file = tmp_path / "known_gaps.toml"
     file.write_text(

@@ -5,7 +5,13 @@ from functools import partial
 from pathlib import Path, PurePosixPath
 from typing import Any, override
 
-from nautilus_trader.model import InstrumentId, TradeTick
+from nautilus_trader.model import (
+    IndexPriceUpdate,
+    InstrumentId,
+    MarkPriceUpdate,
+    OptionGreeks,
+    TradeTick,
+)
 
 from sbt2.data.sources.base import (
     Gap,
@@ -41,7 +47,7 @@ class DeribitSource(Source):
 
     @property
     def data_types(self) -> tuple[type, ...]:
-        return (TradeTick,)
+        return (TradeTick, MarkPriceUpdate, OptionGreeks, IndexPriceUpdate)
 
     def instrument_id(self, symbol: str) -> InstrumentId:
         """The id of the currency's options as a whole, which known gaps name."""
@@ -58,12 +64,18 @@ class DeribitSource(Source):
         return currency
 
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
-        if data_type is not TradeTick:
+        if data_type not in self.data_types:
             raise UnsupportedDataTypeError(f"deribit serves no {data_type.__name__}")
         return RawFile(
             _currency_dir(symbol) / _TRADES / _json_name(symbol, day),
             partial(self._api.trades, symbol, day),
         )
+
+    @override
+    def is_known_gap(self, symbol: str, data_type: type, day: date) -> bool:
+        """A day without trades is a day without any of the data types."""
+        del data_type
+        return super().is_known_gap(symbol, TradeTick, day)
 
     def instrument_snapshot(self, symbol: str, taken_on: date) -> RawFile:
         return RawFile(
@@ -72,7 +84,7 @@ class DeribitSource(Source):
         )
 
     def parse(self, path: Path, data_type: type, instrument: Any) -> Iterator[Any]:
-        """The trades of one contract."""
+        """The ``data_type`` records of one contract."""
         parsed = self.parse_day(path, data_type, {instrument.id: instrument})
         return iter(parsed[instrument.id])
 
@@ -82,15 +94,15 @@ class DeribitSource(Source):
 
     @override
     def day_instrument_ids(
-        self, path: Path, instruments: Mapping[InstrumentId, Any]
+        self, path: Path, data_type: type, instruments: Mapping[InstrumentId, Any]
     ) -> tuple[InstrumentId, ...]:
-        return parse.traded_ids(path)
+        return parse.traded_ids(path, data_type)
 
     @override
     def parse_day(
         self, path: Path, data_type: type, instruments: Mapping[InstrumentId, Any]
     ) -> Mapping[InstrumentId, Sequence[Any]]:
-        return parse.trades(path, instruments)
+        return parse.day_records(path, data_type, instruments)
 
     def _listed_data_type(self, name: str) -> type:
         if name != _TRADES:

@@ -3,7 +3,7 @@ import json
 import re
 from datetime import date
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -11,9 +11,15 @@ from nautilus_trader.model import (
     AggressorSide,
     Bar,
     CryptoOption,
+    GreeksConvention,
+    IndexInstrument,
+    IndexPriceUpdate,
     InstrumentId,
+    MarkPriceUpdate,
+    OptionGreeks,
     OptionKind,
     TradeTick,
+    black_scholes_greeks,
 )
 from replay import Replay
 
@@ -40,6 +46,7 @@ BTC_TRADE_IDS = [
 ]
 PUT_88K = InstrumentId.from_str("BTC-10JAN25-88000-P.DERIBIT")
 CALL_135K = InstrumentId.from_str("BTC-31JAN25-135000-C.DERIBIT")
+BTC_INDEX = InstrumentId.from_str("BTC_USD.DERIBIT")
 
 
 def fetched(raw: RawFile) -> Any:
@@ -55,13 +62,19 @@ def saved(raw: RawFile, root: Path) -> Path:
     return path
 
 
-def ticks_of(source: Source, root: Path) -> dict[InstrumentId, list[TradeTick]]:
+def parsed_of(
+    source: Source, data_type: type, root: Path
+) -> dict[InstrumentId, list[Any]]:
     snapshot = saved(source.instrument_snapshot("BTC", SNAPSHOT_DAY), root)
-    day = saved(source.day_file("BTC", TradeTick, DAY), root)
+    day = saved(source.day_file("BTC", data_type, DAY), root)
     instruments = source.parse_instruments(snapshot)
-    ids = source.day_instrument_ids(day, instruments)
-    parsed = source.parse_day(day, TradeTick, {each: instruments[each] for each in ids})
-    return {each: list(ticks) for each, ticks in parsed.items()}
+    ids = source.day_instrument_ids(day, data_type, instruments)
+    parsed = source.parse_day(day, data_type, {each: instruments[each] for each in ids})
+    return {each: list(records) for each, records in parsed.items()}
+
+
+def ticks_of(source: Source, root: Path) -> dict[InstrumentId, list[TradeTick]]:
+    return parsed_of(source, TradeTick, root)
 
 
 @pytest.mark.unit
@@ -94,10 +107,24 @@ def test_an_instrument_id_of_another_venue_has_no_deribit_symbol(
 
 
 @pytest.mark.unit
-def test_trades_are_the_only_data_type(deribit: Source) -> None:
-    assert deribit.data_types == (TradeTick,)
+def test_trades_marks_greeks_and_index_prices_are_the_data_types(
+    deribit: Source,
+) -> None:
+    assert deribit.data_types == (
+        TradeTick,
+        MarkPriceUpdate,
+        OptionGreeks,
+        IndexPriceUpdate,
+    )
     with pytest.raises(UnsupportedDataTypeError):
         deribit.day_file("BTC", Bar, DAY)
+
+
+@pytest.mark.unit
+def test_every_data_type_reads_the_same_raw_day_file(deribit: Source) -> None:
+    paths = {deribit.day_file("BTC", each, DAY).path for each in deribit.data_types}
+
+    assert len(paths) == 1
 
 
 @pytest.mark.unit
@@ -172,8 +199,29 @@ def test_the_instrument_snapshot_lists_live_and_expired_options(
         "BTC-31JAN25-135000-C.DERIBIT",
         "BTC-31JAN25-83000-P.DERIBIT",
         "BTC-3JAN25-96000-P.DERIBIT",
+        "BTC_USD.DERIBIT",
     }
-    assert all(isinstance(instruments[each], CryptoOption) for each in instruments)
+    assert all(
+        isinstance(instruments[each], CryptoOption)
+        for each in instruments
+        if each != BTC_INDEX
+    )
+
+
+@pytest.mark.unit
+def test_the_instrument_snapshot_gives_the_currencys_usd_index(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+    snapshot = saved(source.instrument_snapshot("BTC", SNAPSHOT_DAY), tmp_path)
+
+    index = source.parse_instruments(snapshot)[BTC_INDEX]
+
+    assert isinstance(index, IndexInstrument)
+    assert str(index.quote_currency) == "USD"
+    assert index.price_precision == 2
+    assert str(index.price_increment) == "0.01"
+    assert index.ts_init == 1_791_331_200_000_000_000
 
 
 @pytest.mark.unit
@@ -221,7 +269,8 @@ def test_a_day_holds_records_of_the_contracts_traded_that_day(
     snapshot = saved(source.instrument_snapshot("BTC", SNAPSHOT_DAY), tmp_path)
     day = saved(source.day_file("BTC", TradeTick, DAY), tmp_path)
 
-    ids = source.day_instrument_ids(day, source.parse_instruments(snapshot))
+    instruments = source.parse_instruments(snapshot)
+    ids = source.day_instrument_ids(day, TradeTick, instruments)
 
     assert set(ids) == {
         PUT_88K,
@@ -235,7 +284,11 @@ def test_a_day_holds_records_of_the_contracts_traded_that_day(
 def test_a_missing_day_file_holds_no_instrument(
     deribit: Source, tmp_path: Path
 ) -> None:
-    assert deribit.day_instrument_ids(tmp_path / "nope.json", {PUT_88K: object()}) == ()
+    ids = deribit.day_instrument_ids(
+        tmp_path / "nope.json", TradeTick, {PUT_88K: object()}
+    )
+
+    assert ids == ()
 
 
 @pytest.mark.unit
@@ -282,9 +335,158 @@ def test_the_aggressor_side_is_the_direction_of_the_trade(
         TradeTick,
         {
             each: instruments[each]
-            for each in deribit.day_instrument_ids(day, instruments)
+            for each in deribit.day_instrument_ids(day, TradeTick, instruments)
         },
     )
 
     ((_, (tick,)),) = parsed.items()
     assert tick.aggressor_side == AggressorSide.SELL
+
+
+@pytest.mark.unit
+def test_mark_prices_keep_deribits_decimals(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+
+    (lone,) = parsed_of(source, MarkPriceUpdate, tmp_path)[CALL_135K]
+
+    assert lone.value.precision == 8
+    assert lone.value.as_double() == 0.00376973
+
+
+@pytest.mark.unit
+def test_a_trade_without_an_iv_gives_no_option_greeks(
+    deribit: Source, tmp_path: Path
+) -> None:
+    spec = json.loads(Path(__file__).with_name("deribit_responses.json").read_text())
+    snapshot = tmp_path / "BTC2026-10-07.json"
+    snapshot.write_text(json.dumps(spec[4]["response"]["result"]))
+    trades = spec[0]["response"]["result"]["trades"][:2]
+    day = tmp_path / "BTC2025-01-01.json"
+    day.write_text(json.dumps([{**trades[0], "iv": 0.0}, trades[1]]))
+    instruments = deribit.parse_instruments(snapshot)
+    ids = deribit.day_instrument_ids(day, OptionGreeks, instruments)
+
+    parsed = deribit.parse_day(
+        day, OptionGreeks, {each: instruments[each] for each in ids}
+    )
+
+    assert {each.value: len(records) for each, records in parsed.items()} == {
+        "BTC-31JAN25-135000-C.DERIBIT": 0,
+        "BTC-31JAN25-83000-P.DERIBIT": 1,
+    }
+
+
+@pytest.mark.unit
+def test_parse_gives_each_trades_mark_price_as_a_mark_price_update_of_its_contract(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+
+    marks = parsed_of(source, MarkPriceUpdate, tmp_path)
+
+    assert [str(each.value) for each in marks[PUT_88K]] == ["0.01163879"] * 4
+    assert [each.ts_event for each in marks[PUT_88K]] == [
+        1_735_689_642_010 * 1_000_000
+    ] * 4
+    (lone,) = marks[CALL_135K]
+    assert lone == MarkPriceUpdate.from_dict(lone.to_dict())
+    assert lone.instrument_id == CALL_135K
+    assert str(lone.value) == "0.00376973"
+    assert (lone.ts_event, lone.ts_init) == (1_735_689_600_017 * 1_000_000,) * 2
+    assert sum(len(each) for each in marks.values()) == len(BTC_TRADE_IDS)
+
+
+@pytest.mark.unit
+def test_parse_gives_each_trades_iv_and_index_price_as_option_greeks(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+
+    greeks = parsed_of(source, OptionGreeks, tmp_path)
+
+    assert [each.mark_iv for each in greeks[PUT_88K]] == [0.5544] * 4
+    assert [each.underlying_price for each in greeks[PUT_88K]] == [93374.45] * 4
+    (lone,) = greeks[CALL_135K]
+    assert lone.instrument_id == CALL_135K
+    assert lone.mark_iv == 0.7119
+    assert lone.underlying_price == 93369.56
+    assert (lone.ts_event, lone.ts_init) == (1_735_689_600_017 * 1_000_000,) * 2
+    assert lone.convention == GreeksConvention.BLACK_SCHOLES
+    assert sum(len(each) for each in greeks.values()) == len(BTC_TRADE_IDS)
+
+
+class GreeksCase(NamedTuple):
+    contract: InstrumentId
+    is_call: bool
+    strike: float
+    expiry_ms: int
+    trade_ms: int
+    iv: float
+    index_price: float
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "case",
+    [
+        GreeksCase(
+            PUT_88K,
+            False,
+            88000.0,
+            1_736_496_000_000,
+            1_735_689_642_010,
+            0.5544,
+            93374.45,
+        ),
+        GreeksCase(
+            CALL_135K,
+            True,
+            135000.0,
+            1_738_310_400_000,
+            1_735_689_600_017,
+            0.7119,
+            93369.56,
+        ),
+    ],
+)
+def test_option_greeks_carry_the_black_scholes_greeks_of_the_trades_iv(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path, case: GreeksCase
+) -> None:
+    source, _ = replayed_deribit
+    years = (case.expiry_ms - case.trade_ms) / (365 * 86_400_000)
+    expected = black_scholes_greeks(
+        case.index_price, 0.0, 0.0, case.iv, case.is_call, case.strike, years
+    )
+
+    greeks = parsed_of(source, OptionGreeks, tmp_path)[case.contract][0]
+
+    assert greeks.delta == pytest.approx(expected.delta)
+    assert greeks.gamma == pytest.approx(expected.gamma)
+    assert greeks.vega == pytest.approx(expected.vega)
+    assert greeks.theta == pytest.approx(expected.theta)
+    assert (greeks.delta > 0) == case.is_call
+
+
+@pytest.mark.unit
+def test_parse_gives_each_trades_index_price_as_an_index_price_update_of_its_currency(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+
+    parsed = parsed_of(source, IndexPriceUpdate, tmp_path)
+
+    (prices,) = parsed.values()
+    assert list(parsed) == [BTC_INDEX]
+    assert prices[0] == IndexPriceUpdate.from_dict(prices[0].to_dict())
+    assert {each.instrument_id for each in prices} == {BTC_INDEX}
+    assert [str(each.value) for each in prices][:3] == [
+        "93369.56",
+        "93366.92",
+        "93354.26",
+    ]
+    stamps = [each.ts_event for each in prices]
+    assert stamps == sorted(stamps)
+    assert prices[0].ts_event == prices[0].ts_init == 1_735_689_600_017 * 1_000_000
+    assert len(prices) == len(BTC_TRADE_IDS)

@@ -152,12 +152,12 @@ class Source(ABC):
         day; the lookup may build them on demand."""
 
     def day_instrument_ids(
-        self, path: Path, instruments: Mapping[InstrumentId, Any]
+        self, path: Path, data_type: type, instruments: Mapping[InstrumentId, Any]
     ) -> tuple[InstrumentId, ...]:
-        """The ids of the ``instruments`` the raw day file holds records of; by
-        default all of them. A source whose raw file holds many instruments
-        overrides this and ``parse_day``."""
-        del path
+        """The ids of the ``instruments`` the raw day file holds ``data_type``
+        records of; by default all of them. A source whose raw file holds many
+        instruments overrides this and ``parse_day``."""
+        del path, data_type
         return tuple(instruments)
 
     def parse_day(

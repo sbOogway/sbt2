@@ -9,7 +9,11 @@ from nautilus_trader.model import (
     AggressorSide,
     Bar,
     FundingRateUpdate,
+    GreeksConvention,
+    IndexPriceUpdate,
+    InstrumentId,
     MarkPriceUpdate,
+    OptionGreeks,
     Price,
     Quantity,
     TradeId,
@@ -97,6 +101,56 @@ def test_mark_prices_load_as_a_frame(tmp_path: Path) -> None:
     assert frame.index.name == "ts_event"
     assert list(frame.index) == [utc(START), utc(START + MINUTE)]
     assert frame.to_dict("list") == {"price": [50000.0, 50000.5]}
+
+
+@pytest.mark.unit
+def test_option_greeks_load_as_a_frame(tmp_path: Path) -> None:
+    option = InstrumentId.from_str("BTC-10JAN25-88000-P.DERIBIT")
+    greeks = [
+        OptionGreeks(
+            option,
+            delta,
+            0.5,
+            12.5,
+            -3.5,
+            mark_iv=0.6,
+            underlying_price=93000.5,
+            ts_event=ts,
+            ts_init=ts,
+            convention=GreeksConvention.BLACK_SCHOLES,
+        )
+        for delta, ts in [(-0.25, START), (-0.5, START + MINUTE)]
+    ]
+    ParquetDataCatalog(str(tmp_path)).write_option_greeks(greeks, *BOUNDS)
+
+    frame = Catalog(tmp_path).frame(option, OptionGreeks, DAY_WINDOW)
+
+    assert frame.index.name == "ts_event"
+    assert list(frame.index) == [utc(START), utc(START + MINUTE)]
+    assert frame.to_dict("list") == {
+        "delta": [-0.25, -0.5],
+        "gamma": [0.5, 0.5],
+        "vega": [12.5, 12.5],
+        "theta": [-3.5, -3.5],
+        "mark_iv": [0.6, 0.6],
+        "underlying_price": [93000.5, 93000.5],
+    }
+
+
+@pytest.mark.unit
+def test_index_prices_load_as_a_frame(tmp_path: Path) -> None:
+    index = InstrumentId.from_str("BTC_USD.DERIBIT")
+    prices = [
+        IndexPriceUpdate(index, Price.from_str(price), ts, ts)
+        for price, ts in [("93000.50", START), ("93001.25", START + MINUTE)]
+    ]
+    ParquetDataCatalog(str(tmp_path)).write_index_price_updates(prices, *BOUNDS)
+
+    frame = Catalog(tmp_path).frame(index, IndexPriceUpdate, DAY_WINDOW)
+
+    assert frame.index.name == "ts_event"
+    assert list(frame.index) == [utc(START), utc(START + MINUTE)]
+    assert frame.to_dict("list") == {"price": [93000.5, 93001.25]}
 
 
 @pytest.mark.unit
