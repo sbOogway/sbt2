@@ -90,6 +90,25 @@ class NativeEquity(EquityConvention):
         return pd.DataFrame(columns=CORRECTION_COLUMNS)
 
 
+class QuoteConvention(ABC):
+    """Whether the venue's quotes are made from other data at run time."""
+
+    @abstractmethod
+    def complete(self, venue: Mapping[str, Any]) -> dict[str, Any]:
+        """The venue arguments with the quote settings filled in with their
+        defaults; ``ValueError`` when the settings are invalid."""
+        ...
+
+
+class NoQuotes(QuoteConvention):
+    """The venue streams the quotes the catalog holds."""
+
+    def complete(self, venue: Mapping[str, Any]) -> dict[str, Any]:
+        if "quotes" in venue:
+            raise ValueError("this asset class takes no quotes setting")
+        return dict(venue)
+
+
 @dataclass(frozen=True)
 class AssetProfile:
     """What sbt2 needs to know about one nautilus asset class and instrument class."""
@@ -104,6 +123,7 @@ class AssetProfile:
     valuation_price: type
     buy_and_hold: BuyAndHoldConvention
     equity: EquityConvention = field(default_factory=NativeEquity)
+    quotes: QuoteConvention = field(default_factory=NoQuotes)
 
     def covers(self, instrument: Any) -> bool:
         return (

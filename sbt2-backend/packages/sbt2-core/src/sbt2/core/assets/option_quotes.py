@@ -29,6 +29,12 @@ class QuoteSettings:
     ticks: int = 1
     fraction: float = 0.05
 
+    def __post_init__(self) -> None:
+        if self.interval_seconds < 1:
+            raise ValueError("the interval is at least 1 second")
+        if self.ticks < 0 or self.fraction < 0:
+            raise ValueError("the half-spread is not negative")
+
 
 @dataclass(frozen=True)
 class OptionHistory:

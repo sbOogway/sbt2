@@ -63,6 +63,47 @@ def test_deribit_option_builds_a_nautilus_venue(tmp_path: Path) -> None:
     assert isinstance(venue.fee_model, CappedOptionFeeModel)
 
 
+OPTION_SPEC = (
+    SPEC.replace("BTCUSDT-LINEAR.BYBIT", "BTC-30JAN26-100000-C.DERIBIT")
+    .replace("bybit_linear", "deribit_option")
+    .replace("10000 USDT", "1 BTC")
+)
+DERIBIT_PROFILE = (CONFIG / "venues.toml").read_text().split("[deribit_option]")[1]
+
+
+def option_venue(tmp_path: Path, extra: str) -> dict[str, Any]:
+    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+    spec.write_text(OPTION_SPEC)
+    venues.write_text(f"[deribit_option]{DERIBIT_PROFILE}\n{extra}\n")
+    [resolved] = load(spec, venues)
+    return dict(resolved.venue)
+
+
+@pytest.mark.unit
+def test_a_deribit_option_profile_reads_its_quote_settings(tmp_path: Path) -> None:
+    venue = option_venue(
+        tmp_path, "quotes = { interval_seconds = 300, ticks = 2, fraction = 0.1 }"
+    )
+
+    assert venue["quotes"] == {"interval_seconds": 300, "ticks": 2, "fraction": 0.1}
+
+
+@pytest.mark.unit
+def test_a_deribit_option_profile_without_quote_settings_uses_the_defaults(
+    tmp_path: Path,
+) -> None:
+    venue = option_venue(tmp_path, "")
+
+    assert venue["quotes"] == {"interval_seconds": 60, "ticks": 1, "fraction": 0.05}
+
+
+@pytest.mark.unit
+def test_a_partial_quote_table_keeps_the_defaults_of_the_rest(tmp_path: Path) -> None:
+    venue = option_venue(tmp_path, "quotes = { ticks = 3 }")
+
+    assert venue["quotes"] == {"interval_seconds": 60, "ticks": 3, "fraction": 0.05}
+
+
 @pytest.mark.unit
 def test_a_missing_venue_profiles_file_names_it(tmp_path: Path) -> None:
     spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
@@ -224,3 +265,23 @@ def test_deleting_an_unknown_venue_profile_raises_unknown_venue_profile_error(
 
     with pytest.raises(UnknownVenueProfileError, match="no venue profile p"):
         delete_venue_profile(venues, "p")
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("instrument_class", "quotes"),
+    [
+        ("OPTION", {"spread": 1}),
+        ("OPTION", {"interval_seconds": 0}),
+        ("OPTION", {"fraction": -0.1}),
+        ("SWAP", {"ticks": 1}),
+    ],
+)
+def test_an_invalid_quote_setting_is_rejected(
+    tmp_path: Path, instrument_class: str, quotes: dict[str, Any]
+) -> None:
+    venues = ConfigFolder(tmp_path / "config").venues
+    profile = {**PROFILE, "instrument_class": instrument_class, "quotes": quotes}
+
+    with pytest.raises(InvalidVenueProfileError, match="quotes"):
+        put_venue_profile(venues, "p", profile)
