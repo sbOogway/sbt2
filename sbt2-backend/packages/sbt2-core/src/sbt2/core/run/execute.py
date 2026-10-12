@@ -10,6 +10,7 @@ from nautilus_trader.backtest import BacktestDataConfig, BacktestNode, BacktestR
 from nautilus_trader.common import Cache, LoggerConfig, LogLevel
 from nautilus_trader.model import PositionAdjusted, PositionAdjustmentType, Venue
 
+from sbt2.core.assets import MarginModel
 from sbt2.core.results import OutputSink, Reports
 from sbt2.core.spec import ResolvedRunSpec
 from sbt2.core.strategy import (
@@ -48,6 +49,13 @@ class _Backtest:
     node: BacktestNode
     config_id: str
     venue: Venue
+    margin: MarginModel | None
+
+
+@dataclass(frozen=True)
+class _Plan:
+    config: BacktestRunConfig
+    margin: MarginModel | None
 
 
 def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> None:
@@ -56,15 +64,15 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
     sink.write_strategy_source(strategy_source(spec.strategy.strategy))
     with TemporaryDirectory(prefix="sbt2-quotes-") as folder:
         quotes = spec.asset.quotes.write(spec.quote_job(settings.catalog), Path(folder))
-        _execute(spec, sink, _run_config(spec, settings, quotes))
+        margin = spec.asset.margin.model(spec.quote_job(settings.catalog))
+        _execute(spec, sink, _Plan(_run_config(spec, settings, quotes), margin))
     sink.finalize()
     logger.info("run %s finished", sink.run_id)
 
 
-def _execute(
-    spec: ResolvedRunSpec, sink: OutputSink, config: BacktestRunConfig
-) -> None:
-    backtest = _Backtest(BacktestNode([config]), config.id, Venue(spec.venue_name))
+def _execute(spec: ResolvedRunSpec, sink: OutputSink, plan: _Plan) -> None:
+    node = BacktestNode([plan.config])
+    backtest = _Backtest(node, plan.config.id, Venue(spec.venue_name), plan.margin)
     try:
         strategy = _run(backtest, spec.strategy)
         _write_output(backtest, spec, sink)
@@ -94,6 +102,8 @@ def _run_config(
 def _run(backtest: _Backtest, run: StrategyRun) -> Strategy[Any]:
     try:
         strategy = build_strategy(run)
+        if backtest.margin is not None:
+            strategy.use_margin(backtest.margin)
         backtest.node.build()
         backtest.node.add_strategy(backtest.config_id, strategy)
         backtest.node.run()
@@ -108,15 +118,31 @@ def _run(backtest: _Backtest, run: StrategyRun) -> Strategy[Any]:
 
 def _write_output(backtest: _Backtest, spec: ResolvedRunSpec, sink: OutputSink) -> None:
     cache = backtest.node.get_engine_cache(backtest.config_id)
-    account = cache.account_for_venue(backtest.venue)
-    if account is None:
-        raise NoAccountError(f"the run opened no account on {backtest.venue}")
+    account = _account(cache, backtest.venue)
     portfolio = backtest.node.get_engine_portfolio(backtest.config_id)
     sink.write_equity(
         portfolio.snapshots(account.id), spec.asset.equity.corrections(cache)
     )
+    _write_margin(backtest, spec, sink)
     sink.write_carry(_funding(cache))
     sink.write_reports(_reports(cache, account))
+
+
+def _account(cache: Cache, venue: Venue) -> Any:
+    account = cache.account_for_venue(venue)
+    if account is None:
+        raise NoAccountError(f"the run opened no account on {venue}")
+    return account
+
+
+def _write_margin(backtest: _Backtest, spec: ResolvedRunSpec, sink: OutputSink) -> None:
+    if backtest.margin is None:
+        return
+    cache = backtest.node.get_engine_cache(backtest.config_id)
+    account = _account(cache, backtest.venue)
+    portfolio = backtest.node.get_engine_portfolio(backtest.config_id)
+    grid = sorted(each.ts_event for each in portfolio.snapshots(account.id))
+    sink.write_margin(backtest.margin.used(cache, grid, spec.currency))
 
 
 def _write_drawdown_trip(strategy: Strategy[Any], sink: OutputSink) -> None:

@@ -49,6 +49,11 @@ def _corrected(frame: pd.DataFrame, corrections: pd.DataFrame) -> pd.DataFrame:
     return corrected.sort_values("index").drop(columns="index")
 
 
+def margin_table(margin: pd.DataFrame) -> pd.DataFrame:
+    """The margin rows with their times as timestamps."""
+    return _with_timestamps(margin)
+
+
 def carry_table(adjustments: Iterable[PositionAdjusted]) -> pd.DataFrame:
     """Nautilus's own fields of each adjustment, one row each, in time order
     and by instrument within the same time."""

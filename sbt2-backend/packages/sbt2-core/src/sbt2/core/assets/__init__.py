@@ -5,6 +5,8 @@ from sbt2.core.assets.base import (
     BuyAndHoldConvention,
     Calendar,
     Carry,
+    MarginConvention,
+    MarginModel,
     NoBuyAndHoldError,
     NoTakerRateError,
     QuoteConvention,
@@ -13,6 +15,8 @@ from sbt2.core.assets.base import (
 from sbt2.core.assets.crypto_option import CRYPTO_OPTION
 from sbt2.core.assets.crypto_perp import CRYPTO_PERP
 from sbt2.core.assets.option_delivery import NoDeliveryPriceError
+from sbt2.core.assets.option_margin import ContractHolding, MarginRates, OptionQuote
+from sbt2.core.assets.option_margin_market import NoMarkError
 from sbt2.core.assets.option_quote_catalog import NoQuotesError
 from sbt2.core.assets.option_quotes import OptionHistory, QuoteSettings, quote_ticks
 from sbt2.core.assets.option_settlement import DeliveryFee, settlement_price
@@ -22,12 +26,18 @@ __all__ = [
     "BuyAndHoldConvention",
     "Calendar",
     "Carry",
+    "ContractHolding",
     "DeliveryFee",
+    "MarginConvention",
+    "MarginModel",
+    "MarginRates",
     "NoBuyAndHoldError",
     "NoDeliveryPriceError",
+    "NoMarkError",
     "NoQuotesError",
     "NoTakerRateError",
     "OptionHistory",
+    "OptionQuote",
     "QuoteConvention",
     "QuoteJob",
     "QuoteSettings",

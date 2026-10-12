@@ -1,11 +1,13 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
+from decimal import Decimal
 from typing import ClassVar, override
 
 from nautilus_trader.model import (
     Bar,
     BarSpecification,
+    MarketOrder,
     OrderFilled,
     OrderSide,
     Quantity,
@@ -95,6 +97,7 @@ class BuyOneOption(Strategy[NoParams]):
     """Buys one option contract on the first bar after warm-up."""
 
     side = OrderSide.BUY
+    quantity = "1.0"
 
     @classmethod
     @override
@@ -114,17 +117,63 @@ class BuyOneOption(Strategy[NoParams]):
         if self.warming_up or self.ordered:
             return
         self.ordered = True
-        self.submit_order(
+        self.place(
             self.order_factory.market(
-                bar.bar_type.instrument_id, self.side, Quantity.from_str("1.0")
+                bar.bar_type.instrument_id, self.side, Quantity.from_str(self.quantity)
             )
         )
+
+    def place(self, order: MarketOrder) -> None:
+        self.submit_order(order)
 
 
 class SellOneOption(BuyOneOption):
     """Sells one option contract on the first bar after warm-up."""
 
     side = OrderSide.SELL
+
+
+class SellTenOptions(SellOneOption):
+    """Sells ten option contracts, more than 1 BTC of capital can margin."""
+
+    quantity = "10.0"
+    refused: ClassVar[list[tuple[str, str]]] = []
+
+    @override
+    def on_margin_refused(self, order: MarketOrder, reason: str) -> None:
+        self.refused.append((str(order.instrument_id), reason))
+
+
+class SellTenOptionsAsAList(SellTenOptions):
+    """Sends its orders as a list."""
+
+    @override
+    def place(self, order: MarketOrder) -> None:
+        self.submit_order_list([order])
+
+
+class ReadOrderMargin(SellOneOption):
+    """Notes the margin of its order, in the coin, with the time it asked."""
+
+    asked: ClassVar[list[tuple[int, Decimal]]] = []
+
+    @override
+    def place(self, order: MarketOrder) -> None:
+        self.asked.append((self.clock.timestamp_ns(), self.margin_of_order(order)))
+        super().place(order)
+
+
+class ReadPositionMargin(SellOneOption):
+    """Notes the margin of its open positions on each bar."""
+
+    read: ClassVar[list[tuple[int, dict[str, Decimal]]]] = []
+
+    @override
+    def on_bar(self, bar: Bar) -> None:
+        super().on_bar(bar)
+        margins = {str(k): v for k, v in self.margin_of_positions().items()}
+        if margins:
+            self.read.append((self.clock.timestamp_ns(), margins))
 
 
 class ListenToSettlement(BuyOneOption):

@@ -100,7 +100,8 @@ def _completed(
         "quotes",
         lambda: asset.quotes.complete({**asset.venue_defaults, **arguments}),
     )
-    return _setting(name, "delivery_fee", lambda: asset.settlement.complete(quoted))
+    settled = _setting(name, "delivery_fee", lambda: asset.settlement.complete(quoted))
+    return _setting(name, "margin", lambda: asset.margin.complete(settled))
 
 
 def _setting(

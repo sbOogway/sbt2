@@ -335,3 +335,61 @@ def test_an_invalid_delivery_fee_setting_is_rejected(
 
     with pytest.raises(InvalidVenueProfileError, match="delivery_fee"):
         put_venue_profile(venues, "p", profile)
+
+
+@pytest.mark.unit
+def test_a_deribit_option_profile_reads_its_margin_rates(tmp_path: Path) -> None:
+    venue = option_venue(
+        tmp_path,
+        'margin = { base_rate = "0.2", floor_rate = "0.12", maintenance_rate = "0.08" }',
+    )
+
+    assert venue["margin"] == {
+        "base_rate": "0.2",
+        "floor_rate": "0.12",
+        "maintenance_rate": "0.08",
+    }
+
+
+@pytest.mark.unit
+def test_a_deribit_option_profile_without_margin_rates_uses_the_defaults(
+    tmp_path: Path,
+) -> None:
+    venue = option_venue(tmp_path, "")
+
+    assert venue["margin"] == {
+        "base_rate": "0.15",
+        "floor_rate": "0.1",
+        "maintenance_rate": "0.075",
+    }
+
+
+@pytest.mark.unit
+def test_a_partial_margin_table_keeps_the_defaults_of_the_rest(tmp_path: Path) -> None:
+    venue = option_venue(tmp_path, "margin = { floor_rate = 0.12 }")
+
+    assert venue["margin"] == {
+        "base_rate": "0.15",
+        "floor_rate": "0.12",
+        "maintenance_rate": "0.075",
+    }
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("instrument_class", "margin"),
+    [
+        ("OPTION", {"charge": "1"}),
+        ("OPTION", {"base_rate": "-0.1"}),
+        ("OPTION", {"floor_rate": "abc"}),
+        ("SWAP", {"base_rate": "0.1"}),
+    ],
+)
+def test_an_invalid_margin_setting_is_rejected(
+    tmp_path: Path, instrument_class: str, margin: dict[str, Any]
+) -> None:
+    venues = ConfigFolder(tmp_path / "config").venues
+    profile = {**PROFILE, "instrument_class": instrument_class, "margin": margin}
+
+    with pytest.raises(InvalidVenueProfileError, match="margin"):
+        put_venue_profile(venues, "p", profile)

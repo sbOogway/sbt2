@@ -38,6 +38,7 @@ from nautilus_trader.trading import Strategy as NautilusStrategy
 
 from sbt2.core.strategy.drawdown import DrawdownGuard
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
+from sbt2.core.strategy.margin import MarginDesk, MarginModel
 
 if TYPE_CHECKING:
     from sbt2.core.results import Benchmark
@@ -159,6 +160,7 @@ class Strategy[P](NautilusStrategy, ABC):
         self._aggregated_from = config.aggregated_from
         self.drawdown_tripped_at: datetime | None = None
         self._settling: set[ClientOrderId] = set()
+        self._margin: MarginDesk | None = None
         self._drawdown = (
             None
             if config.drawdown_limit is None
@@ -188,6 +190,25 @@ class Strategy[P](NautilusStrategy, ABC):
         for bar_type in self.bar_types():
             self.subscribe_bars(self._subscribed(bar_type))
         self._arm_settlement()
+
+    def use_margin(self, model: MarginModel) -> None:
+        """Margin the strategy's orders and positions with ``model``."""
+        self._margin = MarginDesk(model, self)
+
+    def margin_of_order(self, order: Any) -> Decimal:
+        """The initial margin ``order`` adds to its position, in the settlement
+        currency, as of now; zero when it only reduces the position or the run
+        has no margin model."""
+        return Decimal(0) if self._margin is None else self._margin.of_order(order)
+
+    def margin_of_positions(self) -> dict[InstrumentId, Decimal]:
+        """The initial margin of each open position, in the settlement currency,
+        as of now; none without a margin model."""
+        return {} if self._margin is None else self._margin.of_positions()
+
+    def on_margin_refused(self, order: Any, reason: str) -> None:
+        """``order`` was not sent: its initial margin is more than the free
+        equity, ``reason`` says by how much."""
 
     def on_settlement(self, fill: OrderFilled) -> None:
         """A position settled at its contract's expiry; ``fill`` closed it."""
@@ -237,12 +258,20 @@ class Strategy[P](NautilusStrategy, ABC):
         return BarType.from_str(f"{bar_type}@{self._aggregated_from}")
 
     def submit_order(self, order: Any, *args: Any, **kwargs: Any) -> None:
-        if self._takes_orders:
+        if self._takes_orders and self._covered([order]):
             super().submit_order(order, *args, **kwargs)
 
     def submit_order_list(self, order_list: Any, *args: Any, **kwargs: Any) -> None:
-        if self._takes_orders:
+        if self._takes_orders and self._covered(order_list):
             super().submit_order_list(order_list, *args, **kwargs)
+
+    def _covered(self, orders: Sequence[Any]) -> bool:
+        """Whether the free equity covers the orders; if not, the strategy hears
+        why."""
+        reason = None if self._margin is None else self._margin.refusal(orders)
+        if reason is not None:
+            self.on_margin_refused(orders[0], reason)
+        return reason is None
 
     @property
     def _takes_orders(self) -> bool:
