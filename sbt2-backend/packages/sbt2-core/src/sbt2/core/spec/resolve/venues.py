@@ -89,7 +89,18 @@ def _parsed(name: str, table: Mapping[str, Any]) -> VenueProfile:
         arguments.pop("instrument_class", None),
     )
     _check_models(name, arguments)
-    return VenueProfile(asset, source, {**asset.venue_defaults, **arguments})
+    return VenueProfile(asset, source, _completed(name, asset, arguments))
+
+
+def _completed(
+    name: str, asset: AssetProfile, arguments: Mapping[str, Any]
+) -> dict[str, Any]:
+    try:
+        return asset.quotes.complete({**asset.venue_defaults, **arguments})
+    except ValueError as error:
+        raise InvalidVenueProfileError(
+            f"the venue profile {name} has invalid quotes: {error}"
+        ) from error
 
 
 def _asset(name: str, asset_class: Any, instrument_class: Any) -> AssetProfile:

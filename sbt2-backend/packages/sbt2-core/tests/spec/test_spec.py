@@ -39,6 +39,7 @@ from sbt2.core.spec import (
     UnknownSpecKeyError,
     UnknownSplitError,
     UnknownVenueProfileError,
+    UnsupportedBarsError,
     load,
     load_table,
 )
@@ -81,6 +82,12 @@ asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 liquidation_enabled = false
 fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
+
+[test_option]
+name = "DERIBIT"
+source = "deribit"
+asset_class = "CRYPTOCURRENCY"
+instrument_class = "OPTION"
 
 [other_source]
 name = "BYBIT"
@@ -301,6 +308,31 @@ def test_bars_candles_cannot_build_are_refused(
 ) -> None:
     with pytest.raises(CandleBarError, match=bar):
         resolved(paths, strategy=DECLARED_BAR, params={"bar": bar}, bars="candles")
+
+
+def option_overrides(bar: str) -> dict[str, Any]:
+    return {
+        "strategy": DECLARED_BAR,
+        "params": {"bar": bar},
+        "venue": "test_option",
+        "instruments": ["BTC-30JAN26-100000-C.DERIBIT"],
+        "capital": "1 BTC",
+    }
+
+
+@pytest.mark.unit
+def test_an_option_run_refuses_bars_made_from_trades(
+    paths: tuple[Path, Path],
+) -> None:
+    with pytest.raises(UnsupportedBarsError, match=r"1-HOUR-LAST.*MID, BID or ASK"):
+        resolved(paths, **option_overrides("1-HOUR-LAST"))
+
+
+@pytest.mark.unit
+def test_an_option_run_accepts_bars_made_from_quotes(
+    paths: tuple[Path, Path],
+) -> None:
+    assert resolved(paths, **option_overrides("1-HOUR-MID"))
 
 
 @pytest.mark.unit

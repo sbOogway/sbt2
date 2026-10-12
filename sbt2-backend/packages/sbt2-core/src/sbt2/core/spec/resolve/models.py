@@ -116,13 +116,14 @@ def _type(annotation: Any, default: Any) -> type:
 
 
 def venue_objects(arguments: Mapping[str, Any]) -> dict[str, Any]:
-    """Venue arguments with each ``{kind, config}`` model table built."""
+    """The ``BacktestVenueConfig`` arguments of the venue arguments: each
+    ``{kind, config}`` model table built, the run's own ``quotes`` setting left out."""
     built = {
         argument: _built(argument, value)
         for argument, value in arguments.items()
         if argument in _MODELS
     }
-    return {**arguments, **built}
+    return {**{k: v for k, v in arguments.items() if k != "quotes"}, **built}
 
 
 def model_tables(

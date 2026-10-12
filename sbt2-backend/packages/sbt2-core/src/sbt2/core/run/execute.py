@@ -1,10 +1,12 @@
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 from nautilus_trader.analysis import ReportProvider
-from nautilus_trader.backtest import BacktestNode, BacktestRunConfig
+from nautilus_trader.backtest import BacktestDataConfig, BacktestNode, BacktestRunConfig
 from nautilus_trader.common import Cache, LoggerConfig, LogLevel
 from nautilus_trader.model import PositionAdjusted, PositionAdjustmentType, Venue
 
@@ -52,7 +54,16 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
     """Run one backtest in this process and hand its output to ``sink``."""
     logger.info("run %s: %s from %s", sink.run_id, spec.strategy.strategy, spec.start)
     sink.write_strategy_source(strategy_source(spec.strategy.strategy))
-    config = _run_config(spec, settings)
+    with TemporaryDirectory(prefix="sbt2-quotes-") as folder:
+        quotes = spec.asset.quotes.write(spec.quote_job(settings.catalog), Path(folder))
+        _execute(spec, sink, _run_config(spec, settings, quotes))
+    sink.finalize()
+    logger.info("run %s finished", sink.run_id)
+
+
+def _execute(
+    spec: ResolvedRunSpec, sink: OutputSink, config: BacktestRunConfig
+) -> None:
     backtest = _Backtest(BacktestNode([config]), config.id, Venue(spec.venue_name))
     try:
         strategy = _run(backtest, spec.strategy)
@@ -60,11 +71,11 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
         _write_drawdown_trip(strategy, sink)
     finally:
         backtest.node.dispose()
-    sink.finalize()
-    logger.info("run %s finished", sink.run_id)
 
 
-def _run_config(spec: ResolvedRunSpec, settings: RunSettings) -> BacktestRunConfig:
+def _run_config(
+    spec: ResolvedRunSpec, settings: RunSettings, quotes: Sequence[BacktestDataConfig]
+) -> BacktestRunConfig:
     engine = {
         "logging": LoggerConfig(stdout_level=settings.log_level),
         "shutdown_on_error": True,
@@ -73,6 +84,7 @@ def _run_config(spec: ResolvedRunSpec, settings: RunSettings) -> BacktestRunConf
     return spec.run_config(
         str(settings.catalog),
         engine,
+        quotes,
         chunk_size=settings.chunk_size,
         raise_exception=True,
         dispose_on_completion=False,

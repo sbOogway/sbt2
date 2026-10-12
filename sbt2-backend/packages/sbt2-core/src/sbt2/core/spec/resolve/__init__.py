@@ -10,6 +10,7 @@ from sbt2.core.spec.resolve.models import (
 from sbt2.core.spec.resolve.resolve import (
     InstrumentVenueError,
     UnknownPartError,
+    UnsupportedBarsError,
     resolve,
 )
 from sbt2.core.spec.resolve.resolved import ResolvedRunSpec, Study
@@ -36,6 +37,7 @@ __all__ = [
     "UnknownModelKindError",
     "UnknownPartError",
     "UnknownVenueProfileError",
+    "UnsupportedBarsError",
     "delete_venue_profile",
     "model_kinds",
     "put_venue_profile",

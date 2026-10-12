@@ -1,12 +1,13 @@
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import asdict, fields
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from nautilus_trader.model import InstrumentId
+from nautilus_trader.model import BarSpecification, InstrumentId
 
+from sbt2.core.assets import AssetProfile
 from sbt2.core.spec.bars import bar_source
 from sbt2.core.spec.errors import SpecError
 from sbt2.core.spec.file import RunSpec
@@ -27,6 +28,10 @@ class UnknownPartError(SpecError):
     pass
 
 
+class UnsupportedBarsError(SpecError):
+    pass
+
+
 _UNFIXED = frozenset({"params", "part", "study"})
 
 
@@ -38,6 +43,7 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
     params = resolve_params(strategy, spec.params)
     split, part = _splitter(spec.split), spec.part
     bars = bar_source(spec.bars)
+    _check_bars(asset, strategy.inputs(params))
     start, end = _part_dates(split.parts(spec.period), part)
     risk = risk_limits(spec.risk)
     return ResolvedRunSpec(
@@ -65,6 +71,16 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
         risk=risk.engine,
         study=_study(spec, split),
     )
+
+
+def _check_bars(asset: AssetProfile, inputs: Sequence[BarSpecification]) -> None:
+    refused = asset.quotes.unmakeable(inputs)
+    if refused:
+        names = ", ".join(str(each) for each in refused)
+        raise UnsupportedBarsError(
+            f"the venue's data cannot build the bars {names}; "
+            "declare MID, BID or ASK bars of the quotes"
+        )
 
 
 def _study(spec: RunSpec, split: Splitter) -> Study | None:
