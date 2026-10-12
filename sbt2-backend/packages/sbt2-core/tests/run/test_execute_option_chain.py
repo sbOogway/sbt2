@@ -4,9 +4,20 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from nautilus_trader.model import InstrumentId
-from option_catalog import build_chain_catalog, chain_contract_id, mark_at
-from run_strategies import ActOnSchedule, FilterChain, ListAliveContracts, QuoteChain
+from nautilus_trader.model import InstrumentId, Money
+from option_catalog import (
+    EXPIRY_HOUR,
+    START,
+    build_chain_catalog,
+    chain_contract_id,
+    mark_at,
+)
+from run_strategies import (
+    ActOnSchedule,
+    FilterChain,
+    ListAliveContracts,
+    QuoteChain,
+)
 
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
@@ -31,6 +42,10 @@ fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_ra
 """
 
 
+DELIVERY_FEE = 0.00015
+BALANCE = 1.0
+PUT_VALUE = 0.125
+SHORT_PUT_MARGIN = 0.15
 PUTS = [
     ("2JAN24", 40000),
     ("2JAN24", 45000),
@@ -148,3 +163,36 @@ def test_a_chain_strategy_reads_the_current_quote_of_a_contract(
     assert bid < (bid + ask) / 2 < ask
     assert (bid + ask) / 2 == pytest.approx(float(mark_at(10)), rel=0.1)
     assert 0 <= pd.Timestamp(tick).value - ts_event <= 120 * 10**9
+
+
+def last_mark_hour(ts: int) -> int:
+    seconds = (ts - pd.Timestamp(START).value) // 10**9
+    return min(seconds // 3600, EXPIRY_HOUR - 1)
+
+
+@pytest.mark.integration
+def test_a_chain_strategy_trades_a_contract_it_picked_and_it_settles_at_expiry(
+    tmp_path: Path, catalog: Path
+) -> None:
+    store, run_id = run(tmp_path, catalog, "run_strategies:SellChainPut")
+
+    [entry, settlement] = store.load(run_id, "fills").to_dict("records")
+    put = str(chain_contract_id("2JAN24", 45000, "P"))
+    assert (entry["instrument_id"], entry["order_side"]) == (put, "SELL")
+    assert (settlement["instrument_id"], settlement["order_side"]) == (put, "BUY")
+    assert float(settlement["last_px"]) == pytest.approx(PUT_VALUE)
+    equity = store.load(run_id, "equity")["total_equity"].iloc[-1]
+    assert equity == pytest.approx(
+        BALANCE
+        - Money.from_str(str(entry["commission"])).as_double()
+        + float(entry["last_px"])
+        - PUT_VALUE
+        - DELIVERY_FEE
+    )
+    margin = store.load(run_id, "margin")
+    held = [row for row in margin.to_dict("records") if row["margin_used"] > 0]
+    assert len(held) > 1
+    for row in held:
+        mark = float(mark_at(last_mark_hour(pd.Timestamp(row["ts_event"]).value)))
+        assert row["margin_used"] == pytest.approx(SHORT_PUT_MARGIN + mark)
+    assert margin["margin_used"].iloc[-1] == 0

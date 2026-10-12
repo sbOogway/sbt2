@@ -279,6 +279,28 @@ class QuoteChain(OnSchedule):
         }
 
 
+class SellChainPut(OnSchedule):
+    """Sells one put near the money, of the nearest expiry, on its first tick
+    after warm-up."""
+
+    @override
+    def on_start(self) -> None:
+        super().on_start()
+        self.sold = False
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        if self.sold or self.warming_up:
+            return
+        [pick, *_] = self.chain.contracts(
+            ChainFilter(kind=OptionKind.PUT, strikes=(44000, 46000))
+        )
+        self.sold = True
+        self.submit_order(
+            self.order_factory.market(pick.id, OrderSide.SELL, Quantity.from_str("1.0"))
+        )
+
+
 class FailOnBar(Strategy[NoParams]):
     @classmethod
     @override
