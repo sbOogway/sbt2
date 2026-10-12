@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from nautilus_trader.execution import (
+    CappedOptionFeeModel,
     DefaultFillModel,
     FixedFeeModel,
     MakerTakerFeeModel,
@@ -39,6 +40,9 @@ instrument_class = "SWAP"
 """
 CONFIGS = {
     "maker_taker": '{ maker_rate = "0.0002", taker_rate = "0.00055" }',
+    "capped_option": (
+        '{ maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" }'
+    ),
     "fixed": '{ commission = "1 USDT" }',
     "default": "{ prob_fill_on_limit = 0.5 }",
 }
@@ -68,6 +72,7 @@ def with_model(paths: tuple[Path, Path], argument: str, model: str) -> None:
     [
         ("fee_model", "maker_taker", MakerTakerFeeModel),
         ("fee_model", "fixed", FixedFeeModel),
+        ("fee_model", "capped_option", CappedOptionFeeModel),
         ("fill_model", "default", DefaultFillModel),
     ],
 )
@@ -87,7 +92,8 @@ def test_an_unknown_model_kind_names_the_known_ones(paths: tuple[Path, Path]) ->
     with_model(paths, "fee_model", '{ kind = "tiered", config = {} }')
 
     with pytest.raises(
-        UnknownModelKindError, match="fee_model kind tiered; known: fixed, maker_taker"
+        UnknownModelKindError,
+        match="fee_model kind tiered; known: capped_option, fixed, maker_taker",
     ):
         loaded(paths)
 
@@ -172,4 +178,15 @@ def test_model_parameters_name_their_type_default_and_whether_required() -> None
         ModelParameter("prob_fill_on_limit", float, required=False, default=1.0),
         ModelParameter("prob_slippage", float, required=False, default=0.0),
         ModelParameter("random_seed", str, required=False),
+    )
+
+
+@pytest.mark.unit
+def test_the_capped_option_fee_model_takes_maker_taker_and_cap_rates() -> None:
+    parameters = model_kinds()["fee_model"][FeeModelKind.CAPPED_OPTION]
+
+    assert parameters == (
+        ModelParameter("maker_rate", str, required=True),
+        ModelParameter("taker_rate", str, required=True),
+        ModelParameter("cap_rate", str, required=True),
     )
