@@ -23,7 +23,17 @@ class OutputSink(Protocol):
     @property
     def run_id(self) -> str: ...
 
-    def write_equity(self, snapshots: Sequence[PortfolioSnapshot]) -> None: ...
+    def write_equity(
+        self,
+        snapshots: Sequence[PortfolioSnapshot],
+        corrections: pd.DataFrame | None = None,
+    ) -> None:
+        """Store the equity of the snapshots.
+
+        ``corrections`` hold ``ts_event``, ``currency`` and ``amount``: what to add
+        to the equity of a snapshot after ``ts_event``, until the next row.
+        """
+        ...
 
     def write_carry(self, adjustments: Sequence[PositionAdjusted]) -> None: ...
 

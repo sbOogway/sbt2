@@ -56,7 +56,7 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
     backtest = _Backtest(BacktestNode([config]), config.id, Venue(spec.venue_name))
     try:
         strategy = _run(backtest, spec.strategy)
-        _write_output(backtest, sink)
+        _write_output(backtest, spec, sink)
         _write_drawdown_trip(strategy, sink)
     finally:
         backtest.node.dispose()
@@ -94,13 +94,15 @@ def _run(backtest: _Backtest, run: StrategyRun) -> Strategy[Any]:
     return strategy
 
 
-def _write_output(backtest: _Backtest, sink: OutputSink) -> None:
+def _write_output(backtest: _Backtest, spec: ResolvedRunSpec, sink: OutputSink) -> None:
     cache = backtest.node.get_engine_cache(backtest.config_id)
     account = cache.account_for_venue(backtest.venue)
     if account is None:
         raise NoAccountError(f"the run opened no account on {backtest.venue}")
     portfolio = backtest.node.get_engine_portfolio(backtest.config_id)
-    sink.write_equity(portfolio.snapshots(account.id))
+    sink.write_equity(
+        portfolio.snapshots(account.id), spec.asset.equity.corrections(cache)
+    )
     sink.write_carry(_funding(cache))
     sink.write_reports(_reports(cache, account))
 

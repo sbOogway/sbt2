@@ -12,7 +12,9 @@ _JSON_COLUMNS = b"sbt2.json_columns"
 _TIMESTAMPS = ("ts_event", "ts_init")
 
 
-def equity_table(snapshots: Iterable[PortfolioSnapshot]) -> pd.DataFrame:
+def equity_table(
+    snapshots: Iterable[PortfolioSnapshot], corrections: pd.DataFrame | None = None
+) -> pd.DataFrame:
     """One row per snapshot and currency of its total equity."""
     rows = [
         {
@@ -25,7 +27,26 @@ def equity_table(snapshots: Iterable[PortfolioSnapshot]) -> pd.DataFrame:
         for money in snapshot.total_equity
     ]
     columns = ["ts_event", "account_id", "currency", "total_equity"]
-    return _with_timestamps(pd.DataFrame(rows, columns=columns))
+    frame = pd.DataFrame(rows, columns=columns)
+    if corrections is not None and not corrections.empty:
+        frame = _corrected(frame, corrections)
+    return _with_timestamps(frame)
+
+
+def _corrected(frame: pd.DataFrame, corrections: pd.DataFrame) -> pd.DataFrame:
+    """Add to each row the latest correction of its currency strictly before it."""
+    ordered = frame.reset_index().sort_values("ts_event")
+    latest = pd.merge_asof(
+        ordered,
+        corrections.sort_values("ts_event").rename(columns={"ts_event": "since"}),
+        left_on="ts_event",
+        right_on="since",
+        by="currency",
+        allow_exact_matches=False,
+    )
+    amount = latest["amount"].fillna(0.0)
+    corrected = ordered.assign(total_equity=ordered["total_equity"] + amount.to_numpy())
+    return corrected.sort_values("index").drop(columns="index")
 
 
 def carry_table(adjustments: Iterable[PositionAdjusted]) -> pd.DataFrame:

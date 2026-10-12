@@ -1,9 +1,12 @@
+from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Protocol
 
+import pandas as pd
+from nautilus_trader.common import Cache
 from nautilus_trader.model import AssetClass, InstrumentClass, MarkPriceUpdate
 from nautilus_trader.portfolio import PortfolioConfig
 
@@ -66,6 +69,27 @@ class NoBuyAndHold(BuyAndHoldConvention):
         raise NoBuyAndHoldError(f"no buy-and-hold benchmark: {self.reason}")
 
 
+CORRECTION_COLUMNS = ["ts_event", "currency", "amount"]
+
+
+class EquityConvention(ABC):
+    """How the equity nautilus reports differs from the true equity."""
+
+    @abstractmethod
+    def corrections(self, cache: Cache) -> pd.DataFrame:
+        """What to add to the reported equity from each ``ts_event`` (in nanoseconds)
+        on, as ``amount`` of ``currency``, until the next row of that currency."""
+        ...
+
+
+class NativeEquity(EquityConvention):
+    """The equity nautilus reports is true."""
+
+    def corrections(self, cache: Cache) -> pd.DataFrame:
+        del cache
+        return pd.DataFrame(columns=CORRECTION_COLUMNS)
+
+
 @dataclass(frozen=True)
 class AssetProfile:
     """What sbt2 needs to know about one nautilus asset class and instrument class."""
@@ -79,6 +103,7 @@ class AssetProfile:
     reference_prices: tuple[type, ...]
     valuation_price: type
     buy_and_hold: BuyAndHoldConvention
+    equity: EquityConvention = field(default_factory=NativeEquity)
 
     def covers(self, instrument: Any) -> bool:
         return (
