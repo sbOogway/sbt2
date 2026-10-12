@@ -8,6 +8,8 @@ from nautilus_trader.execution import FixedFeeModel
 from nautilus_trader.model import (
     AccountType,
     AggressorSide,
+    AssetClass,
+    InstrumentClass,
     MarkPriceUpdate,
     Money,
     OmsType,
@@ -22,7 +24,7 @@ from nautilus_trader.portfolio import PortfolioConfig
 from nautilus_trader.trading import Strategy
 from option_catalog import OPTION_ID, START, option
 
-from sbt2.core.assets.premium_equity import PremiumEquity
+from sbt2.core.assets import asset_profile
 
 HOUR = 3_600_000_000_000
 START_NS = int(START.timestamp()) * 1_000_000_000
@@ -98,7 +100,10 @@ def corrected_equity(engine: BacktestEngine) -> float:
     account_id = engine.cache.account_id(VENUE)
     assert account_id is not None
     [equity] = engine.portfolio.snapshots(account_id)[-1].total_equity
-    corrections = PremiumEquity().corrections(engine.cache)
+    equity_convention = asset_profile(
+        AssetClass.CRYPTOCURRENCY, InstrumentClass.OPTION
+    ).equity
+    corrections = equity_convention.corrections(engine.cache)
     return equity.as_double() + corrections["amount"].iloc[-1]
 
 
