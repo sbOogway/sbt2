@@ -1,5 +1,6 @@
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 
@@ -9,6 +10,8 @@ from sbt2.data.sources.base import MissingAtSourceError
 
 _TRADES = "/api/v2/public/get_last_trades_by_currency_and_time"
 _INSTRUMENTS = "/api/v2/public/get_instruments"
+_DVOL = "/api/v2/public/get_volatility_index_data"
+_HOURLY = "3600"
 _PAGE_SIZE = 1000
 _TIMEOUT = httpx.Timeout(60.0)
 
@@ -17,15 +20,24 @@ class DeribitApiError(RuntimeError):
     pass
 
 
+@dataclass(frozen=True)
+class Endpoints:
+    """The hosts of Deribit: ``api`` serves the history, ``live`` the series."""
+
+    api: str = "https://history.deribit.com"
+    live: str = "https://www.deribit.com"
+
+
 class DeribitApi:
     """Deribit's public REST API for options.
 
-    The history host serves every day, the recent ones too; the live host has no
-    trades older than about two days.
+    The history host serves every day of trades, the recent ones too; the live
+    host has no trades older than about two days, but it serves the volatility
+    index and the delivery prices, which the history host does not.
     """
 
-    def __init__(self, base_url: str) -> None:
-        self._base_url = base_url
+    def __init__(self, endpoints: Endpoints) -> None:
+        self._endpoints = endpoints
 
     async def trades(self, currency: str, day: date) -> bytes:
         """Every option trade of the UTC day as Deribit sends it, oldest first.
@@ -35,7 +47,7 @@ class DeribitApi:
         """
         start, end = _day_window(day)
         found: dict[str, dict[str, Any]] = {}
-        async with self._http() as http:
+        async with self._http(self._endpoints.api) as http:
             while True:
                 page = await _get(http, _TRADES, _trade_params(currency, start, end))
                 new = [each for each in page["trades"] if each["trade_id"] not in found]
@@ -51,7 +63,7 @@ class DeribitApi:
 
     async def instrument_snapshot(self, currency: str) -> bytes:
         """Every option of the currency as Deribit sends it, expired ones too."""
-        async with self._http() as http:
+        async with self._http(self._endpoints.api) as http:
             specs = [
                 spec
                 for expired in ("false", "true")
@@ -61,8 +73,21 @@ class DeribitApi:
             ]
         return _json(specs)
 
-    def _http(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(base_url=self._base_url, timeout=_TIMEOUT)
+    async def volatility_index(self, currency: str, day: date) -> bytes:
+        """The hourly DVOL rows ``[time, open, high, low, close]`` of the UTC day."""
+        start, end = _day_window(day)
+        async with self._http(self._endpoints.live) as http:
+            result = await _get(http, _DVOL, _dvol_params(currency, start, end))
+        if result["continuation"] is not None:
+            raise DeribitApiError(f"deribit pages the {currency} DVOL of one day")
+        if not result["data"]:
+            raise MissingAtSourceError(
+                f"deribit has no {currency} DVOL on {day.isoformat()}"
+            )
+        return _json(result["data"])
+
+    def _http(self, base_url: str) -> httpx.AsyncClient:
+        return httpx.AsyncClient(base_url=base_url, timeout=_TIMEOUT)
 
 
 async def _get(http: httpx.AsyncClient, path: str, params: Mapping[str, str]) -> Any:
@@ -93,6 +118,15 @@ def _trade_params(currency: str, start: int, end: int) -> dict[str, str]:
 
 def _instrument_params(currency: str, expired: str) -> dict[str, str]:
     return {"currency": currency, "kind": "option", "expired": expired}
+
+
+def _dvol_params(currency: str, start: int, end: int) -> dict[str, str]:
+    return {
+        "currency": currency,
+        "start_timestamp": str(start),
+        "end_timestamp": str(end),
+        "resolution": _HOURLY,
+    }
 
 
 def _day_window(day: date) -> tuple[int, int]:

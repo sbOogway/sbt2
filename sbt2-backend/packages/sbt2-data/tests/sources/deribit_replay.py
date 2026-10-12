@@ -15,4 +15,4 @@ RECORDED = Path(__file__).with_name("deribit_responses.json")
 def deribit_replay() -> Generator[DeribitSource]:
     """Deribit, answering from the recorded responses."""
     with replay(RECORDED) as served:
-        yield DeribitSource(frozenset(), Endpoints(api=served.url))
+        yield DeribitSource(frozenset(), Endpoints(api=served.url, live=served.url))

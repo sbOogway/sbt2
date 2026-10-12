@@ -23,6 +23,7 @@ from nautilus_trader.model import (
 )
 from replay import Replay
 
+from sbt2.data import DayRange
 from sbt2.data.sources import (
     MissingAtSourceError,
     RawFile,
@@ -490,3 +491,96 @@ def test_parse_gives_each_trades_index_price_as_an_index_price_update_of_its_cur
     assert stamps == sorted(stamps)
     assert prices[0].ts_event == prices[0].ts_init == 1_735_689_600_017 * 1_000_000
     assert len(prices) == len(BTC_TRADE_IDS)
+
+
+BTC_DVOL = InstrumentId.from_str("BTC_DVOL.DERIBIT")
+DVOL_DAY_FILE = "deribit/dvol/BTC_DVOL/BTC_DVOL2025-01-01.json"
+
+
+@pytest.mark.unit
+def test_dvol_is_a_symbol_of_index_prices(deribit: Source) -> None:
+    assert deribit.instrument_id("BTC_DVOL") == BTC_DVOL
+    assert deribit.symbol(BTC_DVOL) == "BTC_DVOL"
+    assert deribit.day_file("BTC_DVOL", IndexPriceUpdate, DAY).path == PurePosixPath(
+        DVOL_DAY_FILE
+    )
+    with pytest.raises(UnsupportedDataTypeError):
+        deribit.day_file("BTC_DVOL", TradeTick, DAY)
+
+
+@pytest.mark.unit
+def test_only_the_index_prices_of_dvol_are_planned(deribit: Source) -> None:
+    planned = DayRange(("BTC_DVOL",), DAY, DAY).plan(deribit)
+
+    assert [(symbol, data_type) for symbol, data_type, _ in planned] == [
+        ("BTC_DVOL", IndexPriceUpdate)
+    ]
+
+
+@pytest.mark.unit
+def test_a_dvol_day_file_holds_the_hourly_dvol_of_the_currency(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, served = replayed_deribit
+
+    rows = fetched(source.day_file("BTC_DVOL", IndexPriceUpdate, DAY))
+
+    assert [each[0] for each in rows] == [
+        DAY_START_MS + hour * 3_600_000 for hour in range(24)
+    ]
+    assert rows[0] == [DAY_START_MS, 60.03, 60.35, 60.0, 60.26]
+    (target,) = served.requests
+    query = parse_qs(urlsplit(target).query)
+    assert query["currency"] == ["BTC"]
+    assert query["resolution"] == ["3600"]
+    assert query["start_timestamp"] == [str(DAY_START_MS)]
+    assert query["end_timestamp"] == [str(DAY_END_MS)]
+
+
+@pytest.mark.unit
+def test_dvol_parses_into_index_price_updates_of_the_dvol_index(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+    snapshot = saved(source.instrument_snapshot("BTC_DVOL", SNAPSHOT_DAY), tmp_path)
+    day = saved(source.day_file("BTC_DVOL", IndexPriceUpdate, DAY), tmp_path)
+    instruments = source.parse_instruments(snapshot)
+    ids = source.day_instrument_ids(day, IndexPriceUpdate, instruments)
+
+    parsed = source.parse_day(
+        day, IndexPriceUpdate, {each: instruments[each] for each in ids}
+    )
+
+    assert list(parsed) == [BTC_DVOL]
+    updates = parsed[BTC_DVOL]
+    assert len(updates) == 24
+    assert updates[0] == IndexPriceUpdate.from_dict(updates[0].to_dict())
+    assert {each.instrument_id for each in updates} == {BTC_DVOL}
+    assert [str(each.value) for each in updates][:3] == ["60.26", "60.09", "59.88"]
+    assert (
+        updates[1].ts_event
+        == updates[1].ts_init
+        == (DAY_START_MS + 3_600_000) * (1_000_000)
+    )
+    assert isinstance(instruments[BTC_DVOL], IndexInstrument)
+
+
+@pytest.mark.unit
+def test_a_missing_dvol_day_file_holds_no_instrument(
+    deribit: Source, tmp_path: Path
+) -> None:
+    ids = deribit.day_instrument_ids(
+        tmp_path / "nope.json", IndexPriceUpdate, {BTC_DVOL: object()}
+    )
+
+    assert ids == ()
+
+
+@pytest.mark.unit
+def test_a_day_without_dvol_is_missing_at_source(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, _ = replayed_deribit
+
+    with pytest.raises(MissingAtSourceError, match=r"BTC DVOL on 2016-01-01"):
+        fetched(source.day_file("BTC_DVOL", IndexPriceUpdate, date(2016, 1, 1)))

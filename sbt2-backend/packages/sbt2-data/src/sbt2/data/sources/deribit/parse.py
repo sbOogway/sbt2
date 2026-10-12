@@ -26,6 +26,8 @@ from nautilus_trader.model import (
     black_scholes_greeks,
 )
 
+from sbt2.data.sources.deribit.series import Kind, Series, series_of
+
 VENUE = "DERIBIT"
 
 _NANOS_PER_MILLI = 1_000_000
@@ -41,9 +43,13 @@ def contract_id(name: str) -> InstrumentId:
     return InstrumentId.from_str(f"{name}.{VENUE}")
 
 
+def series_id(symbol: str) -> InstrumentId:
+    return InstrumentId.from_str(f"{symbol}.{VENUE}")
+
+
 def index_id(currency: str) -> InstrumentId:
     """The id of a currency's USD index, named as Deribit names it."""
-    return InstrumentId.from_str(f"{currency}_USD.{VENUE}")
+    return series_id(f"{currency}_USD")
 
 
 class Contracts(Mapping[InstrumentId, CryptoOption | IndexInstrument]):
@@ -55,7 +61,7 @@ class Contracts(Mapping[InstrumentId, CryptoOption | IndexInstrument]):
     ) -> None:
         self._specs = {contract_id(each["instrument_name"]): each for each in specs}
         self._ts_init = ts_init
-        self._index = _index(currency, ts_init)
+        self._index = _index(f"{currency}_USD", ts_init)
         self._built: dict[InstrumentId, CryptoOption] = {}
 
     def __getitem__(
@@ -77,17 +83,25 @@ class Contracts(Mapping[InstrumentId, CryptoOption | IndexInstrument]):
         return len(self._specs) + 1
 
 
-def contracts(path: Path) -> Contracts:
-    """The snapshot's contracts, initialised at the start of the day it was taken on."""
-    currency = path.stem[: -len("YYYY-MM-DD")]
-    return Contracts(json.loads(path.read_text()), currency, _snapshot_day_nanos(path))
+def instruments(path: Path) -> Mapping[InstrumentId, Any]:
+    """The snapshot's instruments, initialised at the start of the day it was taken
+    on: the option contracts and their USD index, or the index of a series."""
+    symbol = _snapshot_symbol(path)
+    if series_of(symbol) is not None:
+        index = _index(symbol, _snapshot_day_nanos(path))
+        return {index.id: index}
+    return Contracts(json.loads(path.read_text()), symbol, _snapshot_day_nanos(path))
 
 
 def traded_ids(path: Path, data_type: type) -> tuple[InstrumentId, ...]:
     """The instruments the day file has ``data_type`` records of: the contracts
-    traded, or the index of their currency; none when the file is missing."""
+    traded, or the index of their currency, or the index of the series; none when
+    the file is missing."""
     if not path.is_file():
         return ()
+    series = series_of(_snapshot_symbol(path))
+    if series is not None:
+        return (series_id(series.symbol),)
     names = {each["instrument_name"] for each in json.loads(path.read_text())}
     if data_type is IndexPriceUpdate:
         return tuple(index_id(each) for each in sorted({_currency(n) for n in names}))
@@ -98,6 +112,9 @@ def day_records(
     path: Path, data_type: type, instruments: Mapping[InstrumentId, Any]
 ) -> Mapping[InstrumentId, list[Any]]:
     """The day file's ``data_type`` records by instrument, each list in time order."""
+    series = series_of(_snapshot_symbol(path))
+    if series is not None:
+        return _series_updates(path, series, instruments)
     return _PARSERS[data_type](path, instruments)
 
 
@@ -123,6 +140,26 @@ def _index_prices(
         each.id: [_index_price(trade, each) for trade in trades]
         for each in instruments.values()
     }
+
+
+def _series_updates(
+    path: Path, series: Series, instruments: Mapping[InstrumentId, IndexInstrument]
+) -> dict[InstrumentId, list[IndexPriceUpdate]]:
+    ((instrument_id, index),) = instruments.items()
+    build = _SERIES_UPDATES[series.kind]
+    rows = json.loads(path.read_text())
+    return {instrument_id: [build(row, index) for row in rows]}
+
+
+def _dvol_update(row: Sequence[float], index: IndexInstrument) -> IndexPriceUpdate:
+    """The hour's close, at the start of the hour as Deribit stamps the row."""
+    ts = int(row[0]) * _NANOS_PER_MILLI
+    return IndexPriceUpdate(index.id, Price(row[4], index.price_precision), ts, ts)
+
+
+_SERIES_UPDATES: dict[Kind, Callable[[Sequence[float], IndexInstrument], Any]] = {
+    Kind.DVOL: _dvol_update,
+}
 
 
 type _DayParser = Callable[
@@ -226,10 +263,10 @@ def _contract(spec: Mapping[str, Any], ts_init: int) -> CryptoOption:
     )
 
 
-def _index(currency: str, ts_init: int) -> IndexInstrument:
+def _index(name: str, ts_init: int) -> IndexInstrument:
     return IndexInstrument(
-        index_id(currency),
-        Symbol(f"{currency}_USD"),
+        series_id(name),
+        Symbol(name),
         Currency.from_str("USD"),
         _INDEX_PRECISION,
         0,
@@ -238,6 +275,11 @@ def _index(currency: str, ts_init: int) -> IndexInstrument:
         ts_init,
         ts_init,
     )
+
+
+def _snapshot_symbol(path: Path) -> str:
+    """The symbol a snapshot or a day file is named after."""
+    return path.stem[: -len("YYYY-MM-DD")]
 
 
 def _currency(name: str) -> str:
