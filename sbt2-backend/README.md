@@ -66,6 +66,8 @@ fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_ra
 
 An option held to its expiry settles at Deribit's delivery price, with a delivery fee of 0.015 % of the underlying capped at 12.5 % of the settlement value. Set other rates with `delivery_fee = { rate = "0.00015", cap_rate = "0.125" }` in the profile.
 
+sbt2 margins the options itself, as Deribit's standard margin does, in the coin per contract. A long option needs its mark. A short call needs `max(0.15 - OTM amount / index, 0.1) + mark`; a short put needs the same, at least its maintenance margin of `0.075 + mark`. Set other rates with `margin = { base_rate = "0.15", floor_rate = "0.1", maintenance_rate = "0.075" }` in the profile. An order whose initial margin is more than the free equity (the equity less the initial margin of the open positions) is not sent, and the strategy hears why in `on_margin_refused`. A strategy reads `margin_of_order(order)` and `margin_of_positions()`. A run stores the margin used and the maintenance margin on the equity grid in its `margin` table.
+
 A spec describes the backtests to run:
 
 ```toml
