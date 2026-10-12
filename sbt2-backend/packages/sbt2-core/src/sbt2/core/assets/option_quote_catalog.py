@@ -13,7 +13,7 @@ from nautilus_trader.model import (
 from nautilus_trader.persistence import ParquetDataCatalog
 
 from sbt2.core.assets.base import QuoteJob
-from sbt2.core.assets.option_delivery import delivery_price, expires_within
+from sbt2.core.assets.option_delivery import delivery_price, expires_within, index_id
 from sbt2.core.assets.option_quotes import OptionHistory, QuoteSettings, quote_ticks
 from sbt2.core.assets.option_settlement import settlement_price, settlement_quotes
 from sbt2.data import Catalog, Window
@@ -51,7 +51,7 @@ class _Quoter:
 
     def write(self, contract: CryptoOption) -> bool:
         """Write the contract's quotes; whether it has any."""
-        index = self._index(_index_id(contract))
+        index = self._index(index_id(contract))
         history = _history(self._catalog, contract, (self._job.window[1], index))
         quotes = quote_ticks(history, self._settings, self._job.window)
         if quotes:
@@ -81,12 +81,6 @@ def _no_quotes(job: QuoteJob) -> str:
     return (
         f"no quotes can be made for {ids} from {job.window[0]} to {job.window[1]}: "
         "the catalog lacks their marks, IV records or the index"
-    )
-
-
-def _index_id(contract: CryptoOption) -> InstrumentId:
-    return InstrumentId.from_str(
-        f"{contract.underlying.code}_USD.{contract.id.venue.value}"
     )
 
 

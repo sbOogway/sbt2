@@ -10,6 +10,7 @@ from nautilus_trader.backtest import BacktestDataConfig, BacktestNode, BacktestR
 from nautilus_trader.common import Cache, LoggerConfig, LogLevel
 from nautilus_trader.model import PositionAdjusted, PositionAdjustmentType, Venue
 
+from sbt2.core.assets import MarginModel
 from sbt2.core.results import OutputSink, Reports
 from sbt2.core.spec import ResolvedRunSpec
 from sbt2.core.strategy import (
@@ -48,6 +49,13 @@ class _Backtest:
     node: BacktestNode
     config_id: str
     venue: Venue
+    margin: MarginModel | None
+
+
+@dataclass(frozen=True)
+class _Plan:
+    config: BacktestRunConfig
+    margin: MarginModel | None
 
 
 def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> None:
@@ -56,15 +64,15 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
     sink.write_strategy_source(strategy_source(spec.strategy.strategy))
     with TemporaryDirectory(prefix="sbt2-quotes-") as folder:
         quotes = spec.asset.quotes.write(spec.quote_job(settings.catalog), Path(folder))
-        _execute(spec, sink, _run_config(spec, settings, quotes))
+        margin = spec.asset.margin.model(spec.quote_job(settings.catalog))
+        _execute(spec, sink, _Plan(_run_config(spec, settings, quotes), margin))
     sink.finalize()
     logger.info("run %s finished", sink.run_id)
 
 
-def _execute(
-    spec: ResolvedRunSpec, sink: OutputSink, config: BacktestRunConfig
-) -> None:
-    backtest = _Backtest(BacktestNode([config]), config.id, Venue(spec.venue_name))
+def _execute(spec: ResolvedRunSpec, sink: OutputSink, plan: _Plan) -> None:
+    node = BacktestNode([plan.config])
+    backtest = _Backtest(node, plan.config.id, Venue(spec.venue_name), plan.margin)
     try:
         strategy = _run(backtest, spec.strategy)
         _write_output(backtest, spec, sink)
@@ -94,6 +102,8 @@ def _run_config(
 def _run(backtest: _Backtest, run: StrategyRun) -> Strategy[Any]:
     try:
         strategy = build_strategy(run)
+        if backtest.margin is not None:
+            strategy.use_margin(backtest.margin)
         backtest.node.build()
         backtest.node.add_strategy(backtest.config_id, strategy)
         backtest.node.run()

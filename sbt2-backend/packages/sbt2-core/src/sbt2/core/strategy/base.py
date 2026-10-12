@@ -38,6 +38,7 @@ from nautilus_trader.trading import Strategy as NautilusStrategy
 
 from sbt2.core.strategy.drawdown import DrawdownGuard
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
+from sbt2.core.strategy.margin import MarginDesk, MarginModel
 
 if TYPE_CHECKING:
     from sbt2.core.results import Benchmark
@@ -159,6 +160,7 @@ class Strategy[P](NautilusStrategy, ABC):
         self._aggregated_from = config.aggregated_from
         self.drawdown_tripped_at: datetime | None = None
         self._settling: set[ClientOrderId] = set()
+        self._margin: MarginDesk | None = None
         self._drawdown = (
             None
             if config.drawdown_limit is None
@@ -188,6 +190,16 @@ class Strategy[P](NautilusStrategy, ABC):
         for bar_type in self.bar_types():
             self.subscribe_bars(self._subscribed(bar_type))
         self._arm_settlement()
+
+    def use_margin(self, model: MarginModel) -> None:
+        """Margin the strategy's orders and positions with ``model``."""
+        self._margin = MarginDesk(model, self)
+
+    def margin_of_order(self, order: Any) -> Decimal:
+        """The initial margin ``order`` adds to its position, in the settlement
+        currency, as of now; zero when it only reduces the position or the run
+        has no margin model."""
+        return Decimal(0) if self._margin is None else self._margin.of_order(order)
 
     def on_settlement(self, fill: OrderFilled) -> None:
         """A position settled at its contract's expiry; ``fill`` closed it."""

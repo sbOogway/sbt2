@@ -200,6 +200,24 @@ class NoSettlement(SettlementConvention):
         return []
 
 
+class MarginModel(ABC):
+    """The margin of the positions of one run, in the settlement currency.
+
+    ``quantity`` is signed, negative when short, and ``ts`` is in nanoseconds.
+    """
+
+    @abstractmethod
+    def initial(self, instrument: Any, quantity: Decimal, ts: int) -> Decimal:
+        """What a position of ``quantity`` contracts of ``instrument`` reserves,
+        as of ``ts``."""
+        ...
+
+    @abstractmethod
+    def value(self, instrument: Any, quantity: Decimal, ts: int) -> Decimal:
+        """What the position is worth at the mark as of ``ts``."""
+        ...
+
+
 class MarginConvention(ABC):
     """How the venue margins the positions of its instruments."""
 
@@ -209,9 +227,19 @@ class MarginConvention(ABC):
         defaults; ``ValueError`` when the settings are invalid."""
         ...
 
+    @abstractmethod
+    def model(self, job: QuoteJob) -> MarginModel | None:
+        """The margin model of a run of ``job``; none when nautilus margins the
+        run's positions."""
+        ...
+
 
 class NoMargin(MarginConvention):
     """Nautilus margins the positions."""
+
+    def model(self, job: QuoteJob) -> MarginModel | None:
+        del job
+        return None
 
     def complete(self, venue: Mapping[str, Any]) -> dict[str, Any]:
         if "margin" in venue:
