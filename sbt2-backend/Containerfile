@@ -15,6 +15,7 @@ COPY packages/sbt2-data/pyproject.toml packages/sbt2-data/
 COPY packages/sbt2-core/pyproject.toml packages/sbt2-core/
 COPY packages/sbt2-cli/pyproject.toml packages/sbt2-cli/
 COPY packages/sbt2-strategies/pyproject.toml packages/sbt2-strategies/
+COPY packages/sbt2-lab/pyproject.toml packages/sbt2-lab/
 COPY packages/sbt2-papers/pyproject.toml packages/sbt2-papers/
 COPY packages/sbt2-protocol/pyproject.toml packages/sbt2-protocol/
 COPY packages/sbt2-server/pyproject.toml packages/sbt2-server/

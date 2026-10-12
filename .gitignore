@@ -14,3 +14,5 @@ htmlcov/
 coverage.xml
 junit.xml
 /sbt2-gui/target/
+.ipynb_checkpoints/
+*unlucky_investor.md

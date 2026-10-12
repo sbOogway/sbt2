@@ -1,9 +1,10 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help sync check test-backend test-protocol test-gui build publish release release-gui release-image rebase-open-branches
+.PHONY: help sync notebooks check test-backend test-protocol test-gui build publish release release-gui release-image rebase-open-branches
 
 help:
-	@echo "make sync          prepare the locked backend and protocol environments"
+	@echo "make sync          prepare the locked backend, protocol and notebook environments"
+	@echo "make notebooks     open JupyterLab in sbt2-notebooks"
 	@echo "make check         run the hooks and both components' test suites"
 	@echo "make test-backend  run the backend test suite"
 	@echo "make test-protocol run the Python and Rust protocol tests"
@@ -18,6 +19,10 @@ help:
 sync:
 	uv --directory sbt2-backend sync --locked
 	uv --directory sbt2-protocol sync --locked
+	uv --directory sbt2-notebooks sync --locked
+
+notebooks:
+	uv --directory sbt2-notebooks run --locked jupyter lab
 
 check:
 	prek run --all-files --show-diff-on-failure
