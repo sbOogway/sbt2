@@ -49,6 +49,23 @@ class BuyAndHoldConvention:
         return Decimal(str(rate))
 
 
+class NoBuyAndHoldError(LookupError):
+    pass
+
+
+@dataclass(frozen=True)
+class NoBuyAndHold(BuyAndHoldConvention):
+    """The convention of an instrument that cannot be held as a benchmark."""
+
+    price: type = MarkPriceUpdate
+    carry: Carry = Carry(data_types=())
+    reason: str = ""
+
+    def entry_fee(self, venue: Mapping[str, Any]) -> Decimal:
+        del venue
+        raise NoBuyAndHoldError(f"no buy-and-hold benchmark: {self.reason}")
+
+
 @dataclass(frozen=True)
 class AssetProfile:
     """What sbt2 needs to know about one nautilus asset class and instrument class."""
