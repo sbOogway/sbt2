@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 from combo_strategies import OpenStrangle
-from option_catalog import build_ladder_catalog, chain_contract_id
+from option_catalog import build_chain_catalog, build_ladder_catalog, chain_contract_id
 
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
@@ -35,6 +35,13 @@ fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_ra
 """
 PUT = str(chain_contract_id("12JAN24", 40000, "P"))
 CALL = str(chain_contract_id("12JAN24", 50000, "C"))
+
+
+@pytest.fixture(scope="module")
+def expiring(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    path = tmp_path_factory.mktemp("chain_catalog")
+    build_chain_catalog(path)
+    return path
 
 
 @pytest.fixture(scope="module")
@@ -179,3 +186,34 @@ def test_a_combo_closes_at_its_dte(tmp_path: Path, ladder: Path) -> None:
     at, _ = closing(store, run_id)
     assert at == datetime(2024, 1, 2, 20, tzinfo=UTC)
     assert [each.id for each in OpenStrangle.closed] == ["C1"]
+
+
+@pytest.mark.integration
+def test_a_combo_held_to_expiry_settles_all_its_legs(
+    tmp_path: Path, expiring: Path
+) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run(tmp_path, expiring, "combo_strategies:HoldStraddleToExpiry")
+
+    fills = store.load(run_id, "fills").to_dict("records")
+    assert [each["order_side"] for each in fills] == ["SELL", "SELL", "BUY", "BUY"]
+    assert tags_of_fills(store, run_id)[2:] == [["SETTLEMENT", "COMBO:C1"]] * 2
+    [settled] = OpenStrangle.settled
+    assert settled.id == "C1"
+    assert OpenStrangle.closed == []
+    assert OpenStrangle.seen[-1][1] == ()
+
+
+@pytest.mark.integration
+def test_a_combo_beyond_the_free_equity_is_refused_as_a_whole(
+    tmp_path: Path, ladder: Path
+) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run(tmp_path, ladder, "combo_strategies:OpenTenStrangles")
+
+    assert OpenStrangle.refused == [PUT]
+    assert store.load(run_id, "fills").empty
+    assert OpenStrangle.opened == []
+    assert OpenStrangle.seen[-1][1] == ()

@@ -401,7 +401,10 @@ class Strategy[P](NautilusStrategy, ABC):
                 instrument_id,
                 closing_side(position),
                 position.quantity,
-                tags=[SETTLEMENT_TAG],
+                tags=[
+                    SETTLEMENT_TAG,
+                    *map(combo_tag, self._combos.holding(instrument_id)),
+                ],
             )
             self._settling.add(order.client_order_id)
             self._combos.settling(instrument_id, order)
