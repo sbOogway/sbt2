@@ -37,6 +37,31 @@ class MarginDesk:
             for instrument_id, quantity in self._held().items()
         }
 
+    def refusal(self, orders: Sequence[Any]) -> str | None:
+        """Why the orders cannot be sent, or none when the free equity covers
+        the margin they add."""
+        try:
+            added = self._added(orders)
+            free = self._free_equity(orders[0].instrument_id)
+        except LookupError as error:
+            return f"the margin of the orders cannot be priced: {error}"
+        if added <= 0 or added <= free:
+            return None
+        return f"the orders need an initial margin of {added}, above the free equity {free}"
+
+    def _free_equity(self, instrument_id: InstrumentId) -> Decimal:
+        """The equity less the initial margin of the open positions, in the
+        currency of ``instrument_id``."""
+        ts = self._trader.clock.timestamp_ns()
+        currency = self._trader.cache.instrument(instrument_id).settlement_currency
+        account = self._trader.portfolio.account(instrument_id.venue)
+        free = account.balance_total(currency).as_decimal()
+        for held_id, quantity in self._held().items():
+            held = self._trader.cache.instrument(held_id)
+            free += self._model.value(held, quantity, ts)
+            free -= self._model.initial(held, quantity, ts)
+        return free
+
     def _added(self, orders: Sequence[Any]) -> Decimal:
         ts = self._trader.clock.timestamp_ns()
         held = self._held()

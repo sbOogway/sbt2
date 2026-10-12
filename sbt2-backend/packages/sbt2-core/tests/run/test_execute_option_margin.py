@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 from option_catalog import HOURS, OPTION_ID, START, build_option_catalog, mark_at
-from run_strategies import ReadOrderMargin, ReadPositionMargin
+from run_strategies import ReadOrderMargin, ReadPositionMargin, SellTenOptions
 
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
@@ -80,3 +80,18 @@ def test_a_strategy_reads_the_margin_of_its_open_position(
     assert len(ReadPositionMargin.read) > 1
     for ts, margins in ReadPositionMargin.read:
         assert margins == {str(OPTION_ID): short_call_margin(ts)}
+
+
+@pytest.mark.integration
+def test_a_short_option_order_beyond_the_free_equity_is_refused(
+    tmp_path: Path, catalog: Path
+) -> None:
+    SellTenOptions.refused.clear()
+
+    store, run_id = run(tmp_path, catalog, "run_strategies:SellTenOptions")
+
+    [(instrument, reason)] = SellTenOptions.refused
+    assert instrument == str(OPTION_ID)
+    assert "initial margin of 1.52" in reason
+    assert "free equity 1" in reason
+    assert store.load(run_id, "fills").empty

@@ -133,6 +133,17 @@ class SellOneOption(BuyOneOption):
     side = OrderSide.SELL
 
 
+class SellTenOptions(SellOneOption):
+    """Sells ten option contracts, more than 1 BTC of capital can margin."""
+
+    quantity = "10.0"
+    refused: ClassVar[list[tuple[str, str]]] = []
+
+    @override
+    def on_margin_refused(self, order: MarketOrder, reason: str) -> None:
+        self.refused.append((str(order.instrument_id), reason))
+
+
 class ReadOrderMargin(SellOneOption):
     """Notes the margin of its order, in the coin, with the time it asked."""
 
