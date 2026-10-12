@@ -50,3 +50,13 @@ def is_chain(instrument_id: InstrumentId) -> bool:
     """Whether the id names the options of an underlying as a whole, such as
     ``BTC-OPTIONS.DERIBIT``."""
     return instrument_id.symbol.value.endswith(_SUFFIX)
+
+
+def underlying_of(chain: InstrumentId) -> str:
+    """The code of the underlying a chain id names, such as ``BTC``."""
+    return chain.symbol.value.removesuffix(_SUFFIX)
+
+
+def index_of(chain: InstrumentId) -> InstrumentId:
+    """The id of the USD index of the chain's underlying."""
+    return InstrumentId.from_str(f"{underlying_of(chain)}_USD.{chain.venue.value}")

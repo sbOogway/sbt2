@@ -3,8 +3,9 @@ from typing import Any, override
 
 from nautilus_trader.model import InstrumentId
 
-from sbt2.core.assets.base import ChainConvention
+from sbt2.core.assets.base import ChainConvention, ChainJob
 from sbt2.core.assets.option_chain import ChainBand, is_chain
+from sbt2.core.assets.option_chain_selection import select_contracts
 
 
 class OptionChain(ChainConvention):
@@ -19,3 +20,7 @@ class OptionChain(ChainConvention):
     @override
     def complete(self, table: Mapping[str, Any]) -> dict[str, Any]:
         return ChainBand.from_table(table).to_table()
+
+    @override
+    def contracts(self, job: ChainJob) -> list[InstrumentId]:
+        return select_contracts(job)

@@ -18,7 +18,7 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.portfolio import PortfolioConfig
 
-from sbt2.data import Selection
+from sbt2.data import Catalog, Selection
 
 
 class Calendar(Protocol):
@@ -261,6 +261,17 @@ class NoMargin(MarginConvention):
         return dict(venue)
 
 
+@dataclass(frozen=True)
+class ChainJob:
+    """The chain ``chain`` names, bounded by the bands of ``table``: the contracts
+    the ``catalog`` holds that live in ``window``."""
+
+    catalog: Catalog
+    chain: InstrumentId
+    window: tuple[datetime, datetime]
+    table: Mapping[str, Any]
+
+
 class ChainConvention(ABC):
     """Whether an instrument names a whole chain of contracts, which the run
     loads while it goes."""
@@ -276,6 +287,12 @@ class ChainConvention(ABC):
         when it is invalid."""
         ...
 
+    @abstractmethod
+    def contracts(self, job: ChainJob) -> list[InstrumentId]:
+        """The ids of the contracts of the chain that are alive in the window and
+        inside the bands at some time."""
+        ...
+
 
 class NoChain(ChainConvention):
     """No instrument names a chain."""
@@ -288,6 +305,10 @@ class NoChain(ChainConvention):
         if table:
             raise ValueError("this asset class takes no chain setting")
         return {}
+
+    def contracts(self, job: ChainJob) -> list[InstrumentId]:
+        del job
+        return []
 
 
 @dataclass(frozen=True)
