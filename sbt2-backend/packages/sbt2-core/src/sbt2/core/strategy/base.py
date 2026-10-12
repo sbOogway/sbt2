@@ -37,6 +37,7 @@ from nautilus_trader.trading import ImportableStrategyConfig
 from nautilus_trader.trading import Strategy as NautilusStrategy
 
 from sbt2.core.strategy.chain import CachedChain, Chain
+from sbt2.core.strategy.chain_records import ChainRecords
 from sbt2.core.strategy.drawdown import DrawdownGuard
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
 from sbt2.core.strategy.margin import MarginDesk, MarginModel
@@ -166,6 +167,7 @@ class Strategy[P](NautilusStrategy, ABC):
         self.drawdown_tripped_at: datetime | None = None
         self._settling: set[ClientOrderId] = set()
         self._margin: MarginDesk | None = None
+        self._records = ChainRecords(lambda: self.clock.timestamp_ns())
         self._drawdown = (
             None
             if config.drawdown_limit is None
@@ -188,7 +190,7 @@ class Strategy[P](NautilusStrategy, ABC):
     @property
     def chain(self) -> Chain:
         """The option contracts the run loaded, to pick from."""
-        return CachedChain(self.cache, self.clock.timestamp_ns, self.instrument_ids)
+        return CachedChain(self.cache, self.instrument_ids, self._records)
 
     @property
     def warming_up(self) -> bool:

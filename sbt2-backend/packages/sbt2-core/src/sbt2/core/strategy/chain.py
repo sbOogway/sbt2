@@ -1,11 +1,14 @@
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any, Protocol
 
-from nautilus_trader.common import Cache
 from nautilus_trader.core import dt_to_unix_nanos, unix_nanos_to_dt
 from nautilus_trader.model import CryptoOption, InstrumentId, OptionKind, QuoteTick
+
+from sbt2.core.strategy.chain_records import ChainRecords
+from sbt2.core.strategy.greeks import Greeks, Market, greeks_of
 
 _DAY_NS = 86_400 * 10**9
 
@@ -20,6 +23,10 @@ class ChainFilter:
     dte: tuple[float, float] | None = None
     strikes: tuple[float, float] | None = None
     expiry: datetime | None = None
+
+
+class NoMarketError(LookupError):
+    """The chain has not heard the IV or the index price a question needs."""
 
 
 class Chain(ABC):
@@ -41,22 +48,42 @@ class Chain(ABC):
         """The latest quote of ``contract``; none before its first."""
         ...
 
+    @abstractmethod
+    def iv(self, contract: CryptoOption) -> float:
+        """The latest implied volatility of ``contract`` as a fraction, Deribit's
+        own; ``NoMarketError`` before its first."""
+        ...
+
+    @abstractmethod
+    def greeks(self, contract: CryptoOption) -> Greeks:
+        """The Black-Scholes greeks of ``contract`` now, from its IV and the latest
+        index price; ``NoMarketError`` when either is not heard yet."""
+        ...
+
+
+class ChainCache(Protocol):
+    """What the chain reads of nautilus's cache."""
+
+    def instrument(self, instrument_id: InstrumentId, /) -> Any: ...
+
+    def quote(self, instrument_id: InstrumentId, /) -> QuoteTick | None: ...
+
 
 class CachedChain(Chain):
     """The chain of the contracts the run loaded, read from nautilus's cache."""
 
     def __init__(
         self,
-        cache: Cache,
-        now_ns: Callable[[], int],
+        cache: ChainCache,
         instrument_ids: Sequence[InstrumentId],
+        records: ChainRecords,
     ) -> None:
         self._cache = cache
-        self._now_ns = now_ns
         self._instrument_ids = instrument_ids
+        self._records = records
 
     def contracts(self, where: ChainFilter | None = None) -> list[CryptoOption]:
-        now = self._now_ns()
+        now = self._records.now_ns()
         matching = [
             each
             for each in self._loaded()
@@ -70,6 +97,19 @@ class CachedChain(Chain):
 
     def quote(self, contract: CryptoOption) -> QuoteTick | None:
         return self._cache.quote(contract.id)
+
+    def iv(self, contract: CryptoOption) -> float:
+        found = self._records.iv(contract.id)
+        if found is None:
+            raise NoMarketError(f"{contract.id} has no IV yet")
+        return found
+
+    def greeks(self, contract: CryptoOption) -> Greeks:
+        now = self._records.now_ns()
+        index = self._records.index()
+        if index is None:
+            raise NoMarketError("the chain has heard no index price yet")
+        return greeks_of(contract, Market(index, self.iv(contract)), now)
 
     def _loaded(self) -> list[CryptoOption]:
         found = (self._cache.instrument(each) for each in self._instrument_ids)
