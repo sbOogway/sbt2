@@ -148,7 +148,9 @@ class Strategy[P](NautilusStrategy, ABC):
 
     A strategy that needs no bars, such as one that picks contracts of an option
     chain, declares no ``inputs`` and acts on a ``schedule``: ``on_schedule`` is
-    called at that interval, from the start of the run.
+    called at that interval, from the start of the run. It reads the IV, the
+    greeks and the IV rank of the contracts through ``chain``; a strategy that
+    reads the IV rank sets ``iv_lookback`` to load the DVOL before the run.
 
     A position in an option is closed at the contract's expiry, after its open
     orders are cancelled, and ``on_settlement`` hears the closing fill; a
