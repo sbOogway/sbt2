@@ -144,6 +144,19 @@ class ReadOrderMargin(SellOneOption):
         super().place(order)
 
 
+class ReadPositionMargin(SellOneOption):
+    """Notes the margin of its open positions on each bar."""
+
+    read: ClassVar[list[tuple[int, dict[str, Decimal]]]] = []
+
+    @override
+    def on_bar(self, bar: Bar) -> None:
+        super().on_bar(bar)
+        margins = {str(k): v for k, v in self.margin_of_positions().items()}
+        if margins:
+            self.read.append((self.clock.timestamp_ns(), margins))
+
+
 class ListenToSettlement(BuyOneOption):
     """Buys one option contract and notes the settlements it hears."""
 

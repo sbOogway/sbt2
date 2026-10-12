@@ -27,6 +27,16 @@ class MarginDesk:
         reduces the position."""
         return max(Decimal(0), self._added([order]))
 
+    def of_positions(self) -> dict[InstrumentId, Decimal]:
+        """The initial margin of each open position."""
+        ts = self._trader.clock.timestamp_ns()
+        return {
+            instrument_id: self._model.initial(
+                self._trader.cache.instrument(instrument_id), quantity, ts
+            )
+            for instrument_id, quantity in self._held().items()
+        }
+
     def _added(self, orders: Sequence[Any]) -> Decimal:
         ts = self._trader.clock.timestamp_ns()
         held = self._held()

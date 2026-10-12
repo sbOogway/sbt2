@@ -201,6 +201,11 @@ class Strategy[P](NautilusStrategy, ABC):
         has no margin model."""
         return Decimal(0) if self._margin is None else self._margin.of_order(order)
 
+    def margin_of_positions(self) -> dict[InstrumentId, Decimal]:
+        """The initial margin of each open position, in the settlement currency,
+        as of now; none without a margin model."""
+        return {} if self._margin is None else self._margin.of_positions()
+
     def on_settlement(self, fill: OrderFilled) -> None:
         """A position settled at its contract's expiry; ``fill`` closed it."""
 

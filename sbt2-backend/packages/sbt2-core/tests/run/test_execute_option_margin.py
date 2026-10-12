@@ -2,8 +2,8 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from option_catalog import START, build_option_catalog, mark_at
-from run_strategies import ReadOrderMargin
+from option_catalog import HOURS, OPTION_ID, START, build_option_catalog, mark_at
+from run_strategies import ReadOrderMargin, ReadPositionMargin
 
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
@@ -51,8 +51,9 @@ def run(tmp_path: Path, catalog: Path, strategy: str) -> tuple[ParquetResultStor
 
 def short_call_margin(ts: int) -> Decimal:
     """The floor plus the last mark at or before ``ts``: the call is far out of
-    the money, so the floor is the larger term."""
-    hour = (ts - START_NS) // HOUR_NS
+    the money, so the floor is the larger term. The catalog's last mark is at
+    its last hour."""
+    hour = min((ts - START_NS) // HOUR_NS, HOURS - 1)
     return FLOOR + mark_at(hour)
 
 
@@ -66,3 +67,16 @@ def test_a_strategy_reads_the_margin_of_an_order_before_it_sends_it(
 
     [(ts, margin)] = ReadOrderMargin.asked
     assert margin == short_call_margin(ts)
+
+
+@pytest.mark.integration
+def test_a_strategy_reads_the_margin_of_its_open_position(
+    tmp_path: Path, catalog: Path
+) -> None:
+    ReadPositionMargin.read.clear()
+
+    run(tmp_path, catalog, "run_strategies:ReadPositionMargin")
+
+    assert len(ReadPositionMargin.read) > 1
+    for ts, margins in ReadPositionMargin.read:
+        assert margins == {str(OPTION_ID): short_call_margin(ts)}
