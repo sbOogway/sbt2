@@ -41,8 +41,8 @@ EXPIRY_HOUR = 32
 EXPIRY = START + timedelta(hours=EXPIRY_HOUR)
 
 
-def mark_at(hour: int) -> Decimal:
-    return FIRST_MARK + MARK_STEP * hour
+def mark_at(hour: int, step: Decimal = MARK_STEP) -> Decimal:
+    return FIRST_MARK + step * hour
 
 
 def build_option_catalog(path: Path, trade_price: str = TRADE_PRICE) -> None:
@@ -118,9 +118,11 @@ def _trade(ts: int, price: str) -> TradeTick:
     )
 
 
-def _mark(hour: int, instrument_id: InstrumentId = OPTION_ID) -> MarkPriceUpdate:
+def _mark(
+    hour: int, instrument_id: InstrumentId = OPTION_ID, step: Decimal = MARK_STEP
+) -> MarkPriceUpdate:
     ts = _nanos(hour)
-    return MarkPriceUpdate(instrument_id, Price(float(mark_at(hour)), 4), ts, ts)
+    return MarkPriceUpdate(instrument_id, Price(float(mark_at(hour, step)), 4), ts, ts)
 
 
 def _greeks(hour: int, instrument_id: InstrumentId = OPTION_ID) -> OptionGreeks:
@@ -207,11 +209,12 @@ def build_chain_catalog(
     _write_index(catalog, index_prices or [INDEX_PRICE] * HOURS, delivery)
 
 
-def build_ladder_catalog(path: Path) -> None:
+def build_ladder_catalog(path: Path, mark_step: Decimal = MARK_STEP) -> None:
     """Two days of the ``LADDER_LISTING`` contracts, calls and puts, like
-    ``build_chain_catalog`` with a flat index and the default delivery."""
+    ``build_chain_catalog`` with a flat index and the default delivery; the marks
+    move by ``mark_step`` an hour."""
     catalog = _new_catalog(path)
-    _write_contracts(catalog, _chain_contracts(LADDER_LISTING))
+    _write_contracts(catalog, _chain_contracts(LADDER_LISTING), mark_step)
     _write_index(catalog, [INDEX_PRICE] * HOURS, CHAIN_DELIVERY)
 
 
@@ -221,7 +224,9 @@ def _new_catalog(path: Path) -> ParquetDataCatalog:
 
 
 def _write_contracts(
-    catalog: ParquetDataCatalog, contracts: list[CryptoOption]
+    catalog: ParquetDataCatalog,
+    contracts: list[CryptoOption],
+    mark_step: Decimal = MARK_STEP,
 ) -> None:
     catalog.write_instruments(
         [*contracts, _index_instrument(INDEX_ID), _index_instrument(DVOL_ID)]
@@ -231,7 +236,9 @@ def _write_contracts(
         alive = min(HOURS, max(0, _hours_until(each)))
         if alive:
             catalog.write_mark_price_updates(
-                [_mark(hour, each.id) for hour in range(alive)], first, last
+                [_mark(hour, each.id, mark_step) for hour in range(alive)],
+                first,
+                last,
             )
             catalog.write_option_greeks(
                 [_greeks(hour, each.id) for hour in range(alive)], first, last

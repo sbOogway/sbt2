@@ -16,6 +16,7 @@ from option_catalog import Terms, listed_option
 
 from sbt2.core.strategy import (
     Combo,
+    ComboExit,
     Leg,
     NoMarketError,
     iron_condor,
@@ -256,3 +257,20 @@ def test_a_combos_dte_is_its_nearest_expiry() -> None:
 
     assert combo.dte(NOW) == 10
     assert combo.dte(NOW + timedelta(days=4, hours=12)) == 5.5
+
+
+@pytest.mark.unit
+def test_a_combo_exit_closes_at_a_dte_or_a_target_and_waits_for_a_quote() -> None:
+    held = entered(short_put(put(40_000), ONE), "0.1000")
+    quote = quotes({held.legs[0].contract.id: ("0.0400", "0.0500")})
+    none = quotes({})
+
+    assert ComboExit(profit_target=Decimal(50)).reached(held, NOW, quote)
+    assert not ComboExit(profit_target=Decimal(60)).reached(held, NOW, quote)
+    assert ComboExit(loss_target=Decimal(50)).reached(
+        held, NOW, quotes({held.legs[0].contract.id: ("0.1500", "0.1600")})
+    )
+    assert not ComboExit(loss_target=Decimal(50)).reached(held, NOW, quote)
+    assert ComboExit(dte=40).reached(held, NOW, none)
+    assert not ComboExit(dte=39, profit_target=Decimal(1)).reached(held, NOW, none)
+    assert not ComboExit().reached(held, NOW, quote)

@@ -1,6 +1,8 @@
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
+import pandas as pd
 import pytest
 from combo_strategies import OpenStrangle
 from option_catalog import build_ladder_catalog, chain_contract_id
@@ -33,6 +35,13 @@ fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_ra
 """
 PUT = str(chain_contract_id("12JAN24", 40000, "P"))
 CALL = str(chain_contract_id("12JAN24", 50000, "C"))
+
+
+@pytest.fixture(scope="module")
+def falling(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    path = tmp_path_factory.mktemp("falling_catalog")
+    build_ladder_catalog(path, mark_step=Decimal("-0.001"))
+    return path
 
 
 @pytest.fixture(scope="module")
@@ -114,3 +123,59 @@ def test_a_combo_closes_all_its_legs_together(tmp_path: Path, ladder: Path) -> N
     assert OpenStrangle.settled == []
     assert OpenStrangle.seen[-1][1] == ()
     assert set(store.load(run_id, "positions")["side"]) == {"FLAT"}
+
+
+def closing(store: ParquetResultStore, run_id: str) -> tuple[datetime, Decimal]:
+    """The time of the closing fills and the P/L in percent of the credit they
+    realise against the entry fills."""
+    fills = store.load(run_id, "fills")
+    paid = {side: Decimal(0) for side in ("SELL", "BUY")}
+    for fill in fills.to_dict("records"):
+        paid[fill["order_side"]] += Decimal(str(fill["last_px"]))
+    [at] = set(fills["ts_event"][fills["order_side"] == "BUY"])
+    moment = datetime.fromtimestamp(pd.Timestamp(at).value / 10**9, UTC)
+    return moment, (paid["SELL"] - paid["BUY"]) / paid["SELL"] * 100
+
+
+def percent_before(tick: datetime) -> Decimal:
+    [before] = [
+        each
+        for when, each in OpenStrangle.percents
+        if when == tick - timedelta(hours=1)
+    ]
+    return before
+
+
+@pytest.mark.integration
+def test_a_combo_closes_at_its_profit_target(tmp_path: Path, falling: Path) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run(tmp_path, falling, "combo_strategies:CloseStrangleAtProfit")
+
+    at, realised = closing(store, run_id)
+    assert realised >= 20
+    assert percent_before(at) < 20
+    assert [each.id for each in OpenStrangle.closed] == ["C1"]
+
+
+@pytest.mark.integration
+def test_a_combo_closes_at_its_loss_target(tmp_path: Path, ladder: Path) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run(tmp_path, ladder, "combo_strategies:CloseStrangleAtLoss")
+
+    at, realised = closing(store, run_id)
+    assert realised <= -20
+    assert percent_before(at) > -20
+    assert [each.id for each in OpenStrangle.closed] == ["C1"]
+
+
+@pytest.mark.integration
+def test_a_combo_closes_at_its_dte(tmp_path: Path, ladder: Path) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run(tmp_path, ladder, "combo_strategies:CloseStrangleAtDte")
+
+    at, _ = closing(store, run_id)
+    assert at == datetime(2024, 1, 2, 20, tzinfo=UTC)
+    assert [each.id for each in OpenStrangle.closed] == ["C1"]

@@ -118,7 +118,7 @@ class CloseStrangleAtLoss(OpenStrangle):
     @classmethod
     @override
     def combo_exit(cls, params: NoParams) -> ComboExit:
-        return ComboExit(loss_target=Decimal(10))
+        return ComboExit(loss_target=Decimal(20))
 
 
 class CloseStrangleAtDte(OpenStrangle):
