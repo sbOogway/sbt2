@@ -155,6 +155,25 @@ class NoQuotes(QuoteConvention):
         return []
 
 
+class SettlementConvention(ABC):
+    """How the venue settles a position at its contract's expiry."""
+
+    @abstractmethod
+    def complete(self, venue: Mapping[str, Any]) -> dict[str, Any]:
+        """The venue arguments with the settlement settings filled in with their
+        defaults; ``ValueError`` when the settings are invalid."""
+        ...
+
+
+class NoSettlement(SettlementConvention):
+    """The instruments never expire."""
+
+    def complete(self, venue: Mapping[str, Any]) -> dict[str, Any]:
+        if "delivery_fee" in venue:
+            raise ValueError("this asset class takes no delivery_fee setting")
+        return dict(venue)
+
+
 @dataclass(frozen=True)
 class AssetProfile:
     """What sbt2 needs to know about one nautilus asset class and instrument class."""
@@ -170,6 +189,7 @@ class AssetProfile:
     buy_and_hold: BuyAndHoldConvention
     equity: EquityConvention = field(default_factory=NativeEquity)
     quotes: QuoteConvention = field(default_factory=NoQuotes)
+    settlement: SettlementConvention = field(default_factory=NoSettlement)
 
     def covers(self, instrument: Any) -> bool:
         return (

@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -95,11 +95,22 @@ def _parsed(name: str, table: Mapping[str, Any]) -> VenueProfile:
 def _completed(
     name: str, asset: AssetProfile, arguments: Mapping[str, Any]
 ) -> dict[str, Any]:
+    quoted = _setting(
+        name,
+        "quotes",
+        lambda: asset.quotes.complete({**asset.venue_defaults, **arguments}),
+    )
+    return _setting(name, "delivery_fee", lambda: asset.settlement.complete(quoted))
+
+
+def _setting(
+    name: str, setting: str, complete: Callable[[], dict[str, Any]]
+) -> dict[str, Any]:
     try:
-        return asset.quotes.complete({**asset.venue_defaults, **arguments})
+        return complete()
     except ValueError as error:
         raise InvalidVenueProfileError(
-            f"the venue profile {name} has invalid quotes: {error}"
+            f"the venue profile {name} has invalid {setting}: {error}"
         ) from error
 
 
