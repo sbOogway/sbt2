@@ -208,6 +208,26 @@ def test_deribit_mark_prices_round_trip_through_the_catalog(
 
 
 @pytest.mark.integration
+def test_deribit_option_greeks_round_trip_through_the_catalog(
+    deribit: Source, tmp_path: Path
+) -> None:
+    download_and_ingest(deribit, tmp_path)
+
+    catalog = ParquetDataCatalog(str(tmp_path / "catalog"))
+    stored = {
+        each: list(catalog.query(NautilusDataType.OptionGreeks, [each]))
+        for each in TRADED
+    }
+
+    assert {each: len(greeks) for each, greeks in stored.items()} == TRADED
+    first = stored[PUT_88K][0]
+    assert first.mark_iv == 0.5544
+    assert first.underlying_price == 93374.45
+    assert first.delta < 0
+    assert first.ts_event == 1_735_689_642_010 * 1_000_000
+
+
+@pytest.mark.integration
 def test_only_the_contracts_traded_are_stored_as_instruments(
     deribit: Source, tmp_path: Path
 ) -> None:

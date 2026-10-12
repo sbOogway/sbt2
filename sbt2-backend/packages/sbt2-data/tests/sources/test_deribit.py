@@ -3,7 +3,7 @@ import json
 import re
 from datetime import date
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -11,10 +11,13 @@ from nautilus_trader.model import (
     AggressorSide,
     Bar,
     CryptoOption,
+    GreeksConvention,
     InstrumentId,
     MarkPriceUpdate,
+    OptionGreeks,
     OptionKind,
     TradeTick,
+    black_scholes_greeks,
 )
 from replay import Replay
 
@@ -104,7 +107,7 @@ def test_an_instrument_id_of_another_venue_has_no_deribit_symbol(
 def test_trades_marks_greeks_and_index_prices_are_the_data_types(
     deribit: Source,
 ) -> None:
-    assert deribit.data_types == (TradeTick, MarkPriceUpdate)
+    assert deribit.data_types == (TradeTick, MarkPriceUpdate, OptionGreeks)
     with pytest.raises(UnsupportedDataTypeError):
         deribit.day_file("BTC", Bar, DAY)
 
@@ -324,3 +327,74 @@ def test_parse_gives_each_trades_mark_price_as_a_mark_price_update_of_its_contra
     assert str(lone.value) == "0.0038"
     assert (lone.ts_event, lone.ts_init) == (1_735_689_600_017 * 1_000_000,) * 2
     assert sum(len(each) for each in marks.values()) == len(BTC_TRADE_IDS)
+
+
+@pytest.mark.unit
+def test_parse_gives_each_trades_iv_and_index_price_as_option_greeks(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+
+    greeks = parsed_of(source, OptionGreeks, tmp_path)
+
+    assert [each.mark_iv for each in greeks[PUT_88K]] == [0.5544] * 4
+    assert [each.underlying_price for each in greeks[PUT_88K]] == [93374.45] * 4
+    (lone,) = greeks[CALL_135K]
+    assert lone.instrument_id == CALL_135K
+    assert lone.mark_iv == 0.7119
+    assert lone.underlying_price == 93369.56
+    assert (lone.ts_event, lone.ts_init) == (1_735_689_600_017 * 1_000_000,) * 2
+    assert lone.convention == GreeksConvention.BLACK_SCHOLES
+    assert sum(len(each) for each in greeks.values()) == len(BTC_TRADE_IDS)
+
+
+class GreeksCase(NamedTuple):
+    contract: InstrumentId
+    is_call: bool
+    strike: float
+    expiry_ms: int
+    trade_ms: int
+    iv: float
+    index_price: float
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "case",
+    [
+        GreeksCase(
+            PUT_88K,
+            False,
+            88000.0,
+            1_736_496_000_000,
+            1_735_689_642_010,
+            0.5544,
+            93374.45,
+        ),
+        GreeksCase(
+            CALL_135K,
+            True,
+            135000.0,
+            1_738_310_400_000,
+            1_735_689_600_017,
+            0.7119,
+            93369.56,
+        ),
+    ],
+)
+def test_option_greeks_carry_the_black_scholes_greeks_of_the_trades_iv(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path, case: GreeksCase
+) -> None:
+    source, _ = replayed_deribit
+    years = (case.expiry_ms - case.trade_ms) / (365 * 86_400_000)
+    expected = black_scholes_greeks(
+        case.index_price, 0.0, 0.0, case.iv, case.is_call, case.strike, years
+    )
+
+    greeks = parsed_of(source, OptionGreeks, tmp_path)[case.contract][0]
+
+    assert greeks.delta == pytest.approx(expected.delta)
+    assert greeks.gamma == pytest.approx(expected.gamma)
+    assert greeks.vega == pytest.approx(expected.vega)
+    assert greeks.theta == pytest.approx(expected.theta)
+    assert (greeks.delta > 0) == case.is_call

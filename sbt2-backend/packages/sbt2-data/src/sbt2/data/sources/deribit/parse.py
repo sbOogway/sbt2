@@ -10,19 +10,23 @@ from nautilus_trader.model import (
     AggressorSide,
     CryptoOption,
     Currency,
+    GreeksConvention,
     InstrumentId,
     MarkPriceUpdate,
+    OptionGreeks,
     OptionKind,
     Price,
     Quantity,
     Symbol,
     TradeId,
     TradeTick,
+    black_scholes_greeks,
 )
 
 VENUE = "DERIBIT"
 
 _NANOS_PER_MILLI = 1_000_000
+_YEAR_NANOS = 365 * 86_400 * 1_000_000_000
 _AGGRESSOR_SIDES = {"buy": AggressorSide.BUY, "sell": AggressorSide.SELL}
 _OPTION_KINDS = {"call": OptionKind.CALL, "put": OptionKind.PUT}
 
@@ -105,7 +109,41 @@ def _mark_price(trade: Mapping[str, Any], contract: CryptoOption) -> MarkPriceUp
     )
 
 
-_BUILDERS = {TradeTick: _tick, MarkPriceUpdate: _mark_price}
+def _option_greeks(trade: Mapping[str, Any], contract: CryptoOption) -> OptionGreeks:
+    """The IV and index price of a trade, with the Black-Scholes greeks they give.
+
+    The IV is a fraction (Deribit sends a percentage), the underlying is the
+    index price, and the time to expiry counts 365-day years. The rates and the
+    cost of carry are 0. The greeks follow nautilus ``black_scholes_greeks`` in
+    USD, the quote currency: delta per 1 of the index, gamma per 1 of the index
+    squared, vega per IV percentage point and theta per day.
+    """
+    ts = int(trade["timestamp"]) * _NANOS_PER_MILLI
+    iv = trade["iv"] / 100
+    index = trade["index_price"]
+    years = (contract.expiration_ns - ts) / _YEAR_NANOS
+    is_call = contract.option_kind == OptionKind.CALL
+    strike = float(contract.strike_price)
+    greeks = black_scholes_greeks(index, 0.0, 0.0, iv, is_call, strike, years)
+    return OptionGreeks(
+        contract.id,
+        greeks.delta,
+        greeks.gamma,
+        greeks.vega,
+        greeks.theta,
+        mark_iv=iv,
+        underlying_price=index,
+        ts_event=ts,
+        ts_init=ts,
+        convention=GreeksConvention.BLACK_SCHOLES,
+    )
+
+
+_BUILDERS = {
+    TradeTick: _tick,
+    MarkPriceUpdate: _mark_price,
+    OptionGreeks: _option_greeks,
+}
 
 
 def _contract(spec: Mapping[str, Any], ts_init: int) -> CryptoOption:
