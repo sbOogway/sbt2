@@ -130,7 +130,10 @@ class DeribitSource(Source):
     def _series_fetcher(
         self, series: Series
     ) -> Callable[[str, date], Awaitable[bytes]]:
-        return {Kind.DVOL: self._api.volatility_index}[series.kind]
+        return {
+            Kind.DVOL: self._api.volatility_index,
+            Kind.DELIVERY: self._api.delivery_price,
+        }[series.kind]
 
     def _listed_data_type(self, name: str) -> type:
         if name != _TRADES:

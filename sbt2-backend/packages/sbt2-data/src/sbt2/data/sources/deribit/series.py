@@ -8,6 +8,7 @@ class Kind(StrEnum):
     """The kinds of series; the value ends the series' symbol."""
 
     DVOL = "DVOL"
+    DELIVERY = "USD_DELIVERY"
 
 
 @dataclass(frozen=True)

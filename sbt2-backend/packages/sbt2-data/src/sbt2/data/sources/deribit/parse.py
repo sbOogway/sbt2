@@ -34,6 +34,7 @@ _NANOS_PER_MILLI = 1_000_000
 _INDEX_PRECISION = 2
 # Deribit sends marks with up to 8 decimals, finer than the contract tick.
 _MARK_PRECISION = 8
+_EXPIRY_TIME = pd.Timedelta(hours=8)
 _YEAR_NANOS = 365 * 86_400 * 1_000_000_000
 _AGGRESSOR_SIDES = {"buy": AggressorSide.BUY, "sell": AggressorSide.SELL}
 _OPTION_KINDS = {"call": OptionKind.CALL, "put": OptionKind.PUT}
@@ -157,8 +158,18 @@ def _dvol_update(row: Sequence[float], index: IndexInstrument) -> IndexPriceUpda
     return IndexPriceUpdate(index.id, Price(row[4], index.price_precision), ts, ts)
 
 
-_SERIES_UPDATES: dict[Kind, Callable[[Sequence[float], IndexInstrument], Any]] = {
+def _delivery_update(
+    record: Mapping[str, Any], index: IndexInstrument
+) -> IndexPriceUpdate:
+    """The price of the day, at the expiry of that day."""
+    expiry = pd.Timestamp(record["date"], tz="UTC") + _EXPIRY_TIME
+    price = Price(record["delivery_price"], index.price_precision)
+    return IndexPriceUpdate(index.id, price, expiry.value, expiry.value)
+
+
+_SERIES_UPDATES: dict[Kind, Callable[[Any, IndexInstrument], Any]] = {
     Kind.DVOL: _dvol_update,
+    Kind.DELIVERY: _delivery_update,
 }
 
 

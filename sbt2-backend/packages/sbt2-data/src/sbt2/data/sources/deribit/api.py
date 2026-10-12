@@ -11,7 +11,9 @@ from sbt2.data.sources.base import MissingAtSourceError
 _TRADES = "/api/v2/public/get_last_trades_by_currency_and_time"
 _INSTRUMENTS = "/api/v2/public/get_instruments"
 _DVOL = "/api/v2/public/get_volatility_index_data"
+_DELIVERY_PRICES = "/api/v2/public/get_delivery_prices"
 _HOURLY = "3600"
+_DELIVERY_PAGE = 100
 _PAGE_SIZE = 1000
 _TIMEOUT = httpx.Timeout(60.0)
 
@@ -86,6 +88,20 @@ class DeribitApi:
             )
         return _json(result["data"])
 
+    async def delivery_price(self, currency: str, day: date) -> bytes:
+        """The day's delivery price record, as a list of one.
+
+        Deribit lists the delivery prices newest first, a page of 100 at a time,
+        and the early ones weekly; the page of the day is found by bisection.
+        """
+        async with self._http(self._endpoints.live) as http:
+            record = await _delivery_record(http, f"{currency.lower()}_usd", day)
+        if record is None:
+            raise MissingAtSourceError(
+                f"deribit has no {currency} delivery price on {day.isoformat()}"
+            )
+        return _json([record])
+
     def _http(self, base_url: str) -> httpx.AsyncClient:
         return httpx.AsyncClient(base_url=base_url, timeout=_TIMEOUT)
 
@@ -97,6 +113,36 @@ async def _get(http: httpx.AsyncClient, path: str, params: Mapping[str, str]) ->
     if "error" in body:
         raise DeribitApiError(f"deribit error: {body['error']}")
     return body["result"]
+
+
+async def _delivery_record(
+    http: httpx.AsyncClient, index: str, day: date
+) -> dict[str, Any] | None:
+    wanted = day.isoformat()
+    first = await _delivery_page(http, index, 0)
+    low, high = 0, (first["records_total"] - 1) // _DELIVERY_PAGE
+    while low <= high:
+        number = (low + high) // 2
+        page = first if number == 0 else await _delivery_page(http, index, number)
+        records = page["data"]
+        if not records:
+            return None
+        if wanted > records[0]["date"]:
+            high = number - 1
+        elif wanted < records[-1]["date"]:
+            low = number + 1
+        else:
+            return next((each for each in records if each["date"] == wanted), None)
+    return None
+
+
+async def _delivery_page(http: httpx.AsyncClient, index: str, number: int) -> Any:
+    params = {
+        "index_name": index,
+        "offset": str(number * _DELIVERY_PAGE),
+        "count": str(_DELIVERY_PAGE),
+    }
+    return await _get(http, _DELIVERY_PRICES, params)
 
 
 def _next_start(page: Mapping[str, Any], new: list[dict[str, Any]]) -> int:

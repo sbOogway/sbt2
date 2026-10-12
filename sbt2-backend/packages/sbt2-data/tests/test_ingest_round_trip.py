@@ -136,6 +136,7 @@ DERIBIT_SNAPSHOT_DAY = date(2026, 10, 7)
 PUT_88K = "BTC-10JAN25-88000-P.DERIBIT"
 BTC_INDEX = "BTC_USD.DERIBIT"
 BTC_DVOL = "BTC_DVOL.DERIBIT"
+BTC_DELIVERY = "BTC_USD_DELIVERY.DERIBIT"
 TRADED = {
     "BTC-10JAN25-88000-P.DERIBIT": 4,
     "BTC-31JAN25-135000-C.DERIBIT": 1,
@@ -318,3 +319,17 @@ def test_deribit_dvol_round_trips_through_the_catalog(
     assert len(stored) == 24
     assert [str(each.value) for each in stored][:2] == ["60.26", "60.09"]
     assert stored[1].ts_event - stored[0].ts_event == 3_600 * 1_000_000_000
+
+
+@pytest.mark.integration
+def test_deribit_delivery_prices_round_trip_through_the_catalog(
+    deribit: Source, tmp_path: Path
+) -> None:
+    assert download_and_ingest_symbol(deribit, "BTC_USD_DELIVERY", tmp_path) == [
+        IngestOutcome.WRITTEN
+    ]
+
+    catalog = ParquetDataCatalog(str(tmp_path / "catalog"))
+    (stored,) = catalog.query(NautilusDataType.IndexPriceUpdate, [BTC_DELIVERY])
+    assert str(stored.value) == "93539.00"
+    assert stored.ts_event == (1_735_689_600 + 8 * 3_600) * 1_000_000_000

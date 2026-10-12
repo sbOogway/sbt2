@@ -584,3 +584,70 @@ def test_a_day_without_dvol_is_missing_at_source(
 
     with pytest.raises(MissingAtSourceError, match=r"BTC DVOL on 2016-01-01"):
         fetched(source.day_file("BTC_DVOL", IndexPriceUpdate, date(2016, 1, 1)))
+
+
+BTC_DELIVERY = InstrumentId.from_str("BTC_USD_DELIVERY.DERIBIT")
+DELIVERY_DAY_FILE = "deribit/delivery/BTC_USD_DELIVERY/BTC_USD_DELIVERY2025-01-01.json"
+EXPIRY_NANOS = (DAY_START_MS + 8 * 3_600_000) * 1_000_000
+
+
+@pytest.mark.unit
+def test_dvol_and_delivery_prices_are_data_types(deribit: Source) -> None:
+    assert deribit.instrument_id("ETH_USD_DELIVERY") == InstrumentId.from_str(
+        "ETH_USD_DELIVERY.DERIBIT"
+    )
+    assert deribit.symbol(BTC_DELIVERY) == "BTC_USD_DELIVERY"
+    assert deribit.day_file(
+        "BTC_USD_DELIVERY", IndexPriceUpdate, DAY
+    ).path == PurePosixPath(DELIVERY_DAY_FILE)
+    with pytest.raises(UnsupportedDataTypeError):
+        deribit.day_file("ETH_DVOL", Bar, DAY)
+
+
+@pytest.mark.unit
+def test_a_delivery_day_file_holds_the_days_delivery_price(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, served = replayed_deribit
+
+    records = fetched(source.day_file("BTC_USD_DELIVERY", IndexPriceUpdate, DAY))
+
+    assert records == [{"date": "2025-01-01", "delivery_price": 93539.0}]
+    queries = [parse_qs(urlsplit(each).query) for each in served.requests]
+    assert {each["index_name"][0] for each in queries} == {"btc_usd"}
+    assert {each["count"][0] for each in queries} == {"100"}
+
+
+@pytest.mark.unit
+def test_a_delivery_price_parses_into_an_index_price_update_at_the_expiry(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+    snapshot = saved(
+        source.instrument_snapshot("BTC_USD_DELIVERY", SNAPSHOT_DAY), tmp_path
+    )
+    day = saved(source.day_file("BTC_USD_DELIVERY", IndexPriceUpdate, DAY), tmp_path)
+    instruments = source.parse_instruments(snapshot)
+    ids = source.day_instrument_ids(day, IndexPriceUpdate, instruments)
+
+    parsed = source.parse_day(
+        day, IndexPriceUpdate, {each: instruments[each] for each in ids}
+    )
+
+    ((instrument_id, (update,)),) = parsed.items()
+    assert instrument_id == BTC_DELIVERY
+    assert update == IndexPriceUpdate.from_dict(update.to_dict())
+    assert update.instrument_id == BTC_DELIVERY
+    assert str(update.value) == "93539.00"
+    assert update.ts_event == update.ts_init == EXPIRY_NANOS
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("missing_day", [date(2016, 1, 1), date(2016, 11, 19)])
+def test_a_day_without_a_delivery_price_is_missing_at_source(
+    replayed_deribit: tuple[Source, Replay], missing_day: date
+) -> None:
+    source, _ = replayed_deribit
+
+    with pytest.raises(MissingAtSourceError, match=missing_day.isoformat()):
+        fetched(source.day_file("BTC_USD_DELIVERY", IndexPriceUpdate, missing_day))
