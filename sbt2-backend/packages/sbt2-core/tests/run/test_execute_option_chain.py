@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from nautilus_trader.model import InstrumentId
 from option_catalog import build_chain_catalog, chain_contract_id
-from run_strategies import ActOnSchedule, ListAliveContracts
+from run_strategies import ActOnSchedule, FilterChain, ListAliveContracts
 
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
@@ -28,6 +28,15 @@ asset_class = "CRYPTOCURRENCY"
 instrument_class = "OPTION"
 fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } }
 """
+
+
+PUTS = [
+    ("2JAN24", 40000),
+    ("2JAN24", 45000),
+    ("2JAN24", 50000),
+    ("12JAN24", 45000),
+    ("15FEB24", 45000),
+]
 
 
 def ids(label: str, *strikes: int) -> set[InstrumentId]:
@@ -89,3 +98,31 @@ def test_a_chain_strategy_sees_the_contracts_alive_now(
         | ids("15FEB24", 45000)
     )
     assert after == names(ids("12JAN24", 45000) | ids("15FEB24", 45000))
+
+
+@pytest.mark.integration
+def test_a_chain_strategy_filters_the_chain_by_dte_strike_and_kind(
+    tmp_path: Path, catalog: Path
+) -> None:
+    FilterChain.found.clear()
+    FilterChain.expiries.clear()
+
+    run(tmp_path, catalog, "run_strategies:FilterChain")
+
+    found = FilterChain.found
+    assert found["puts"] == names(
+        {chain_contract_id(label, strike, "P") for label, strike in PUTS}
+    )
+    assert found["far"] == names(ids("15FEB24", 45000))
+    assert found["at the money"] == names(
+        ids("2JAN24", 45000) | ids("12JAN24", 45000) | ids("15FEB24", 45000)
+    )
+    assert found["one expiry"] == names(ids("12JAN24", 45000))
+    assert found["all of them"] == names(
+        {chain_contract_id("2JAN24", strike, "C") for strike in (45000, 50000)}
+    )
+    assert FilterChain.expiries == [
+        datetime(2024, 1, 2, 8, tzinfo=UTC),
+        datetime(2024, 1, 12, 8, tzinfo=UTC),
+        datetime(2024, 2, 15, 8, tzinfo=UTC),
+    ]

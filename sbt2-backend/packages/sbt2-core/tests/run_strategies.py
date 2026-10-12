@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import ClassVar, override
 
@@ -8,12 +8,13 @@ from nautilus_trader.model import (
     Bar,
     BarSpecification,
     MarketOrder,
+    OptionKind,
     OrderFilled,
     OrderSide,
     Quantity,
 )
 
-from sbt2.core.strategy import NoParams, Strategy
+from sbt2.core.strategy import ChainFilter, NoParams, Strategy
 
 HOURLY_BARS = BarSpecification.from_str("1-HOUR-LAST")
 HOURLY_MID_BARS = BarSpecification.from_str("1-HOUR-MID")
@@ -234,6 +235,30 @@ class ListAliveContracts(OnSchedule):
     @override
     def on_schedule(self, now: datetime) -> None:
         self.alive[now] = sorted(str(each.id) for each in self.chain.contracts())
+
+
+class FilterChain(OnSchedule):
+    """On its first tick, asks the chain for each filter of ``FILTERS``."""
+
+    FILTERS: ClassVar[dict[str, ChainFilter]] = {
+        "puts": ChainFilter(kind=OptionKind.PUT),
+        "far": ChainFilter(dte=(30, 60)),
+        "at the money": ChainFilter(strikes=(44000, 46000)),
+        "one expiry": ChainFilter(expiry=datetime(2024, 1, 12, 8, tzinfo=UTC)),
+        "all of them": ChainFilter(
+            kind=OptionKind.CALL, dte=(0, 5), strikes=(45000, 50000)
+        ),
+    }
+    found: ClassVar[dict[str, list[str]]] = {}
+    expiries: ClassVar[list[datetime]] = []
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        if self.found:
+            return
+        for name, where in self.FILTERS.items():
+            self.found[name] = sorted(str(c.id) for c in self.chain.contracts(where))
+        self.expiries.extend(self.chain.expiries())
 
 
 class FailOnBar(Strategy[NoParams]):
