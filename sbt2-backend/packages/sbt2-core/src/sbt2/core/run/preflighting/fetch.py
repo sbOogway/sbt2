@@ -157,7 +157,7 @@ def _references(spec: ResolvedRunSpec) -> list[Selection]:
     return [
         selection
         for chain in spec.chains
-        for selection in spec.asset.chain.references(chain, spec.data_window)
+        for selection in spec.asset.chain.references(chain, spec.volatility_window)
     ]
 
 

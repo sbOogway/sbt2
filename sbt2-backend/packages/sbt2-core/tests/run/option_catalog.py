@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -9,6 +9,7 @@ from nautilus_trader.model import (
     AggressorSide,
     CryptoOption,
     Currency,
+    IndexInstrument,
     IndexPriceUpdate,
     InstrumentId,
     MarkPriceUpdate,
@@ -35,6 +36,7 @@ BTC = Currency.from_str("BTC")
 EXPIRING_CALL = InstrumentId.from_str("BTC-2JAN24-50000-C.DERIBIT")
 EXPIRING_PUT = InstrumentId.from_str("BTC-2JAN24-50000-P.DERIBIT")
 DELIVERY_ID = InstrumentId.from_str("BTC_USD_DELIVERY.DERIBIT")
+DVOL_ID = InstrumentId.from_str("BTC_DVOL.DERIBIT")
 EXPIRY_HOUR = 32
 EXPIRY = START + timedelta(hours=EXPIRY_HOUR)
 
@@ -194,7 +196,9 @@ def build_chain_catalog(
     path.mkdir(parents=True, exist_ok=True)
     catalog = ParquetDataCatalog(str(path))
     contracts = _chain_contracts()
-    catalog.write_instruments(contracts)
+    catalog.write_instruments(
+        [*contracts, _index_instrument(INDEX_ID), _index_instrument(DVOL_ID)]
+    )
     first, last = _nanos(0), _nanos(HOURS) - 1
     for each in contracts:
         alive = min(HOURS, max(0, _hours_until(each)))
@@ -213,6 +217,32 @@ def build_chain_catalog(
         expiry = _nanos(EXPIRY_HOUR)
         update = IndexPriceUpdate(DELIVERY_ID, Price(delivery, 2), expiry, expiry)
         catalog.write_index_price_updates([update], expiry, expiry)
+
+
+def _index_instrument(instrument_id: InstrumentId) -> IndexInstrument:
+    return IndexInstrument(
+        instrument_id,
+        instrument_id.symbol,
+        Currency.from_str("USD"),
+        2,
+        0,
+        Price(0.01, 2),
+        Quantity.from_int(1),
+        0,
+        0,
+    )
+
+
+def write_dvol(path: Path, dvol: Mapping[int, float]) -> None:
+    """Add the DVOL values to the catalog at ``path``; ``dvol`` maps an hour,
+    counted from the start and negative before it, to its value."""
+    updates = [
+        IndexPriceUpdate(DVOL_ID, Price(value, 2), _nanos(hour), _nanos(hour))
+        for hour, value in sorted(dvol.items())
+    ]
+    ParquetDataCatalog(str(path)).write_index_price_updates(
+        updates, updates[0].ts_event, updates[-1].ts_event
+    )
 
 
 def _chain_contracts() -> list[CryptoOption]:

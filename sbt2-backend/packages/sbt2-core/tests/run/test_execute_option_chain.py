@@ -1,5 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from itertools import pairwise
+from math import erf, log, sqrt
 from pathlib import Path
 
 import pandas as pd
@@ -7,6 +8,7 @@ import pytest
 from nautilus_trader.model import InstrumentId, Money
 from option_catalog import (
     EXPIRY_HOUR,
+    MARK_IV,
     START,
     build_chain_catalog,
     chain_contract_id,
@@ -15,6 +17,7 @@ from option_catalog import (
 from run_strategies import (
     ActOnSchedule,
     FilterChain,
+    GreekChain,
     ListAliveContracts,
     QuoteChain,
 )
@@ -211,3 +214,34 @@ def test_a_chain_run_with_more_contracts_than_the_limit_is_refused_before_it_sta
 ) -> None:
     with pytest.raises(ChainTooLargeError, match=r"10 contracts.*limit of 5.*narrow"):
         run(tmp_path, catalog, "run_strategies:ActOnSchedule", limit=5)
+
+
+def call_delta(index: float, hours_left: float) -> float:
+    years = hours_left / 24 / 365
+    spread = MARK_IV * sqrt(years)
+    d1 = (log(index / 45000) + 0.5 * MARK_IV**2 * years) / spread
+    return (1 + erf(d1 / sqrt(2))) / 2
+
+
+@pytest.mark.integration
+def test_a_chain_strategy_reads_the_iv_and_greeks_of_a_contract(
+    tmp_path: Path,
+) -> None:
+    GreekChain.seen.clear()
+    path = tmp_path / "moving_index"
+    prices = [44_000.0 + 100 * hour for hour in range(48)]
+    build_chain_catalog(path, index_prices=prices)
+
+    run(tmp_path, path, "run_strategies:GreekChain")
+
+    seen = GreekChain.seen
+    assert len(seen) > 40
+    for tick, (iv, delta) in seen.items():
+        hour = int((tick - START).total_seconds() // 3600)
+        hours_left = (
+            datetime(2024, 2, 15, 8, tzinfo=UTC) - tick
+        ).total_seconds() / 3600
+        assert iv == MARK_IV
+        assert delta == pytest.approx(
+            call_delta(prices[min(hour, 47)], hours_left), abs=1e-5
+        )

@@ -40,10 +40,11 @@ def spec_fields(
     asset = _asset(document)
     data = [_data_arguments(each) for each in document["data"]]
     risk = risk_limits(document.get("risk", {}))
+    strategy = import_strategy(document["strategy"]["path"], strategy_source)
     return {
         "strategy": _strategy(
             document["strategy"],
-            import_strategy(document["strategy"]["path"], strategy_source),
+            strategy,
             _Streaming(_aggregated_from(data), risk.drawdown_limit),
         ),
         "asset": asset,
@@ -56,6 +57,9 @@ def spec_fields(
         "end": datetime.fromisoformat(document["end"]),
         "risk": risk.engine,
         "chain": document.get("chain", {}),
+        "lookback": strategy.iv_lookback(
+            resolve_params(strategy, document["strategy"]["params"])
+        ),
     }
 
 

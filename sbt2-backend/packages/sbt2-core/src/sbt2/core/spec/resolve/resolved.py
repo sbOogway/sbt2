@@ -1,6 +1,6 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +14,7 @@ from nautilus_trader.backtest import (
 from nautilus_trader.model import InstrumentId, Money, NautilusDataType
 from nautilus_trader.risk import RiskEngineConfig
 
-from sbt2.core.assets import AssetProfile, ChainJob, QuoteJob
+from sbt2.core.assets import AssetProfile, ChainFeeds, ChainJob, QuoteJob
 from sbt2.core.spec.resolve.canonical import canonical_hash, canonical_json
 from sbt2.core.spec.resolve.data import data_arguments
 from sbt2.core.spec.resolve.document import spec_fields
@@ -47,6 +47,8 @@ class ResolvedRunSpec:
     a run without either keeps its hash.
     ``chain`` holds the bands of the chains the strategy's instruments name, and
     enters the hashed document only when set.
+    ``lookback`` is how far before the data window the volatility index of a
+    chain is loaded; the strategy sets it and it is not hashed.
     ``study``, like ``source``, is neither hashed nor compared: the same
     backtest has the same hash in or out of a study.
     """
@@ -63,6 +65,7 @@ class ResolvedRunSpec:
     end: datetime
     risk: Mapping[str, Any] = field(default_factory=dict)
     chain: Mapping[str, Any] = field(default_factory=dict)
+    lookback: timedelta = timedelta(0)
     study: Study | None = field(default=None, compare=False)
 
     @classmethod
@@ -127,11 +130,34 @@ class ResolvedRunSpec:
             member for each in named for member in self._members(each, catalog)
         )
         instruments = list(members)
+        feeds = self.asset.chain.feeds(self.chains[0])
         return replace(
             self,
-            strategy=replace(self.strategy, instruments=instruments),
-            data=data_arguments(self._data_types, instruments, self.data_window),
+            strategy=replace(
+                self.strategy,
+                instruments=instruments,
+                index=feeds.index,
+                volatility=feeds.volatility,
+            ),
+            data=[
+                *data_arguments(self._data_types, instruments, self.data_window),
+                *self._feed_data(feeds),
+            ],
         )
+
+    @property
+    def volatility_window(self) -> tuple[datetime, datetime]:
+        """The span the volatility index is read over: the data window and the
+        strategy's look-back before it."""
+        start, end = self.data_window
+        return start - self.lookback, end
+
+    def _feed_data(self, feeds: ChainFeeds) -> list[Mapping[str, Any]]:
+        kinds = [NautilusDataType.IndexPriceUpdate]
+        return [
+            *data_arguments(kinds, [feeds.index], self.data_window),
+            *data_arguments(kinds, [feeds.volatility], self.volatility_window),
+        ]
 
     @property
     def chains(self) -> tuple[InstrumentId, ...]:

@@ -30,7 +30,9 @@ from nautilus_trader.model import (
     BarSpecification,
     BarType,
     ClientOrderId,
+    IndexPriceUpdate,
     InstrumentId,
+    OptionGreeks,
     OrderFilled,
 )
 from nautilus_trader.trading import ImportableStrategyConfig
@@ -59,6 +61,8 @@ class StrategyRun:
     ``aggregated_from`` names the external bars the declared bars are built
     from, such as ``"1-MINUTE-EXTERNAL"``; ``None`` builds them from trades.
     ``drawdown_limit`` is the fraction of peak equity the run may lose.
+    ``index`` and ``volatility`` name the index and the volatility index a chain
+    run streams; the strategy hears their prices and the IV of its contracts.
     """
 
     strategy: str
@@ -67,6 +71,8 @@ class StrategyRun:
     trade_start: datetime
     aggregated_from: str | None = None
     drawdown_limit: Decimal | None = None
+    index: InstrumentId | None = None
+    volatility: InstrumentId | None = None
 
 
 @dataclass(frozen=True)
@@ -78,6 +84,8 @@ class RunConfig:
     trade_start: str
     aggregated_from: str | None = None
     drawdown_limit: str | None = None
+    index: str | None = None
+    volatility: str | None = None
 
 
 def importable_config(run: StrategyRun) -> ImportableStrategyConfig:
@@ -97,7 +105,17 @@ def _run_config(run: StrategyRun) -> RunConfig:
         run.trade_start.isoformat(),
         run.aggregated_from,
         None if run.drawdown_limit is None else str(run.drawdown_limit),
+        _text(run.index),
+        _text(run.volatility),
     )
+
+
+def _text(instrument_id: InstrumentId | None) -> str | None:
+    return None if instrument_id is None else str(instrument_id)
+
+
+def _id(text: str | None) -> InstrumentId | None:
+    return None if text is None else InstrumentId.from_str(text)
 
 
 def _recording_failure(handler: Callable[..., Any]) -> Callable[..., Any]:
@@ -151,6 +169,9 @@ class Strategy[P](NautilusStrategy, ABC):
             cls.on_bar = _watching_drawdown(vars(cls)["on_bar"])
         if "on_order_filled" in vars(cls):
             cls.on_order_filled = _hearing_settlement(vars(cls)["on_order_filled"])
+        for name in ("on_option_greeks", "on_index_price"):
+            if name in vars(cls):
+                setattr(cls, name, _hearing_market(vars(cls)[name]))
         for name, handler in list(vars(cls).items()):
             if name.startswith("on_") and callable(handler):
                 setattr(cls, name, _recording_failure(handler))
@@ -168,6 +189,8 @@ class Strategy[P](NautilusStrategy, ABC):
         self._settling: set[ClientOrderId] = set()
         self._margin: MarginDesk | None = None
         self._records = ChainRecords(lambda: self.clock.timestamp_ns())
+        self._index = _id(config.index)
+        self._volatility = _id(config.volatility)
         self._drawdown = (
             None
             if config.drawdown_limit is None
@@ -176,6 +199,13 @@ class Strategy[P](NautilusStrategy, ABC):
 
     @classmethod
     def warmup(cls, _params: P, /) -> timedelta:
+        return timedelta(0)
+
+    @classmethod
+    def iv_lookback(cls, _params: P, /) -> timedelta:
+        """How far before the run's data the volatility index is loaded, for
+        ``chain.iv_rank`` and ``chain.iv_percentile``; return ``IV_LOOKBACK`` or
+        more to read them."""
         return timedelta(0)
 
     @classmethod
@@ -206,6 +236,7 @@ class Strategy[P](NautilusStrategy, ABC):
     def on_start(self) -> None:
         for bar_type in self.bar_types():
             self.subscribe_bars(self._subscribed(bar_type))
+        self._listen_to_market()
         self._arm_settlement()
         self._arm_schedule()
 
@@ -237,9 +268,36 @@ class Strategy[P](NautilusStrategy, ABC):
     def on_bar(self, bar: Bar) -> None:
         self._watch_drawdown(bar)
 
+    def on_option_greeks(self, greeks: OptionGreeks) -> None:
+        self._hear_market(greeks)
+
+    def on_index_price(self, index_price: IndexPriceUpdate) -> None:
+        self._hear_market(index_price)
+
     def on_schedule(self, now: datetime) -> None:
         """The strategy's ``schedule`` interval passed; ``now`` is the time of the
         tick. Like the bars, it ticks during warm-up too."""
+
+    def _listen_to_market(self) -> None:
+        """A chain run hears the IV of its contracts, the index and the DVOL."""
+        for feed in (self._index, self._volatility):
+            if feed is not None:
+                self.subscribe_index_prices(feed)
+        if self._index is not None:
+            for contract_id in self.instrument_ids:
+                self.subscribe_option_greeks(contract_id)
+
+    def _hear_market(self, event: OptionGreeks | IndexPriceUpdate) -> None:
+        if isinstance(event, OptionGreeks):
+            self._hear_iv(event)
+        elif event.instrument_id == self._volatility:
+            self._records.hear_volatility(event.ts_event, float(event.value))
+        else:
+            self._records.hear_index(event.ts_event, float(event.value))
+
+    def _hear_iv(self, greeks: OptionGreeks) -> None:
+        if greeks.mark_iv is not None:
+            self._records.hear_iv(greeks.instrument_id, greeks.ts_event, greeks.mark_iv)
 
     def _arm_schedule(self) -> None:
         interval = self.schedule(self.params)
@@ -337,6 +395,15 @@ def _watching_drawdown(handler: Callable[..., Any]) -> Callable[..., Any]:
         return handler(self, bar)
 
     return watched
+
+
+def _hearing_market(handler: Callable[..., Any]) -> Callable[..., Any]:
+    @functools.wraps(handler)
+    def heard(self: Strategy[Any], event: OptionGreeks | IndexPriceUpdate) -> Any:
+        self._hear_market(event)
+        return handler(self, event)
+
+    return heard
 
 
 def _hearing_settlement(handler: Callable[..., Any]) -> Callable[..., Any]:

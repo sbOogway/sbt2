@@ -279,6 +279,24 @@ class QuoteChain(OnSchedule):
         }
 
 
+class GreekChain(OnSchedule):
+    """Notes the IV and the delta of the 45000 call that expires on 15 February
+    at each tick."""
+
+    seen: ClassVar[dict[datetime, tuple[float, float]]] = {}
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        [call] = self.chain.contracts(
+            ChainFilter(
+                kind=OptionKind.CALL,
+                strikes=(45000, 45000),
+                expiry=datetime(2024, 2, 15, 8, tzinfo=UTC),
+            )
+        )
+        self.seen[now] = (self.chain.iv(call), self.chain.greeks(call).delta)
+
+
 class SellChainPut(OnSchedule):
     """Sells one put near the money, of the nearest expiry, on its first tick
     after warm-up."""
