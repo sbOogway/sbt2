@@ -84,6 +84,34 @@ class BuyThenReverse(Strategy[HoldParams]):
             )
 
 
+class BuyOneOption(Strategy[NoParams]):
+    """Buys one option contract on the first bar after warm-up."""
+
+    @classmethod
+    @override
+    def warmup(cls, params: NoParams) -> timedelta:
+        return timedelta(hours=2)
+
+    @classmethod
+    @override
+    def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
+        return (HOURLY_BARS,)
+
+    def on_start(self) -> None:
+        super().on_start()
+        self.bought = False
+
+    def on_bar(self, bar: Bar) -> None:
+        if self.warming_up or self.bought:
+            return
+        self.bought = True
+        self.submit_order(
+            self.order_factory.market(
+                bar.bar_type.instrument_id, OrderSide.BUY, Quantity.from_str("1.0")
+            )
+        )
+
+
 class FailOnBar(Strategy[NoParams]):
     @classmethod
     @override
