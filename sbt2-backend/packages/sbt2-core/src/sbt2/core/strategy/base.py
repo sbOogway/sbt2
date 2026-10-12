@@ -7,7 +7,7 @@ import sys
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, fields, replace
 from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -33,13 +33,19 @@ from nautilus_trader.model import (
     IndexPriceUpdate,
     InstrumentId,
     OptionGreeks,
+    OrderDenied,
     OrderFilled,
+    OrderRejected,
+    OrderSide,
+    Quantity,
 )
 from nautilus_trader.trading import ImportableStrategyConfig
 from nautilus_trader.trading import Strategy as NautilusStrategy
 
 from sbt2.core.strategy.chain import CachedChain, Chain
 from sbt2.core.strategy.chain_records import ChainHistory, ChainRecords
+from sbt2.core.strategy.combo import Combo, ComboExit, Leg
+from sbt2.core.strategy.combo_book import Change, ComboBook, combo_tag
 from sbt2.core.strategy.drawdown import DrawdownGuard
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
 from sbt2.core.strategy.margin import MarginDesk, MarginModel
@@ -156,6 +162,11 @@ class Strategy[P](NautilusStrategy, ABC):
     orders are cancelled, and ``on_settlement`` hears the closing fill; a
     subclass that overrides ``on_order_filled`` need not call ``super()``.
 
+    A multi-leg trade is a ``Combo``: ``open_combo`` sends its legs together and
+    ``close_combo`` closes them together. ``combos`` lists the open ones, and a
+    ``combo_exit`` rule closes them at a DTE or a target. Each order of a combo
+    carries its id in its tags, as ``COMBO:<id>``.
+
     With a drawdown limit, each bar after warm-up first checks total equity
     against its peak; once it falls the limit or more below, the strategy
     exits the market, records the bar's time in ``drawdown_tripped_at`` and
@@ -167,13 +178,9 @@ class Strategy[P](NautilusStrategy, ABC):
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        if "on_bar" in vars(cls):
-            cls.on_bar = _watching_drawdown(vars(cls)["on_bar"])
-        if "on_order_filled" in vars(cls):
-            cls.on_order_filled = _hearing_settlement(vars(cls)["on_order_filled"])
-        for name in ("on_option_greeks", "on_index_price"):
+        for name, hearing in _HEARING.items():
             if name in vars(cls):
-                setattr(cls, name, _hearing_market(vars(cls)[name]))
+                setattr(cls, name, hearing(vars(cls)[name]))
         for name, handler in list(vars(cls).items()):
             if name.startswith("on_") and callable(handler):
                 setattr(cls, name, _recording_failure(handler))
@@ -189,6 +196,7 @@ class Strategy[P](NautilusStrategy, ABC):
         self._aggregated_from = config.aggregated_from
         self.drawdown_tripped_at: datetime | None = None
         self._settling: set[ClientOrderId] = set()
+        self._combos = ComboBook()
         self._margin: MarginDesk | None = None
         self._records = ChainRecords(lambda: self.clock.timestamp_ns())
         self._index = _id(config.index)
@@ -213,6 +221,12 @@ class Strategy[P](NautilusStrategy, ABC):
     @classmethod
     @abstractmethod
     def inputs(cls, params: P) -> Sequence[BarSpecification]: ...
+
+    @classmethod
+    def combo_exit(cls, _params: P, /) -> ComboExit | None:
+        """When to close the open combos, checked at each ``schedule`` tick before
+        ``on_schedule``; ``None`` closes none."""
+        return None
 
     @classmethod
     def schedule(cls, _params: P, /) -> timedelta | None:
@@ -242,6 +256,49 @@ class Strategy[P](NautilusStrategy, ABC):
         self._arm_settlement()
         self._arm_schedule()
 
+    @property
+    def combos(self) -> tuple[Combo, ...]:
+        """The combos that are open: every leg is filled, none is closed yet."""
+        return self._combos.opened()
+
+    def open_combo(self, combo: Combo) -> Combo:
+        """Send the legs of ``combo`` as one list of market orders and return the
+        combo with its id, which the order tags and the fills carry. The free
+        equity must cover the margin of the whole list, else no leg is sent and
+        ``on_margin_refused`` is called. ``on_combo_opened`` is called once every
+        leg is filled; a leg the venue refuses closes the legs that filled, at once, calls
+        ``on_combo_failed`` and the combo is never open."""
+        identified = replace(combo, id=self._combos.next_id())
+        orders = [self._leg_order(leg, identified.id) for leg in identified.legs]
+        self._combos.opening(identified, orders)
+        self.submit_order_list(orders)
+        return identified
+
+    def close_combo(self, combo: Combo) -> None:
+        """Close the legs of an open ``combo`` still held with market orders,
+        together; a combo already closing is left alone."""
+        if combo.id not in {each.id for each in self.combos}:
+            return
+        if self._combos.is_closing(combo.id):
+            return
+        held = self._combos.remaining(combo.id)
+        orders = [
+            self._closing_order(leg, held[leg.contract.id], combo.id)
+            for leg in combo.legs
+            if leg.contract.id in held
+        ]
+        self._combos.closing(combo.id, orders)
+        self.submit_order_list(orders)
+
+    def margin_of_combo(self, combo: Combo) -> Decimal:
+        """The initial margin of the legs of ``combo``, each as a position of its
+        own, in the settlement currency, as of now; zero without a margin model."""
+        if self._margin is None:
+            return Decimal(0)
+        return self._margin.of_quantities(
+            {leg.contract.id: _signed_leg(leg) for leg in combo.legs}
+        )
+
     def use_margin(self, model: MarginModel) -> None:
         """Margin the strategy's orders and positions with ``model``."""
         self._margin = MarginDesk(model, self)
@@ -269,8 +326,27 @@ class Strategy[P](NautilusStrategy, ABC):
     def on_settlement(self, fill: OrderFilled) -> None:
         """A position settled at its contract's expiry; ``fill`` closed it."""
 
+    def on_combo_opened(self, combo: Combo) -> None:
+        """Every leg of ``combo`` is filled; its legs hold their entry prices."""
+
+    def on_combo_closed(self, combo: Combo) -> None:
+        """The last leg of ``combo`` was closed."""
+
+    def on_combo_settled(self, combo: Combo) -> None:
+        """``combo`` was closed at expiry, at least in part by settlement."""
+
+    def on_combo_failed(self, combo: Combo, reason: str) -> None:
+        """A leg of ``combo`` was refused while it opened; the legs that filled are
+        closed and the combo is never open."""
+
+    def on_order_denied(self, event: OrderDenied) -> None:
+        self._hear_failure(event)
+
+    def on_order_rejected(self, event: OrderRejected) -> None:
+        self._hear_failure(event)
+
     def on_order_filled(self, event: OrderFilled) -> None:
-        self._hear_settlement(event)
+        self._hear_fill(event)
 
     def on_bar(self, bar: Bar) -> None:
         self._watch_drawdown(bar)
@@ -312,7 +388,9 @@ class Strategy[P](NautilusStrategy, ABC):
             self.clock.set_timer("schedule", interval, callback=self._tick)
 
     def _tick(self, event: TimeEvent) -> None:
-        self.on_schedule(unix_nanos_to_dt(event.ts_event))
+        now = unix_nanos_to_dt(event.ts_event)
+        self._close_combos(now)
+        self.on_schedule(now)
 
     def _arm_settlement(self) -> None:
         for instrument_id in self.instrument_ids:
@@ -336,15 +414,68 @@ class Strategy[P](NautilusStrategy, ABC):
                 instrument_id,
                 closing_side(position),
                 position.quantity,
-                tags=[SETTLEMENT_TAG],
+                tags=[
+                    SETTLEMENT_TAG,
+                    *map(combo_tag, self._combos.holding(instrument_id)),
+                ],
             )
             self._settling.add(order.client_order_id)
+            self._combos.settling(instrument_id, order)
             super().submit_order(order, position_id=position.id)
 
-    def _hear_settlement(self, event: OrderFilled) -> None:
+    def _hear_fill(self, event: OrderFilled) -> None:
         if event.client_order_id in self._settling:
             self._settling.discard(event.client_order_id)
             self.on_settlement(event)
+        for change, combo in self._combos.hear(event):
+            if change == Change.LATE_FILL:
+                self._unwind(combo)
+            else:
+                self._hook(change)(combo)
+
+    def _hear_failure(self, event: OrderDenied | OrderRejected) -> None:
+        combo = self._combos.fail(event.client_order_id)
+        if combo is not None:
+            self._unwind(combo)
+            self.on_combo_failed(combo, str(event.reason))
+
+    def _unwind(self, combo: Combo) -> None:
+        owed = self._combos.unwind(combo.id)
+        orders = [
+            self._closing_order(leg, owed[leg.contract.id], combo.id)
+            for leg in combo.legs
+            if leg.contract.id in owed
+        ]
+        if orders:
+            self.submit_order_list(orders)
+
+    def _hook(self, change: Change) -> Callable[[Combo], None]:
+        return {
+            Change.OPENED: self.on_combo_opened,
+            Change.CLOSED: self.on_combo_closed,
+            Change.SETTLED: self.on_combo_settled,
+        }[change]
+
+    def _leg_order(self, leg: Leg, combo_id: str) -> Any:
+        return self.order_factory.market(
+            leg.contract.id,
+            leg.side,
+            Quantity.from_str(str(leg.quantity)),
+            tags=[combo_tag(combo_id)],
+        )
+
+    def _closing_order(self, leg: Leg, held: Decimal, combo_id: str) -> Any:
+        return self._leg_order(
+            replace(leg, side=_opposite(leg.side), quantity=held), combo_id
+        )
+
+    def _close_combos(self, now: datetime) -> None:
+        rule = self.combo_exit(self.params)
+        if rule is None:
+            return
+        for combo in self.combos:
+            if rule.reached(combo, now, self.chain.quote):
+                self.close_combo(combo)
 
     def _subscribed(self, bar_type: BarType) -> BarType:
         """Nautilus delivers a composite bar type's bars under its standard type."""
@@ -359,6 +490,8 @@ class Strategy[P](NautilusStrategy, ABC):
     def submit_order_list(self, order_list: Any, *args: Any, **kwargs: Any) -> None:
         if self._takes_orders and self._covered(order_list):
             super().submit_order_list(order_list, *args, **kwargs)
+        else:
+            self._combos.forget(order_list)
 
     def _covered(self, orders: Sequence[Any]) -> bool:
         """Whether the free equity covers the orders; if not, the strategy hears
@@ -413,13 +546,40 @@ def _hearing_market(handler: Callable[..., Any]) -> Callable[..., Any]:
     return heard
 
 
-def _hearing_settlement(handler: Callable[..., Any]) -> Callable[..., Any]:
+def _signed_leg(leg: Leg) -> Decimal:
+    return -leg.quantity if leg.is_short else leg.quantity
+
+
+def _opposite(side: OrderSide) -> OrderSide:
+    return OrderSide.BUY if side == OrderSide.SELL else OrderSide.SELL
+
+
+def _hearing_failure(handler: Callable[..., Any]) -> Callable[..., Any]:
     @functools.wraps(handler)
-    def heard(self: Strategy[Any], event: OrderFilled) -> Any:
-        self._hear_settlement(event)
+    def heard(self: Strategy[Any], event: OrderDenied | OrderRejected) -> Any:
+        self._hear_failure(event)
         return handler(self, event)
 
     return heard
+
+
+def _hearing_settlement(handler: Callable[..., Any]) -> Callable[..., Any]:
+    @functools.wraps(handler)
+    def heard(self: Strategy[Any], event: OrderFilled) -> Any:
+        self._hear_fill(event)
+        return handler(self, event)
+
+    return heard
+
+
+_HEARING: dict[str, Callable[[Callable[..., Any]], Callable[..., Any]]] = {
+    "on_bar": _watching_drawdown,
+    "on_order_filled": _hearing_settlement,
+    "on_order_denied": _hearing_failure,
+    "on_order_rejected": _hearing_failure,
+    "on_option_greeks": _hearing_market,
+    "on_index_price": _hearing_market,
+}
 
 
 class UnknownParameterError(ValueError):
