@@ -2,8 +2,14 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import ClassVar, override
 
-from nautilus_trader.model import CryptoOption, MarketOrder, OptionKind, OrderSide
-from option_catalog import chain_contract_id
+from nautilus_trader.model import (
+    CryptoOption,
+    InstrumentId,
+    MarketOrder,
+    OptionKind,
+    OrderSide,
+)
+from option_catalog import Terms, chain_contract_id, listed_option
 from run_strategies import OnSchedule
 
 from sbt2.core.strategy import (
@@ -34,6 +40,7 @@ class OpenStrangle(OnSchedule):
     seen: ClassVar[list[tuple[datetime, tuple[str, ...]]]] = []
     margins: ClassVar[list[tuple[Decimal, Decimal]]] = []
     failed: ClassVar[list[tuple[Combo, str]]] = []
+    reasons: ClassVar[list[str]] = []
 
     @classmethod
     def clear(cls) -> None:
@@ -46,6 +53,7 @@ class OpenStrangle(OnSchedule):
             cls.seen,
             cls.margins,
             cls.failed,
+            cls.reasons,
         ):
             each.clear()
 
@@ -97,6 +105,7 @@ class OpenStrangle(OnSchedule):
     @override
     def on_margin_refused(self, order: MarketOrder, reason: str) -> None:
         self.refused.append(str(order.instrument_id))
+        self.reasons.append(reason)
 
 
 class OpenTenStrangles(OpenStrangle):
@@ -166,6 +175,22 @@ class OpenStrangleWithExpiredCall(OpenStrangle):
         expired = self.cache.instrument(chain_contract_id("2JAN24", 45000, "C"))
         assert isinstance(expired, CryptoOption)
         legs = (self.contract(OptionKind.PUT, 45000), expired)
+        return Combo(
+            "short strangle",
+            tuple(Leg(each, OrderSide.SELL, self.quantity) for each in legs),
+        )
+
+
+class OpenStrangleWithUnknownCall(OpenStrangle):
+    """Opens a strangle whose call is no contract of the run."""
+
+    @override
+    def combo(self) -> Combo:
+        unknown = listed_option(
+            InstrumentId.from_str("BTC-12JAN24-52000-C.DERIBIT"),
+            Terms(OptionKind.CALL, LADDER_EXPIRY, "52000"),
+        )
+        legs = (self.contract(OptionKind.PUT, 40000), unknown)
         return Combo(
             "short strangle",
             tuple(Leg(each, OrderSide.SELL, self.quantity) for each in legs),

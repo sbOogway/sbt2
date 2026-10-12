@@ -242,3 +242,19 @@ def test_a_combo_with_a_rejected_leg_unwinds_its_filled_legs(
     assert OpenStrangle.opened == []
     assert OpenStrangle.seen[-1][1] == ()
     assert set(store.load(run_id, "positions")["side"]) == {"FLAT"}
+
+
+@pytest.mark.integration
+def test_an_order_on_an_unknown_instrument_is_refused_with_a_reason(
+    tmp_path: Path, ladder: Path
+) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run(
+        tmp_path, ladder, "combo_strategies:OpenStrangleWithUnknownCall"
+    )
+
+    [reason] = OpenStrangle.reasons
+    assert "BTC-12JAN24-52000-C.DERIBIT" in reason
+    assert "cannot be priced" in reason
+    assert store.load(run_id, "fills").empty

@@ -14,6 +14,10 @@ class MarginModel(Protocol):
     def value(self, instrument: Any, quantity: Decimal, ts: int) -> Decimal: ...
 
 
+class UnknownInstrumentError(LookupError):
+    """The cache does not know the instrument an order or position is on."""
+
+
 class MarginDesk:
     """What a strategy asks about margin: ``model`` priced for the strategy's
     open positions and the orders it is about to send."""
@@ -32,7 +36,7 @@ class MarginDesk:
         ts = self._trader.clock.timestamp_ns()
         return {
             instrument_id: self._model.initial(
-                self._trader.cache.instrument(instrument_id), quantity, ts
+                self._instrument(instrument_id), quantity, ts
             )
             for instrument_id, quantity in self._held().items()
         }
@@ -42,7 +46,7 @@ class MarginDesk:
         ts = self._trader.clock.timestamp_ns()
         return sum(
             (
-                self._model.initial(self._trader.cache.instrument(each), quantity, ts)
+                self._model.initial(self._instrument(each), quantity, ts)
                 for each, quantity in quantities.items()
             ),
             Decimal(0),
@@ -60,15 +64,21 @@ class MarginDesk:
             return None
         return f"the orders need an initial margin of {added}, above the free equity {free}"
 
+    def _instrument(self, instrument_id: InstrumentId) -> Any:
+        found = self._trader.cache.instrument(instrument_id)
+        if found is None:
+            raise UnknownInstrumentError(f"{instrument_id} is not a loaded instrument")
+        return found
+
     def _free_equity(self, instrument_id: InstrumentId) -> Decimal:
         """The equity less the initial margin of the open positions, in the
         currency of ``instrument_id``."""
         ts = self._trader.clock.timestamp_ns()
-        currency = self._trader.cache.instrument(instrument_id).settlement_currency
+        currency = self._instrument(instrument_id).settlement_currency
         account = self._trader.portfolio.account(instrument_id.venue)
         free = account.balance_total(currency).as_decimal()
         for held_id, quantity in self._held().items():
-            held = self._trader.cache.instrument(held_id)
+            held = self._instrument(held_id)
             free += self._model.value(held, quantity, ts)
             free -= self._model.initial(held, quantity, ts)
         return free
@@ -78,7 +88,7 @@ class MarginDesk:
         held = self._held()
         total = Decimal(0)
         for instrument_id, change in _changes(orders).items():
-            instrument = self._trader.cache.instrument(instrument_id)
+            instrument = self._instrument(instrument_id)
             before = held.get(instrument_id, Decimal(0))
             total += self._model.initial(
                 instrument, before + change, ts
