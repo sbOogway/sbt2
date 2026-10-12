@@ -12,7 +12,7 @@ from nautilus_trader.model import PositionAdjusted, PositionAdjustmentType, Venu
 
 from sbt2.core.assets import MarginModel
 from sbt2.core.results import OutputSink, Reports
-from sbt2.core.spec import ResolvedRunSpec
+from sbt2.core.spec import ResolvedRunSpec, SpecError
 from sbt2.core.strategy import (
     Strategy,
     StrategyRun,
@@ -35,6 +35,7 @@ class RunSettings:
     catalog: Path
     chunk_size: int = 100_000
     log_level: LogLevel = LogLevel.INFO
+    max_chain_contracts: int = 2_000
 
 
 class BacktestError(RuntimeError):
@@ -42,6 +43,10 @@ class BacktestError(RuntimeError):
 
 
 class NoAccountError(BacktestError):
+    pass
+
+
+class ChainTooLargeError(SpecError):
     pass
 
 
@@ -64,6 +69,7 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
     logger.info("run %s: %s from %s", sink.run_id, spec.strategy.strategy, spec.start)
     sink.write_strategy_source(strategy_source(spec.strategy.strategy))
     loaded = spec.with_contracts(Catalog(settings.catalog))
+    _check_chain_size(spec, loaded, settings.max_chain_contracts)
     with TemporaryDirectory(prefix="sbt2-quotes-") as folder:
         job = loaded.quote_job(settings.catalog)
         quotes = loaded.asset.quotes.write(job, Path(folder))
@@ -71,6 +77,18 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
         _execute(loaded, sink, _Plan(_run_config(loaded, settings, quotes), margin))
     sink.finalize()
     logger.info("run %s finished", sink.run_id)
+
+
+def _check_chain_size(
+    spec: ResolvedRunSpec, loaded: ResolvedRunSpec, limit: int
+) -> None:
+    named = [each for each in spec.instrument_ids if each not in spec.chains]
+    chained = len(loaded.instrument_ids) - len(named)
+    if chained > limit:
+        raise ChainTooLargeError(
+            f"the chain selects {chained} contracts, more than the limit of {limit}; "
+            f"narrow its bands, now {dict(spec.chain)}"
+        )
 
 
 def _execute(spec: ResolvedRunSpec, sink: OutputSink, plan: _Plan) -> None:

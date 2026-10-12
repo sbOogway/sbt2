@@ -11,7 +11,13 @@ from sbt2.core.run.batching import (
     StudyError,
     batch,
 )
-from sbt2.core.run.execute import BacktestError, NoAccountError, RunSettings, execute
+from sbt2.core.run.execute import (
+    BacktestError,
+    ChainTooLargeError,
+    NoAccountError,
+    RunSettings,
+    execute,
+)
 from sbt2.core.run.launchers import (
     Launcher,
     NoUserSessionError,
@@ -34,6 +40,7 @@ __all__ = [
     "BacktestError",
     "BatchProgress",
     "BatchSetup",
+    "ChainTooLargeError",
     "DataFolders",
     "DuplicateStudyRunError",
     "InstrumentAssetClassError",

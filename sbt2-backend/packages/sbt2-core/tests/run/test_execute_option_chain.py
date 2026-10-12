@@ -20,7 +20,7 @@ from run_strategies import (
 )
 
 from sbt2.core.results import ParquetResultStore
-from sbt2.core.run import RunSettings, execute
+from sbt2.core.run import ChainTooLargeError, RunSettings, execute
 from sbt2.core.spec import load
 
 SPEC = """
@@ -75,14 +75,16 @@ def catalog(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return path
 
 
-def run(tmp_path: Path, catalog: Path, strategy: str) -> tuple[ParquetResultStore, str]:
+def run(
+    tmp_path: Path, catalog: Path, strategy: str, limit: int = 2_000
+) -> tuple[ParquetResultStore, str]:
     spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
     spec.write_text(SPEC.replace("run_strategies:ActOnSchedule", strategy))
     venues.write_text(VENUES)
     [resolved] = load(spec, venues)
     store = ParquetResultStore(tmp_path / "results")
     sink = store.new_run(resolved)
-    execute(resolved, sink, RunSettings(catalog))
+    execute(resolved, sink, RunSettings(catalog, max_chain_contracts=limit))
     return store, sink.run_id
 
 
@@ -201,3 +203,11 @@ def test_a_chain_strategy_trades_a_contract_it_picked_and_it_settles_at_expiry(
         mark = float(mark_at(last_mark_hour(pd.Timestamp(row["ts_event"]).value)))
         assert row["margin_used"] == pytest.approx(SHORT_PUT_MARGIN + mark)
     assert margin["margin_used"].iloc[-1] == 0
+
+
+@pytest.mark.integration
+def test_a_chain_run_with_more_contracts_than_the_limit_is_refused_before_it_starts(
+    tmp_path: Path, catalog: Path
+) -> None:
+    with pytest.raises(ChainTooLargeError, match=r"10 contracts.*limit of 5.*narrow"):
+        run(tmp_path, catalog, "run_strategies:ActOnSchedule", limit=5)
