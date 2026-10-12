@@ -53,6 +53,17 @@ instrument_class = "SWAP"
 fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
 ```
 
+and Deribit's BTC and ETH options, with the fee of 0.03 % of the underlying capped at 12.5 % of the option price:
+
+```toml
+[deribit_option]
+name = "DERIBIT"
+source = "deribit"
+asset_class = "CRYPTOCURRENCY"
+instrument_class = "OPTION"
+fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } }
+```
+
 A spec describes the backtests to run:
 
 ```toml
