@@ -1,4 +1,5 @@
 import math
+import shutil
 from pathlib import Path
 
 import pandas as pd
@@ -6,6 +7,7 @@ import pytest
 from nautilus_trader.model import Money
 from option_catalog import HOURS, START, TRADE_PRICE, build_option_catalog, mark_at
 
+from sbt2.core.assets import NoQuotesError
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
 from sbt2.core.spec import load
@@ -133,3 +135,15 @@ def test_an_option_trade_far_from_the_mark_does_not_set_the_fill_price(
 
     price, hour = fill_of(store, run_id)
     assert price == pytest.approx(synthetic_ask(hour))
+
+
+@pytest.mark.integration
+def test_an_option_run_without_index_prices_fails_naming_the_missing_data(
+    tmp_path: Path, catalog: Path
+) -> None:
+    bare = tmp_path / "bare_catalog"
+    shutil.copytree(catalog, bare)
+    shutil.rmtree(bare / "data" / "index_prices")
+
+    with pytest.raises(NoQuotesError, match="index"):
+        run(tmp_path, bare, "run_strategies:BuyOneOption")
