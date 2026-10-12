@@ -11,7 +11,7 @@ From the repository root:
 
 ```sh
 export SBT2_SERVER_TOKEN=<token>
-export SBT2_SERVER_URL=ws://localhost:8765  # the default of the notebooks
+export SBT2_SERVER_URL=ws://127.0.0.1:8765  # the default; localhost can resolve to IPv6, where the image does not listen
 make notebooks
 ```
 
