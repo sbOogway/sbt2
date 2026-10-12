@@ -14,7 +14,7 @@ from nautilus_trader.model import (
     Quantity,
 )
 
-from sbt2.core.strategy import ChainFilter, NoParams, Strategy
+from sbt2.core.strategy import IV_LOOKBACK, ChainFilter, NoParams, Strategy
 
 HOURLY_BARS = BarSpecification.from_str("1-HOUR-LAST")
 HOURLY_MID_BARS = BarSpecification.from_str("1-HOUR-MID")
@@ -295,6 +295,30 @@ class GreekChain(OnSchedule):
             )
         )
         self.seen[now] = (self.chain.iv(call), self.chain.greeks(call).delta)
+
+
+class ReadIvRank(OnSchedule):
+    """Notes the IV rank and percentile at each tick, with the default look-back."""
+
+    ranks: ClassVar[dict[datetime, tuple[float, float]]] = {}
+
+    @classmethod
+    @override
+    def iv_lookback(cls, params: NoParams) -> timedelta:
+        return IV_LOOKBACK
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        self.ranks[now] = (self.chain.iv_rank(), self.chain.iv_percentile())
+
+
+class DayLookBack(ActOnSchedule):
+    """Asks for a day of DVOL before its data."""
+
+    @classmethod
+    @override
+    def iv_lookback(cls, params: NoParams) -> timedelta:
+        return timedelta(days=1)
 
 
 class SellDeltaPut(OnSchedule):

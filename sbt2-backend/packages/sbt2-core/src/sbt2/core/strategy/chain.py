@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Protocol
 
 from nautilus_trader.core import dt_to_unix_nanos, unix_nanos_to_dt
@@ -11,6 +11,8 @@ from sbt2.core.strategy.chain_records import ChainRecords
 from sbt2.core.strategy.greeks import Greeks, Market, greeks_of
 
 _DAY_NS = 86_400 * 10**9
+IV_LOOKBACK = timedelta(days=365)
+_MIN_DVOL_VALUES = 2
 
 
 @dataclass(frozen=True)
@@ -60,6 +62,21 @@ class Chain(ABC):
         strike on a tie. A call has a positive delta and a put a negative one,
         so ``delta`` picks the kind; ``ValueError`` for 0. A contract with no
         quote or no IV yet is passed over; none when no contract is left."""
+        ...
+
+    @abstractmethod
+    def iv_rank(self, lookback: timedelta = IV_LOOKBACK) -> float:
+        """Where DVOL stands now between its lowest and highest value over
+        ``lookback``, from 0 to 1. ``NoMarketError`` when the chain heard fewer than
+        two values in that span, or all of them are equal. The strategy sets how
+        far back the run loads DVOL with ``iv_lookback``."""
+        ...
+
+    @abstractmethod
+    def iv_percentile(self, lookback: timedelta = IV_LOOKBACK) -> float:
+        """The share of the hourly DVOL values over ``lookback`` that are below
+        the current one, from 0 to 1; ``NoMarketError`` when the chain heard fewer
+        than two values in that span."""
         ...
 
     @abstractmethod
@@ -131,6 +148,17 @@ class CachedChain(Chain):
             default=None,
         )
 
+    def iv_rank(self, lookback: timedelta = IV_LOOKBACK) -> float:
+        values = self._volatility(lookback)
+        low, high = min(values), max(values)
+        if low == high:
+            raise NoMarketError("DVOL did not move over the look-back")
+        return (values[-1] - low) / (high - low)
+
+    def iv_percentile(self, lookback: timedelta = IV_LOOKBACK) -> float:
+        values = self._volatility(lookback)
+        return sum(each < values[-1] for each in values) / len(values)
+
     def iv(self, contract: CryptoOption) -> float:
         found = self._records.iv(contract.id)
         if found is None:
@@ -143,6 +171,18 @@ class CachedChain(Chain):
         if index is None:
             raise NoMarketError("the chain has heard no index price yet")
         return greeks_of(contract, Market(index, self.iv(contract)), now)
+
+    def _volatility(self, lookback: timedelta) -> list[float]:
+        since = (
+            self._records.now_ns() - int(lookback / timedelta(microseconds=1)) * 1_000
+        )
+        values = self._records.volatility(since)
+        if len(values) < _MIN_DVOL_VALUES:
+            raise NoMarketError(
+                f"the chain heard {len(values)} DVOL values over the look-back "
+                "and needs two"
+            )
+        return values
 
     def _is_priced(self, contract: CryptoOption) -> bool:
         has_iv = self._records.iv(contract.id) is not None

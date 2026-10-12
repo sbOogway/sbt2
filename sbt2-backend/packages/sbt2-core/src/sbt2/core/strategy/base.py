@@ -39,7 +39,7 @@ from nautilus_trader.trading import ImportableStrategyConfig
 from nautilus_trader.trading import Strategy as NautilusStrategy
 
 from sbt2.core.strategy.chain import CachedChain, Chain
-from sbt2.core.strategy.chain_records import ChainRecords
+from sbt2.core.strategy.chain_records import ChainHistory, ChainRecords
 from sbt2.core.strategy.drawdown import DrawdownGuard
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
 from sbt2.core.strategy.margin import MarginDesk, MarginModel
@@ -243,6 +243,11 @@ class Strategy[P](NautilusStrategy, ABC):
     def use_margin(self, model: MarginModel) -> None:
         """Margin the strategy's orders and positions with ``model``."""
         self._margin = MarginDesk(model, self)
+
+    def use_history(self, history: ChainHistory) -> None:
+        """Tell a chain strategy what the run knew before its start: the data
+        before the start of a run is not streamed."""
+        self._records.preload(history)
 
     def margin_of_order(self, order: Any) -> Decimal:
         """The initial margin ``order`` adds to its position, in the settlement

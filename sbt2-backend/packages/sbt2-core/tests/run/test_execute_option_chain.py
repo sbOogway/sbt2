@@ -14,6 +14,7 @@ from option_catalog import (
     build_ladder_catalog,
     chain_contract_id,
     mark_at,
+    write_dvol,
 )
 from run_strategies import (
     ActOnSchedule,
@@ -21,6 +22,7 @@ from run_strategies import (
     GreekChain,
     ListAliveContracts,
     QuoteChain,
+    ReadIvRank,
 )
 
 from sbt2.core.results import ParquetResultStore
@@ -262,3 +264,63 @@ def test_a_chain_strategy_sells_the_16_delta_put_of_the_expiry_nearest_45_dte(
     # 40000; the 12 January 40000 put, at -0.12, is nearer but of a nearer expiry
     assert entry["instrument_id"] == str(chain_contract_id("15FEB24", 35000, "P"))
     assert entry["order_side"] == "SELL"
+
+
+LOOK_BACK_HOURS = 365 * 24
+# a low and a high inside the look-back, a higher value outside it, and a DVOL
+# that rises by 1 an hour from the start
+DVOL = {
+    -9_000: 200.0,
+    **dict.fromkeys(range(-8_000, 0), 50.0),
+    -400: 90.0,
+    -10: 30.0,
+    **{hour: 50.0 + hour for hour in range(48)},
+}
+
+
+def dvol_over_look_back(tick_hour: int) -> list[float]:
+    return [
+        value
+        for hour, value in DVOL.items()
+        if tick_hour - LOOK_BACK_HOURS <= hour <= tick_hour
+    ]
+
+
+@pytest.mark.integration
+def test_a_chain_strategy_reads_the_iv_rank_at_its_schedule(
+    tmp_path: Path,
+) -> None:
+    ReadIvRank.ranks.clear()
+    path = tmp_path / "with_dvol"
+    build_chain_catalog(path)
+    write_dvol(path, DVOL)
+
+    run(tmp_path, path, "run_strategies:ReadIvRank")
+
+    ranks = ReadIvRank.ranks
+    assert len(ranks) > 40
+    for tick, (rank, percentile) in ranks.items():
+        hour = int((tick - START).total_seconds() // 3600)
+        values = dvol_over_look_back(min(hour, 47))
+        now, low, high = values[-1], min(values), max(values)
+        assert rank == pytest.approx((now - low) / (high - low))
+        assert percentile == pytest.approx(sum(v < now for v in values) / len(values))
+
+
+@pytest.mark.integration
+def test_a_chain_run_knows_the_index_it_heard_before_its_start(
+    tmp_path: Path,
+) -> None:
+    GreekChain.seen.clear()
+    path = tmp_path / "old_index"
+    build_chain_catalog(path, index_prices=[44_000.0, 45_000.0])
+
+    run(tmp_path, path, "run_strategies:GreekChain")
+
+    seen = GreekChain.seen
+    assert len(seen) > 40
+    for tick, (_, delta) in seen.items():
+        hours_left = (
+            datetime(2024, 2, 15, 8, tzinfo=UTC) - tick
+        ).total_seconds() / 3600
+        assert delta == pytest.approx(call_delta(45_000.0, hours_left), abs=1e-5)

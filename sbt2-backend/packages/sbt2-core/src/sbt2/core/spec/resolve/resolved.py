@@ -154,10 +154,7 @@ class ResolvedRunSpec:
 
     def _feed_data(self, feeds: ChainFeeds) -> list[Mapping[str, Any]]:
         kinds = [NautilusDataType.IndexPriceUpdate]
-        return [
-            *data_arguments(kinds, [feeds.index], self.data_window),
-            *data_arguments(kinds, [feeds.volatility], self.volatility_window),
-        ]
+        return data_arguments(kinds, [feeds.index, feeds.volatility], self.data_window)
 
     @property
     def chains(self) -> tuple[InstrumentId, ...]:
