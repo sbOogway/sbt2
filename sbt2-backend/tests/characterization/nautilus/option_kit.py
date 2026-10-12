@@ -13,6 +13,7 @@ from nautilus_trader.model import (
     CryptoOption,
     Currency,
     InstrumentId,
+    MarkPriceUpdate,
     Money,
     OmsType,
     OptionGreeks,
@@ -28,6 +29,7 @@ from nautilus_trader.model import (
     TradeTick,
     Venue,
 )
+from nautilus_trader.portfolio import PortfolioConfig
 from nautilus_trader.trading import Strategy
 
 VENUE = Venue("DERIBIT")
@@ -122,6 +124,7 @@ class Market:
 
     instruments: Sequence[CryptoOption] = (option(),)
     trade_execution: bool = True
+    portfolio: PortfolioConfig | None = None
     fee_model: Any = field(
         default_factory=lambda: FixedFeeModel(Money.from_str("0 BTC"))
     )
@@ -176,9 +179,11 @@ class TimedOrders(Strategy):
 
 
 def run_engine(
-    data: Sequence[Any], strategy: Strategy, market: Market = DEFAULT_MARKET
+    data: Sequence[Any],
+    strategy: Strategy,
+    market: Market = DEFAULT_MARKET,
 ) -> BacktestEngine:
-    engine = BacktestEngine(quiet_engine_config())
+    engine = BacktestEngine(quiet_engine_config(market.portfolio))
     engine.add_venue(
         VENUE,
         OmsType.NETTING,
@@ -207,3 +212,8 @@ def run_orders(
 
 def btc(amount: str) -> Money:
     return Money.from_str(f"{amount} BTC")
+
+
+def mark(hour: int, price: str) -> MarkPriceUpdate:
+    ts = at(hour)
+    return MarkPriceUpdate(CALL_ID, Price.from_str(price), ts, ts)
