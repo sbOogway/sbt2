@@ -2,10 +2,11 @@ from datetime import UTC, datetime, timedelta
 from itertools import pairwise
 from pathlib import Path
 
+import pandas as pd
 import pytest
 from nautilus_trader.model import InstrumentId
-from option_catalog import build_chain_catalog, chain_contract_id
-from run_strategies import ActOnSchedule, FilterChain, ListAliveContracts
+from option_catalog import build_chain_catalog, chain_contract_id, mark_at
+from run_strategies import ActOnSchedule, FilterChain, ListAliveContracts, QuoteChain
 
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
@@ -126,3 +127,24 @@ def test_a_chain_strategy_filters_the_chain_by_dte_strike_and_kind(
         datetime(2024, 1, 12, 8, tzinfo=UTC),
         datetime(2024, 2, 15, 8, tzinfo=UTC),
     ]
+
+
+@pytest.mark.integration
+def test_a_chain_strategy_reads_the_current_quote_of_a_contract(
+    tmp_path: Path, catalog: Path
+) -> None:
+    QuoteChain.quotes.clear()
+    tick = datetime(2024, 1, 1, 10, tzinfo=UTC)
+
+    run(tmp_path, catalog, "run_strategies:QuoteChain")
+
+    quotes = QuoteChain.quotes[tick]
+    assert sorted(quotes) == names(
+        ids("2JAN24", 40000, 45000, 50000)
+        | ids("12JAN24", 45000)
+        | ids("15FEB24", 45000)
+    )
+    bid, ask, ts_event = quotes[str(chain_contract_id("15FEB24", 45000, "C"))]
+    assert bid < (bid + ask) / 2 < ask
+    assert (bid + ask) / 2 == pytest.approx(float(mark_at(10)), rel=0.1)
+    assert 0 <= pd.Timestamp(tick).value - ts_event <= 120 * 10**9

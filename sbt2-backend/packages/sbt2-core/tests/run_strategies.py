@@ -261,6 +261,24 @@ class FilterChain(OnSchedule):
         self.expiries.extend(self.chain.expiries())
 
 
+class QuoteChain(OnSchedule):
+    """Notes the quote of each contract of the chain at each tick."""
+
+    quotes: ClassVar[dict[datetime, dict[str, tuple[float, float, int]]]] = {}
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        self.quotes[now] = {
+            str(each.id): (
+                float(quote.bid_price),
+                float(quote.ask_price),
+                quote.ts_event,
+            )
+            for each in self.chain.contracts()
+            if (quote := self.chain.quote(each)) is not None
+        }
+
+
 class FailOnBar(Strategy[NoParams]):
     @classmethod
     @override

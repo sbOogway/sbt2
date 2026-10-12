@@ -5,7 +5,7 @@ from datetime import datetime
 
 from nautilus_trader.common import Cache
 from nautilus_trader.core import dt_to_unix_nanos, unix_nanos_to_dt
-from nautilus_trader.model import CryptoOption, InstrumentId, OptionKind
+from nautilus_trader.model import CryptoOption, InstrumentId, OptionKind, QuoteTick
 
 _DAY_NS = 86_400 * 10**9
 
@@ -36,6 +36,11 @@ class Chain(ABC):
         """The expiries of the contracts alive now, earliest first."""
         ...
 
+    @abstractmethod
+    def quote(self, contract: CryptoOption) -> QuoteTick | None:
+        """The latest quote of ``contract``; none before its first."""
+        ...
+
 
 class CachedChain(Chain):
     """The chain of the contracts the run loaded, read from nautilus's cache."""
@@ -62,6 +67,9 @@ class CachedChain(Chain):
     def expiries(self) -> list[datetime]:
         expiries = {each.expiration_ns for each in self.contracts()}
         return [unix_nanos_to_dt(each) for each in sorted(expiries)]
+
+    def quote(self, contract: CryptoOption) -> QuoteTick | None:
+        return self._cache.quote(contract.id)
 
     def _loaded(self) -> list[CryptoOption]:
         found = (self._cache.instrument(each) for each in self._instrument_ids)
