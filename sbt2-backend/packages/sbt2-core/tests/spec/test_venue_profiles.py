@@ -48,11 +48,7 @@ def test_bybit_linear_builds_a_nautilus_venue(tmp_path: Path) -> None:
 @pytest.mark.unit
 def test_deribit_option_builds_a_nautilus_venue(tmp_path: Path) -> None:
     spec = tmp_path / "spec.toml"
-    spec.write_text(
-        SPEC.replace("BTCUSDT-LINEAR.BYBIT", "BTC-30JAN26-100000-C.DERIBIT")
-        .replace("bybit_linear", "deribit_option")
-        .replace("10000 USDT", "1 BTC")
-    )
+    spec.write_text(OPTION_SPEC)
 
     [resolved] = load(spec, CONFIG / "venues.toml")
     [venue] = resolved.run_config("/catalog").venues
@@ -63,10 +59,13 @@ def test_deribit_option_builds_a_nautilus_venue(tmp_path: Path) -> None:
     assert isinstance(venue.fee_model, CappedOptionFeeModel)
 
 
+OPTION_PARAMS = 'params = { bar = "1-HOUR-MID" }'
 OPTION_SPEC = (
     SPEC.replace("BTCUSDT-LINEAR.BYBIT", "BTC-30JAN26-100000-C.DERIBIT")
     .replace("bybit_linear", "deribit_option")
     .replace("10000 USDT", "1 BTC")
+    .replace("spec_strategies:MinuteLookback", "spec_strategies:DeclaredBar")
+    + OPTION_PARAMS
 )
 DERIBIT_PROFILE = (CONFIG / "venues.toml").read_text().split("[deribit_option]")[1]
 

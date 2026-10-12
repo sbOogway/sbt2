@@ -11,6 +11,7 @@ from nautilus_trader.backtest import BacktestDataConfig
 from nautilus_trader.common import Cache
 from nautilus_trader.model import (
     AssetClass,
+    BarSpecification,
     InstrumentClass,
     InstrumentId,
     MarkPriceUpdate,
@@ -118,6 +119,11 @@ class QuoteConvention(ABC):
         ...
 
     @abstractmethod
+    def unmakeable(self, inputs: Sequence[BarSpecification]) -> list[BarSpecification]:
+        """The declared bars the venue's data cannot build."""
+        ...
+
+    @abstractmethod
     def source_types(self, kinds: set[type]) -> set[type]:
         """The catalog data types a run needing ``kinds`` of data reads."""
         ...
@@ -136,6 +142,10 @@ class NoQuotes(QuoteConvention):
         if "quotes" in venue:
             raise ValueError("this asset class takes no quotes setting")
         return dict(venue)
+
+    def unmakeable(self, inputs: Sequence[BarSpecification]) -> list[BarSpecification]:
+        del inputs
+        return []
 
     def source_types(self, kinds: set[type]) -> set[type]:
         return kinds

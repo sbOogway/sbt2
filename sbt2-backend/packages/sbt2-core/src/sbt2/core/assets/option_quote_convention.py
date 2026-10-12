@@ -1,10 +1,17 @@
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, override
 
 from nautilus_trader.backtest import BacktestDataConfig
-from nautilus_trader.model import NautilusDataType, OptionGreeks, QuoteTick, TradeTick
+from nautilus_trader.model import (
+    BarSpecification,
+    NautilusDataType,
+    OptionGreeks,
+    PriceType,
+    QuoteTick,
+    TradeTick,
+)
 
 from sbt2.core.assets.base import QuoteConvention, QuoteJob
 from sbt2.core.assets.option_quote_catalog import write_quotes
@@ -24,6 +31,10 @@ class OptionQuotes(QuoteConvention):
             return QuoteSettings(**venue.get("quotes", {}))
         except TypeError as error:
             raise ValueError(f"the quotes setting is invalid: {error}") from error
+
+    @override
+    def unmakeable(self, inputs: Sequence[BarSpecification]) -> list[BarSpecification]:
+        return [each for each in inputs if each.price_type == PriceType.LAST]
 
     @override
     def source_types(self, kinds: set[type]) -> set[type]:

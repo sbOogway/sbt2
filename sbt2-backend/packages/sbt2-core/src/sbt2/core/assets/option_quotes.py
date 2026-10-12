@@ -59,6 +59,10 @@ def quote_ticks(
     The mid is the Black-Scholes price from the index at the quote's time and the
     vol implied by the last mark, so it equals a mark at the mark's time. A
     contract has no quote before its first mark or from its expiry on.
+
+    Each quote has a size of 1,000,000 on both sides, so depth is unlimited at the
+    quoted price: an order of any size fills at the bid or the ask. This is a known
+    limitation.
     """
     grid = _grid(history, settings, span)
     mids = _mids(history, grid)
