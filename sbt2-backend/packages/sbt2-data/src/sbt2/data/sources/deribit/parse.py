@@ -153,9 +153,10 @@ def _series_updates(
 
 
 def _dvol_update(row: Sequence[float], index: IndexInstrument) -> IndexPriceUpdate:
-    """The hour's close, at the start of the hour as Deribit stamps the row."""
+    """The hour's open, at the start of the hour: DVOL as known at that moment.
+    The close is known only at the hour's end, so it would look ahead."""
     ts = int(row[0]) * _NANOS_PER_MILLI
-    return IndexPriceUpdate(index.id, Price(row[4], index.price_precision), ts, ts)
+    return IndexPriceUpdate(index.id, Price(row[1], index.price_precision), ts, ts)
 
 
 def _delivery_update(

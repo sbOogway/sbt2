@@ -317,7 +317,7 @@ def test_deribit_dvol_round_trips_through_the_catalog(
     stored = list(catalog.query(NautilusDataType.IndexPriceUpdate, [BTC_DVOL]))
     assert [str(each.id) for each in catalog.instruments()] == [BTC_DVOL]
     assert len(stored) == 24
-    assert [str(each.value) for each in stored][:2] == ["60.26", "60.09"]
+    assert [str(each.value) for each in stored][:2] == ["60.03", "60.26"]
     assert stored[1].ts_event - stored[0].ts_event == 3_600 * 1_000_000_000
 
 

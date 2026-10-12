@@ -556,13 +556,28 @@ def test_dvol_parses_into_index_price_updates_of_the_dvol_index(
     assert len(updates) == 24
     assert updates[0] == IndexPriceUpdate.from_dict(updates[0].to_dict())
     assert {each.instrument_id for each in updates} == {BTC_DVOL}
-    assert [str(each.value) for each in updates][:3] == ["60.26", "60.09", "59.88"]
+    assert [str(each.value) for each in updates][:3] == ["60.03", "60.26", "60.09"]
     assert (
         updates[1].ts_event
         == updates[1].ts_init
         == (DAY_START_MS + 3_600_000) * (1_000_000)
     )
     assert isinstance(instruments[BTC_DVOL], IndexInstrument)
+
+
+@pytest.mark.unit
+def test_dvol_is_the_value_known_at_each_hour(deribit: Source, tmp_path: Path) -> None:
+    snapshot = tmp_path / "BTC_DVOL2026-10-07.json"
+    snapshot.write_text("{}")
+    day = tmp_path / "BTC_DVOL2025-01-01.json"
+    day.write_text(json.dumps([[DAY_START_MS, 50.0, 70.0, 40.0, 60.0]]))
+    instruments = deribit.parse_instruments(snapshot)
+
+    parsed = deribit.parse_day(day, IndexPriceUpdate, instruments)
+
+    ((update,),) = parsed.values()
+    assert str(update.value) == "50.00"
+    assert update.ts_event == DAY_START_MS * 1_000_000
 
 
 @pytest.mark.unit
