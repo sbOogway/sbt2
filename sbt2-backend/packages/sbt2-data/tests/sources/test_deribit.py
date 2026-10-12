@@ -344,6 +344,29 @@ def test_the_aggressor_side_is_the_direction_of_the_trade(
 
 
 @pytest.mark.unit
+def test_a_trade_without_an_iv_gives_no_option_greeks(
+    deribit: Source, tmp_path: Path
+) -> None:
+    spec = json.loads(Path(__file__).with_name("deribit_responses.json").read_text())
+    snapshot = tmp_path / "BTC2026-10-07.json"
+    snapshot.write_text(json.dumps(spec[4]["response"]["result"]))
+    trades = spec[0]["response"]["result"]["trades"][:2]
+    day = tmp_path / "BTC2025-01-01.json"
+    day.write_text(json.dumps([{**trades[0], "iv": 0.0}, trades[1]]))
+    instruments = deribit.parse_instruments(snapshot)
+    ids = deribit.day_instrument_ids(day, OptionGreeks, instruments)
+
+    parsed = deribit.parse_day(
+        day, OptionGreeks, {each: instruments[each] for each in ids}
+    )
+
+    assert {each.value: len(records) for each, records in parsed.items()} == {
+        "BTC-31JAN25-135000-C.DERIBIT": 0,
+        "BTC-31JAN25-83000-P.DERIBIT": 1,
+    }
+
+
+@pytest.mark.unit
 def test_parse_gives_each_trades_mark_price_as_a_mark_price_update_of_its_contract(
     replayed_deribit: tuple[Source, Replay], tmp_path: Path
 ) -> None:

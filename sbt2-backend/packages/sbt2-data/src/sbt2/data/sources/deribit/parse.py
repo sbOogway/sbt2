@@ -102,12 +102,14 @@ def day_records(
 def _by_contract(
     path: Path,
     instruments: Mapping[InstrumentId, Any],
-    build: Callable[[Mapping[str, Any], CryptoOption], Any],
+    build: Callable[[Mapping[str, Any], CryptoOption], Any | None],
 ) -> dict[InstrumentId, list[Any]]:
     records: dict[InstrumentId, list[Any]] = {each: [] for each in instruments}
     for trade in json.loads(path.read_text()):
         instrument_id = contract_id(trade["instrument_name"])
-        records[instrument_id].append(build(trade, instruments[instrument_id]))
+        record = build(trade, instruments[instrument_id])
+        if record is not None:
+            records[instrument_id].append(record)
     return records
 
 
@@ -146,7 +148,9 @@ def _mark_price(trade: Mapping[str, Any], contract: CryptoOption) -> MarkPriceUp
     )
 
 
-def _option_greeks(trade: Mapping[str, Any], contract: CryptoOption) -> OptionGreeks:
+def _option_greeks(
+    trade: Mapping[str, Any], contract: CryptoOption
+) -> OptionGreeks | None:
     """The IV and index price of a trade, with the Black-Scholes greeks they give.
 
     The IV is a fraction (Deribit sends a percentage), the underlying is the
@@ -154,7 +158,12 @@ def _option_greeks(trade: Mapping[str, Any], contract: CryptoOption) -> OptionGr
     cost of carry are 0. The greeks follow nautilus ``black_scholes_greeks`` in
     USD, the quote currency: delta per 1 of the index, gamma per 1 of the index
     squared, vega per IV percentage point and theta per day.
+
+    Deribit sends an IV of 0 for a deep in-the-money trade; its greeks are
+    undefined, so it gives none.
     """
+    if not trade["iv"]:
+        return None
     ts = int(trade["timestamp"]) * _NANOS_PER_MILLI
     iv = trade["iv"] / 100
     index = trade["index_price"]
