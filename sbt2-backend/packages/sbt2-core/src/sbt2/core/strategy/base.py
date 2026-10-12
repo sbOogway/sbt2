@@ -36,6 +36,7 @@ from nautilus_trader.model import (
 from nautilus_trader.trading import ImportableStrategyConfig
 from nautilus_trader.trading import Strategy as NautilusStrategy
 
+from sbt2.core.strategy.chain import CachedChain, Chain
 from sbt2.core.strategy.drawdown import DrawdownGuard
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
 from sbt2.core.strategy.margin import MarginDesk, MarginModel
@@ -183,6 +184,11 @@ class Strategy[P](NautilusStrategy, ABC):
     def schedule(cls, _params: P, /) -> timedelta | None:
         """How often ``on_schedule`` is called; ``None`` for never."""
         return None
+
+    @property
+    def chain(self) -> Chain:
+        """The option contracts the run loaded, to pick from."""
+        return CachedChain(self.cache, self.clock.timestamp_ns, self.instrument_ids)
 
     @property
     def warming_up(self) -> bool:

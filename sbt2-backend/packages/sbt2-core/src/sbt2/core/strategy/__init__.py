@@ -11,6 +11,7 @@ from sbt2.core.strategy.base import (
     resolve_params,
     strategy_source,
 )
+from sbt2.core.strategy.chain import Chain
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG
 from sbt2.core.strategy.schema import (
     ParamSpec,
@@ -20,6 +21,7 @@ from sbt2.core.strategy.schema import (
 
 __all__ = [
     "SETTLEMENT_TAG",
+    "Chain",
     "InvalidParameterError",
     "NoParams",
     "ParamSpec",

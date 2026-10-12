@@ -3,8 +3,9 @@ from itertools import pairwise
 from pathlib import Path
 
 import pytest
-from option_catalog import build_chain_catalog
-from run_strategies import ActOnSchedule
+from nautilus_trader.model import InstrumentId
+from option_catalog import build_chain_catalog, chain_contract_id
+from run_strategies import ActOnSchedule, ListAliveContracts
 
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
@@ -27,6 +28,14 @@ asset_class = "CRYPTOCURRENCY"
 instrument_class = "OPTION"
 fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } }
 """
+
+
+def ids(label: str, *strikes: int) -> set[InstrumentId]:
+    return {chain_contract_id(label, each, kind) for each in strikes for kind in "CP"}
+
+
+def names(found: set[InstrumentId]) -> list[str]:
+    return sorted(str(each) for each in found)
 
 
 @pytest.fixture(scope="module")
@@ -61,3 +70,22 @@ def test_a_chain_strategy_acts_on_its_schedule_without_bars(
         timedelta(hours=1)
     }
     assert ticks[-1] >= datetime(2024, 1, 2, 22, tzinfo=UTC)
+
+
+@pytest.mark.integration
+def test_a_chain_strategy_sees_the_contracts_alive_now(
+    tmp_path: Path, catalog: Path
+) -> None:
+    ListAliveContracts.alive.clear()
+
+    run(tmp_path, catalog, "run_strategies:ListAliveContracts")
+
+    alive = ListAliveContracts.alive
+    before = alive[datetime(2024, 1, 2, 7, tzinfo=UTC)]
+    after = alive[datetime(2024, 1, 2, 8, tzinfo=UTC)]
+    assert before == names(
+        ids("2JAN24", 40000, 45000, 50000)
+        | ids("12JAN24", 45000)
+        | ids("15FEB24", 45000)
+    )
+    assert after == names(ids("12JAN24", 45000) | ids("15FEB24", 45000))

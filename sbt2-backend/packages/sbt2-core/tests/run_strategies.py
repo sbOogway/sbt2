@@ -198,10 +198,8 @@ class ListenToFills(ListenToSettlement):
         self.filled.append(str(event.order_side))
 
 
-class ActOnSchedule(Strategy[NoParams]):
-    """Declares no bars and notes the time of each tick of an hourly schedule."""
-
-    ticks: ClassVar[list[datetime]] = []
+class OnSchedule(Strategy[NoParams]):
+    """Declares no bars and ticks every hour."""
 
     @classmethod
     @override
@@ -214,12 +212,28 @@ class ActOnSchedule(Strategy[NoParams]):
         return timedelta(hours=1)
 
     @override
+    def on_bar(self, bar: Bar) -> None:
+        raise AssertionError("a chain strategy without bars heard a bar")
+
+
+class ActOnSchedule(OnSchedule):
+    """Notes the time of each tick."""
+
+    ticks: ClassVar[list[datetime]] = []
+
+    @override
     def on_schedule(self, now: datetime) -> None:
         self.ticks.append(now)
 
+
+class ListAliveContracts(OnSchedule):
+    """Notes the contracts of the chain at each tick."""
+
+    alive: ClassVar[dict[datetime, list[str]]] = {}
+
     @override
-    def on_bar(self, bar: Bar) -> None:
-        raise AssertionError("a chain strategy without bars heard a bar")
+    def on_schedule(self, now: datetime) -> None:
+        self.alive[now] = sorted(str(each.id) for each in self.chain.contracts())
 
 
 class FailOnBar(Strategy[NoParams]):
