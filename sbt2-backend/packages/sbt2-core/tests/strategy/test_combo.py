@@ -154,12 +154,24 @@ def test_a_short_leg_is_undefined_risk_when_its_cover_is_too_small_or_not_its_ow
     small = Leg(put(35_000), OrderSide.BUY, ONE)
     other_expiry = Leg(put(35_000, days=10), OrderSide.BUY, Decimal(2))
     other_kind = Leg(call(55_000), OrderSide.BUY, Decimal(2))
-    near = Leg(put(42_000), OrderSide.BUY, Decimal(2))
 
     assert not Combo("odd", (short, small)).defined_risk
     assert not Combo("odd", (short, other_expiry)).defined_risk
     assert not Combo("odd", (short, other_kind)).defined_risk
-    assert not Combo("odd", (short, near)).defined_risk
+
+
+@pytest.mark.unit
+def test_a_debit_vertical_is_defined_risk() -> None:
+    assert vertical_spread(put(35_000), put(40_000), ONE).defined_risk
+    assert vertical_spread(call(55_000), call(50_000), ONE).defined_risk
+
+
+@pytest.mark.unit
+def test_a_short_leg_covered_by_a_smaller_long_quantity_is_undefined_risk() -> None:
+    short = Leg(call(50_000), OrderSide.SELL, Decimal(3))
+    cover = Leg(call(55_000), OrderSide.BUY, Decimal(2))
+
+    assert not Combo("odd", (short, cover)).defined_risk
 
 
 @pytest.mark.unit

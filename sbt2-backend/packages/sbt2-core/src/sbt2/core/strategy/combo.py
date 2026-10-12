@@ -44,8 +44,9 @@ class Combo:
 
     @property
     def defined_risk(self) -> bool:
-        """Whether every short leg is covered by a long leg of the same kind and
-        expiry, further out of the money; one long leg covers one short leg."""
+        """Whether the short legs of each kind and expiry are covered by at least
+        their quantity of long legs of that kind and expiry, at any strike, so
+        the loss is bounded."""
         return all(
             _covered(self.legs, kind, expiry)
             for kind, expiry in {
@@ -196,25 +197,6 @@ def _covered(legs: tuple[Leg, ...], kind: OptionKind, expiry: int) -> bool:
         for leg in legs
         if leg.contract.option_kind == kind and leg.contract.expiration_ns == expiry
     ]
-    depth = _depth(kind)
-    covers = [leg for leg in group if not leg.is_short]
-    spare = [leg.quantity for leg in covers]
-    # the furthest short has the fewest covers, so it picks first
-    shorts = sorted((leg for leg in group if leg.is_short), key=depth, reverse=True)
-    for short in shorts:
-        needed = short.quantity
-        for index, cover in enumerate(covers):
-            if depth(cover) > depth(short):
-                taken = min(needed, spare[index])
-                spare[index] -= taken
-                needed -= taken
-        if needed > 0:
-            return False
-    return True
-
-
-def _depth(kind: OptionKind) -> Callable[[Leg], float]:
-    """How far out of the money a leg is, relative to the legs of its kind: it
-    grows with the strike for a call and falls with it for a put."""
-    sign = 1 if kind == OptionKind.CALL else -1
-    return lambda leg: sign * float(leg.contract.strike_price)
+    sold = sum((leg.quantity for leg in group if leg.is_short), Decimal(0))
+    bought = sum((leg.quantity for leg in group if not leg.is_short), Decimal(0))
+    return bought >= sold
