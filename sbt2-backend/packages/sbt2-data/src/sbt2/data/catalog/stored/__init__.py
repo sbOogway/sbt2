@@ -1,6 +1,8 @@
 from sbt2.data.catalog.stored.candles import Candles
 from sbt2.data.catalog.stored.funding import Funding
+from sbt2.data.catalog.stored.index_prices import IndexPrices
 from sbt2.data.catalog.stored.mark_prices import MarkPrices
+from sbt2.data.catalog.stored.option_greeks import OptionGreekRecords
 from sbt2.data.catalog.stored.stored_type import (
     Bounds,
     CatalogRoot,
@@ -10,7 +12,14 @@ from sbt2.data.catalog.stored.stored_type import (
 )
 from sbt2.data.catalog.stored.trades import Trades
 
-STORED: tuple[StoredType, ...] = (Trades(), MarkPrices(), Funding(), Candles())
+STORED: tuple[StoredType, ...] = (
+    Trades(),
+    MarkPrices(),
+    OptionGreekRecords(),
+    IndexPrices(),
+    Funding(),
+    Candles(),
+)
 
 
 class UnstoredDataTypeError(LookupError):
