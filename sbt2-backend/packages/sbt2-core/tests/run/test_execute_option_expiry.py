@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 from nautilus_trader.model import InstrumentId, Money
-from option_catalog import EXPIRING_CALL, build_expiring_catalog
+from option_catalog import EXPIRING_CALL, EXPIRING_PUT, build_expiring_catalog
 
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
@@ -29,15 +29,23 @@ BASE_FEE = 0.0003
 DELIVERY_FEE = 0.00015
 BALANCE = 1.0
 IN_THE_MONEY = 62_500.0
-OUT_OF_THE_MONEY = 40_000.0
-# (62,500 - 50,000) / 62,500, which is a whole number of ticks
+LOW_DELIVERY = 40_000.0
+# (62,500 - 50,000) / 62,500 and (50,000 - 40,000) / 40,000: whole numbers of ticks
 CALL_VALUE = 0.2
+PUT_VALUE = 0.25
 
 
 @pytest.fixture(scope="module")
 def in_the_money(tmp_path_factory: pytest.TempPathFactory) -> Path:
     path = tmp_path_factory.mktemp("in_the_money")
     build_expiring_catalog(path, IN_THE_MONEY)
+    return path
+
+
+@pytest.fixture(scope="module")
+def low_delivery(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    path = tmp_path_factory.mktemp("low_delivery")
+    build_expiring_catalog(path, LOW_DELIVERY)
     return path
 
 
@@ -82,4 +90,38 @@ def test_a_long_call_held_to_expiry_settles_at_its_value(
         - float(entry["last_px"])
         + CALL_VALUE
         - DELIVERY_FEE
+    )
+
+
+@pytest.mark.integration
+def test_a_short_put_held_to_expiry_pays_its_value(
+    tmp_path: Path, low_delivery: Path
+) -> None:
+    store, run_id = run(
+        tmp_path, low_delivery, EXPIRING_PUT, "run_strategies:SellOneOption"
+    )
+
+    [entry, settlement] = store.load(run_id, "fills").to_dict("records")
+    assert settlement["order_side"] == "BUY"
+    assert float(settlement["last_px"]) == pytest.approx(PUT_VALUE)
+    equity = store.load(run_id, "equity")["total_equity"].iloc[-1]
+    assert equity == pytest.approx(
+        BALANCE - commission(entry) + float(entry["last_px"]) - PUT_VALUE - DELIVERY_FEE
+    )
+
+
+@pytest.mark.integration
+def test_a_worthless_option_expires_without_a_delivery_fee(
+    tmp_path: Path, low_delivery: Path
+) -> None:
+    store, run_id = run(
+        tmp_path, low_delivery, EXPIRING_CALL, "run_strategies:BuyOneOption"
+    )
+
+    [entry, settlement] = store.load(run_id, "fills").to_dict("records")
+    assert float(settlement["last_px"]) == 0
+    assert commission(settlement) == 0
+    equity = store.load(run_id, "equity")["total_equity"].iloc[-1]
+    assert equity == pytest.approx(
+        BALANCE - commission(entry) - float(entry["last_px"])
     )
