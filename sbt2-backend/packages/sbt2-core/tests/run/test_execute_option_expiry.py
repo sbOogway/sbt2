@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from nautilus_trader.model import InstrumentId, Money
 from option_catalog import EXPIRING_CALL, EXPIRING_PUT, build_expiring_catalog
+from run_strategies import ListenToFills, ListenToSettlement
 
 from sbt2.core.assets import NoDeliveryPriceError
 from sbt2.core.results import ParquetResultStore
@@ -137,3 +138,29 @@ def test_a_run_with_an_expiry_but_no_delivery_price_names_the_missing_day(
 
     with pytest.raises(NoDeliveryPriceError, match="2024-01-02"):
         run(tmp_path, bare, EXPIRING_CALL, "run_strategies:BuyOneOption")
+
+
+@pytest.mark.integration
+def test_a_strategy_hears_when_its_position_settles(
+    tmp_path: Path, in_the_money: Path
+) -> None:
+    ListenToSettlement.settled.clear()
+
+    run(tmp_path, in_the_money, EXPIRING_CALL, "run_strategies:ListenToSettlement")
+
+    assert ListenToSettlement.settled == [
+        (str(EXPIRING_CALL), pytest.approx(CALL_VALUE), 1.0)
+    ]
+
+
+@pytest.mark.integration
+def test_a_strategy_with_its_own_fill_handler_hears_the_settlement_too(
+    tmp_path: Path, in_the_money: Path
+) -> None:
+    ListenToFills.settled.clear()
+    ListenToFills.filled.clear()
+
+    run(tmp_path, in_the_money, EXPIRING_CALL, "run_strategies:ListenToFills")
+
+    assert len(ListenToFills.settled) == 1
+    assert ListenToFills.filled == ["BUY", "SELL"]

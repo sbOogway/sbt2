@@ -1,9 +1,15 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import override
+from typing import ClassVar, override
 
-from nautilus_trader.model import Bar, BarSpecification, OrderSide, Quantity
+from nautilus_trader.model import (
+    Bar,
+    BarSpecification,
+    OrderFilled,
+    OrderSide,
+    Quantity,
+)
 
 from sbt2.core.strategy import NoParams, Strategy
 
@@ -119,6 +125,28 @@ class SellOneOption(BuyOneOption):
     """Sells one option contract on the first bar after warm-up."""
 
     side = OrderSide.SELL
+
+
+class ListenToSettlement(BuyOneOption):
+    """Buys one option contract and notes the settlements it hears."""
+
+    settled: ClassVar[list[tuple[str, float, float]]] = []
+
+    @override
+    def on_settlement(self, fill: OrderFilled) -> None:
+        self.settled.append(
+            (str(fill.instrument_id), float(fill.last_px), float(fill.last_qty))
+        )
+
+
+class ListenToFills(ListenToSettlement):
+    """Also overrides ``on_order_filled``, without calling the base class."""
+
+    filled: ClassVar[list[str]] = []
+
+    @override
+    def on_order_filled(self, event: OrderFilled) -> None:
+        self.filled.append(str(event.order_side))
 
 
 class FailOnBar(Strategy[NoParams]):
