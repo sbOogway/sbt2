@@ -122,6 +122,9 @@ class Market:
 
     instruments: Sequence[CryptoOption] = (option(),)
     trade_execution: bool = True
+    fee_model: Any = field(
+        default_factory=lambda: FixedFeeModel(Money.from_str("0 BTC"))
+    )
 
 
 DEFAULT_MARKET = Market()
@@ -139,6 +142,7 @@ class Fill:
 class Record:
     fills: list[Fill] = field(default_factory=list)
     rejections: list[str] = field(default_factory=list)
+    commissions: list[Money | None] = field(default_factory=list)
 
 
 class TimedOrders(Strategy):
@@ -164,6 +168,7 @@ class TimedOrders(Strategy):
         hour = (event.ts_event - START) / HOUR
         fill = Fill(hour, event.order_side, event.last_px, event.last_qty)
         self.record.fills.append(fill)
+        self.record.commissions.append(event.commission)
 
     @override
     def on_order_rejected(self, event: OrderRejected) -> None:
@@ -180,7 +185,7 @@ def run_engine(
         AccountType.MARGIN,
         [Money.from_str(STARTING_BALANCE)],
         default_leverage=Decimal(1),
-        fee_model=FixedFeeModel(Money.from_str("0 BTC")),
+        fee_model=market.fee_model,
         trade_execution=market.trade_execution,
     )
     for instrument in market.instruments:
