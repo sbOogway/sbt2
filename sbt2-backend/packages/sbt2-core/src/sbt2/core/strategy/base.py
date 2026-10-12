@@ -160,6 +160,11 @@ class Strategy[P](NautilusStrategy, ABC):
     orders are cancelled, and ``on_settlement`` hears the closing fill; a
     subclass that overrides ``on_order_filled`` need not call ``super()``.
 
+    A multi-leg trade is a ``Combo``: ``open_combo`` sends its legs together and
+    ``close_combo`` closes them together. ``combos`` lists the open ones, and a
+    ``combo_exit`` rule closes them at a DTE or a target. Each order of a combo
+    carries its id in its tags, as ``COMBO:<id>``.
+
     With a drawdown limit, each bar after warm-up first checks total equity
     against its peak; once it falls the limit or more below, the strategy
     exits the market, records the bar's time in ``drawdown_tripped_at`` and
