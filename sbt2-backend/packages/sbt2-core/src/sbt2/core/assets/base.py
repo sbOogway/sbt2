@@ -261,6 +261,35 @@ class NoMargin(MarginConvention):
         return dict(venue)
 
 
+class ChainConvention(ABC):
+    """Whether an instrument names a whole chain of contracts, which the run
+    loads while it goes."""
+
+    @abstractmethod
+    def names_chain(self, instrument_id: InstrumentId) -> bool:
+        """Whether ``instrument_id`` names a chain instead of one instrument."""
+        ...
+
+    @abstractmethod
+    def complete(self, table: Mapping[str, Any]) -> dict[str, Any]:
+        """The spec's chain table with the defaults filled in; ``ValueError``
+        when it is invalid."""
+        ...
+
+
+class NoChain(ChainConvention):
+    """No instrument names a chain."""
+
+    def names_chain(self, instrument_id: InstrumentId) -> bool:
+        del instrument_id
+        return False
+
+    def complete(self, table: Mapping[str, Any]) -> dict[str, Any]:
+        if table:
+            raise ValueError("this asset class takes no chain setting")
+        return {}
+
+
 @dataclass(frozen=True)
 class AssetProfile:
     """What sbt2 needs to know about one nautilus asset class and instrument class."""
@@ -278,6 +307,7 @@ class AssetProfile:
     quotes: QuoteConvention = field(default_factory=NoQuotes)
     settlement: SettlementConvention = field(default_factory=NoSettlement)
     margin: MarginConvention = field(default_factory=NoMargin)
+    chain: ChainConvention = field(default_factory=NoChain)
 
     def covers(self, instrument: Any) -> bool:
         return (

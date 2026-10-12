@@ -43,6 +43,8 @@ class ResolvedRunSpec:
     ``risk`` holds nautilus's ``RiskEngineConfig`` arguments. With the
     strategy's drawdown limit it enters the hashed document only when set, so
     a run without either keeps its hash.
+    ``chain`` holds the bands of the chains the strategy's instruments name, and
+    enters the hashed document only when set.
     ``study``, like ``source``, is neither hashed nor compared: the same
     backtest has the same hash in or out of a study.
     """
@@ -58,6 +60,7 @@ class ResolvedRunSpec:
     start: datetime
     end: datetime
     risk: Mapping[str, Any] = field(default_factory=dict)
+    chain: Mapping[str, Any] = field(default_factory=dict)
     study: Study | None = field(default=None, compare=False)
 
     @classmethod
@@ -169,6 +172,8 @@ class ResolvedRunSpec:
         risk = self._risk_document()
         if risk:
             document["risk"] = risk
+        if self.chain:
+            document["chain"] = dict(self.chain)
         return document
 
     def _risk_document(self) -> dict[str, Any]:

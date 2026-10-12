@@ -28,6 +28,7 @@ from sbt2.core.spec import (
     EmptyListError,
     FractionSplit,
     InstrumentVenueError,
+    InvalidChainError,
     InvalidStudyNameError,
     InvalidVenueProfileError,
     MissingSplitError,
@@ -543,7 +544,8 @@ def test_unknown_spec_key_fails_listing_the_valid_ones(
     paths: tuple[Path, Path],
 ) -> None:
     with pytest.raises(
-        UnknownSpecKeyError, match=r"symbols .* valid: bars, capital, equity_interval"
+        UnknownSpecKeyError,
+        match=r"symbols .* valid: bars, capital, chain, equity_interval",
     ):
         resolved(paths, symbols=["BTCUSDT"])
 
@@ -944,3 +946,78 @@ def test_load_table_rejects_unknown_keys_and_a_missing_split(
         load_table(
             {key: value for key, value in table.items() if key != "split"}, venues
         )
+
+
+CHAIN = "BTC-OPTIONS.DERIBIT"
+
+
+def chain_overrides(**extra: Any) -> dict[str, Any]:
+    return {
+        "strategy": "spec_strategies:NoBars",
+        "params": {},
+        "venue": "test_option",
+        "instruments": [CHAIN],
+        "capital": "1 BTC",
+        **extra,
+    }
+
+
+@pytest.mark.unit
+def test_a_spec_can_name_an_option_chain(paths: tuple[Path, Path]) -> None:
+    spec = resolved(paths, **chain_overrides())
+
+    assert spec.strategy.instruments == [InstrumentId.from_str(CHAIN)]
+    assert spec.chain == {"min_dte": 0, "max_dte": 90, "strike_band": "0.5"}
+
+
+@pytest.mark.unit
+def test_a_chain_table_sets_its_dte_and_strike_bands(
+    paths: tuple[Path, Path],
+) -> None:
+    table = {"min_dte": 7, "max_dte": 30, "strike_band": 0.25}
+
+    spec = resolved(paths, **chain_overrides(chain=table))
+
+    assert spec.chain == {"min_dte": 7, "max_dte": 30, "strike_band": "0.25"}
+
+
+@pytest.mark.unit
+def test_a_chain_table_is_refused_for_a_single_contract_or_a_perpetual(
+    paths: tuple[Path, Path],
+) -> None:
+    contract = option_overrides("1-HOUR-MID")
+    with pytest.raises(InvalidChainError, match="names no chain"):
+        resolved(paths, **contract, chain={"max_dte": 30})
+    with pytest.raises(InvalidChainError, match="names no chain"):
+        resolved(paths, chain={"max_dte": 30})
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "table",
+    [
+        {"min_dte": 30, "max_dte": 7},
+        {"min_dte": -1},
+        {"strike_band": 0},
+        {"expiry": 7},
+    ],
+)
+def test_an_invalid_chain_table_is_refused(
+    paths: tuple[Path, Path], table: dict[str, Any]
+) -> None:
+    with pytest.raises(InvalidChainError, match="chain setting is invalid"):
+        resolved(paths, **chain_overrides(chain=table))
+
+
+@pytest.mark.unit
+def test_the_chain_bands_change_the_hash_and_a_chain_spec_is_rebuilt(
+    paths: tuple[Path, Path],
+) -> None:
+    wide = resolved(paths, **chain_overrides())
+    narrow = resolved(paths, **chain_overrides(chain={"max_dte": 30}))
+
+    rebuilt = ResolvedRunSpec.from_document(json.loads(narrow.to_json()))
+
+    assert wide.hash != narrow.hash
+    assert rebuilt == narrow
+    assert rebuilt.hash == narrow.hash

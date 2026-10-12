@@ -55,6 +55,7 @@ def spec_fields(
         "start": datetime.fromisoformat(document["start"]),
         "end": datetime.fromisoformat(document["end"]),
         "risk": risk.engine,
+        "chain": document.get("chain", {}),
     }
 
 
