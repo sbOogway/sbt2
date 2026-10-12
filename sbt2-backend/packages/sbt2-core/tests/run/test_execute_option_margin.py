@@ -13,7 +13,11 @@ from option_catalog import (
     build_option_catalog,
     mark_at,
 )
-from run_strategies import ReadOrderMargin, ReadPositionMargin, SellTenOptions
+from run_strategies import (
+    ReadOrderMargin,
+    ReadPositionMargin,
+    SellTenOptions,
+)
 
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
@@ -180,3 +184,15 @@ def test_nautilus_reserves_nothing_for_an_option_in_an_sbt2_run(
     account = store.load(run_id, "account")
     assert not store.load(run_id, "fills").empty
     assert {float(each) for each in account["locked"]} == {0.0}
+
+
+@pytest.mark.integration
+def test_a_list_of_orders_beyond_the_free_equity_is_refused(
+    tmp_path: Path, catalog: Path
+) -> None:
+    SellTenOptions.refused.clear()
+
+    store, run_id = run(tmp_path, catalog, "run_strategies:SellTenOptionsAsAList")
+
+    assert len(SellTenOptions.refused) == 1
+    assert store.load(run_id, "fills").empty

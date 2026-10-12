@@ -144,6 +144,14 @@ class SellTenOptions(SellOneOption):
         self.refused.append((str(order.instrument_id), reason))
 
 
+class SellTenOptionsAsAList(SellTenOptions):
+    """Sends its orders as a list."""
+
+    @override
+    def place(self, order: MarketOrder) -> None:
+        self.submit_order_list([order])
+
+
 class ReadOrderMargin(SellOneOption):
     """Notes the margin of its order, in the coin, with the time it asked."""
 

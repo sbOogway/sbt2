@@ -262,7 +262,7 @@ class Strategy[P](NautilusStrategy, ABC):
             super().submit_order(order, *args, **kwargs)
 
     def submit_order_list(self, order_list: Any, *args: Any, **kwargs: Any) -> None:
-        if self._takes_orders and self._covered(order_list.orders):
+        if self._takes_orders and self._covered(order_list):
             super().submit_order_list(order_list, *args, **kwargs)
 
     def _covered(self, orders: Sequence[Any]) -> bool:
