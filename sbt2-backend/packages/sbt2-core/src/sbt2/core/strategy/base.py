@@ -22,18 +22,22 @@ from typing import (
     get_type_hints,
 )
 
+from nautilus_trader.common import TimeEvent
 from nautilus_trader.core import dt_to_unix_nanos, unix_nanos_to_dt
 from nautilus_trader.model import (
     AggregationSource,
     Bar,
     BarSpecification,
     BarType,
+    ClientOrderId,
     InstrumentId,
+    OrderFilled,
 )
 from nautilus_trader.trading import ImportableStrategyConfig
 from nautilus_trader.trading import Strategy as NautilusStrategy
 
 from sbt2.core.strategy.drawdown import DrawdownGuard
+from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
 
 if TYPE_CHECKING:
     from sbt2.core.results import Benchmark
@@ -93,6 +97,21 @@ def _run_config(run: StrategyRun) -> RunConfig:
     )
 
 
+def _recording_failure(handler: Callable[..., Any]) -> Callable[..., Any]:
+    """Nautilus logs a handler's exception and never raises it out of the run."""
+
+    @functools.wraps(handler)
+    def recorded(self: Strategy[Any], *args: Any, **kwargs: Any) -> Any:
+        try:
+            return handler(self, *args, **kwargs)
+        except BaseException as error:
+            if self.failure is None:
+                self.failure = error
+            raise
+
+    return recorded
+
+
 class Strategy[P](NautilusStrategy, ABC):
     """A nautilus strategy that sbt2 can describe without running it.
 
@@ -105,6 +124,10 @@ class Strategy[P](NautilusStrategy, ABC):
     arrive under the types ``bar_types`` gives. Orders submitted while
     ``warming_up`` are dropped. The first exception raised by a subclass's
     ``on_*`` handler is kept in ``failure``.
+
+    A position in an option is closed at the contract's expiry, after its open
+    orders are cancelled, and ``on_settlement`` hears the closing fill; a
+    subclass that overrides ``on_order_filled`` need not call ``super()``.
 
     With a drawdown limit, each bar after warm-up first checks total equity
     against its peak; once it falls the limit or more below, the strategy
@@ -119,6 +142,8 @@ class Strategy[P](NautilusStrategy, ABC):
         super().__init_subclass__(**kwargs)
         if "on_bar" in vars(cls):
             cls.on_bar = _watching_drawdown(vars(cls)["on_bar"])
+        if "on_order_filled" in vars(cls):
+            cls.on_order_filled = _hearing_settlement(vars(cls)["on_order_filled"])
         for name, handler in list(vars(cls).items()):
             if name.startswith("on_") and callable(handler):
                 setattr(cls, name, _recording_failure(handler))
@@ -133,6 +158,7 @@ class Strategy[P](NautilusStrategy, ABC):
         self._trade_start_ns = dt_to_unix_nanos(config.trade_start)
         self._aggregated_from = config.aggregated_from
         self.drawdown_tripped_at: datetime | None = None
+        self._settling: set[ClientOrderId] = set()
         self._drawdown = (
             None
             if config.drawdown_limit is None
@@ -161,9 +187,48 @@ class Strategy[P](NautilusStrategy, ABC):
     def on_start(self) -> None:
         for bar_type in self.bar_types():
             self.subscribe_bars(self._subscribed(bar_type))
+        self._arm_settlement()
+
+    def on_settlement(self, fill: OrderFilled) -> None:
+        """A position settled at its contract's expiry; ``fill`` closed it."""
+
+    def on_order_filled(self, event: OrderFilled) -> None:
+        self._hear_settlement(event)
 
     def on_bar(self, bar: Bar) -> None:
         self._watch_drawdown(bar)
+
+    def _arm_settlement(self) -> None:
+        for instrument_id in self.instrument_ids:
+            time = settlement_time(self.cache.instrument(instrument_id))
+            if time is not None and time > self.clock.timestamp_ns():
+                self.clock.set_time_alert_ns(
+                    f"settle-{instrument_id}",
+                    time,
+                    functools.partial(self._settle, instrument_id),
+                )
+
+    @_recording_failure
+    def _settle(self, instrument_id: InstrumentId, event: TimeEvent) -> None:
+        del event
+        self.cancel_all_orders(instrument_id)
+        positions = self.cache.positions_open(
+            instrument_id=instrument_id, strategy_id=self.strategy_id
+        )
+        for position in positions:
+            order = self.order_factory.market(
+                instrument_id,
+                closing_side(position),
+                position.quantity,
+                tags=[SETTLEMENT_TAG],
+            )
+            self._settling.add(order.client_order_id)
+            super().submit_order(order, position_id=position.id)
+
+    def _hear_settlement(self, event: OrderFilled) -> None:
+        if event.client_order_id in self._settling:
+            self._settling.discard(event.client_order_id)
+            self.on_settlement(event)
 
     def _subscribed(self, bar_type: BarType) -> BarType:
         """Nautilus delivers a composite bar type's bars under its standard type."""
@@ -215,19 +280,13 @@ def _watching_drawdown(handler: Callable[..., Any]) -> Callable[..., Any]:
     return watched
 
 
-def _recording_failure(handler: Callable[..., Any]) -> Callable[..., Any]:
-    """Nautilus logs a handler's exception and never raises it out of the run."""
-
+def _hearing_settlement(handler: Callable[..., Any]) -> Callable[..., Any]:
     @functools.wraps(handler)
-    def recorded(self: Strategy[Any], *args: Any, **kwargs: Any) -> Any:
-        try:
-            return handler(self, *args, **kwargs)
-        except BaseException as error:
-            if self.failure is None:
-                self.failure = error
-            raise
+    def heard(self: Strategy[Any], event: OrderFilled) -> Any:
+        self._hear_settlement(event)
+        return handler(self, event)
 
-    return recorded
+    return heard
 
 
 class UnknownParameterError(ValueError):

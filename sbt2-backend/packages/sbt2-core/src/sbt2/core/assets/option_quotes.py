@@ -15,7 +15,7 @@ from nautilus_trader.model import (
 )
 
 _YEAR_NANOS = 365 * 86_400 * 10**9
-_QUOTE_SIZE = 1_000_000
+QUOTE_SIZE = 1_000_000
 # The solver's float noise, in ticks, must not move a rounded price.
 _NOISE_DIGITS = 2
 
@@ -172,7 +172,7 @@ def _quote(
     ts, mid = priced
     tick = float(contract.price_increment)
     bid, ask = _tick_counts(mid / tick, settings)
-    size = Quantity(_QUOTE_SIZE, contract.size_precision)
+    size = Quantity(QUOTE_SIZE, contract.size_precision)
     precision = contract.price_precision
     return QuoteTick(
         contract.id,

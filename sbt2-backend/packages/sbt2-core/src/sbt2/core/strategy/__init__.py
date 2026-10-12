@@ -11,6 +11,7 @@ from sbt2.core.strategy.base import (
     resolve_params,
     strategy_source,
 )
+from sbt2.core.strategy.expiry import SETTLEMENT_TAG
 from sbt2.core.strategy.schema import (
     ParamSpec,
     UnsupportedParameterTypeError,
@@ -18,6 +19,7 @@ from sbt2.core.strategy.schema import (
 )
 
 __all__ = [
+    "SETTLEMENT_TAG",
     "InvalidParameterError",
     "NoParams",
     "ParamSpec",

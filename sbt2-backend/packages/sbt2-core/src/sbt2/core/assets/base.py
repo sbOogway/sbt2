@@ -164,6 +164,13 @@ class SettlementConvention(ABC):
         defaults; ``ValueError`` when the settings are invalid."""
         ...
 
+    @abstractmethod
+    def fee_model(self, base: Any, venue: Mapping[str, Any], tag: str) -> Any:
+        """The venue's fee model ``base``, or none, made to charge the fee of a
+        settlement on the orders tagged ``tag``, which close the positions of
+        an expired contract."""
+        ...
+
 
 class NoSettlement(SettlementConvention):
     """The instruments never expire."""
@@ -172,6 +179,10 @@ class NoSettlement(SettlementConvention):
         if "delivery_fee" in venue:
             raise ValueError("this asset class takes no delivery_fee setting")
         return dict(venue)
+
+    def fee_model(self, base: Any, venue: Mapping[str, Any], tag: str) -> Any:
+        del venue, tag
+        return base
 
 
 @dataclass(frozen=True)

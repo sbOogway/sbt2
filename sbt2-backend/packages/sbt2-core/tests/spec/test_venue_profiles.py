@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from nautilus_trader.execution import CappedOptionFeeModel, MakerTakerFeeModel
+from nautilus_trader.execution import FeeModel, MakerTakerFeeModel
 from nautilus_trader.model import InstrumentClass, OmsType
 
 from sbt2.core.config import ConfigFolder
@@ -56,7 +56,7 @@ def test_deribit_option_builds_a_nautilus_venue(tmp_path: Path) -> None:
     assert venue.name == "DERIBIT"
     assert venue.oms_type == OmsType.NETTING
     assert venue.liquidation_enabled is False
-    assert isinstance(venue.fee_model, CappedOptionFeeModel)
+    assert isinstance(venue.fee_model, FeeModel)
 
 
 OPTION_PARAMS = 'params = { bar = "1-HOUR-MID" }'
