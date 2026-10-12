@@ -142,9 +142,9 @@ def build_expiring_catalog(path: Path, delivery: float | None) -> None:
     first, last = _nanos(0), _nanos(HOURS) - 1
     for each in contracts:
         marks = [_mark(hour, each.id) for hour in range(EXPIRY_HOUR)]
-        catalog.write_mark_price_updates(marks, first, _nanos(EXPIRY_HOUR - 1))
+        catalog.write_mark_price_updates(marks, first, last)
         greeks = [_greeks(hour, each.id) for hour in range(EXPIRY_HOUR)]
-        catalog.write_option_greeks(greeks, first, _nanos(EXPIRY_HOUR - 1))
+        catalog.write_option_greeks(greeks, first, last)
     indexes = [_index(hour) for hour in range(HOURS)]
     catalog.write_index_price_updates(indexes, first, last)
     if delivery is not None:

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
@@ -17,6 +17,8 @@ from nautilus_trader.model import (
     MarkPriceUpdate,
 )
 from nautilus_trader.portfolio import PortfolioConfig
+
+from sbt2.data import Selection
 
 
 class Calendar(Protocol):
@@ -171,6 +173,13 @@ class SettlementConvention(ABC):
         an expired contract."""
         ...
 
+    @abstractmethod
+    def delivery_selections(
+        self, instruments: Iterable[Any], window: tuple[datetime, datetime]
+    ) -> list[Selection]:
+        """The delivery data a run of ``instruments`` over ``window`` settles at."""
+        ...
+
 
 class NoSettlement(SettlementConvention):
     """The instruments never expire."""
@@ -183,6 +192,12 @@ class NoSettlement(SettlementConvention):
     def fee_model(self, base: Any, venue: Mapping[str, Any], tag: str) -> Any:
         del venue, tag
         return base
+
+    def delivery_selections(
+        self, instruments: Iterable[Any], window: tuple[datetime, datetime]
+    ) -> list[Selection]:
+        del instruments, window
+        return []
 
 
 @dataclass(frozen=True)

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from nautilus_trader.model import CryptoOption, IndexPriceUpdate, InstrumentId
@@ -18,6 +18,10 @@ def expires_within(contract: CryptoOption, span: tuple[datetime, datetime]) -> b
     return start < _expiry(contract) <= end
 
 
+def expiry_day(contract: CryptoOption) -> date:
+    return _expiry(contract).date()
+
+
 def delivery_id(contract: CryptoOption) -> InstrumentId:
     """The id of the series of delivery prices the contract settles at."""
     return InstrumentId.from_str(
@@ -29,7 +33,7 @@ def delivery_price(catalog: Catalog, contract: CryptoOption) -> Decimal:
     """The price the contract settles at: the last one of its expiry day, up to the
     expiry; ``NoDeliveryPriceError`` when the catalog has none."""
     expiry = _expiry(contract)
-    day = expiry.date()
+    day = expiry_day(contract)
     prices = catalog.frame(
         delivery_id(contract), IndexPriceUpdate, Window.of_days(day, day)
     )["price"]

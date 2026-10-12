@@ -64,6 +64,8 @@ instrument_class = "OPTION"
 fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } }
 ```
 
+An option held to its expiry settles at Deribit's delivery price, with a delivery fee of 0.015 % of the underlying capped at 12.5 % of the settlement value. Set other rates with `delivery_fee = { rate = "0.00015", cap_rate = "0.125" }` in the profile.
+
 A spec describes the backtests to run:
 
 ```toml
