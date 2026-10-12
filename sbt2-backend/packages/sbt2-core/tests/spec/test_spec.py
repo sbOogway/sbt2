@@ -967,7 +967,7 @@ def test_a_spec_can_name_an_option_chain(paths: tuple[Path, Path]) -> None:
     spec = resolved(paths, **chain_overrides())
 
     assert spec.strategy.instruments == [InstrumentId.from_str(CHAIN)]
-    assert spec.chain == {"min_dte": 0, "max_dte": 90, "strike_band": "0.5"}
+    assert spec.chain == {"min_dte": 30, "max_dte": 60, "strike_band": "0.25"}
 
 
 @pytest.mark.unit

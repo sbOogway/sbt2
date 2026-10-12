@@ -22,6 +22,11 @@ split = { validation_start = 2024-01-03, test_start = 2024-01-04 }
 part = "train"
 venue = "deribit_option"
 capital = "1 BTC"
+
+[chain]
+min_dte = 0
+max_dte = 90
+strike_band = "0.5"
 """
 VENUES = """
 [deribit_option]

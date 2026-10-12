@@ -12,11 +12,13 @@ _SUFFIX = "-OPTIONS"
 class ChainBand:
     """What bounds the contracts a chain run loads: the days to expiry from
     ``min_dte`` to ``max_dte``, and the strike within ``strike_band`` of the index,
-    as a fraction of it."""
+    as a fraction of it. The defaults are a 30 to 60 day band, ±25 %: a contract
+    inside the band on some day stays loaded until it expires, and the band drops
+    the dailies and weeklies that would not fit in memory."""
 
-    min_dte: int = 0
-    max_dte: int = 90
-    strike_band: Decimal = Decimal("0.5")
+    min_dte: int = 30
+    max_dte: int = 60
+    strike_band: Decimal = Decimal("0.25")
 
     def __post_init__(self) -> None:
         if not all(isinstance(each, int) for each in (self.min_dte, self.max_dte)):

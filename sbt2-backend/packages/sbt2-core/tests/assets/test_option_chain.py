@@ -10,7 +10,8 @@ from sbt2.core.assets import ChainJob, asset_profile
 from sbt2.data import Catalog
 
 WINDOW = (datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 1, 3, tzinfo=UTC))
-EVERYTHING = {"max_dte": 365, "strike_band": "5"}
+OLD_BAND = {"min_dte": 0, "max_dte": 90, "strike_band": "0.5"}
+EVERYTHING = {"min_dte": 0, "max_dte": 365, "strike_band": "5"}
 PROFILE = asset_profile(AssetClass.CRYPTOCURRENCY, InstrumentClass.OPTION)
 
 
@@ -66,12 +67,19 @@ def test_the_chain_loads_only_contracts_inside_the_dte_band(flat: Path) -> None:
 def test_the_chain_loads_only_contracts_inside_the_strike_band_of_the_index(
     flat: Path, rising: Path
 ) -> None:
-    wide = chosen(flat, {})
-    narrow = chosen(flat, {"strike_band": "0.05"})
-    after_the_rise = chosen(rising, {})
+    wide = chosen(flat, OLD_BAND)
+    narrow = chosen(flat, {**OLD_BAND, "strike_band": "0.05"})
+    after_the_rise = chosen(rising, OLD_BAND)
 
     assert ids("12JAN24", 90000) & wide == set()
     assert narrow == ids("2JAN24", 45000) | ids("12JAN24", 45000) | ids(
         "15FEB24", 45000
     )
     assert ids("12JAN24", 90000) <= after_the_rise
+
+
+@pytest.mark.unit
+def test_the_default_band_is_30_to_60_days_and_a_quarter_of_the_index(
+    flat: Path,
+) -> None:
+    assert chosen(flat, {}) == ids("15FEB24", 45000)
