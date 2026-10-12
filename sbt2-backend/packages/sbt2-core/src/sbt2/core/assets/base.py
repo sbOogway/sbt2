@@ -200,6 +200,25 @@ class NoSettlement(SettlementConvention):
         return []
 
 
+class MarginConvention(ABC):
+    """How the venue margins the positions of its instruments."""
+
+    @abstractmethod
+    def complete(self, venue: Mapping[str, Any]) -> dict[str, Any]:
+        """The venue arguments with the margin settings filled in with their
+        defaults; ``ValueError`` when the settings are invalid."""
+        ...
+
+
+class NoMargin(MarginConvention):
+    """Nautilus margins the positions."""
+
+    def complete(self, venue: Mapping[str, Any]) -> dict[str, Any]:
+        if "margin" in venue:
+            raise ValueError("this asset class takes no margin setting")
+        return dict(venue)
+
+
 @dataclass(frozen=True)
 class AssetProfile:
     """What sbt2 needs to know about one nautilus asset class and instrument class."""
@@ -216,6 +235,7 @@ class AssetProfile:
     equity: EquityConvention = field(default_factory=NativeEquity)
     quotes: QuoteConvention = field(default_factory=NoQuotes)
     settlement: SettlementConvention = field(default_factory=NoSettlement)
+    margin: MarginConvention = field(default_factory=NoMargin)
 
     def covers(self, instrument: Any) -> bool:
         return (

@@ -1,5 +1,7 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Any, Self
 
 from nautilus_trader.model import CryptoOption, OptionKind
 
@@ -37,6 +39,15 @@ class MarginRates:
     def __post_init__(self) -> None:
         if min(self.base_rate, self.floor_rate, self.maintenance_rate) < 0:
             raise ValueError("the rates are not negative")
+
+    @classmethod
+    def from_table(cls, table: Mapping[str, Any]) -> Self:
+        """The rates a venue profile's ``margin`` table sets, with a default for
+        each rate it leaves out; ``ValueError`` when the table is invalid."""
+        try:
+            return cls(**{name: Decimal(str(rate)) for name, rate in table.items()})
+        except (TypeError, ArithmeticError, ValueError) as error:
+            raise ValueError(f"the margin setting is invalid: {error}") from error
 
     def initial_margin(self, holding: ContractHolding, quote: OptionQuote) -> Decimal:
         per_contract = self._initial(holding.contract, holding.quantity, quote)
