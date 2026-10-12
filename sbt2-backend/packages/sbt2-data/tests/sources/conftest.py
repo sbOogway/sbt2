@@ -35,4 +35,9 @@ def deribit(tmp_path: Path) -> Source:
 def replayed_deribit() -> Iterator[tuple[Source, Replay]]:
     """Deribit, answering from recorded responses, and the requests it made."""
     with replay(DERIBIT_RECORDED) as served:
-        yield DeribitSource(frozenset(), DeribitEndpoints(api=served.url)), served
+        yield (
+            DeribitSource(
+                frozenset(), DeribitEndpoints(api=served.url, live=served.url)
+            ),
+            served,
+        )

@@ -89,3 +89,29 @@ def test_one_day_of_btc_option_marks_greeks_and_index_downloads_and_ingests(
     assert all(
         math.isfinite(each.delta) and math.isfinite(each.theta) for each in greeks
     )
+
+
+@pytest.mark.live
+@pytest.mark.e2e
+def test_one_day_of_btc_dvol_and_delivery_price_downloads_and_ingests(
+    tmp_path: Path,
+) -> None:
+    deribit = source("deribit", tmp_path / "known_gaps.toml")
+    days = DayRange(("BTC_DVOL", "BTC_USD_DELIVERY"), DAY, DAY)
+    raw, catalog = tmp_path / "raw", tmp_path / "catalog"
+
+    fetched = download(deribit, DownloadRequest(days), DownloadOptions(raw))
+    written = ingest(deribit, IngestRequest(days), IngestOptions(raw, catalog))
+
+    assert {each.outcome for each in fetched.results} == {Outcome.FETCHED}
+    assert {each.outcome for each in written.results} == {IngestOutcome.WRITTEN}
+    stored = ParquetDataCatalog(str(catalog))
+    dvol = stored.query(NautilusDataType.IndexPriceUpdate, ["BTC_DVOL.DERIBIT"])
+    (delivery,) = stored.query(
+        NautilusDataType.IndexPriceUpdate, ["BTC_USD_DELIVERY.DERIBIT"]
+    )
+    assert len(dvol) == 24
+    assert all(DAY_START <= each.ts_event < DAY_END for each in dvol)
+    assert all(10 < each.value.as_double() < 300 for each in dvol)
+    assert delivery.value.as_double() == 93539.0
+    assert delivery.ts_event == DAY_START + pd.Timedelta(hours=8).value
