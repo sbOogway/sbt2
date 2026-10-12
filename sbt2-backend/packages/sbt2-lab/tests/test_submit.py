@@ -16,6 +16,7 @@ SPEC = {
     "split": {"validation": 0.2, "test": 0.2},
     "params": {"fast": [5, 10], "threshold": "0.5"},
     "risk": {"drawdown_limit": 0.3},
+    "chain": {"min_dte": 7, "max_dte": 45, "strike_band": "0.2"},
     "seed": 42,
     "study": "cross-sweep",
 }
@@ -52,6 +53,11 @@ def test_run_submits_the_spec_and_the_strategy_module() -> None:
         "threshold": "0.5",
     }
     assert json_format.MessageToDict(spec.risk) == {"drawdown_limit": 0.3}
+    assert json_format.MessageToDict(spec.chain) == {
+        "min_dte": 7,
+        "max_dte": 45,
+        "strike_band": "0.2",
+    }
     assert (spec.seed, spec.study) == (42, "cross-sweep")
     assert not spec.HasField("bars")
     module = request.submit_run.strategy

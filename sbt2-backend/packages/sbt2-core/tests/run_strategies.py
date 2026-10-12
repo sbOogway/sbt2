@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import ClassVar, override
 
@@ -8,12 +8,13 @@ from nautilus_trader.model import (
     Bar,
     BarSpecification,
     MarketOrder,
+    OptionKind,
     OrderFilled,
     OrderSide,
     Quantity,
 )
 
-from sbt2.core.strategy import NoParams, Strategy
+from sbt2.core.strategy import ChainFilter, NoParams, Strategy
 
 HOURLY_BARS = BarSpecification.from_str("1-HOUR-LAST")
 HOURLY_MID_BARS = BarSpecification.from_str("1-HOUR-MID")
@@ -196,6 +197,108 @@ class ListenToFills(ListenToSettlement):
     @override
     def on_order_filled(self, event: OrderFilled) -> None:
         self.filled.append(str(event.order_side))
+
+
+class OnSchedule(Strategy[NoParams]):
+    """Declares no bars and ticks every hour."""
+
+    @classmethod
+    @override
+    def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
+        return ()
+
+    @classmethod
+    @override
+    def schedule(cls, params: NoParams) -> timedelta | None:
+        return timedelta(hours=1)
+
+    @override
+    def on_bar(self, bar: Bar) -> None:
+        raise AssertionError("a chain strategy without bars heard a bar")
+
+
+class ActOnSchedule(OnSchedule):
+    """Notes the time of each tick."""
+
+    ticks: ClassVar[list[datetime]] = []
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        self.ticks.append(now)
+
+
+class ListAliveContracts(OnSchedule):
+    """Notes the contracts of the chain at each tick."""
+
+    alive: ClassVar[dict[datetime, list[str]]] = {}
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        self.alive[now] = sorted(str(each.id) for each in self.chain.contracts())
+
+
+class FilterChain(OnSchedule):
+    """On its first tick, asks the chain for each filter of ``FILTERS``."""
+
+    FILTERS: ClassVar[dict[str, ChainFilter]] = {
+        "puts": ChainFilter(kind=OptionKind.PUT),
+        "far": ChainFilter(dte=(30, 60)),
+        "at the money": ChainFilter(strikes=(44000, 46000)),
+        "one expiry": ChainFilter(expiry=datetime(2024, 1, 12, 8, tzinfo=UTC)),
+        "all of them": ChainFilter(
+            kind=OptionKind.CALL, dte=(0, 5), strikes=(45000, 50000)
+        ),
+    }
+    found: ClassVar[dict[str, list[str]]] = {}
+    expiries: ClassVar[list[datetime]] = []
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        if self.found:
+            return
+        for name, where in self.FILTERS.items():
+            self.found[name] = sorted(str(c.id) for c in self.chain.contracts(where))
+        self.expiries.extend(self.chain.expiries())
+
+
+class QuoteChain(OnSchedule):
+    """Notes the quote of each contract of the chain at each tick."""
+
+    quotes: ClassVar[dict[datetime, dict[str, tuple[float, float, int]]]] = {}
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        self.quotes[now] = {
+            str(each.id): (
+                float(quote.bid_price),
+                float(quote.ask_price),
+                quote.ts_event,
+            )
+            for each in self.chain.contracts()
+            if (quote := self.chain.quote(each)) is not None
+        }
+
+
+class SellChainPut(OnSchedule):
+    """Sells one put near the money, of the nearest expiry, on its first tick
+    after warm-up."""
+
+    @override
+    def on_start(self) -> None:
+        super().on_start()
+        self.sold = False
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        if self.sold or self.warming_up:
+            return
+        [pick, *_] = self.chain.contracts(
+            ChainFilter(kind=OptionKind.PUT, strikes=(44000, 46000))
+        )
+        self.sold = True
+        self.submit_order(
+            self.order_factory.market(pick.id, OrderSide.SELL, Quantity.from_str("1.0"))
+        )
 
 
 class FailOnBar(Strategy[NoParams]):

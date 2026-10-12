@@ -30,6 +30,7 @@ class RunSpec:
     names the part of the ``period`` it gives that the run covers.
     ``risk`` holds nautilus's ``RiskEngineConfig`` arguments and the
     ``drawdown_limit`` the strategy base enforces.
+    ``chain`` sets the bands of the contracts a chain in ``instruments`` loads.
     ``study`` names the study the run belongs to, if any.
     """
 
@@ -46,6 +47,7 @@ class RunSpec:
     bars: str = "trades"
     params: Mapping[str, Any] = field(default_factory=dict)
     risk: Mapping[str, Any] = field(default_factory=dict)
+    chain: Mapping[str, Any] = field(default_factory=dict)
     study: str | None = None
 
     def __post_init__(self) -> None:

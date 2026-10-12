@@ -6,7 +6,7 @@ from typing import override
 
 from nautilus_trader.model import BarSpecification
 
-from sbt2.core.strategy import Strategy
+from sbt2.core.strategy import NoParams, Strategy
 
 
 @dataclass(frozen=True)
@@ -39,3 +39,10 @@ class DeclaredBar(Strategy[BarParams]):
     @classmethod
     def inputs(cls, params: BarParams) -> Sequence[BarSpecification]:
         return (BarSpecification.from_str(params.bar),)
+
+
+class NoBars(Strategy[NoParams]):
+    @classmethod
+    @override
+    def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
+        return ()

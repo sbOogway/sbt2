@@ -32,6 +32,10 @@ class UnsupportedBarsError(SpecError):
     pass
 
 
+class InvalidChainError(SpecError):
+    pass
+
+
 _UNFIXED = frozenset({"params", "part", "study"})
 
 
@@ -69,8 +73,23 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
         start=start,
         end=end,
         risk=risk.engine,
+        chain=_chain(asset, instruments, spec.chain),
         study=_study(spec, split),
     )
+
+
+def _chain(
+    asset: AssetProfile, instruments: Sequence[InstrumentId], table: Mapping[str, Any]
+) -> dict[str, Any]:
+    """The chain table with its defaults; none unless an instrument names a chain."""
+    if not any(asset.chain.names_chain(each) for each in instruments):
+        if table:
+            raise InvalidChainError("the spec has a chain table but names no chain")
+        return {}
+    try:
+        return asset.chain.complete(table)
+    except ValueError as error:
+        raise InvalidChainError(str(error)) from error
 
 
 def _check_bars(asset: AssetProfile, inputs: Sequence[BarSpecification]) -> None:

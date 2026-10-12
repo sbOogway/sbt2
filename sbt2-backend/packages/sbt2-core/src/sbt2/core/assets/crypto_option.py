@@ -10,6 +10,7 @@ from nautilus_trader.model import (
 
 from sbt2.core.assets.base import AssetProfile, Carry, NoBuyAndHold
 from sbt2.core.assets.calendars import AlwaysOpen
+from sbt2.core.assets.option_chain_convention import OptionChain
 from sbt2.core.assets.option_margin_convention import OptionMargin
 from sbt2.core.assets.option_quote_convention import OptionQuotes
 from sbt2.core.assets.option_settlement_convention import OptionSettlement
@@ -34,5 +35,6 @@ CRYPTO_OPTION = AssetProfile(
     margin=OptionMargin(),
     quotes=OptionQuotes(),
     settlement=OptionSettlement(),
+    chain=OptionChain(),
     buy_and_hold=NoBuyAndHold(reason="an option expires, so it cannot be held"),
 )

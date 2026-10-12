@@ -27,6 +27,10 @@ submit_run {
       fields { key: "drawdown_limit" value { string_value: "0.2" } }
     }
     study: "trend-btc"
+    chain {
+      fields { key: "min_dte" value { number_value: 7 } }
+      fields { key: "strike_band" value { string_value: "0.2" } }
+    }
   }
   strategy {
     name: "trend"

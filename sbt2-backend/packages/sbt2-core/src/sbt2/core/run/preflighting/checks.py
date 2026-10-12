@@ -49,7 +49,8 @@ def _check_liquidation(spec: ResolvedRunSpec) -> None:
 
 
 def _check_instruments(spec: ResolvedRunSpec, catalog: Catalog) -> None:
-    ids = spec.strategy.instruments
+    _check_chains(spec, catalog)
+    ids = spec.with_contracts(catalog).instrument_ids
     instruments = catalog.instruments(ids)
     absent = [str(each) for each in ids if each not in instruments]
     if absent:
@@ -61,4 +62,13 @@ def _check_instruments(spec: ResolvedRunSpec, catalog: Catalog) -> None:
                 f"{each.id} is {each.asset_class.name}/{each.instrument_class.name}, "
                 f"not the run's {profile.asset_class.name}/"
                 f"{profile.instrument_class.name}"
+            )
+
+
+def _check_chains(spec: ResolvedRunSpec, catalog: Catalog) -> None:
+    for chain in spec.chains:
+        if not spec.contracts_of(chain, catalog):
+            raise MissingDataError(
+                f"the catalog has no contract of {chain} inside its bands "
+                f"from {spec.data_window[0]} to {spec.data_window[1]}"
             )

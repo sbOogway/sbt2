@@ -132,6 +132,7 @@ def spec_message(table: Mapping[str, Any]) -> SpecFile:
         split=struct(table.get("split", {})),
         params=struct(table.get("params", {})),
         risk=struct(table.get("risk", {})),
+        chain=struct(table.get("chain", {})),
     )
     if "period" in table:
         start, end = table["period"]

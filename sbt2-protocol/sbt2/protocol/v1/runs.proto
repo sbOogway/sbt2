@@ -37,6 +37,9 @@ message SpecFile {
   // The risk table: drawdown_limit and the risk engine's limits.
   google.protobuf.Struct risk = 13;
   optional string study = 14;
+  // The chain table: min_dte, max_dte and strike_band, which bound the contracts
+  // of an option chain named in the instruments.
+  google.protobuf.Struct chain = 15;
 }
 
 // A single-module strategy, sent as source.

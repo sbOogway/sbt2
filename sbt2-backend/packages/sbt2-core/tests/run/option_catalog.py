@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -59,11 +61,22 @@ def build_option_catalog(path: Path, trade_price: str = TRADE_PRICE) -> None:
     )
 
 
+@dataclass(frozen=True)
+class Terms:
+    kind: OptionKind
+    expiry: datetime
+    strike: str
+
+
 def option(
     instrument_id: InstrumentId = OPTION_ID,
     kind: OptionKind = OptionKind.CALL,
     expiry: datetime = datetime(2024, 2, 1, tzinfo=UTC),
 ) -> CryptoOption:
+    return listed_option(instrument_id, Terms(kind, expiry, "50000"))
+
+
+def listed_option(instrument_id: InstrumentId, terms: Terms) -> CryptoOption:
     return CryptoOption(
         instrument_id,
         Symbol(instrument_id.symbol.value),
@@ -71,10 +84,10 @@ def option(
         BTC,
         BTC,
         True,
-        kind,
-        Price.from_str("50000"),
+        terms.kind,
+        Price.from_str(terms.strike),
         _nanos(0),
-        dt_to_unix_nanos(expiry),
+        dt_to_unix_nanos(terms.expiry),
         4,
         1,
         Price.from_str("0.0001"),
@@ -123,9 +136,9 @@ def _greeks(hour: int, instrument_id: InstrumentId = OPTION_ID) -> OptionGreeks:
     )
 
 
-def _index(hour: int) -> IndexPriceUpdate:
+def _index(hour: int, price: float = INDEX_PRICE) -> IndexPriceUpdate:
     ts = _nanos(hour)
-    return IndexPriceUpdate(INDEX_ID, Price(INDEX_PRICE, 2), ts, ts)
+    return IndexPriceUpdate(INDEX_ID, Price(price, 2), ts, ts)
 
 
 def build_expiring_catalog(path: Path, delivery: float | None) -> None:
@@ -151,3 +164,68 @@ def build_expiring_catalog(path: Path, delivery: float | None) -> None:
         expiry = _nanos(EXPIRY_HOUR)
         update = IndexPriceUpdate(DELIVERY_ID, Price(delivery, 2), expiry, expiry)
         catalog.write_index_price_updates([update], expiry, expiry)
+
+
+CHAIN_ID = InstrumentId.from_str("BTC-OPTIONS.DERIBIT")
+CHAIN_DELIVERY = 40_000.0
+# label: (expiry, strikes); each strike has a call and a put
+CHAIN_LISTING = {
+    "31DEC23": (datetime(2023, 12, 31, 8, tzinfo=UTC), (45000,)),
+    "2JAN24": (datetime(2024, 1, 2, 8, tzinfo=UTC), (40000, 45000, 50000)),
+    "12JAN24": (datetime(2024, 1, 12, 8, tzinfo=UTC), (45000, 90000)),
+    "15FEB24": (datetime(2024, 2, 15, 8, tzinfo=UTC), (45000,)),
+    "28JUN24": (datetime(2024, 6, 28, 8, tzinfo=UTC), (45000,)),
+}
+
+
+def chain_contract_id(label: str, strike: int, kind: str) -> InstrumentId:
+    return InstrumentId.from_str(f"BTC-{label}-{strike}-{kind}.DERIBIT")
+
+
+def build_chain_catalog(
+    path: Path,
+    index_prices: Sequence[float] | None = None,
+    delivery: float | None = CHAIN_DELIVERY,
+) -> None:
+    """Two days of the ``CHAIN_LISTING`` contracts, calls and puts: marks and IV
+    records every hour while they live, an hourly BTC index of ``index_prices``
+    (``INDEX_PRICE`` by default), and the delivery price of 2 January unless
+    ``delivery`` is ``None``."""
+    path.mkdir(parents=True, exist_ok=True)
+    catalog = ParquetDataCatalog(str(path))
+    contracts = _chain_contracts()
+    catalog.write_instruments(contracts)
+    first, last = _nanos(0), _nanos(HOURS) - 1
+    for each in contracts:
+        alive = min(HOURS, max(0, _hours_until(each)))
+        if alive:
+            catalog.write_mark_price_updates(
+                [_mark(hour, each.id) for hour in range(alive)], first, last
+            )
+            catalog.write_option_greeks(
+                [_greeks(hour, each.id) for hour in range(alive)], first, last
+            )
+    prices = index_prices or [INDEX_PRICE] * HOURS
+    catalog.write_index_price_updates(
+        [_index(hour, price) for hour, price in enumerate(prices)], first, last
+    )
+    if delivery is not None:
+        expiry = _nanos(EXPIRY_HOUR)
+        update = IndexPriceUpdate(DELIVERY_ID, Price(delivery, 2), expiry, expiry)
+        catalog.write_index_price_updates([update], expiry, expiry)
+
+
+def _chain_contracts() -> list[CryptoOption]:
+    return [
+        listed_option(
+            chain_contract_id(label, strike, suffix),
+            Terms(kind, expiry, str(strike)),
+        )
+        for label, (expiry, strikes) in CHAIN_LISTING.items()
+        for strike in strikes
+        for suffix, kind in (("C", OptionKind.CALL), ("P", OptionKind.PUT))
+    ]
+
+
+def _hours_until(contract: CryptoOption) -> int:
+    return (contract.expiration_ns - _nanos(0)) // 3_600_000_000_000

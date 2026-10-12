@@ -36,6 +36,7 @@ from nautilus_trader.model import (
 from nautilus_trader.trading import ImportableStrategyConfig
 from nautilus_trader.trading import Strategy as NautilusStrategy
 
+from sbt2.core.strategy.chain import CachedChain, Chain
 from sbt2.core.strategy.drawdown import DrawdownGuard
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
 from sbt2.core.strategy.margin import MarginDesk, MarginModel
@@ -126,6 +127,10 @@ class Strategy[P](NautilusStrategy, ABC):
     ``warming_up`` are dropped. The first exception raised by a subclass's
     ``on_*`` handler is kept in ``failure``.
 
+    A strategy that needs no bars, such as one that picks contracts of an option
+    chain, declares no ``inputs`` and acts on a ``schedule``: ``on_schedule`` is
+    called at that interval, from the start of the run.
+
     A position in an option is closed at the contract's expiry, after its open
     orders are cancelled, and ``on_settlement`` hears the closing fill; a
     subclass that overrides ``on_order_filled`` need not call ``super()``.
@@ -175,6 +180,16 @@ class Strategy[P](NautilusStrategy, ABC):
     @abstractmethod
     def inputs(cls, params: P) -> Sequence[BarSpecification]: ...
 
+    @classmethod
+    def schedule(cls, _params: P, /) -> timedelta | None:
+        """How often ``on_schedule`` is called; ``None`` for never."""
+        return None
+
+    @property
+    def chain(self) -> Chain:
+        """The option contracts the run loaded, to pick from."""
+        return CachedChain(self.cache, self.clock.timestamp_ns, self.instrument_ids)
+
     @property
     def warming_up(self) -> bool:
         return self.clock.timestamp_ns() < self._trade_start_ns
@@ -190,6 +205,7 @@ class Strategy[P](NautilusStrategy, ABC):
         for bar_type in self.bar_types():
             self.subscribe_bars(self._subscribed(bar_type))
         self._arm_settlement()
+        self._arm_schedule()
 
     def use_margin(self, model: MarginModel) -> None:
         """Margin the strategy's orders and positions with ``model``."""
@@ -218,6 +234,18 @@ class Strategy[P](NautilusStrategy, ABC):
 
     def on_bar(self, bar: Bar) -> None:
         self._watch_drawdown(bar)
+
+    def on_schedule(self, now: datetime) -> None:
+        """The strategy's ``schedule`` interval passed; ``now`` is the time of the
+        tick. Like the bars, it ticks during warm-up too."""
+
+    def _arm_schedule(self) -> None:
+        interval = self.schedule(self.params)
+        if interval is not None:
+            self.clock.set_timer("schedule", interval, callback=self._tick)
+
+    def _tick(self, event: TimeEvent) -> None:
+        self.on_schedule(unix_nanos_to_dt(event.ts_event))
 
     def _arm_settlement(self) -> None:
         for instrument_id in self.instrument_ids:
