@@ -71,6 +71,12 @@ class DeribitSource(Source):
             partial(self._api.trades, symbol, day),
         )
 
+    @override
+    def is_known_gap(self, symbol: str, data_type: type, day: date) -> bool:
+        """A day without trades is a day without any of the data types."""
+        del data_type
+        return super().is_known_gap(symbol, TradeTick, day)
+
     def instrument_snapshot(self, symbol: str, taken_on: date) -> RawFile:
         return RawFile(
             _currency_dir(symbol) / "instrument" / _json_name(symbol, taken_on),
