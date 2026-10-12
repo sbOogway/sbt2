@@ -12,6 +12,7 @@ from nautilus_trader.model import (
     Bar,
     CryptoOption,
     InstrumentId,
+    MarkPriceUpdate,
     OptionKind,
     TradeTick,
 )
@@ -55,13 +56,19 @@ def saved(raw: RawFile, root: Path) -> Path:
     return path
 
 
-def ticks_of(source: Source, root: Path) -> dict[InstrumentId, list[TradeTick]]:
+def parsed_of(
+    source: Source, data_type: type, root: Path
+) -> dict[InstrumentId, list[Any]]:
     snapshot = saved(source.instrument_snapshot("BTC", SNAPSHOT_DAY), root)
-    day = saved(source.day_file("BTC", TradeTick, DAY), root)
+    day = saved(source.day_file("BTC", data_type, DAY), root)
     instruments = source.parse_instruments(snapshot)
     ids = source.day_instrument_ids(day, instruments)
-    parsed = source.parse_day(day, TradeTick, {each: instruments[each] for each in ids})
-    return {each: list(ticks) for each, ticks in parsed.items()}
+    parsed = source.parse_day(day, data_type, {each: instruments[each] for each in ids})
+    return {each: list(records) for each, records in parsed.items()}
+
+
+def ticks_of(source: Source, root: Path) -> dict[InstrumentId, list[TradeTick]]:
+    return parsed_of(source, TradeTick, root)
 
 
 @pytest.mark.unit
@@ -94,10 +101,19 @@ def test_an_instrument_id_of_another_venue_has_no_deribit_symbol(
 
 
 @pytest.mark.unit
-def test_trades_are_the_only_data_type(deribit: Source) -> None:
-    assert deribit.data_types == (TradeTick,)
+def test_trades_marks_greeks_and_index_prices_are_the_data_types(
+    deribit: Source,
+) -> None:
+    assert deribit.data_types == (TradeTick, MarkPriceUpdate)
     with pytest.raises(UnsupportedDataTypeError):
         deribit.day_file("BTC", Bar, DAY)
+
+
+@pytest.mark.unit
+def test_every_data_type_reads_the_same_raw_day_file(deribit: Source) -> None:
+    paths = {deribit.day_file("BTC", each, DAY).path for each in deribit.data_types}
+
+    assert len(paths) == 1
 
 
 @pytest.mark.unit
@@ -288,3 +304,23 @@ def test_the_aggressor_side_is_the_direction_of_the_trade(
 
     ((_, (tick,)),) = parsed.items()
     assert tick.aggressor_side == AggressorSide.SELL
+
+
+@pytest.mark.unit
+def test_parse_gives_each_trades_mark_price_as_a_mark_price_update_of_its_contract(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+
+    marks = parsed_of(source, MarkPriceUpdate, tmp_path)
+
+    assert [str(each.value) for each in marks[PUT_88K]] == ["0.0116"] * 4
+    assert [each.ts_event for each in marks[PUT_88K]] == [
+        1_735_689_642_010 * 1_000_000
+    ] * 4
+    (lone,) = marks[CALL_135K]
+    assert lone == MarkPriceUpdate.from_dict(lone.to_dict())
+    assert lone.instrument_id == CALL_135K
+    assert str(lone.value) == "0.0038"
+    assert (lone.ts_event, lone.ts_init) == (1_735_689_600_017 * 1_000_000,) * 2
+    assert sum(len(each) for each in marks.values()) == len(BTC_TRADE_IDS)

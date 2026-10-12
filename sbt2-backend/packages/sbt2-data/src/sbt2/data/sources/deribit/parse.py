@@ -1,5 +1,5 @@
 import json
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -11,6 +11,7 @@ from nautilus_trader.model import (
     CryptoOption,
     Currency,
     InstrumentId,
+    MarkPriceUpdate,
     OptionKind,
     Price,
     Quantity,
@@ -65,15 +66,23 @@ def traded_ids(path: Path) -> tuple[InstrumentId, ...]:
     return tuple(contract_id(each) for each in sorted(names))
 
 
-def trades(
-    path: Path, instruments: Mapping[InstrumentId, Any]
-) -> dict[InstrumentId, list[TradeTick]]:
-    """The day file's trades by contract, each list in time order."""
-    ticks: dict[InstrumentId, list[TradeTick]] = {each: [] for each in instruments}
+def day_records(
+    path: Path, data_type: type, instruments: Mapping[InstrumentId, Any]
+) -> dict[InstrumentId, list[Any]]:
+    """The day file's ``data_type`` records by contract, each list in time order."""
+    return _by_contract(path, instruments, _BUILDERS[data_type])
+
+
+def _by_contract(
+    path: Path,
+    instruments: Mapping[InstrumentId, Any],
+    build: Callable[[Mapping[str, Any], CryptoOption], Any],
+) -> dict[InstrumentId, list[Any]]:
+    records: dict[InstrumentId, list[Any]] = {each: [] for each in instruments}
     for trade in json.loads(path.read_text()):
         instrument_id = contract_id(trade["instrument_name"])
-        ticks[instrument_id].append(_tick(trade, instruments[instrument_id]))
-    return ticks
+        records[instrument_id].append(build(trade, instruments[instrument_id]))
+    return records
 
 
 def _tick(trade: Mapping[str, Any], contract: CryptoOption) -> TradeTick:
@@ -87,6 +96,16 @@ def _tick(trade: Mapping[str, Any], contract: CryptoOption) -> TradeTick:
         ts,
         ts,
     )
+
+
+def _mark_price(trade: Mapping[str, Any], contract: CryptoOption) -> MarkPriceUpdate:
+    ts = int(trade["timestamp"]) * _NANOS_PER_MILLI
+    return MarkPriceUpdate(
+        contract.id, Price(trade["mark_price"], contract.price_precision), ts, ts
+    )
+
+
+_BUILDERS = {TradeTick: _tick, MarkPriceUpdate: _mark_price}
 
 
 def _contract(spec: Mapping[str, Any], ts_init: int) -> CryptoOption:

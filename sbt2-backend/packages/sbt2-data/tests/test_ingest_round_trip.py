@@ -173,7 +173,9 @@ def stored_trades(tmp_path: Path, instrument_id: str) -> list[TradeTick]:
 def test_deribit_option_trades_round_trip_through_the_catalog(
     deribit: Source, tmp_path: Path
 ) -> None:
-    assert download_and_ingest(deribit, tmp_path) == [IngestOutcome.WRITTEN]
+    assert download_and_ingest(deribit, tmp_path) == [IngestOutcome.WRITTEN] * len(
+        deribit.data_types
+    )
 
     stored = {each: stored_trades(tmp_path, each) for each in TRADED}
 
@@ -184,6 +186,24 @@ def test_deribit_option_trades_round_trip_through_the_catalog(
         "3.2",
         "338110741",
     )
+    assert first.ts_event == 1_735_689_642_010 * 1_000_000
+
+
+@pytest.mark.integration
+def test_deribit_mark_prices_round_trip_through_the_catalog(
+    deribit: Source, tmp_path: Path
+) -> None:
+    download_and_ingest(deribit, tmp_path)
+
+    catalog = ParquetDataCatalog(str(tmp_path / "catalog"))
+    stored = {
+        each: list(catalog.query(NautilusDataType.MarkPriceUpdate, [each]))
+        for each in TRADED
+    }
+
+    assert {each: len(marks) for each, marks in stored.items()} == TRADED
+    first = stored[PUT_88K][0]
+    assert str(first.value) == "0.0116"
     assert first.ts_event == 1_735_689_642_010 * 1_000_000
 
 
@@ -211,5 +231,7 @@ def test_a_rerun_skips_the_day_already_in_the_catalog(
         IngestOptions(tmp_path / "raw", tmp_path / "catalog"),
     )
 
-    assert [each.outcome for each in tally.results] == [IngestOutcome.SKIPPED]
+    assert [each.outcome for each in tally.results] == [IngestOutcome.SKIPPED] * len(
+        deribit.data_types
+    )
     assert len(stored_trades(tmp_path, PUT_88K)) == TRADED[PUT_88K]
