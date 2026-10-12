@@ -169,3 +169,14 @@ def test_a_run_records_the_maintenance_margin_beside_the_margin_used(
         assert row["maintenance_margin"] == pytest.approx(
             float(MAINTENANCE + mark_at(hour))
         )
+
+
+@pytest.mark.integration
+def test_nautilus_reserves_nothing_for_an_option_in_an_sbt2_run(
+    tmp_path: Path, catalog: Path
+) -> None:
+    store, run_id = run(tmp_path, catalog, "run_strategies:SellOneOption")
+
+    account = store.load(run_id, "account")
+    assert not store.load(run_id, "fills").empty
+    assert {float(each) for each in account["locked"]} == {0.0}
