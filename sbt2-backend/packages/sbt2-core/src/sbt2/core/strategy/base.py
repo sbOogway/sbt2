@@ -33,7 +33,9 @@ from nautilus_trader.model import (
     IndexPriceUpdate,
     InstrumentId,
     OptionGreeks,
+    OrderDenied,
     OrderFilled,
+    OrderRejected,
     OrderSide,
     Quantity,
 )
@@ -176,13 +178,9 @@ class Strategy[P](NautilusStrategy, ABC):
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        if "on_bar" in vars(cls):
-            cls.on_bar = _watching_drawdown(vars(cls)["on_bar"])
-        if "on_order_filled" in vars(cls):
-            cls.on_order_filled = _hearing_settlement(vars(cls)["on_order_filled"])
-        for name in ("on_option_greeks", "on_index_price"):
+        for name, hearing in _HEARING.items():
             if name in vars(cls):
-                setattr(cls, name, _hearing_market(vars(cls)[name]))
+                setattr(cls, name, hearing(vars(cls)[name]))
         for name, handler in list(vars(cls).items()):
             if name.startswith("on_") and callable(handler):
                 setattr(cls, name, _recording_failure(handler))
@@ -268,8 +266,8 @@ class Strategy[P](NautilusStrategy, ABC):
         combo with its id, which the order tags and the fills carry. The free
         equity must cover the margin of the whole list, else no leg is sent and
         ``on_margin_refused`` is called. ``on_combo_opened`` is called once every
-        leg is filled; a leg the venue rejects leaves the filled legs open as
-        plain positions and the combo is never reported open."""
+        leg is filled; a leg the venue refuses closes the legs that filled, at once, calls
+        ``on_combo_failed`` and the combo is never open."""
         identified = replace(combo, id=self._combos.next_id())
         orders = [self._leg_order(leg, identified.id) for leg in identified.legs]
         self._combos.opening(identified, orders)
@@ -336,6 +334,16 @@ class Strategy[P](NautilusStrategy, ABC):
 
     def on_combo_settled(self, combo: Combo) -> None:
         """``combo`` was closed at expiry, at least in part by settlement."""
+
+    def on_combo_failed(self, combo: Combo, reason: str) -> None:
+        """A leg of ``combo`` was refused while it opened; the legs that filled are
+        closed and the combo is never open."""
+
+    def on_order_denied(self, event: OrderDenied) -> None:
+        self._hear_failure(event)
+
+    def on_order_rejected(self, event: OrderRejected) -> None:
+        self._hear_failure(event)
 
     def on_order_filled(self, event: OrderFilled) -> None:
         self._hear_fill(event)
@@ -420,7 +428,26 @@ class Strategy[P](NautilusStrategy, ABC):
             self._settling.discard(event.client_order_id)
             self.on_settlement(event)
         for change, combo in self._combos.hear(event):
-            self._hook(change)(combo)
+            if change == Change.LATE_FILL:
+                self._unwind(combo)
+            else:
+                self._hook(change)(combo)
+
+    def _hear_failure(self, event: OrderDenied | OrderRejected) -> None:
+        combo = self._combos.fail(event.client_order_id)
+        if combo is not None:
+            self._unwind(combo)
+            self.on_combo_failed(combo, str(event.reason))
+
+    def _unwind(self, combo: Combo) -> None:
+        owed = self._combos.unwind(combo.id)
+        orders = [
+            self._closing_order(leg, owed[leg.contract.id], combo.id)
+            for leg in combo.legs
+            if leg.contract.id in owed
+        ]
+        if orders:
+            self.submit_order_list(orders)
 
     def _hook(self, change: Change) -> Callable[[Combo], None]:
         return {
@@ -527,6 +554,15 @@ def _opposite(side: OrderSide) -> OrderSide:
     return OrderSide.BUY if side == OrderSide.SELL else OrderSide.SELL
 
 
+def _hearing_failure(handler: Callable[..., Any]) -> Callable[..., Any]:
+    @functools.wraps(handler)
+    def heard(self: Strategy[Any], event: OrderDenied | OrderRejected) -> Any:
+        self._hear_failure(event)
+        return handler(self, event)
+
+    return heard
+
+
 def _hearing_settlement(handler: Callable[..., Any]) -> Callable[..., Any]:
     @functools.wraps(handler)
     def heard(self: Strategy[Any], event: OrderFilled) -> Any:
@@ -534,6 +570,16 @@ def _hearing_settlement(handler: Callable[..., Any]) -> Callable[..., Any]:
         return handler(self, event)
 
     return heard
+
+
+_HEARING: dict[str, Callable[[Callable[..., Any]], Callable[..., Any]]] = {
+    "on_bar": _watching_drawdown,
+    "on_order_filled": _hearing_settlement,
+    "on_order_denied": _hearing_failure,
+    "on_order_rejected": _hearing_failure,
+    "on_option_greeks": _hearing_market,
+    "on_index_price": _hearing_market,
+}
 
 
 class UnknownParameterError(ValueError):

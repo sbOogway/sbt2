@@ -21,6 +21,7 @@ class Change(Enum):
     OPENED = auto()
     CLOSED = auto()
     SETTLED = auto()
+    LATE_FILL = auto()
 
 
 class _Role(Enum):
@@ -38,6 +39,8 @@ class _Tracked:
     opened: bool = False
     closing: bool = False
     settled: bool = False
+    failed: bool = False
+    unwound: dict[InstrumentId, Decimal] = field(default_factory=dict)
 
     def fill_leg(self, fill: OrderFilled) -> bool:
         """Count an opening fill; whether the last leg is now filled."""
@@ -102,6 +105,27 @@ class ComboBook:
             for combo_id, role in self._orders.pop(order.client_order_id, []):
                 self._unsent(combo_id, role)
 
+    def fail(self, order_id: ClientOrderId) -> Combo | None:
+        """A leg order was refused: the combo it was opening, if this is the first
+        refusal."""
+        for combo_id, role in self._orders.get(order_id, []):
+            tracked = self._tracked[combo_id]
+            if role == _Role.OPEN and not tracked.opened and not tracked.failed:
+                tracked.failed = True
+                return tracked.combo
+        return None
+
+    def unwind(self, combo_id: str) -> dict[InstrumentId, Decimal]:
+        """The filled quantity of each leg of a failed combo not yet unwound; it is
+        counted as unwound."""
+        tracked = self._tracked[combo_id]
+        owed = {
+            each: filled - tracked.unwound.get(each, Decimal(0))
+            for each, filled in tracked.filled.items()
+        }
+        tracked.unwound = dict(tracked.filled)
+        return {each: quantity for each, quantity in owed.items() if quantity > 0}
+
     def opened(self) -> tuple[Combo, ...]:
         return tuple(each.combo for each in self._tracked.values() if each.opened)
 
@@ -142,6 +166,9 @@ class ComboBook:
         self, tracked: _Tracked, fill: OrderFilled, role: _Role
     ) -> Change | None:
         if role == _Role.OPEN:
+            if tracked.failed:
+                tracked.fill_leg(fill)
+                return Change.LATE_FILL
             if tracked.fill_leg(fill) and not tracked.opened:
                 tracked.open()
                 return Change.OPENED
@@ -152,7 +179,7 @@ class ComboBook:
         return Change.SETTLED if tracked.settled else Change.CLOSED
 
     def _finish(self, combo_id: str, change: Change) -> None:
-        if change == Change.OPENED:
+        if change in (Change.OPENED, Change.LATE_FILL):
             return
         del self._tracked[combo_id]
         for orders in self._orders.values():

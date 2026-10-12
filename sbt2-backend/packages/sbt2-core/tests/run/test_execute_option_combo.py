@@ -35,6 +35,7 @@ fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_ra
 """
 PUT = str(chain_contract_id("12JAN24", 40000, "P"))
 CALL = str(chain_contract_id("12JAN24", 50000, "C"))
+LIVE_PUT = str(chain_contract_id("12JAN24", 45000, "P"))
 
 
 @pytest.fixture(scope="module")
@@ -217,3 +218,27 @@ def test_a_combo_beyond_the_free_equity_is_refused_as_a_whole(
     assert store.load(run_id, "fills").empty
     assert OpenStrangle.opened == []
     assert OpenStrangle.seen[-1][1] == ()
+
+
+@pytest.mark.integration
+def test_a_combo_with_a_rejected_leg_unwinds_its_filled_legs(
+    tmp_path: Path, expiring: Path
+) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run(
+        tmp_path, expiring, "combo_strategies:OpenStrangleWithExpiredCall"
+    )
+
+    fills = store.load(run_id, "fills").to_dict("records")
+    assert [(each["instrument_id"], each["order_side"]) for each in fills] == [
+        (LIVE_PUT, "SELL"),
+        (LIVE_PUT, "BUY"),
+    ]
+    assert tags_of_fills(store, run_id) == [["COMBO:C1"]] * 2
+    [(failed, reason)] = OpenStrangle.failed
+    assert failed.id == "C1"
+    assert "CLOSED" in reason
+    assert OpenStrangle.opened == []
+    assert OpenStrangle.seen[-1][1] == ()
+    assert set(store.load(run_id, "positions")["side"]) == {"FLAT"}

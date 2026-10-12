@@ -2,13 +2,15 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import ClassVar, override
 
-from nautilus_trader.model import CryptoOption, MarketOrder, OptionKind
+from nautilus_trader.model import CryptoOption, MarketOrder, OptionKind, OrderSide
+from option_catalog import chain_contract_id
 from run_strategies import OnSchedule
 
 from sbt2.core.strategy import (
     ChainFilter,
     Combo,
     ComboExit,
+    Leg,
     NoParams,
     short_straddle,
     short_strangle,
@@ -31,6 +33,7 @@ class OpenStrangle(OnSchedule):
     percents: ClassVar[list[tuple[datetime, Decimal]]] = []
     seen: ClassVar[list[tuple[datetime, tuple[str, ...]]]] = []
     margins: ClassVar[list[tuple[Decimal, Decimal]]] = []
+    failed: ClassVar[list[tuple[Combo, str]]] = []
 
     @classmethod
     def clear(cls) -> None:
@@ -42,6 +45,7 @@ class OpenStrangle(OnSchedule):
             cls.percents,
             cls.seen,
             cls.margins,
+            cls.failed,
         ):
             each.clear()
 
@@ -85,6 +89,10 @@ class OpenStrangle(OnSchedule):
     @override
     def on_combo_settled(self, combo: Combo) -> None:
         self.settled.append(combo)
+
+    @override
+    def on_combo_failed(self, combo: Combo, reason: str) -> None:
+        self.failed.append((combo, reason))
 
     @override
     def on_margin_refused(self, order: MarketOrder, reason: str) -> None:
@@ -139,4 +147,26 @@ class HoldStraddleToExpiry(OpenStrangle):
             self.contract(OptionKind.PUT, 45000),
             self.contract(OptionKind.CALL, 45000),
             self.quantity,
+        )
+
+
+class OpenStrangleWithExpiredCall(OpenStrangle):
+    """Opens a strangle on 3 January whose call, of 2 January, has expired: the
+    venue rejects its order after the other leg filled."""
+
+    expiry = datetime(2024, 1, 12, 8, tzinfo=UTC)
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        if now >= datetime(2024, 1, 3, tzinfo=UTC):
+            super().on_schedule(now)
+
+    @override
+    def combo(self) -> Combo:
+        expired = self.cache.instrument(chain_contract_id("2JAN24", 45000, "C"))
+        assert isinstance(expired, CryptoOption)
+        legs = (self.contract(OptionKind.PUT, 45000), expired)
+        return Combo(
+            "short strangle",
+            tuple(Leg(each, OrderSide.SELL, self.quantity) for each in legs),
         )
