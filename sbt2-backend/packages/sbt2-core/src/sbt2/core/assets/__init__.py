@@ -7,6 +7,8 @@ from sbt2.core.assets.base import (
     Carry,
     NoBuyAndHoldError,
     NoTakerRateError,
+    QuoteConvention,
+    QuoteJob,
 )
 from sbt2.core.assets.crypto_option import CRYPTO_OPTION
 from sbt2.core.assets.crypto_perp import CRYPTO_PERP
@@ -20,6 +22,8 @@ __all__ = [
     "NoBuyAndHoldError",
     "NoTakerRateError",
     "OptionHistory",
+    "QuoteConvention",
+    "QuoteJob",
     "QuoteSettings",
     "UnknownAssetClassError",
     "asset_profile",

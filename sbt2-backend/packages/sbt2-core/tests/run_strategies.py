@@ -8,6 +8,7 @@ from nautilus_trader.model import Bar, BarSpecification, OrderSide, Quantity
 from sbt2.core.strategy import NoParams, Strategy
 
 HOURLY_BARS = BarSpecification.from_str("1-HOUR-LAST")
+HOURLY_MID_BARS = BarSpecification.from_str("1-HOUR-MID")
 
 
 @dataclass(frozen=True)
@@ -97,7 +98,7 @@ class BuyOneOption(Strategy[NoParams]):
     @classmethod
     @override
     def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
-        return (HOURLY_BARS,)
+        return (HOURLY_MID_BARS,)
 
     def on_start(self) -> None:
         super().on_start()

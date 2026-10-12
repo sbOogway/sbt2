@@ -1,13 +1,20 @@
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
+from pathlib import Path
 from typing import Any, Protocol
 
 import pandas as pd
+from nautilus_trader.backtest import BacktestDataConfig
 from nautilus_trader.common import Cache
-from nautilus_trader.model import AssetClass, InstrumentClass, MarkPriceUpdate
+from nautilus_trader.model import (
+    AssetClass,
+    InstrumentClass,
+    InstrumentId,
+    MarkPriceUpdate,
+)
 from nautilus_trader.portfolio import PortfolioConfig
 
 
@@ -90,6 +97,17 @@ class NativeEquity(EquityConvention):
         return pd.DataFrame(columns=CORRECTION_COLUMNS)
 
 
+@dataclass(frozen=True)
+class QuoteJob:
+    """What a run's quotes are made from: the ``catalog`` holds the data of the
+    ``instruments`` over ``window``, and ``venue`` holds the venue arguments."""
+
+    catalog: Path
+    instruments: Sequence[InstrumentId]
+    window: tuple[datetime, datetime]
+    venue: Mapping[str, Any]
+
+
 class QuoteConvention(ABC):
     """Whether the venue's quotes are made from other data at run time."""
 
@@ -97,6 +115,17 @@ class QuoteConvention(ABC):
     def complete(self, venue: Mapping[str, Any]) -> dict[str, Any]:
         """The venue arguments with the quote settings filled in with their
         defaults; ``ValueError`` when the settings are invalid."""
+        ...
+
+    @abstractmethod
+    def source_types(self, kinds: set[type]) -> set[type]:
+        """The catalog data types a run needing ``kinds`` of data reads."""
+        ...
+
+    @abstractmethod
+    def write(self, job: QuoteJob, folder: Path) -> list[BacktestDataConfig]:
+        """Make the run's quotes into a catalog in ``folder``, and return the data
+        configs that stream them; none when the catalog's own quotes are used."""
         ...
 
 
@@ -107,6 +136,13 @@ class NoQuotes(QuoteConvention):
         if "quotes" in venue:
             raise ValueError("this asset class takes no quotes setting")
         return dict(venue)
+
+    def source_types(self, kinds: set[type]) -> set[type]:
+        return kinds
+
+    def write(self, job: QuoteJob, folder: Path) -> list[BacktestDataConfig]:
+        del job, folder
+        return []
 
 
 @dataclass(frozen=True)

@@ -14,7 +14,7 @@ from nautilus_trader.backtest import (
 from nautilus_trader.model import InstrumentId, Money
 from nautilus_trader.risk import RiskEngineConfig
 
-from sbt2.core.assets import AssetProfile
+from sbt2.core.assets import AssetProfile, QuoteJob
 from sbt2.core.spec.resolve.canonical import canonical_hash, canonical_json
 from sbt2.core.spec.resolve.document import spec_fields
 from sbt2.core.spec.resolve.models import venue_objects
@@ -108,6 +108,10 @@ class ResolvedRunSpec:
         first = self._first_data
         return first["start_time"], first["end_time"]
 
+    def quote_job(self, catalog: Path) -> QuoteJob:
+        """What the quotes made at run time are made from."""
+        return QuoteJob(catalog, self.instrument_ids, self.data_window, self.venue)
+
     def split_json(self) -> str:
         """The split's canonical JSON, as it appears in the hashed document."""
         return canonical_json(self.split.document())
@@ -116,6 +120,7 @@ class ResolvedRunSpec:
         self,
         catalog_path: str,
         engine: Mapping[str, Any] | None = None,
+        quotes: Sequence[BacktestDataConfig] = (),
         **machine: Any,
     ) -> BacktestRunConfig:
         """The nautilus run config, reading data from ``catalog_path``.
@@ -123,12 +128,16 @@ class ResolvedRunSpec:
         ``engine`` and ``machine`` hold ``BacktestEngineConfig`` and
         ``BacktestRunConfig`` arguments that never change the results, such as
         ``logging`` or ``chunk_size``; like the catalog path, they are not hashed.
+        ``quotes`` stream the quotes made at run time.
         """
         return BacktestRunConfig(
             [BacktestVenueConfig(**venue_objects(self.venue))],
             [
-                BacktestDataConfig(catalog_path=catalog_path, **arguments)
-                for arguments in self.data
+                *(
+                    BacktestDataConfig(catalog_path=catalog_path, **arguments)
+                    for arguments in self.data
+                ),
+                *quotes,
             ],
             engine=BacktestEngineConfig(
                 portfolio=self.asset.portfolio_config(self.equity_interval_ms),

@@ -13,10 +13,9 @@ def data_types(
     bars: BarSource, inputs: Sequence[BarSpecification], asset: AssetProfile
 ) -> list[NautilusDataType]:
     """What the declared bars are built from, plus the asset class's own streams."""
-    kinds = bars.data_types(inputs) | {
-        *asset.carry.data_types,
-        *asset.reference_prices,
-    }
+    kinds = asset.quotes.source_types(
+        bars.data_types(inputs) | {*asset.carry.data_types, *asset.reference_prices}
+    )
     return [
         getattr(NautilusDataType, name) for name in sorted(k.__name__ for k in kinds)
     ]
