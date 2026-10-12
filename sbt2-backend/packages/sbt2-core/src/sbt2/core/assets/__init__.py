@@ -14,12 +14,14 @@ from sbt2.core.assets.crypto_option import CRYPTO_OPTION
 from sbt2.core.assets.crypto_perp import CRYPTO_PERP
 from sbt2.core.assets.option_quote_catalog import NoQuotesError
 from sbt2.core.assets.option_quotes import OptionHistory, QuoteSettings, quote_ticks
+from sbt2.core.assets.option_settlement import DeliveryFee, settlement_price
 
 __all__ = [
     "AssetProfile",
     "BuyAndHoldConvention",
     "Calendar",
     "Carry",
+    "DeliveryFee",
     "NoBuyAndHoldError",
     "NoQuotesError",
     "NoTakerRateError",
@@ -30,6 +32,7 @@ __all__ = [
     "UnknownAssetClassError",
     "asset_profile",
     "quote_ticks",
+    "settlement_price",
 ]
 
 _PROFILES = {
