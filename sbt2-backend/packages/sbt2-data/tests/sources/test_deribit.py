@@ -12,6 +12,8 @@ from nautilus_trader.model import (
     Bar,
     CryptoOption,
     GreeksConvention,
+    IndexInstrument,
+    IndexPriceUpdate,
     InstrumentId,
     MarkPriceUpdate,
     OptionGreeks,
@@ -44,6 +46,7 @@ BTC_TRADE_IDS = [
 ]
 PUT_88K = InstrumentId.from_str("BTC-10JAN25-88000-P.DERIBIT")
 CALL_135K = InstrumentId.from_str("BTC-31JAN25-135000-C.DERIBIT")
+BTC_INDEX = InstrumentId.from_str("BTC_USD.DERIBIT")
 
 
 def fetched(raw: RawFile) -> Any:
@@ -65,7 +68,7 @@ def parsed_of(
     snapshot = saved(source.instrument_snapshot("BTC", SNAPSHOT_DAY), root)
     day = saved(source.day_file("BTC", data_type, DAY), root)
     instruments = source.parse_instruments(snapshot)
-    ids = source.day_instrument_ids(day, instruments)
+    ids = source.day_instrument_ids(day, data_type, instruments)
     parsed = source.parse_day(day, data_type, {each: instruments[each] for each in ids})
     return {each: list(records) for each, records in parsed.items()}
 
@@ -107,7 +110,12 @@ def test_an_instrument_id_of_another_venue_has_no_deribit_symbol(
 def test_trades_marks_greeks_and_index_prices_are_the_data_types(
     deribit: Source,
 ) -> None:
-    assert deribit.data_types == (TradeTick, MarkPriceUpdate, OptionGreeks)
+    assert deribit.data_types == (
+        TradeTick,
+        MarkPriceUpdate,
+        OptionGreeks,
+        IndexPriceUpdate,
+    )
     with pytest.raises(UnsupportedDataTypeError):
         deribit.day_file("BTC", Bar, DAY)
 
@@ -191,8 +199,29 @@ def test_the_instrument_snapshot_lists_live_and_expired_options(
         "BTC-31JAN25-135000-C.DERIBIT",
         "BTC-31JAN25-83000-P.DERIBIT",
         "BTC-3JAN25-96000-P.DERIBIT",
+        "BTC_USD.DERIBIT",
     }
-    assert all(isinstance(instruments[each], CryptoOption) for each in instruments)
+    assert all(
+        isinstance(instruments[each], CryptoOption)
+        for each in instruments
+        if each != BTC_INDEX
+    )
+
+
+@pytest.mark.unit
+def test_the_instrument_snapshot_gives_the_currencys_usd_index(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+    snapshot = saved(source.instrument_snapshot("BTC", SNAPSHOT_DAY), tmp_path)
+
+    index = source.parse_instruments(snapshot)[BTC_INDEX]
+
+    assert isinstance(index, IndexInstrument)
+    assert str(index.quote_currency) == "USD"
+    assert index.price_precision == 2
+    assert str(index.price_increment) == "0.01"
+    assert index.ts_init == 1_791_331_200_000_000_000
 
 
 @pytest.mark.unit
@@ -240,7 +269,8 @@ def test_a_day_holds_records_of_the_contracts_traded_that_day(
     snapshot = saved(source.instrument_snapshot("BTC", SNAPSHOT_DAY), tmp_path)
     day = saved(source.day_file("BTC", TradeTick, DAY), tmp_path)
 
-    ids = source.day_instrument_ids(day, source.parse_instruments(snapshot))
+    instruments = source.parse_instruments(snapshot)
+    ids = source.day_instrument_ids(day, TradeTick, instruments)
 
     assert set(ids) == {
         PUT_88K,
@@ -254,7 +284,11 @@ def test_a_day_holds_records_of_the_contracts_traded_that_day(
 def test_a_missing_day_file_holds_no_instrument(
     deribit: Source, tmp_path: Path
 ) -> None:
-    assert deribit.day_instrument_ids(tmp_path / "nope.json", {PUT_88K: object()}) == ()
+    ids = deribit.day_instrument_ids(
+        tmp_path / "nope.json", TradeTick, {PUT_88K: object()}
+    )
+
+    assert ids == ()
 
 
 @pytest.mark.unit
@@ -301,7 +335,7 @@ def test_the_aggressor_side_is_the_direction_of_the_trade(
         TradeTick,
         {
             each: instruments[each]
-            for each in deribit.day_instrument_ids(day, instruments)
+            for each in deribit.day_instrument_ids(day, TradeTick, instruments)
         },
     )
 
@@ -398,3 +432,26 @@ def test_option_greeks_carry_the_black_scholes_greeks_of_the_trades_iv(
     assert greeks.vega == pytest.approx(expected.vega)
     assert greeks.theta == pytest.approx(expected.theta)
     assert (greeks.delta > 0) == case.is_call
+
+
+@pytest.mark.unit
+def test_parse_gives_each_trades_index_price_as_an_index_price_update_of_its_currency(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+
+    parsed = parsed_of(source, IndexPriceUpdate, tmp_path)
+
+    (prices,) = parsed.values()
+    assert list(parsed) == [BTC_INDEX]
+    assert prices[0] == IndexPriceUpdate.from_dict(prices[0].to_dict())
+    assert {each.instrument_id for each in prices} == {BTC_INDEX}
+    assert [str(each.value) for each in prices][:3] == [
+        "93369.56",
+        "93366.92",
+        "93354.26",
+    ]
+    stamps = [each.ts_event for each in prices]
+    assert stamps == sorted(stamps)
+    assert prices[0].ts_event == prices[0].ts_init == 1_735_689_600_017 * 1_000_000
+    assert len(prices) == len(BTC_TRADE_IDS)

@@ -5,7 +5,13 @@ from functools import partial
 from pathlib import Path, PurePosixPath
 from typing import Any, override
 
-from nautilus_trader.model import InstrumentId, MarkPriceUpdate, OptionGreeks, TradeTick
+from nautilus_trader.model import (
+    IndexPriceUpdate,
+    InstrumentId,
+    MarkPriceUpdate,
+    OptionGreeks,
+    TradeTick,
+)
 
 from sbt2.data.sources.base import (
     Gap,
@@ -41,7 +47,7 @@ class DeribitSource(Source):
 
     @property
     def data_types(self) -> tuple[type, ...]:
-        return (TradeTick, MarkPriceUpdate, OptionGreeks)
+        return (TradeTick, MarkPriceUpdate, OptionGreeks, IndexPriceUpdate)
 
     def instrument_id(self, symbol: str) -> InstrumentId:
         """The id of the currency's options as a whole, which known gaps name."""
@@ -82,9 +88,9 @@ class DeribitSource(Source):
 
     @override
     def day_instrument_ids(
-        self, path: Path, instruments: Mapping[InstrumentId, Any]
+        self, path: Path, data_type: type, instruments: Mapping[InstrumentId, Any]
     ) -> tuple[InstrumentId, ...]:
-        return parse.traded_ids(path)
+        return parse.traded_ids(path, data_type)
 
     @override
     def parse_day(

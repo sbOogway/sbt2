@@ -210,7 +210,7 @@ def _day_of(nanos: int) -> date:
 def _ingest_day(job: _Job, instruments: _Instruments, day: Day) -> DayResult:
     data_type = _data_type(job.source, day.data)
     raw = job.options.raw / job.source.day_file(day.symbol, data_type, day.day).path
-    ids = job.source.day_instrument_ids(raw, instruments.snapshot)
+    ids = job.source.day_instrument_ids(raw, data_type, instruments.snapshot)
     pinned = {each: instruments.pinned(each) for each in ids}
     targets = [DayFile(data_type, each, _bounds(day.day)) for each in pinned.values()]
     pending = [each for each in targets if not job.writer.has(each)]

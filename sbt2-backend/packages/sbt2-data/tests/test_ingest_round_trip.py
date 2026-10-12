@@ -134,6 +134,7 @@ def test_ingested_funding_streams_back_and_the_venue_settles_it(
 DERIBIT_DAY = date(2025, 1, 1)
 DERIBIT_SNAPSHOT_DAY = date(2026, 10, 7)
 PUT_88K = "BTC-10JAN25-88000-P.DERIBIT"
+BTC_INDEX = "BTC_USD.DERIBIT"
 TRADED = {
     "BTC-10JAN25-88000-P.DERIBIT": 4,
     "BTC-31JAN25-135000-C.DERIBIT": 1,
@@ -228,14 +229,30 @@ def test_deribit_option_greeks_round_trip_through_the_catalog(
 
 
 @pytest.mark.integration
-def test_only_the_contracts_traded_are_stored_as_instruments(
+def test_deribit_index_prices_round_trip_through_the_catalog(
+    deribit: Source, tmp_path: Path
+) -> None:
+    download_and_ingest(deribit, tmp_path)
+
+    catalog = ParquetDataCatalog(str(tmp_path / "catalog"))
+    stored = list(catalog.query(NautilusDataType.IndexPriceUpdate, [BTC_INDEX]))
+
+    assert len(stored) == sum(TRADED.values())
+    assert [str(each.value) for each in stored][:2] == ["93369.56", "93366.92"]
+    assert [each.ts_event for each in stored] == sorted(
+        each.ts_event for each in stored
+    )
+
+
+@pytest.mark.integration
+def test_only_the_contracts_traded_and_their_index_are_stored_as_instruments(
     deribit: Source, tmp_path: Path
 ) -> None:
     download_and_ingest(deribit, tmp_path)
 
     stored = ParquetDataCatalog(str(tmp_path / "catalog")).instruments()
 
-    assert {str(each.id) for each in stored} == set(TRADED)
+    assert {str(each.id) for each in stored} == {*TRADED, BTC_INDEX}
 
 
 @pytest.mark.integration
@@ -255,3 +272,26 @@ def test_a_rerun_skips_the_day_already_in_the_catalog(
         deribit.data_types
     )
     assert len(stored_trades(tmp_path, PUT_88K)) == TRADED[PUT_88K]
+
+
+@pytest.mark.integration
+def test_a_rerun_skips_the_marks_greeks_and_index_already_in_the_catalog(
+    deribit: Source, tmp_path: Path
+) -> None:
+    download_and_ingest(deribit, tmp_path)
+    days = DayRange(
+        ("BTC",),
+        DERIBIT_DAY,
+        DERIBIT_DAY,
+        ("MarkPriceUpdate", "OptionGreeks", "IndexPriceUpdate"),
+    )
+
+    tally = ingest(
+        deribit,
+        IngestRequest(days),
+        IngestOptions(tmp_path / "raw", tmp_path / "catalog"),
+    )
+
+    assert [each.outcome for each in tally.results] == [IngestOutcome.SKIPPED] * 3
+    catalog = ParquetDataCatalog(str(tmp_path / "catalog"))
+    assert len(catalog.query(NautilusDataType.IndexPriceUpdate, [BTC_INDEX])) == 8
