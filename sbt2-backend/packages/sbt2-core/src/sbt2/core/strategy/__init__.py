@@ -19,6 +19,16 @@ from sbt2.core.strategy.chain import (
     NoMarketError,
 )
 from sbt2.core.strategy.chain_records import ChainHistory, ChainRecords
+from sbt2.core.strategy.combo import (
+    Combo,
+    ComboExit,
+    Leg,
+    iron_condor,
+    short_put,
+    short_straddle,
+    short_strangle,
+    vertical_spread,
+)
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG
 from sbt2.core.strategy.greeks import Greeks
 from sbt2.core.strategy.schema import (
@@ -35,8 +45,11 @@ __all__ = [
     "ChainFilter",
     "ChainHistory",
     "ChainRecords",
+    "Combo",
+    "ComboExit",
     "Greeks",
     "InvalidParameterError",
+    "Leg",
     "NoMarketError",
     "NoParams",
     "ParamSpec",
@@ -48,7 +61,12 @@ __all__ = [
     "build_strategy",
     "import_strategy",
     "importable_config",
+    "iron_condor",
     "params_schema",
     "resolve_params",
+    "short_put",
+    "short_straddle",
+    "short_strangle",
     "strategy_source",
+    "vertical_spread",
 ]
