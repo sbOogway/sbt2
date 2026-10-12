@@ -293,6 +293,19 @@ class ChainConvention(ABC):
         inside the bands at some time."""
         ...
 
+    @abstractmethod
+    def days(self, chain: InstrumentId, window: tuple[datetime, datetime]) -> Selection:
+        """The data whose days tell which days of ``window`` the catalog holds of
+        the chain."""
+        ...
+
+    @abstractmethod
+    def references(
+        self, chain: InstrumentId, window: tuple[datetime, datetime]
+    ) -> list[Selection]:
+        """The series besides the contracts that a run of the chain reads."""
+        ...
+
 
 class NoChain(ChainConvention):
     """No instrument names a chain."""
@@ -308,6 +321,16 @@ class NoChain(ChainConvention):
 
     def contracts(self, job: ChainJob) -> list[InstrumentId]:
         del job
+        return []
+
+    def days(self, chain: InstrumentId, window: tuple[datetime, datetime]) -> Selection:
+        del window
+        raise LookupError(f"{chain} is not a chain")
+
+    def references(
+        self, chain: InstrumentId, window: tuple[datetime, datetime]
+    ) -> list[Selection]:
+        del chain, window
         return []
 
 

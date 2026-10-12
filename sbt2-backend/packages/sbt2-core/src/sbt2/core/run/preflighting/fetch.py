@@ -5,6 +5,8 @@ from datetime import date
 from operator import attrgetter
 from pathlib import Path
 
+from nautilus_trader.model import IndexPriceUpdate, InstrumentId, TradeTick
+
 from sbt2.core.run.preflighting.errors import MissingDataError
 from sbt2.core.spec import ResolvedRunSpec
 from sbt2.data import (
@@ -92,21 +94,71 @@ def _uncovered(
 ) -> _Uncovered:
     trading: set[date] = set()
     coverage: list[Coverage] = []
-    for selection in _selections(spec, catalog):
-        window = selection.window
+    for window, found in _coverages(spec, catalog, known_gaps):
         trading.update(spec.asset.calendar.trading_days(window.start, window.end))
-        coverage.extend(catalog.coverage(selection, known_gaps))
+        coverage.extend(found)
     return _Uncovered(
         missing=tuple(_gaps(coverage, frozenset(trading), attrgetter("missing"))),
         known_gaps=tuple(_gaps(coverage, frozenset(trading), attrgetter("known_gaps"))),
     )
 
 
+def _coverages(
+    spec: ResolvedRunSpec, catalog: Catalog, known_gaps: frozenset[Gap]
+) -> Iterator[tuple[Window, tuple[Coverage, ...]]]:
+    for selection in _selections(spec, catalog):
+        yield selection.window, catalog.coverage(selection, known_gaps)
+    for chain in spec.chains:
+        [index] = catalog.coverage(spec.asset.chain.days(chain, spec.data_window))
+        days = _with_known_gaps(chain, index, known_gaps)
+        yield Window(*spec.data_window), _chain_coverage(spec, days)
+
+
+def _with_known_gaps(
+    chain: InstrumentId, index: Coverage, known_gaps: frozenset[Gap]
+) -> Coverage:
+    """The index coverage as the chain's: a day without trades is a known gap of
+    the chain."""
+    known = tuple(
+        day for day in index.missing if Gap(chain, TradeTick, day) in known_gaps
+    )
+    missing = tuple(day for day in index.missing if day not in known)
+    return Coverage(chain, IndexPriceUpdate, missing, known)
+
+
+def _chain_coverage(spec: ResolvedRunSpec, days: Coverage) -> tuple[Coverage, ...]:
+    """The data of a chain that the run reads, for the days ``days`` lacks:
+    fetching a day of the underlying brings all of it."""
+    kinds = {*spec.data_types, IndexPriceUpdate}
+    return tuple(
+        Coverage(days.instrument_id, kind, days.missing, days.known_gaps)
+        for kind in sorted(kinds, key=attrgetter("__name__"))
+    )
+
+
 def _selections(spec: ResolvedRunSpec, catalog: Catalog) -> list[Selection]:
-    """The run's own data, and the delivery prices of the contracts it holds."""
-    contracts = catalog.instruments(spec.instrument_ids).values()
+    """The data of the instruments the strategy names, the delivery prices of the
+    contracts it holds, and what the chains it names read besides the contracts."""
+    loaded = spec.with_contracts(catalog)
+    contracts = catalog.instruments(loaded.instrument_ids).values()
     deliveries = spec.asset.settlement.delivery_selections(contracts, spec.data_window)
-    return [_selection(spec), *deliveries]
+    return [*_named(spec), *deliveries, *_references(spec)]
+
+
+def _named(spec: ResolvedRunSpec) -> list[Selection]:
+    """The run's own data of the instruments that are not chains."""
+    named = tuple(each for each in spec.instrument_ids if each not in spec.chains)
+    if not named:
+        return []
+    return [Selection(named, spec.data_types, Window(*spec.data_window))]
+
+
+def _references(spec: ResolvedRunSpec) -> list[Selection]:
+    return [
+        selection
+        for chain in spec.chains
+        for selection in spec.asset.chain.references(chain, spec.data_window)
+    ]
 
 
 def _gaps(
@@ -118,8 +170,3 @@ def _gaps(
         for day in days(each):
             if day in trading:
                 yield Gap(each.instrument_id, each.data_type, day)
-
-
-def _selection(spec: ResolvedRunSpec) -> Selection:
-    """The instruments, data types and window the run streams."""
-    return Selection(spec.instrument_ids, spec.data_types, Window(*spec.data_window))

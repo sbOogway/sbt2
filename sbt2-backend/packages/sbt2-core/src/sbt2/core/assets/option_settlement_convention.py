@@ -1,8 +1,8 @@
 from collections.abc import Iterable, Mapping
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, override
 
-from nautilus_trader.model import IndexPriceUpdate
+from nautilus_trader.model import IndexPriceUpdate, InstrumentId
 
 from sbt2.core.assets.base import SettlementConvention
 from sbt2.core.assets.delivery_fee_model import DeliveryFeeModel
@@ -30,12 +30,16 @@ class OptionSettlement(SettlementConvention):
     def delivery_selections(
         self, instruments: Iterable[Any], window: tuple[datetime, datetime]
     ) -> list[Selection]:
-        return [
-            Selection(
-                (delivery_id(each),),
-                (IndexPriceUpdate,),
-                Window.of_days(expiry_day(each), expiry_day(each)),
-            )
+        expiring = {
+            (delivery_id(each), expiry_day(each))
             for each in instruments
             if expires_within(each, window)
+        }
+        return [
+            Selection((series,), (IndexPriceUpdate,), Window.of_days(day, day))
+            for series, day in sorted(expiring, key=_order)
         ]
+
+
+def _order(delivery: tuple[InstrumentId, date]) -> tuple[str, date]:
+    return str(delivery[0]), delivery[1]

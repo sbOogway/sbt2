@@ -1,11 +1,13 @@
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any, override
 
-from nautilus_trader.model import InstrumentId
+from nautilus_trader.model import IndexPriceUpdate, InstrumentId
 
 from sbt2.core.assets.base import ChainConvention, ChainJob
-from sbt2.core.assets.option_chain import ChainBand, is_chain
+from sbt2.core.assets.option_chain import ChainBand, dvol_of, index_of, is_chain
 from sbt2.core.assets.option_chain_selection import select_contracts
+from sbt2.data import Selection, Window
 
 
 class OptionChain(ChainConvention):
@@ -24,3 +26,14 @@ class OptionChain(ChainConvention):
     @override
     def contracts(self, job: ChainJob) -> list[InstrumentId]:
         return select_contracts(job)
+
+    @override
+    def days(self, chain: InstrumentId, window: tuple[datetime, datetime]) -> Selection:
+        """The index: ingesting a day of the underlying brings its index prices."""
+        return Selection((index_of(chain),), (IndexPriceUpdate,), Window(*window))
+
+    @override
+    def references(
+        self, chain: InstrumentId, window: tuple[datetime, datetime]
+    ) -> list[Selection]:
+        return [Selection((dvol_of(chain),), (IndexPriceUpdate,), Window(*window))]

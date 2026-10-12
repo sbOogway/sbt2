@@ -121,7 +121,7 @@ class ResolvedRunSpec:
         """The spec with each chain its instruments name replaced by the contracts
         of ``catalog`` inside the chain's bands, in the strategy and the data."""
         named = self.instrument_ids
-        if not any(self.asset.chain.names_chain(each) for each in named):
+        if not self.chains:
             return self
         members = dict.fromkeys(
             member for each in named for member in self._members(each, catalog)
@@ -133,13 +133,24 @@ class ResolvedRunSpec:
             data=data_arguments(self._data_types, instruments, self.data_window),
         )
 
+    @property
+    def chains(self) -> tuple[InstrumentId, ...]:
+        """The chains the strategy's instruments name."""
+        return tuple(
+            each for each in self.instrument_ids if self.asset.chain.names_chain(each)
+        )
+
+    def contracts_of(self, chain: InstrumentId, catalog: Catalog) -> list[InstrumentId]:
+        """The contracts of ``chain`` that ``catalog`` holds inside its bands."""
+        job = ChainJob(catalog, chain, self.data_window, self.chain)
+        return self.asset.chain.contracts(job)
+
     def _members(
         self, instrument_id: InstrumentId, catalog: Catalog
     ) -> list[InstrumentId]:
-        if not self.asset.chain.names_chain(instrument_id):
+        if instrument_id not in self.chains:
             return [instrument_id]
-        job = ChainJob(catalog, instrument_id, self.data_window, self.chain)
-        return self.asset.chain.contracts(job)
+        return self.contracts_of(instrument_id, catalog)
 
     def quote_job(self, catalog: Path) -> QuoteJob:
         """What the quotes made at run time are made from."""
