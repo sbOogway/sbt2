@@ -11,6 +11,7 @@ from sbt2.data.sources.deribit import DeribitSource
 DELIVERY = 40_000.0
 INDEX_PRICE = 45_000.0
 DAYS = (date(2024, 1, 1), date(2024, 1, 2))
+BEFORE = date(2023, 12, 31)
 # name: (kind, expiry); each has the strike 45000
 LISTING = {
     "BTC-2JAN24-45000-C": ("call", datetime(2024, 1, 2, 8, tzinfo=UTC)),
@@ -123,3 +124,13 @@ def _delivery(day: date) -> list[dict[str, Any]] | None:
     if day != DAYS[1]:
         return None
     return [{"date": day.isoformat(), "delivery_price": DELIVERY}]
+
+
+class ChainSourceWithLookBack(ChainSource):
+    """The source that also serves the DVOL of the day before ``DAYS``."""
+
+    @override
+    def _day(self, symbol: str, day: date) -> bytes:
+        if symbol == "BTC_DVOL" and day == BEFORE:
+            return json.dumps(_dvol(day)).encode()
+        return super()._day(symbol, day)

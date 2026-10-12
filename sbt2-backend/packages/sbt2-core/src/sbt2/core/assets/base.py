@@ -272,6 +272,15 @@ class ChainJob:
     table: Mapping[str, Any]
 
 
+@dataclass(frozen=True)
+class ChainFeeds:
+    """The series a chain strategy hears besides the contracts: the ``index`` the
+    contracts are priced on and the ``volatility`` index of the underlying."""
+
+    index: InstrumentId
+    volatility: InstrumentId
+
+
 class ChainConvention(ABC):
     """Whether an instrument names a whole chain of contracts, which the run
     loads while it goes."""
@@ -306,6 +315,11 @@ class ChainConvention(ABC):
         """The series besides the contracts that a run of the chain reads."""
         ...
 
+    @abstractmethod
+    def feeds(self, chain: InstrumentId) -> ChainFeeds:
+        """The series the strategy hears of the chain."""
+        ...
+
 
 class NoChain(ChainConvention):
     """No instrument names a chain."""
@@ -332,6 +346,9 @@ class NoChain(ChainConvention):
     ) -> list[Selection]:
         del chain, window
         return []
+
+    def feeds(self, chain: InstrumentId) -> ChainFeeds:
+        raise LookupError(f"{chain} is not a chain")
 
 
 @dataclass(frozen=True)

@@ -2,10 +2,12 @@ from pathlib import Path
 
 import pytest
 from chain_source import (
+    BEFORE,
     DAYS,
     DELIVERY,
     INDEX_PRICE,
     ChainSource,
+    ChainSourceWithLookBack,
     ChainSourceWithoutTrades,
 )
 from nautilus_trader.model import IndexPriceUpdate, InstrumentId, MarkPriceUpdate
@@ -42,9 +44,11 @@ DELIVERY_ID = InstrumentId.from_str("BTC_USD_DELIVERY.DERIBIT")
 IN_BAND = InstrumentId.from_str("BTC-2JAN24-45000-C.DERIBIT")
 
 
-def spec_of(tmp_path: Path) -> ResolvedRunSpec:
+def spec_of(
+    tmp_path: Path, strategy: str = "run_strategies:ActOnSchedule"
+) -> ResolvedRunSpec:
     spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
-    spec.write_text(SPEC)
+    spec.write_text(SPEC.replace("run_strategies:ActOnSchedule", strategy))
     venues.write_text(VENUES)
     [resolved] = load(spec, venues)
     return resolved
@@ -97,3 +101,29 @@ def test_a_covered_chain_run_fetches_nothing(tmp_path: Path) -> None:
 
     assert preflight(spec_of(tmp_path), again, folders) == ()
     assert again.asked == []
+
+
+@pytest.mark.integration
+def test_preflight_fetches_the_dvol_look_back_before_the_run(tmp_path: Path) -> None:
+    folders = folders_of(tmp_path)
+    source = ChainSourceWithLookBack()
+
+    preflight(spec_of(tmp_path, "run_strategies:DayLookBack"), source, folders)
+
+    frame = Catalog(folders.catalog).frame(
+        DVOL, IndexPriceUpdate, Window.of_days(BEFORE, DAYS[-1])
+    )
+    assert len(frame) == 72
+    assert any(each.name.endswith(f"{BEFORE}.json") for each in source.asked)
+
+
+@pytest.mark.integration
+def test_a_chain_run_without_its_dvol_look_back_names_the_missing_day(
+    tmp_path: Path,
+) -> None:
+    spec = spec_of(tmp_path, "run_strategies:DayLookBack")
+
+    with pytest.raises(
+        MissingDataError, match=rf"BTC_DVOL.DERIBIT IndexPriceUpdate {BEFORE}"
+    ):
+        preflight(spec, ChainSource(), folders_of(tmp_path))

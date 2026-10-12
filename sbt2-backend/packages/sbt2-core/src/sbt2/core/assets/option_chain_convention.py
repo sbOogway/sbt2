@@ -4,7 +4,7 @@ from typing import Any, override
 
 from nautilus_trader.model import IndexPriceUpdate, InstrumentId
 
-from sbt2.core.assets.base import ChainConvention, ChainJob
+from sbt2.core.assets.base import ChainConvention, ChainFeeds, ChainJob
 from sbt2.core.assets.option_chain import ChainBand, dvol_of, index_of, is_chain
 from sbt2.core.assets.option_chain_selection import select_contracts
 from sbt2.data import Selection, Window
@@ -37,3 +37,7 @@ class OptionChain(ChainConvention):
         self, chain: InstrumentId, window: tuple[datetime, datetime]
     ) -> list[Selection]:
         return [Selection((dvol_of(chain),), (IndexPriceUpdate,), Window(*window))]
+
+    @override
+    def feeds(self, chain: InstrumentId) -> ChainFeeds:
+        return ChainFeeds(index_of(chain), dvol_of(chain))

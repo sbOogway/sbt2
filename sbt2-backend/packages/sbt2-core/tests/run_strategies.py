@@ -14,7 +14,7 @@ from nautilus_trader.model import (
     Quantity,
 )
 
-from sbt2.core.strategy import ChainFilter, NoParams, Strategy
+from sbt2.core.strategy import IV_LOOKBACK, ChainFilter, NoParams, Strategy
 
 HOURLY_BARS = BarSpecification.from_str("1-HOUR-LAST")
 HOURLY_MID_BARS = BarSpecification.from_str("1-HOUR-MID")
@@ -277,6 +277,71 @@ class QuoteChain(OnSchedule):
             for each in self.chain.contracts()
             if (quote := self.chain.quote(each)) is not None
         }
+
+
+class GreekChain(OnSchedule):
+    """Notes the IV and the delta of the 45000 call that expires on 15 February
+    at each tick."""
+
+    seen: ClassVar[dict[datetime, tuple[float, float]]] = {}
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        [call] = self.chain.contracts(
+            ChainFilter(
+                kind=OptionKind.CALL,
+                strikes=(45000, 45000),
+                expiry=datetime(2024, 2, 15, 8, tzinfo=UTC),
+            )
+        )
+        self.seen[now] = (self.chain.iv(call), self.chain.greeks(call).delta)
+
+
+class ReadIvRank(OnSchedule):
+    """Notes the IV rank and percentile at each tick, with the default look-back."""
+
+    ranks: ClassVar[dict[datetime, tuple[float, float]]] = {}
+
+    @classmethod
+    @override
+    def iv_lookback(cls, params: NoParams) -> timedelta:
+        return IV_LOOKBACK
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        self.ranks[now] = (self.chain.iv_rank(), self.chain.iv_percentile())
+
+
+class DayLookBack(ActOnSchedule):
+    """Asks for a day of DVOL before its data."""
+
+    @classmethod
+    @override
+    def iv_lookback(cls, params: NoParams) -> timedelta:
+        return timedelta(days=1)
+
+
+class SellDeltaPut(OnSchedule):
+    """Sells the 16 delta put of the expiry nearest 45 days, on its first tick."""
+
+    @override
+    def on_start(self) -> None:
+        super().on_start()
+        self.sold = False
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        expiry = self.chain.nearest_expiry(45)
+        if self.sold or expiry is None:
+            return
+        pick = self.chain.nearest_delta(expiry, -0.16)
+        if pick is not None:
+            self.sold = True
+            self.submit_order(
+                self.order_factory.market(
+                    pick.id, OrderSide.SELL, Quantity.from_str("1.0")
+                )
+            )
 
 
 class SellChainPut(OnSchedule):

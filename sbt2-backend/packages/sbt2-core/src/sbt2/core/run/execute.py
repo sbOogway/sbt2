@@ -12,8 +12,10 @@ from nautilus_trader.model import PositionAdjusted, PositionAdjustmentType, Venu
 
 from sbt2.core.assets import MarginModel
 from sbt2.core.results import OutputSink, Reports
+from sbt2.core.run.chain_history import read_history
 from sbt2.core.spec import ResolvedRunSpec, SpecError
 from sbt2.core.strategy import (
+    ChainHistory,
     Strategy,
     StrategyRun,
     build_strategy,
@@ -56,12 +58,14 @@ class _Backtest:
     config_id: str
     venue: Venue
     margin: MarginModel | None
+    history: ChainHistory | None
 
 
 @dataclass(frozen=True)
 class _Plan:
     config: BacktestRunConfig
     margin: MarginModel | None
+    history: ChainHistory | None
 
 
 def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> None:
@@ -74,7 +78,9 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
         job = loaded.quote_job(settings.catalog)
         quotes = loaded.asset.quotes.write(job, Path(folder))
         margin = loaded.asset.margin.model(job)
-        _execute(loaded, sink, _Plan(_run_config(loaded, settings, quotes), margin))
+        history = read_history(loaded, Catalog(settings.catalog))
+        config = _run_config(loaded, settings, quotes)
+        _execute(loaded, sink, _Plan(config, margin, history))
     sink.finalize()
     logger.info("run %s finished", sink.run_id)
 
@@ -93,7 +99,9 @@ def _check_chain_size(
 
 def _execute(spec: ResolvedRunSpec, sink: OutputSink, plan: _Plan) -> None:
     node = BacktestNode([plan.config])
-    backtest = _Backtest(node, plan.config.id, Venue(spec.venue_name), plan.margin)
+    backtest = _Backtest(
+        node, plan.config.id, Venue(spec.venue_name), plan.margin, plan.history
+    )
     try:
         strategy = _run(backtest, spec.strategy)
         _write_output(backtest, spec, sink)
@@ -125,6 +133,8 @@ def _run(backtest: _Backtest, run: StrategyRun) -> Strategy[Any]:
         strategy = build_strategy(run)
         if backtest.margin is not None:
             strategy.use_margin(backtest.margin)
+        if backtest.history is not None:
+            strategy.use_history(backtest.history)
         backtest.node.build()
         backtest.node.add_strategy(backtest.config_id, strategy)
         backtest.node.run()
