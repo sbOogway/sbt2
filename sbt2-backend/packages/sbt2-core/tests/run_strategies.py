@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import ClassVar, override
 
@@ -196,6 +196,30 @@ class ListenToFills(ListenToSettlement):
     @override
     def on_order_filled(self, event: OrderFilled) -> None:
         self.filled.append(str(event.order_side))
+
+
+class ActOnSchedule(Strategy[NoParams]):
+    """Declares no bars and notes the time of each tick of an hourly schedule."""
+
+    ticks: ClassVar[list[datetime]] = []
+
+    @classmethod
+    @override
+    def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
+        return ()
+
+    @classmethod
+    @override
+    def schedule(cls, params: NoParams) -> timedelta | None:
+        return timedelta(hours=1)
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        self.ticks.append(now)
+
+    @override
+    def on_bar(self, bar: Bar) -> None:
+        raise AssertionError("a chain strategy without bars heard a bar")
 
 
 class FailOnBar(Strategy[NoParams]):

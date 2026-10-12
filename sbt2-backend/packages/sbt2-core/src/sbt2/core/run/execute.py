@@ -19,6 +19,7 @@ from sbt2.core.strategy import (
     build_strategy,
     strategy_source,
 )
+from sbt2.data import Catalog
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +63,12 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
     """Run one backtest in this process and hand its output to ``sink``."""
     logger.info("run %s: %s from %s", sink.run_id, spec.strategy.strategy, spec.start)
     sink.write_strategy_source(strategy_source(spec.strategy.strategy))
+    loaded = spec.with_contracts(Catalog(settings.catalog))
     with TemporaryDirectory(prefix="sbt2-quotes-") as folder:
-        quotes = spec.asset.quotes.write(spec.quote_job(settings.catalog), Path(folder))
-        margin = spec.asset.margin.model(spec.quote_job(settings.catalog))
-        _execute(spec, sink, _Plan(_run_config(spec, settings, quotes), margin))
+        job = loaded.quote_job(settings.catalog)
+        quotes = loaded.asset.quotes.write(job, Path(folder))
+        margin = loaded.asset.margin.model(job)
+        _execute(loaded, sink, _Plan(_run_config(loaded, settings, quotes), margin))
     sink.finalize()
     logger.info("run %s finished", sink.run_id)
 

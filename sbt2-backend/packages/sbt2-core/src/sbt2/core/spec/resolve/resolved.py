@@ -1,5 +1,5 @@
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -11,15 +11,17 @@ from nautilus_trader.backtest import (
     BacktestRunConfig,
     BacktestVenueConfig,
 )
-from nautilus_trader.model import InstrumentId, Money
+from nautilus_trader.model import InstrumentId, Money, NautilusDataType
 from nautilus_trader.risk import RiskEngineConfig
 
-from sbt2.core.assets import AssetProfile, QuoteJob
+from sbt2.core.assets import AssetProfile, ChainJob, QuoteJob
 from sbt2.core.spec.resolve.canonical import canonical_hash, canonical_json
+from sbt2.core.spec.resolve.data import data_arguments
 from sbt2.core.spec.resolve.document import spec_fields
 from sbt2.core.spec.resolve.models import venue_objects
 from sbt2.core.spec.split import Splitter
 from sbt2.core.strategy import SETTLEMENT_TAG, StrategyRun
+from sbt2.data import Catalog
 
 
 @dataclass(frozen=True)
@@ -102,6 +104,10 @@ class ResolvedRunSpec:
         )
 
     @property
+    def _data_types(self) -> list[NautilusDataType]:
+        return [each["data_type"] for each in self.data]
+
+    @property
     def instrument_ids(self) -> tuple[InstrumentId, ...]:
         return tuple(self._first_data["instrument_ids"])
 
@@ -110,6 +116,30 @@ class ResolvedRunSpec:
         """The span the data is read over, the strategy's warm-up included."""
         first = self._first_data
         return first["start_time"], first["end_time"]
+
+    def with_contracts(self, catalog: Catalog) -> ResolvedRunSpec:
+        """The spec with each chain its instruments name replaced by the contracts
+        of ``catalog`` inside the chain's bands, in the strategy and the data."""
+        named = self.instrument_ids
+        if not any(self.asset.chain.names_chain(each) for each in named):
+            return self
+        members = dict.fromkeys(
+            member for each in named for member in self._members(each, catalog)
+        )
+        instruments = list(members)
+        return replace(
+            self,
+            strategy=replace(self.strategy, instruments=instruments),
+            data=data_arguments(self._data_types, instruments, self.data_window),
+        )
+
+    def _members(
+        self, instrument_id: InstrumentId, catalog: Catalog
+    ) -> list[InstrumentId]:
+        if not self.asset.chain.names_chain(instrument_id):
+            return [instrument_id]
+        job = ChainJob(catalog, instrument_id, self.data_window, self.chain)
+        return self.asset.chain.contracts(job)
 
     def quote_job(self, catalog: Path) -> QuoteJob:
         """What the quotes made at run time are made from."""
