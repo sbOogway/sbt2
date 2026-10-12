@@ -75,8 +75,12 @@ class ParquetSink:
     def run_id(self) -> str:
         return self._run.run_id
 
-    def write_equity(self, snapshots: Sequence[PortfolioSnapshot]) -> None:
-        self._write("equity", equity_table(snapshots))
+    def write_equity(
+        self,
+        snapshots: Sequence[PortfolioSnapshot],
+        corrections: pd.DataFrame | None = None,
+    ) -> None:
+        self._write("equity", equity_table(snapshots, corrections))
 
     def write_carry(self, adjustments: Sequence[PositionAdjusted]) -> None:
         self._write("carry", carry_table(adjustments))

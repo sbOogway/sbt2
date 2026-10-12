@@ -2,10 +2,12 @@ import inspect
 import types
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
+from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
 from nautilus_trader.execution import (
+    CappedOptionFeeModel,
     DefaultFillModel,
     FixedFeeModel,
     MakerTakerFeeModel,
@@ -18,6 +20,7 @@ from sbt2.core.spec.errors import SpecError
 class FeeModelKind(StrEnum):
     MAKER_TAKER = "maker_taker"
     FIXED = "fixed"
+    CAPPED_OPTION = "capped_option"
 
 
 class FillModelKind(StrEnum):
@@ -54,10 +57,20 @@ def _fixed_fee(
     return FixedFeeModel(Money.from_str(commission), charge_commission_once)
 
 
+def _capped_option_fee(
+    maker_rate: str, taker_rate: str, cap_rate: str
+) -> CappedOptionFeeModel:
+    """The nautilus model takes ``Decimal`` rates and has no named parameters."""
+    return CappedOptionFeeModel(
+        Decimal(maker_rate), Decimal(taker_rate), Decimal(cap_rate)
+    )
+
+
 _MODELS: Mapping[str, Mapping[str, Callable[..., Any]]] = {
     "fee_model": {
         FeeModelKind.MAKER_TAKER: MakerTakerFeeModel,
         FeeModelKind.FIXED: _fixed_fee,
+        FeeModelKind.CAPPED_OPTION: _capped_option_fee,
     },
     "fill_model": {FillModelKind.DEFAULT: DefaultFillModel},
     "latency_model": {},

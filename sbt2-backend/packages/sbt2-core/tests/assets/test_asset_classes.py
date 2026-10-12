@@ -6,6 +6,7 @@ from nautilus_trader.backtest import BacktestVenueConfig
 from nautilus_trader.model import (
     AccountType,
     AssetClass,
+    CryptoOption,
     CryptoPerpetual,
     Currency,
     FundingRateUpdate,
@@ -13,6 +14,7 @@ from nautilus_trader.model import (
     InstrumentId,
     MarkPriceUpdate,
     OmsType,
+    OptionKind,
     Price,
     Quantity,
     Symbol,
@@ -20,6 +22,7 @@ from nautilus_trader.model import (
 
 from sbt2.core.assets import (
     AssetProfile,
+    NoBuyAndHoldError,
     NoTakerRateError,
     UnknownAssetClassError,
     asset_profile,
@@ -30,6 +33,32 @@ HOURLY = 3_600_000
 
 def crypto_perp() -> AssetProfile:
     return asset_profile(AssetClass.CRYPTOCURRENCY, InstrumentClass.SWAP)
+
+
+def crypto_option() -> AssetProfile:
+    return asset_profile(AssetClass.CRYPTOCURRENCY, InstrumentClass.OPTION)
+
+
+def btc_option() -> CryptoOption:
+    btc = Currency.from_str("BTC")
+    return CryptoOption(
+        InstrumentId.from_str("BTC-30JAN26-100000-C.DERIBIT"),
+        Symbol("BTC-30JAN26-100000-C"),
+        btc,
+        Currency.from_str("USD"),
+        btc,
+        True,
+        OptionKind.CALL,
+        Price.from_str("100000"),
+        0,
+        1_769_760_000_000_000_000,
+        4,
+        1,
+        Price.from_str("0.0001"),
+        Quantity.from_str("0.1"),
+        0,
+        0,
+    )
 
 
 def btc_perpetual() -> CryptoPerpetual:
@@ -64,7 +93,7 @@ def test_lookup_by_nautilus_classes_returns_the_profile() -> None:
 def test_unknown_classes_list_the_known_profiles() -> None:
     with pytest.raises(
         UnknownAssetClassError,
-        match="no asset profile for EQUITY/SPOT; known: CRYPTOCURRENCY/SWAP",
+        match="no asset profile for EQUITY/SPOT; known: CRYPTOCURRENCY/OPTION, CRYPTOCURRENCY/SWAP",
     ):
         asset_profile(AssetClass.EQUITY, InstrumentClass.SPOT)
 
@@ -150,3 +179,52 @@ def test_crypto_perp_venue_defaults_build_a_netting_margin_venue_without_liquida
     assert venue.oms_type == OmsType.NETTING
     assert venue.account_type == AccountType.MARGIN
     assert venue.liquidation_enabled is False
+
+
+@pytest.mark.unit
+def test_crypto_option_covers_nautilus_crypto_options() -> None:
+    assert crypto_option().covers(btc_option())
+
+
+@pytest.mark.unit
+def test_crypto_option_does_not_cover_perpetuals() -> None:
+    assert not crypto_option().covers(btc_perpetual())
+
+
+@pytest.mark.unit
+def test_crypto_option_trades_every_day_of_the_year() -> None:
+    assert crypto_option().days_per_year == 365
+
+
+@pytest.mark.unit
+def test_crypto_option_has_no_carry() -> None:
+    assert crypto_option().carry.data_types == ()
+
+
+@pytest.mark.unit
+def test_crypto_option_values_positions_at_mark_price() -> None:
+    option = crypto_option()
+
+    assert option.reference_prices == (MarkPriceUpdate,)
+    assert option.valuation_price is MarkPriceUpdate
+
+
+@pytest.mark.unit
+def test_crypto_option_venue_defaults_build_a_netting_margin_venue_without_liquidation() -> (
+    None
+):
+    venue = BacktestVenueConfig(
+        name="DERIBIT", starting_balances=["1 BTC"], **crypto_option().venue_defaults
+    )
+
+    assert venue.oms_type == OmsType.NETTING
+    assert venue.account_type == AccountType.MARGIN
+    assert venue.liquidation_enabled is False
+
+
+@pytest.mark.unit
+def test_a_buy_and_hold_benchmark_of_an_option_is_refused() -> None:
+    fee_model = {"kind": "capped_option", "config": {"taker_rate": "0.0003"}}
+
+    with pytest.raises(NoBuyAndHoldError, match="an option expires"):
+        crypto_option().buy_and_hold.entry_fee({"fee_model": fee_model})

@@ -5,8 +5,10 @@ from sbt2.core.assets.base import (
     BuyAndHoldConvention,
     Calendar,
     Carry,
+    NoBuyAndHoldError,
     NoTakerRateError,
 )
+from sbt2.core.assets.crypto_option import CRYPTO_OPTION
 from sbt2.core.assets.crypto_perp import CRYPTO_PERP
 
 __all__ = [
@@ -14,12 +16,16 @@ __all__ = [
     "BuyAndHoldConvention",
     "Calendar",
     "Carry",
+    "NoBuyAndHoldError",
     "NoTakerRateError",
     "UnknownAssetClassError",
     "asset_profile",
 ]
 
-_PROFILES = {(each.asset_class, each.instrument_class): each for each in (CRYPTO_PERP,)}
+_PROFILES = {
+    (each.asset_class, each.instrument_class): each
+    for each in (CRYPTO_PERP, CRYPTO_OPTION)
+}
 
 
 class UnknownAssetClassError(LookupError):

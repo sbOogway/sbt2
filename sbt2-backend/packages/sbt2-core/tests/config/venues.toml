@@ -5,3 +5,11 @@ asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 # Bybit's base (non-VIP) rates for USDT perpetuals.
 fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
+
+[deribit_option]
+name = "DERIBIT"
+source = "deribit"
+asset_class = "CRYPTOCURRENCY"
+instrument_class = "OPTION"
+# Deribit's option fee: 0.03 % of the underlying, capped at 12.5 % of the price.
+fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } }

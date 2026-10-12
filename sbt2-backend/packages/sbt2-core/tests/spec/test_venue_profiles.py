@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from nautilus_trader.execution import MakerTakerFeeModel
+from nautilus_trader.execution import CappedOptionFeeModel, MakerTakerFeeModel
 from nautilus_trader.model import InstrumentClass, OmsType
 
 from sbt2.core.config import ConfigFolder
@@ -43,6 +43,24 @@ def test_bybit_linear_builds_a_nautilus_venue(tmp_path: Path) -> None:
     assert venue.oms_type == OmsType.NETTING
     assert venue.liquidation_enabled is False
     assert isinstance(venue.fee_model, MakerTakerFeeModel)
+
+
+@pytest.mark.unit
+def test_deribit_option_builds_a_nautilus_venue(tmp_path: Path) -> None:
+    spec = tmp_path / "spec.toml"
+    spec.write_text(
+        SPEC.replace("BTCUSDT-LINEAR.BYBIT", "BTC-30JAN26-100000-C.DERIBIT")
+        .replace("bybit_linear", "deribit_option")
+        .replace("10000 USDT", "1 BTC")
+    )
+
+    [resolved] = load(spec, CONFIG / "venues.toml")
+    [venue] = resolved.run_config("/catalog").venues
+
+    assert venue.name == "DERIBIT"
+    assert venue.oms_type == OmsType.NETTING
+    assert venue.liquidation_enabled is False
+    assert isinstance(venue.fee_model, CappedOptionFeeModel)
 
 
 @pytest.mark.unit

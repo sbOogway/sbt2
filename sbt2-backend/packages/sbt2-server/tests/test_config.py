@@ -131,7 +131,10 @@ def test_an_invalid_venue_profile_answers_invalid_argument_with_core_message(
     reply = put(config_routes(tmp_path), invalid)
 
     assert reply.error.code == ErrorCode.ERROR_CODE_INVALID_ARGUMENT
-    assert reply.error.message == "no fee_model kind tiered; known: fixed, maker_taker"
+    assert (
+        reply.error.message
+        == "no fee_model kind tiered; known: capped_option, fixed, maker_taker"
+    )
 
 
 @pytest.mark.unit
@@ -266,7 +269,7 @@ def test_list_model_kinds_answers_each_kind_with_its_parameters(
         kind.name: kind
         for kind in arguments[ModelArgument.MODEL_ARGUMENT_FEE_MODEL].kinds
     }
-    assert set(fees) == {"fixed", "maker_taker"}
+    assert set(fees) == {"capped_option", "fixed", "maker_taker"}
     assert list(fees["fixed"].parameters) == [
         ModelParameter(
             name="commission", type=ParameterType.PARAMETER_TYPE_STRING, required=True
