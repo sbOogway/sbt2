@@ -195,3 +195,39 @@ class OpenStrangleWithUnknownCall(OpenStrangle):
             "short strangle",
             tuple(Leg(each, OrderSide.SELL, self.quantity) for each in legs),
         )
+
+
+class TwoTrades(OpenStrangle):
+    """Opens a strangle and then a straddle, one tick apart. The strangle closes at
+    its DTE rule; the straddle closes by hand three ticks after it opened."""
+
+    @classmethod
+    @override
+    def combo_exit(cls, params: NoParams) -> ComboExit:
+        return ComboExit(dte=9.5)
+
+    @override
+    def on_start(self) -> None:
+        super().on_start()
+        self.ticks = 0
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        if self.warming_up:
+            return
+        self.ticks += 1
+        if self.ticks == 1:
+            self.open_combo(self.combo())
+        if self.ticks == 2:
+            self.open_combo(self.straddle())
+        if self.ticks == 5:
+            for combo in self.combos:
+                if combo.name == "short straddle":
+                    self.close_combo(combo)
+
+    def straddle(self) -> Combo:
+        return short_straddle(
+            self.contract(OptionKind.PUT, 45000),
+            self.contract(OptionKind.CALL, 45000),
+            self.quantity,
+        )

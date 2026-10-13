@@ -188,9 +188,12 @@ def _entries(ordered: list[_Fill]) -> list[_Fill]:
 
 
 def _position_trades(fills: list[_Fill], run: RunTables) -> list[_Trade]:
-    if run.positions.empty:
+    if "ts_closed" not in run.positions:
         return []
     closed = closed_trades(run.positions, run.currency)
+    closed = closed.loc[
+        closed.index.astype(str).isin({each.position for each in fills})
+    ]
     credit = _position_credit(fills, closed)
     rows = zip(
         closed.index.astype(str),

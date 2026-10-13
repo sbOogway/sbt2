@@ -154,6 +154,7 @@ def test_a_run_writes_its_tables_spec_and_summary_into_its_folder(
         "positions.parquet",
         "spec.json",
         "summary.parquet",
+        "trades.parquet",
     ]
     assert (tmp_path / "runs" / run_id / "spec.json").read_text() == spec().to_json()
 

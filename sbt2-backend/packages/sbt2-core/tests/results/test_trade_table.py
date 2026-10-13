@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 import pandas as pd
@@ -206,3 +207,21 @@ def test_a_run_without_fills_has_an_empty_trade_table_with_its_columns() -> None
 
     assert trades.empty
     assert "pl_usd" in trades.columns
+
+
+@pytest.mark.unit
+def test_the_positions_of_combo_fills_are_not_trades_of_their_own() -> None:
+    positions = pd.DataFrame(
+        {
+            "instrument_id": [PUT],
+            "entry": ["SELL"],
+            "ts_opened": [START],
+            "ts_closed": [START + timedelta(days=1)],
+            "duration_ns": [86_400 * 10**9],
+            "realized_pnl": ["0.03000000 BTC"],
+        },
+        index=pd.Index(["P1"], name="position_id"),
+    )
+    run = replace(strangle(START, START + timedelta(days=1)), positions=positions)
+
+    assert list(trade_table(run)["trade_id"]) == ["C1"]
