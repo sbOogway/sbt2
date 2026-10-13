@@ -1,10 +1,11 @@
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
+import pandas as pd
 from nautilus_trader.analysis import ReportProvider
 from nautilus_trader.backtest import BacktestDataConfig, BacktestNode, BacktestRunConfig
 from nautilus_trader.common import Cache, LoggerConfig, LogLevel
@@ -13,6 +14,7 @@ from nautilus_trader.model import PositionAdjusted, PositionAdjustmentType, Venu
 from sbt2.core.assets import MarginModel
 from sbt2.core.results import OutputSink, Reports
 from sbt2.core.run.chain_history import read_history
+from sbt2.core.run.index_prices import read_index_prices
 from sbt2.core.spec import ResolvedRunSpec, SpecError
 from sbt2.core.strategy import (
     ChainHistory,
@@ -59,6 +61,7 @@ class _Backtest:
     venue: Venue
     margin: MarginModel | None
     history: ChainHistory | None
+    catalog: Catalog
 
 
 @dataclass(frozen=True)
@@ -66,6 +69,7 @@ class _Plan:
     config: BacktestRunConfig
     margin: MarginModel | None
     history: ChainHistory | None
+    catalog: Catalog
 
 
 def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> None:
@@ -78,9 +82,10 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
         job = loaded.quote_job(settings.catalog)
         quotes = loaded.asset.quotes.write(job, Path(folder))
         margin = loaded.asset.margin.model(job)
-        history = read_history(loaded, Catalog(settings.catalog))
+        catalog = Catalog(settings.catalog)
+        history = read_history(loaded, catalog)
         config = _run_config(loaded, settings, quotes)
-        _execute(loaded, sink, _Plan(config, margin, history))
+        _execute(loaded, sink, _Plan(config, margin, history, catalog))
     sink.finalize()
     logger.info("run %s finished", sink.run_id)
 
@@ -100,7 +105,12 @@ def _check_chain_size(
 def _execute(spec: ResolvedRunSpec, sink: OutputSink, plan: _Plan) -> None:
     node = BacktestNode([plan.config])
     backtest = _Backtest(
-        node, plan.config.id, Venue(spec.venue_name), plan.margin, plan.history
+        node,
+        plan.config.id,
+        Venue(spec.venue_name),
+        plan.margin,
+        plan.history,
+        plan.catalog,
     )
     try:
         strategy = _run(backtest, spec.strategy)
@@ -156,7 +166,8 @@ def _write_output(backtest: _Backtest, spec: ResolvedRunSpec, sink: OutputSink) 
     )
     _write_margin(backtest, spec, sink)
     sink.write_carry(_funding(cache))
-    sink.write_reports(_reports(cache, account))
+    prices = read_index_prices(spec, cache.instruments(), backtest.catalog)
+    sink.write_reports(_reports(cache, account, prices))
 
 
 def _account(cache: Cache, venue: Venue) -> Any:
@@ -181,7 +192,9 @@ def _write_drawdown_trip(strategy: Strategy[Any], sink: OutputSink) -> None:
         sink.write_drawdown_trip(strategy.drawdown_tripped_at)
 
 
-def _reports(cache: Cache, account: Any) -> Reports:
+def _reports(
+    cache: Cache, account: Any, index_prices: Mapping[str, pd.Series]
+) -> Reports:
     return Reports(
         fills=ReportProvider.generate_fills_report(cache.orders()),
         positions=ReportProvider.generate_positions_report(
@@ -189,6 +202,7 @@ def _reports(cache: Cache, account: Any) -> Reports:
         ),
         account=ReportProvider.generate_account_report(account),
         orders=ReportProvider.generate_orders_report(cache.orders()),
+        index_prices=index_prices,
     )
 
 

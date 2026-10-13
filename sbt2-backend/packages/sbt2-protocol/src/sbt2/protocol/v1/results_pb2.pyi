@@ -52,12 +52,24 @@ class _SeriesKindEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_SeriesKind
     SERIES_KIND_UNSPECIFIED: _SeriesKind.ValueType  # 0
     SERIES_KIND_EQUITY: _SeriesKind.ValueType  # 1
     SERIES_KIND_FILLS: _SeriesKind.ValueType  # 2
+    SERIES_KIND_TRADES: _SeriesKind.ValueType  # 3
+    """One row per closed trade: a combo, or a position when a run has no combos."""
+    SERIES_KIND_TRADE_STATISTICS: _SeriesKind.ValueType  # 4
+    """The statistics over the trades and the margin, with the columns name and
+    value (float64, NaN when undefined).
+    """
 
 class SeriesKind(_SeriesKind, metaclass=_SeriesKindEnumTypeWrapper): ...
 
 SERIES_KIND_UNSPECIFIED: SeriesKind.ValueType  # 0
 SERIES_KIND_EQUITY: SeriesKind.ValueType  # 1
 SERIES_KIND_FILLS: SeriesKind.ValueType  # 2
+SERIES_KIND_TRADES: SeriesKind.ValueType  # 3
+"""One row per closed trade: a combo, or a position when a run has no combos."""
+SERIES_KIND_TRADE_STATISTICS: SeriesKind.ValueType  # 4
+"""The statistics over the trades and the margin, with the columns name and
+value (float64, NaN when undefined).
+"""
 Global___SeriesKind: _TypeAlias = SeriesKind  # noqa: Y015
 
 class _BenchmarkKind:

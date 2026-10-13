@@ -14,6 +14,7 @@ from sbt2.core.results.metrics import (
     RunTables,
     Segment,
     headline_metrics,
+    trade_table,
 )
 from sbt2.core.results.store.parquet.tables import (
     carry_table,
@@ -95,6 +96,7 @@ class ParquetSink:
         self._write("account", reports.account)
         if reports.orders is not None:
             self._write("orders", reports.orders)
+        self._write("trades", self._trades(reports))
 
     def write_strategy_source(self, source: str) -> None:
         (self._folder / STRATEGY_SOURCE).write_text(source)
@@ -111,6 +113,18 @@ class ParquetSink:
     def _write(self, name: str, frame: pd.DataFrame) -> None:
         write_table(frame, self._folder / f"{name}.parquet")
         self._tables[name] = frame
+
+    def _trades(self, reports: Reports) -> pd.DataFrame:
+        orders = pd.DataFrame() if reports.orders is None else reports.orders
+        reported = RunTables(
+            equity=pd.DataFrame(),
+            fills=reports.fills,
+            carry=pd.DataFrame(),
+            currency=self._run.spec.currency,
+            positions=reports.positions,
+            orders=orders,
+        )
+        return trade_table(reported, reports.index_prices)
 
     def _run_tables(self) -> RunTables:
         missing = [

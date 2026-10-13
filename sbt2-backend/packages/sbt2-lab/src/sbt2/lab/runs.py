@@ -77,6 +77,19 @@ class Run:
         """The fills report, as the server encoded it."""
         return await self._series(SeriesKind.SERIES_KIND_FILLS)
 
+    async def trades(self) -> pd.DataFrame:
+        """The closed trades, one per row: a combo, or a position when the run has
+        no combos, with its P/L in the coin and in USD at the index at its close."""
+        return await self._series(SeriesKind.SERIES_KIND_TRADES)
+
+    async def trade_statistics(self) -> pd.Series:
+        """The statistics over the trades, such as ``POP`` and ``CVaR 5%``, and the
+        average and peak buying power reduction, by name; NaN is undefined."""
+        frame = await self._series(SeriesKind.SERIES_KIND_TRADE_STATISTICS)
+        return pd.Series(
+            frame["value"].to_numpy(), index=frame["name"].to_numpy(), name="value"
+        )
+
     async def panel(self, kind: str) -> pd.Series:
         """A panel of the tearsheet by its kind, such as ``"drawdown"``, as
         fractions indexed by time; it compares against the default benchmark."""

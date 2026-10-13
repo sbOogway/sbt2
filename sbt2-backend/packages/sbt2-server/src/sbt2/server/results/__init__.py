@@ -29,6 +29,7 @@ from sbt2.server.results.encoding import (
     metrics,
     run_filter,
     summary,
+    trade_statistics,
     write_arrow,
 )
 from sbt2.server.results.panels import Panels
@@ -99,8 +100,9 @@ class _Results:
         return records(template, "entries", metrics(measured))
 
     async def get_series(self, request: ClientMessage, outbox: Outbox) -> ServerMessage:
-        """Equity has the columns ts_event, currency and total_equity; fills are
-        the stored rows, indexed by client_order_id."""
+        """Equity has the columns ts_event, currency and total_equity; fills and
+        trades are the stored rows, fills indexed by client_order_id; the trade
+        statistics have the columns name and value."""
         with tempfile.TemporaryFile() as staged:
             await offloaded(self._stage_series)(request.get_series, staged)
             template = ServerMessage(request_id=request.request_id, series=Series())
@@ -121,6 +123,13 @@ class _Results:
                 return equity(curve, run.tables.currency)
             case SeriesKind.SERIES_KIND_FILLS:
                 return self.store.load(selected.run_id, "fills")
+            case SeriesKind.SERIES_KIND_TRADES:
+                return self.store.load(selected.run_id, "trades")
+            case SeriesKind.SERIES_KIND_TRADE_STATISTICS:
+                tables = self.store.stored_run(selected.run_id).tables
+                return trade_statistics(
+                    core.trade_statistics(tables.trades, tables.margin, tables.currency)
+                )
             case _:
                 raise InvalidArgumentError
 

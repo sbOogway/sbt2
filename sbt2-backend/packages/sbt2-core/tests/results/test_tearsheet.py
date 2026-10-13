@@ -299,3 +299,26 @@ def test_the_instrument_breakdown_has_a_row_per_traded_instrument(
         assert row["Trades"] == "2"
         assert float(row["Win Rate"]) == pytest.approx(win_rate)
     assert float(rows[str(BTC)]["Carry"]) == pytest.approx(-5.0)
+
+
+@pytest.mark.unit
+def test_the_tearsheet_of_a_run_with_trades_has_a_trade_pl_panel(
+    prices: PriceCatalog, tmp_path: Path
+) -> None:
+    run = btc_round_trip(prices)
+    trades = pd.DataFrame({"pl": [0.1, -0.05, 0.2]})
+    run = replace(run, tables=replace(run.tables, trades=trades))
+
+    figure = drawn(run, tmp_path)
+
+    assert list(figure.trace("Trade P/L")["x"]) == pytest.approx([0.1, -0.05, 0.2])
+    assert "Trade P/L" in figure.titles
+
+
+@pytest.mark.unit
+def test_the_tearsheet_of_a_run_without_trades_has_no_trade_pl_panel(
+    prices: PriceCatalog, tmp_path: Path
+) -> None:
+    figure = drawn(btc_round_trip(prices), tmp_path)
+
+    assert figure.named("Trade P/L") == []

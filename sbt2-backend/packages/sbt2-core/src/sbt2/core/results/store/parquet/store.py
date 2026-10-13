@@ -118,6 +118,9 @@ class ParquetResultStore(ResultStore):
                 carry=self.load(run_id, "carry"),
                 currency=summary["currency"],
                 positions=self.load(run_id, "positions"),
+                orders=self._optional(run_id, "orders"),
+                margin=self._optional(run_id, "margin"),
+                trades=self._optional(run_id, "trades"),
             ),
             known_gaps=frozenset(Gap.from_str(each) for each in summary["known_gaps"]),
             strategy_source=source,
@@ -158,6 +161,14 @@ class ParquetResultStore(ResultStore):
         if not self._studies.is_dir():
             return ()
         return tuple(sorted(each.name for each in self._studies.iterdir()))
+
+    def _optional(self, run_id: str, table: Table) -> pd.DataFrame:
+        """A table a run may lack, such as the margin of a run with no margin
+        model, or the trades of a run stored before they were kept; empty then."""
+        try:
+            return self.load(run_id, table)
+        except MissingTableError:
+            return pd.DataFrame()
 
     def _strategy_source(self, run_id: str) -> Path | None:
         source = self._folder(run_id) / STRATEGY_SOURCE

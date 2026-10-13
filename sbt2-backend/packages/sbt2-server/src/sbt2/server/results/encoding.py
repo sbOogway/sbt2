@@ -133,6 +133,17 @@ def equity(curve: pd.Series, currency: str) -> pd.DataFrame:
     )
 
 
+def trade_statistics(statistics: Mapping[str, float | None]) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "name": list(statistics),
+            "value": [
+                math.nan if each is None else each for each in statistics.values()
+            ],
+        }
+    ).astype({"value": "float64"})
+
+
 def write_arrow(frame: pd.DataFrame, sink: BinaryIO) -> None:
     """``frame`` as one Arrow IPC stream; a meaningful index is kept with it."""
     table = pa.Table.from_pandas(frame)

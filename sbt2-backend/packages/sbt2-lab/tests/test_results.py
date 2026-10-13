@@ -144,6 +144,36 @@ def test_fills_come_as_the_frame_the_server_encoded() -> None:
 
 @pytest.mark.integration
 @pytest.mark.usefixtures("strategies")
+def test_the_lab_reads_the_trades_of_a_run() -> None:
+    server = FakeServer()
+    trades = pd.DataFrame({"trade_id": ["C1", "C2"], "pl": [0.06, -0.02]})
+    server.answer("get_series", series_in_pieces(trades))
+
+    fetched_trades = fetched(server, Run.trades)
+
+    pd.testing.assert_frame_equal(fetched_trades, trades)
+    [asked] = server.received("get_series")
+    assert asked.get_series.kind == SeriesKind.SERIES_KIND_TRADES
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
+def test_the_trade_statistics_come_as_a_series_by_name() -> None:
+    server = FakeServer()
+    frame = pd.DataFrame({"name": ["Occurrences", "POP"], "value": [2.0, 0.5]})
+    server.answer("get_series", series_in_pieces(frame))
+
+    statistics = fetched(server, Run.trade_statistics)
+
+    pd.testing.assert_series_equal(
+        statistics, pd.Series([2.0, 0.5], index=["Occurrences", "POP"], name="value")
+    )
+    [asked] = server.received("get_series")
+    assert asked.get_series.kind == SeriesKind.SERIES_KIND_TRADE_STATISTICS
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
 def test_a_panel_comes_as_a_series_of_its_kind() -> None:
     server = FakeServer()
     ts = pd.to_datetime(["2024-01-01", "2024-01-02"], utc=True)

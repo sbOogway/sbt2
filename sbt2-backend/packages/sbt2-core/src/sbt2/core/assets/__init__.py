@@ -17,7 +17,7 @@ from sbt2.core.assets.base import (
 )
 from sbt2.core.assets.crypto_option import CRYPTO_OPTION
 from sbt2.core.assets.crypto_perp import CRYPTO_PERP
-from sbt2.core.assets.option_delivery import NoDeliveryPriceError
+from sbt2.core.assets.option_delivery import NoDeliveryPriceError, index_id
 from sbt2.core.assets.option_margin import ContractHolding, MarginRates, OptionQuote
 from sbt2.core.assets.option_margin_market import NoMarkError
 from sbt2.core.assets.option_quote_catalog import NoQuotesError
@@ -49,6 +49,7 @@ __all__ = [
     "QuoteSettings",
     "UnknownAssetClassError",
     "asset_profile",
+    "index_id",
     "quote_ticks",
     "settlement_price",
 ]
