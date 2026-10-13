@@ -33,6 +33,7 @@ from sbt2.core.spec import (
     InvalidVenueProfileError,
     MissingSplitError,
     ResolvedRunSpec,
+    ShortPremiumRuleError,
     SpecError,
     UnknownBarSourceError,
     UnknownPartError,
@@ -44,7 +45,7 @@ from sbt2.core.spec import (
     load,
     load_table,
 )
-from sbt2.core.strategy import UnknownParameterError
+from sbt2.core.strategy import IV_LOOKBACK, ShortPremiumRules, UnknownParameterError
 
 BTC = "BTCUSDT-LINEAR.BYBIT"
 ETH = "ETHUSDT-LINEAR.BYBIT"
@@ -503,6 +504,87 @@ def test_a_drawdown_limit_outside_zero_and_one_fails(
 ) -> None:
     with pytest.raises(DrawdownLimitError, match="between 0 and 1"):
         resolved(paths, risk={"drawdown_limit": limit})
+
+
+@pytest.mark.unit
+def test_a_short_premium_table_turns_the_rules_on_with_the_book_defaults(
+    paths: tuple[Path, Path],
+) -> None:
+    spec = resolved(paths, risk={"short_premium": {}})
+
+    assert spec.strategy.short_premium == ShortPremiumRules(
+        allocation=(Decimal("0.25"), Decimal("0.5")),
+        undefined_cap=Decimal("0.07"),
+        defined_cap=Decimal("0.05"),
+        defined_share=Decimal("0.25"),
+    )
+    assert spec.lookback == IV_LOOKBACK
+    config = spec.run_config("/catalog").engine.risk_engine
+    assert not hasattr(config, "short_premium")
+
+
+@pytest.mark.unit
+def test_short_premium_keys_override_the_defaults(paths: tuple[Path, Path]) -> None:
+    table = {
+        "allocation": [0.1, 0.3],
+        "undefined_cap": 0.04,
+        "defined_cap": "0.02",
+        "defined_share": 0.5,
+    }
+
+    spec = resolved(paths, risk={"short_premium": table})
+
+    assert spec.strategy.short_premium == ShortPremiumRules(
+        allocation=(Decimal("0.1"), Decimal("0.3")),
+        undefined_cap=Decimal("0.04"),
+        defined_cap=Decimal("0.02"),
+        defined_share=Decimal("0.5"),
+    )
+    rebuilt = ResolvedRunSpec.from_document(json.loads(spec.to_json()))
+    assert rebuilt == spec
+    assert rebuilt.hash == spec.hash
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "table",
+    [
+        {"allocation": [0, 0.5]},
+        {"allocation": [0.25, 1.5]},
+        {"allocation": [0.5, 0.25]},
+        {"allocation": [0.25]},
+        {"allocation": 0.25},
+        {"undefined_cap": 0},
+        {"undefined_cap": 1.1},
+        {"defined_cap": -0.1},
+        {"defined_share": 0},
+        {"defined_share": "many"},
+    ],
+)
+def test_a_short_premium_fraction_outside_zero_and_one_is_refused(
+    paths: tuple[Path, Path], table: dict[str, Any]
+) -> None:
+    with pytest.raises(ShortPremiumRuleError, match="between 0 and 1"):
+        resolved(paths, risk={"short_premium": table})
+
+
+@pytest.mark.unit
+def test_an_unknown_short_premium_key_is_refused(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(
+        UnknownRiskKeyError,
+        match=r"cap .* short_premium .* valid: allocation, defined_cap, "
+        "defined_share, undefined_cap",
+    ):
+        resolved(paths, risk={"short_premium": {"cap": 0.1}})
+
+
+@pytest.mark.unit
+def test_no_short_premium_table_means_no_rules(paths: tuple[Path, Path]) -> None:
+    spec = resolved(paths, risk=RISK)
+
+    assert spec.strategy.short_premium is None
+    assert spec.lookback == timedelta(0)
+    assert "short_premium" not in json.loads(spec.to_json()).get("risk", {})
 
 
 @pytest.mark.unit

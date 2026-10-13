@@ -28,7 +28,11 @@ from sbt2.core.spec.resolve import (
     put_venue_profile,
     venue_profiles,
 )
-from sbt2.core.spec.risk import DrawdownLimitError, UnknownRiskKeyError
+from sbt2.core.spec.risk import (
+    DrawdownLimitError,
+    ShortPremiumRuleError,
+    UnknownRiskKeyError,
+)
 from sbt2.core.spec.split import (
     PARTS,
     DateSplit,
@@ -59,6 +63,7 @@ __all__ = [
     "ModelParameter",
     "OutdatedRunError",
     "ResolvedRunSpec",
+    "ShortPremiumRuleError",
     "SpecError",
     "SplitDateError",
     "SplitFractionError",

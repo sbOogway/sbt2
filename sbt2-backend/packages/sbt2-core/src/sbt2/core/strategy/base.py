@@ -49,6 +49,7 @@ from sbt2.core.strategy.combo_book import Change, ComboBook, combo_tag
 from sbt2.core.strategy.drawdown import DrawdownGuard
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
 from sbt2.core.strategy.margin import MarginDesk, MarginModel
+from sbt2.core.strategy.short_premium import ShortPremiumRules
 
 if TYPE_CHECKING:
     from sbt2.core.results import Benchmark
@@ -69,6 +70,7 @@ class StrategyRun:
     ``drawdown_limit`` is the fraction of peak equity the run may lose.
     ``index`` and ``volatility`` name the index and the volatility index a chain
     run streams; the strategy hears their prices and the IV of its contracts.
+    ``short_premium`` turns the portfolio rules of a short premium book on.
     """
 
     strategy: str
@@ -79,6 +81,7 @@ class StrategyRun:
     drawdown_limit: Decimal | None = None
     index: InstrumentId | None = None
     volatility: InstrumentId | None = None
+    short_premium: ShortPremiumRules | None = None
 
 
 @dataclass(frozen=True)
@@ -92,6 +95,7 @@ class RunConfig:
     drawdown_limit: str | None = None
     index: str | None = None
     volatility: str | None = None
+    short_premium: dict[str, Any] | None = None
 
 
 def importable_config(run: StrategyRun) -> ImportableStrategyConfig:
@@ -113,6 +117,7 @@ def _run_config(run: StrategyRun) -> RunConfig:
         None if run.drawdown_limit is None else str(run.drawdown_limit),
         _text(run.index),
         _text(run.volatility),
+        None if run.short_premium is None else run.short_premium.as_primitives(),
     )
 
 

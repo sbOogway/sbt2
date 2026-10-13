@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -18,6 +18,8 @@ from sbt2.core.spec.resolve.models import model_tables
 from sbt2.core.spec.risk import risk_limits
 from sbt2.core.spec.split import Splitter, from_table
 from sbt2.core.strategy import (
+    IV_LOOKBACK,
+    ShortPremiumRules,
     Strategy,
     StrategyRun,
     import_strategy,
@@ -45,7 +47,7 @@ def spec_fields(
         "strategy": _strategy(
             document["strategy"],
             strategy,
-            _Streaming(_aggregated_from(data), risk.drawdown_limit),
+            _Streaming(_aggregated_from(data), risk.drawdown_limit, risk.short_premium),
         ),
         "asset": asset,
         "venue": _venue(document["venue"], asset),
@@ -57,10 +59,22 @@ def spec_fields(
         "end": datetime.fromisoformat(document["end"]),
         "risk": risk.engine,
         "chain": document.get("chain", {}),
-        "lookback": strategy.iv_lookback(
-            resolve_params(strategy, document["strategy"]["params"])
+        "lookback": lookback(
+            strategy,
+            resolve_params(strategy, document["strategy"]["params"]),
+            risk.short_premium,
         ),
     }
+
+
+def lookback(
+    strategy: type[Strategy[Any]], params: Any, rules: ShortPremiumRules | None
+) -> timedelta:
+    """How far before the data the volatility index is loaded: the strategy's
+    look-back, and at least ``IV_LOOKBACK`` when the short premium rules read the
+    IV rank."""
+    wanted = strategy.iv_lookback(params)
+    return wanted if rules is None else max(wanted, IV_LOOKBACK)
 
 
 def _asset(document: Document) -> AssetProfile:
@@ -74,6 +88,7 @@ def _asset(document: Document) -> AssetProfile:
 class _Streaming:
     aggregated_from: str | None
     drawdown_limit: Decimal | None
+    short_premium: ShortPremiumRules | None
 
 
 def _strategy(
@@ -87,6 +102,7 @@ def _strategy(
         datetime.fromisoformat(document["trade_start"]),
         streaming.aggregated_from,
         streaming.drawdown_limit,
+        short_premium=streaming.short_premium,
     )
 
 
