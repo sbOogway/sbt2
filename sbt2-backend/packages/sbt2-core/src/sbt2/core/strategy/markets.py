@@ -63,11 +63,14 @@ class Markets:
         }
 
     def indexes(self) -> dict[InstrumentId, float]:
-        """The latest index price of each chain that has heard one."""
-        latest = {
-            feed.index: self._records[feed.underlying].index() for feed in self._feeds
+        """The latest index price of each chain that has heard one, by the id of
+        its index."""
+        prices = self.prices()
+        return {
+            feed.index: prices[feed.underlying]
+            for feed in self._feeds
+            if feed.underlying in prices
         }
-        return {index: price for index, price in latest.items() if price is not None}
 
     def prices(self) -> dict[str, float]:
         """The latest index price of each chain that has heard one, by the code
