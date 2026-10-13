@@ -32,7 +32,11 @@ from sbt2.core.strategy.combo import (
 from sbt2.core.strategy.combo_book import combo_ids
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG
 from sbt2.core.strategy.greeks import Greeks
-from sbt2.core.strategy.portfolio_greeks import Holding, beta_weighted_delta
+from sbt2.core.strategy.portfolio_greeks import (
+    GreeksSample,
+    Holding,
+    beta_weighted_delta,
+)
 from sbt2.core.strategy.schema import (
     ParamSpec,
     UnsupportedParameterTypeError,
@@ -57,6 +61,7 @@ __all__ = [
     "ComboExit",
     "ComboProposal",
     "Greeks",
+    "GreeksSample",
     "Holding",
     "InvalidParameterError",
     "Leg",

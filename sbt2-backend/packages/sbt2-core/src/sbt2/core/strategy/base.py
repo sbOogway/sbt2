@@ -43,13 +43,14 @@ from nautilus_trader.trading import ImportableStrategyConfig
 from nautilus_trader.trading import Strategy as NautilusStrategy
 
 from sbt2.core.strategy.book_rules import BookRules
-from sbt2.core.strategy.chain import CachedChain, Chain
+from sbt2.core.strategy.chain import CachedChain, Chain, NoMarketError
 from sbt2.core.strategy.chain_records import ChainHistory, ChainRecords
 from sbt2.core.strategy.combo import Combo, ComboExit, Leg
 from sbt2.core.strategy.combo_book import Change, ComboBook, combo_tag
 from sbt2.core.strategy.drawdown import DrawdownGuard
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
 from sbt2.core.strategy.margin import MarginDesk, MarginModel
+from sbt2.core.strategy.portfolio_greeks import GreeksDesk, GreeksSample
 from sbt2.core.strategy.short_premium import ShortPremiumRules
 
 if TYPE_CHECKING:
@@ -128,6 +129,9 @@ def _text(instrument_id: InstrumentId | None) -> str | None:
 
 def _id(text: str | None) -> InstrumentId | None:
     return None if text is None else InstrumentId.from_str(text)
+
+
+_GREEKS_INTERVAL = timedelta(hours=1)
 
 
 def _recording_failure(handler: Callable[..., Any]) -> Callable[..., Any]:
@@ -214,6 +218,12 @@ class Strategy[P](NautilusStrategy, ABC):
         self._records = ChainRecords(lambda: self.clock.timestamp_ns())
         self._index = _id(config.index)
         self._volatility = _id(config.volatility)
+        self.portfolio_greeks: list[GreeksSample] = []
+        self._greeks = (
+            None
+            if self._index is None
+            else GreeksDesk(self, self._index, lambda: self._records.index())
+        )
         self._drawdown = (
             None
             if config.drawdown_limit is None
@@ -268,6 +278,7 @@ class Strategy[P](NautilusStrategy, ABC):
         self._listen_to_market()
         self._arm_settlement()
         self._arm_schedule()
+        self._arm_greeks()
 
     @property
     def combos(self) -> tuple[Combo, ...]:
@@ -409,6 +420,21 @@ class Strategy[P](NautilusStrategy, ABC):
         interval = self.schedule(self.params)
         if interval is not None:
             self.clock.set_timer("schedule", interval, callback=self._tick)
+
+    def _arm_greeks(self) -> None:
+        if self._greeks is not None:
+            self.clock.set_timer(
+                "portfolio-greeks", _GREEKS_INTERVAL, callback=self._sample_greeks
+            )
+
+    @_recording_failure
+    def _sample_greeks(self, event: TimeEvent) -> None:
+        if self._greeks is None or self.warming_up:
+            return
+        try:
+            self.portfolio_greeks.append(self._greeks.sample(event.ts_event))
+        except NoMarketError:
+            return
 
     def _tick(self, event: TimeEvent) -> None:
         now = unix_nanos_to_dt(event.ts_event)

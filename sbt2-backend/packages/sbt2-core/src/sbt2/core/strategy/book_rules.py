@@ -1,9 +1,17 @@
 from decimal import Decimal
 from typing import Any
 
+from nautilus_trader.model import CryptoOption
+
 from sbt2.core.strategy.chain import NoMarketError
 from sbt2.core.strategy.combo import Combo
 from sbt2.core.strategy.short_premium import BookState, ComboProposal, ShortPremiumRules
+
+
+def account_equity(trader: Any, contract: CryptoOption) -> Decimal:
+    """The account's total balance in the settlement currency of ``contract``."""
+    account = trader.portfolio.account(contract.id.venue)
+    return account.balance_total(contract.settlement_currency).as_decimal()
 
 
 class BookRules:
@@ -26,7 +34,7 @@ class BookRules:
 
     def _book(self, combo: Combo) -> BookState:
         return BookState(
-            self._equity(combo),
+            account_equity(self._strategy, combo.legs[0].contract),
             self._iv_rank(),
             sum(self._strategy.margin_of_positions().values(), Decimal(0)),
             sum(
@@ -38,12 +46,6 @@ class BookRules:
                 Decimal(0),
             ),
         )
-
-    def _equity(self, combo: Combo) -> Decimal:
-        """The account's total balance in the settlement currency of the combo."""
-        contract = combo.legs[0].contract
-        account = self._strategy.portfolio.account(contract.id.venue)
-        return account.balance_total(contract.settlement_currency).as_decimal()
 
     def _iv_rank(self) -> float | None:
         try:

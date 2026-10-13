@@ -151,6 +151,7 @@ def test_a_run_writes_its_tables_spec_and_summary_into_its_folder(
         "equity.parquet",
         "fills.parquet",
         "orders.parquet",
+        "portfolio_greeks.parquet",
         "positions.parquet",
         "spec.json",
         "summary.parquet",
