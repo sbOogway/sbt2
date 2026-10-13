@@ -81,6 +81,7 @@ def test_bpr_average_and_peak_come_from_the_margin_table() -> None:
 @pytest.mark.unit
 def test_a_run_without_trades_or_margin_has_only_its_count() -> None:
     assert statistics(trades([])) == {"Occurrences": 0}
+    assert statistics(pd.DataFrame()) == {"Occurrences": 0}
 
 
 @pytest.mark.unit

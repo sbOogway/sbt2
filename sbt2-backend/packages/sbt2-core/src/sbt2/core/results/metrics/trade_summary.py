@@ -21,9 +21,9 @@ def trade_statistics(
 
 
 def _trade_part(trades: pd.DataFrame) -> dict[str, float | None]:
-    pls = [float(each) for each in trades["pl"]]
-    if not pls:
+    if trades.empty:
         return {"Occurrences": 0}
+    pls = [float(each) for each in trades["pl"]]
     percents = [float(each) for each in trades["pl_percent"] if pd.notna(each)]
     days = sum(float(each) for each in trades["days_held"])
     return {

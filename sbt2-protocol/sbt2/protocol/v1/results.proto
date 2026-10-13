@@ -131,6 +131,11 @@ enum SeriesKind {
   SERIES_KIND_UNSPECIFIED = 0;
   SERIES_KIND_EQUITY = 1;
   SERIES_KIND_FILLS = 2;
+  // One row per closed trade: a combo, or a position when a run has no combos.
+  SERIES_KIND_TRADES = 3;
+  // The statistics over the trades and the margin, with the columns name and
+  // value (float64, NaN when undefined).
+  SERIES_KIND_TRADE_STATISTICS = 4;
 }
 
 message GetSeries {
