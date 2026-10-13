@@ -217,14 +217,15 @@ class Strategy[P](NautilusStrategy, ABC):
                 weakref.proxy(self),
             )
         )
-        self._records = ChainRecords(lambda: self.clock.timestamp_ns())
+        weak = weakref.proxy(self)
+        self._records = ChainRecords(lambda: weak.clock.timestamp_ns())
         self._index = _id(config.index)
         self._volatility = _id(config.volatility)
         self.portfolio_greeks: list[GreeksSample] = []
         self._greeks = (
             None
             if self._index is None
-            else GreeksDesk(weakref.proxy(self), self._index, self._latest_index)
+            else GreeksDesk(weak, self._index, self._records.index)
         )
         self._drawdown = (
             None
@@ -333,7 +334,7 @@ class Strategy[P](NautilusStrategy, ABC):
 
     def use_margin(self, model: MarginModel) -> None:
         """Margin the strategy's orders and positions with ``model``."""
-        self._margin = MarginDesk(model, self)
+        self._margin = MarginDesk(model, weakref.proxy(self))
 
     def use_history(self, history: ChainHistory) -> None:
         """Tell a chain strategy what the run knew before its start: the data
@@ -422,9 +423,6 @@ class Strategy[P](NautilusStrategy, ABC):
         interval = self.schedule(self.params)
         if interval is not None:
             self.clock.set_timer("schedule", interval, callback=self._tick)
-
-    def _latest_index(self) -> float | None:
-        return self._records.index()
 
     def _arm_greeks(self) -> None:
         if self._greeks is not None:
