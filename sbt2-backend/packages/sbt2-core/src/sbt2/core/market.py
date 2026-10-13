@@ -5,9 +5,11 @@ from nautilus_trader.model import CryptoOption, InstrumentId
 
 @dataclass(frozen=True)
 class ChainFeeds:
-    """The series a chain strategy hears besides the contracts: the ``index`` the
-    contracts are priced on and the ``volatility`` index of the underlying."""
+    """The series a chain strategy hears besides the contracts of the
+    ``underlying`` (such as ``"BTC"``): the ``index`` the contracts are priced on
+    and the ``volatility`` index of the underlying."""
 
+    underlying: str
     index: InstrumentId
     volatility: InstrumentId
 

@@ -18,8 +18,17 @@ from nautilus_trader.model import (
     NautilusDataType,
     OmsType,
 )
+from option_catalog import (
+    DVOL_ID,
+    ETH_CHAIN_ID,
+    ETH_DVOL_ID,
+    ETH_INDEX_ID,
+    INDEX_ID,
+    build_two_chain_catalog,
+)
 
 import sbt2.core.spec
+from sbt2.core.market import ChainFeeds
 from sbt2.core.spec import (
     CandleBarError,
     DateSplit,
@@ -28,6 +37,7 @@ from sbt2.core.spec import (
     EmptyListError,
     FractionSplit,
     InstrumentVenueError,
+    InvalidCapitalError,
     InvalidChainError,
     InvalidStudyNameError,
     InvalidVenueProfileError,
@@ -46,6 +56,7 @@ from sbt2.core.spec import (
     load_table,
 )
 from sbt2.core.strategy import IV_LOOKBACK, ShortPremiumRules, UnknownParameterError
+from sbt2.data import Catalog
 
 BTC = "BTCUSDT-LINEAR.BYBIT"
 ETH = "ETHUSDT-LINEAR.BYBIT"
@@ -1103,3 +1114,68 @@ def test_the_chain_bands_change_the_hash_and_a_chain_spec_is_rebuilt(
     assert wide.hash != narrow.hash
     assert rebuilt == narrow
     assert rebuilt.hash == narrow.hash
+
+
+@pytest.mark.unit
+def test_a_spec_names_two_chains_and_streams_the_feeds_of_each(
+    paths: tuple[Path, Path], tmp_path: Path
+) -> None:
+    build_two_chain_catalog(tmp_path / "catalog")
+    bands = {"min_dte": 0, "max_dte": 90, "strike_band": "0.5"}
+    spec = resolved(
+        paths,
+        **chain_overrides(instruments=[CHAIN, str(ETH_CHAIN_ID)], chain=bands),
+    )
+
+    loaded = spec.with_contracts(Catalog(tmp_path / "catalog"))
+
+    assert spec.chains == (InstrumentId.from_str(CHAIN), ETH_CHAIN_ID)
+    assert loaded.strategy.feeds == (
+        ChainFeeds("BTC", INDEX_ID, DVOL_ID),
+        ChainFeeds("ETH", ETH_INDEX_ID, ETH_DVOL_ID),
+    )
+    codes = {each.symbol.value.split("-")[0] for each in loaded.strategy.instruments}
+    assert codes == {"BTC", "ETH"}
+    [feeds] = [
+        each
+        for each in loaded.data
+        if each["data_type"] == NautilusDataType.IndexPriceUpdate
+    ]
+    assert set(feeds["instrument_ids"]) == {
+        INDEX_ID,
+        DVOL_ID,
+        ETH_INDEX_ID,
+        ETH_DVOL_ID,
+    }
+
+
+@pytest.mark.unit
+def test_capital_takes_a_list_and_the_first_currency_reports(
+    paths: tuple[Path, Path],
+) -> None:
+    capital = ["1 BTC", "20 ETH"]
+
+    spec = resolved(paths, **chain_overrides(capital=capital))
+
+    assert spec.venue["starting_balances"] == capital
+    assert spec.currency == "BTC"
+    assert spec.currencies == ("BTC", "ETH")
+    rebuilt = ResolvedRunSpec.from_document(json.loads(spec.to_json()))
+    assert rebuilt == spec
+
+
+@pytest.mark.unit
+def test_capital_as_a_string_still_resolves_as_before(
+    paths: tuple[Path, Path],
+) -> None:
+    spec = resolved(paths, **chain_overrides())
+
+    assert spec.venue["starting_balances"] == ["1 BTC"]
+    assert spec.currency == "BTC"
+    assert spec.currencies == ("BTC",)
+
+
+@pytest.mark.unit
+def test_an_empty_capital_list_is_refused(paths: tuple[Path, Path]) -> None:
+    with pytest.raises(InvalidCapitalError, match="names no balance"):
+        resolved(paths, **chain_overrides(capital=[]))

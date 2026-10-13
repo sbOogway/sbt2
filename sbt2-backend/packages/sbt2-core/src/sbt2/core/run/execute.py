@@ -13,7 +13,7 @@ from nautilus_trader.model import PositionAdjusted, PositionAdjustmentType, Venu
 
 from sbt2.core.assets import MarginModel
 from sbt2.core.results import OutputSink, Reports
-from sbt2.core.run.chain_history import read_history
+from sbt2.core.run.chain_history import read_histories
 from sbt2.core.run.index_prices import read_index_prices
 from sbt2.core.spec import ResolvedRunSpec, SpecError
 from sbt2.core.strategy import (
@@ -60,7 +60,7 @@ class _Backtest:
     config_id: str
     venue: Venue
     margin: MarginModel | None
-    history: ChainHistory | None
+    histories: Mapping[str, ChainHistory]
     catalog: Catalog
 
 
@@ -83,7 +83,7 @@ class _Measured:
 class _Plan:
     config: BacktestRunConfig
     margin: MarginModel | None
-    history: ChainHistory | None
+    histories: Mapping[str, ChainHistory]
     catalog: Catalog
 
 
@@ -98,9 +98,9 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
         quotes = loaded.asset.quotes.write(job, Path(folder))
         margin = loaded.asset.margin.model(job)
         catalog = Catalog(settings.catalog)
-        history = read_history(loaded, catalog)
+        histories = read_histories(loaded, catalog)
         config = _run_config(loaded, settings, quotes)
-        _execute(loaded, sink, _Plan(config, margin, history, catalog))
+        _execute(loaded, sink, _Plan(config, margin, histories, catalog))
     sink.finalize()
     logger.info("run %s finished", sink.run_id)
 
@@ -124,7 +124,7 @@ def _execute(spec: ResolvedRunSpec, sink: OutputSink, plan: _Plan) -> None:
         plan.config.id,
         Venue(spec.venue_name),
         plan.margin,
-        plan.history,
+        plan.histories,
         plan.catalog,
     )
     try:
@@ -158,8 +158,7 @@ def _run(backtest: _Backtest, run: StrategyRun) -> Strategy[Any]:
         strategy = build_strategy(run)
         if backtest.margin is not None:
             strategy.use_margin(backtest.margin)
-        if backtest.history is not None:
-            strategy.use_history(backtest.history)
+        strategy.use_history(backtest.histories)
         backtest.node.build()
         backtest.node.add_strategy(backtest.config_id, strategy)
         backtest.node.run()

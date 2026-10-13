@@ -37,6 +37,10 @@ class InvalidChainError(SpecError):
     pass
 
 
+class InvalidCapitalError(SpecError):
+    pass
+
+
 _UNFIXED = frozenset({"params", "part", "study"})
 
 
@@ -143,10 +147,17 @@ def _instruments(ids: Iterable[str], venue: str) -> list[InstrumentId]:
 
 
 def _venue_arguments(spec: RunSpec, profile: Mapping[str, Any]) -> dict[str, Any]:
-    arguments = {**profile, "starting_balances": [spec.capital]}
+    arguments = {**profile, "starting_balances": _balances(spec.capital)}
     if spec.liquidation is not None:
         arguments["liquidation_enabled"] = spec.liquidation
     return arguments
+
+
+def _balances(capital: str | Sequence[str]) -> list[str]:
+    balances = [capital] if isinstance(capital, str) else list(capital)
+    if not balances:
+        raise InvalidCapitalError("the capital names no balance")
+    return balances
 
 
 def _seeded(venue: dict[str, Any], seed: int) -> dict[str, Any]:

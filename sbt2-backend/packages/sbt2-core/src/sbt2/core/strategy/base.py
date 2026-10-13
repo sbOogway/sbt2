@@ -43,14 +43,16 @@ from nautilus_trader.model import (
 from nautilus_trader.trading import ImportableStrategyConfig
 from nautilus_trader.trading import Strategy as NautilusStrategy
 
+from sbt2.core.market import ChainFeeds
 from sbt2.core.strategy.book_rules import BookRules
 from sbt2.core.strategy.chain import CachedChain, Chain, NoMarketError
-from sbt2.core.strategy.chain_records import ChainHistory, ChainRecords
+from sbt2.core.strategy.chain_records import ChainHistory
 from sbt2.core.strategy.combo import Combo, ComboExit, Leg
 from sbt2.core.strategy.combo_book import Change, ComboBook, combo_tag
 from sbt2.core.strategy.drawdown import DrawdownGuard
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
 from sbt2.core.strategy.margin import MarginDesk, MarginModel
+from sbt2.core.strategy.markets import Markets
 from sbt2.core.strategy.portfolio_greeks import GreeksDesk, GreeksSample
 from sbt2.core.strategy.short_premium import ShortPremiumRules
 
@@ -71,8 +73,8 @@ class StrategyRun:
     ``aggregated_from`` names the external bars the declared bars are built
     from, such as ``"1-MINUTE-EXTERNAL"``; ``None`` builds them from trades.
     ``drawdown_limit`` is the fraction of peak equity the run may lose.
-    ``index`` and ``volatility`` name the index and the volatility index a chain
-    run streams; the strategy hears their prices and the IV of its contracts.
+    ``feeds`` name the index and the volatility index of each chain a run
+    streams; the strategy hears their prices and the IV of its contracts.
     ``short_premium`` turns the portfolio rules of a short premium book on.
     """
 
@@ -82,8 +84,7 @@ class StrategyRun:
     trade_start: datetime
     aggregated_from: str | None = None
     drawdown_limit: Decimal | None = None
-    index: InstrumentId | None = None
-    volatility: InstrumentId | None = None
+    feeds: Sequence[ChainFeeds] = ()
     short_premium: ShortPremiumRules | None = None
 
 
@@ -96,8 +97,7 @@ class RunConfig:
     trade_start: str
     aggregated_from: str | None = None
     drawdown_limit: str | None = None
-    index: str | None = None
-    volatility: str | None = None
+    feeds: list[dict[str, str]] | None = None
     short_premium: dict[str, Any] | None = None
 
 
@@ -118,18 +118,25 @@ def _run_config(run: StrategyRun) -> RunConfig:
         run.trade_start.isoformat(),
         run.aggregated_from,
         None if run.drawdown_limit is None else str(run.drawdown_limit),
-        _text(run.index),
-        _text(run.volatility),
+        [_feed_primitives(each) for each in run.feeds] or None,
         None if run.short_premium is None else run.short_premium.as_primitives(),
     )
 
 
-def _text(instrument_id: InstrumentId | None) -> str | None:
-    return None if instrument_id is None else str(instrument_id)
+def _feed_primitives(feeds: ChainFeeds) -> dict[str, str]:
+    return {
+        "underlying": feeds.underlying,
+        "index": str(feeds.index),
+        "volatility": str(feeds.volatility),
+    }
 
 
-def _id(text: str | None) -> InstrumentId | None:
-    return None if text is None else InstrumentId.from_str(text)
+def _feeds_of(table: dict[str, str]) -> ChainFeeds:
+    return ChainFeeds(
+        table["underlying"],
+        InstrumentId.from_str(table["index"]),
+        InstrumentId.from_str(table["volatility"]),
+    )
 
 
 _GREEKS_INTERVAL = timedelta(hours=1)
@@ -220,14 +227,17 @@ class Strategy[P](NautilusStrategy, ABC):
             else BookRules(self._short_premium, weakref.proxy(self))
         )
         weak = weakref.proxy(self)
-        self._records = ChainRecords(lambda: weak.clock.timestamp_ns())
-        self._index = _id(config.index)
-        self._volatility = _id(config.volatility)
+        self._markets = Markets(
+            [_feeds_of(each) for each in config.feeds or []],
+            lambda: weak.clock.timestamp_ns(),
+        )
         self.portfolio_greeks: list[GreeksSample] = []
         self._greeks = (
             None
-            if self._index is None
-            else GreeksDesk(weak, self._index, self._records.index)
+            if not self._markets.feeds
+            else GreeksDesk(
+                weak, self._markets.feeds[0].index, self._markets.first().index
+            )
         )
         self._drawdown = (
             None
@@ -264,7 +274,7 @@ class Strategy[P](NautilusStrategy, ABC):
     @property
     def chain(self) -> Chain:
         """The option contracts the run loaded, to pick from."""
-        return CachedChain(self.cache, self.instrument_ids, self._records)
+        return CachedChain(self.cache, self.instrument_ids, self._markets.first())
 
     @property
     def short_premium_rules(self) -> ShortPremiumRules | None:
@@ -344,10 +354,10 @@ class Strategy[P](NautilusStrategy, ABC):
         """Margin the strategy's orders and positions with ``model``."""
         self._margin = MarginDesk(model, weakref.proxy(self))
 
-    def use_history(self, history: ChainHistory) -> None:
-        """Tell a chain strategy what the run knew before its start: the data
-        before the start of a run is not streamed."""
-        self._records.preload(history)
+    def use_history(self, histories: Mapping[str, ChainHistory]) -> None:
+        """Tell a chain strategy what the run knew of each chain, by underlying,
+        before its start: the data before the start of a run is not streamed."""
+        self._markets.preload(histories)
 
     def margin_of_order(self, order: Any) -> Decimal:
         """The initial margin ``order`` adds to its position, in the settlement
@@ -408,24 +418,17 @@ class Strategy[P](NautilusStrategy, ABC):
 
     def _listen_to_market(self) -> None:
         """A chain run hears the IV of its contracts, the index and the DVOL."""
-        for feed in (self._index, self._volatility):
-            if feed is not None:
-                self.subscribe_index_prices(feed)
-        if self._index is not None:
+        for feed in self._markets.series():
+            self.subscribe_index_prices(feed)
+        if self._markets.feeds:
             for contract_id in self.instrument_ids:
                 self.subscribe_option_greeks(contract_id)
 
     def _hear_market(self, event: OptionGreeks | IndexPriceUpdate) -> None:
         if isinstance(event, OptionGreeks):
-            self._hear_iv(event)
-        elif event.instrument_id == self._volatility:
-            self._records.hear_volatility(event.ts_event, float(event.value))
+            self._markets.hear_greeks(event)
         else:
-            self._records.hear_index(event.ts_event, float(event.value))
-
-    def _hear_iv(self, greeks: OptionGreeks) -> None:
-        if greeks.mark_iv is not None:
-            self._records.hear_iv(greeks.instrument_id, greeks.ts_event, greeks.mark_iv)
+            self._markets.hear_index_price(event)
 
     def _arm_schedule(self) -> None:
         interval = self.schedule(self.params)

@@ -90,10 +90,17 @@ class ResolvedRunSpec:
         return self.venue["name"]
 
     @property
+    def currencies(self) -> tuple[str, ...]:
+        """The currencies of the starting balances, the reporting one first."""
+        return tuple(
+            Money.from_str(each).currency.code
+            for each in self.venue["starting_balances"]
+        )
+
+    @property
     def currency(self) -> str:
-        """The settlement currency of the starting balance."""
-        [balance] = self.venue["starting_balances"]
-        return Money.from_str(balance).currency.code
+        """The reporting currency: the one of the first starting balance."""
+        return self.currencies[0]
 
     @property
     def liquidation_enabled(self) -> bool:
@@ -130,15 +137,10 @@ class ResolvedRunSpec:
             member for each in named for member in self._members(each, catalog)
         )
         instruments = list(members)
-        feeds = self.asset.chain.feeds(self.chains[0])
+        feeds = tuple(self.asset.chain.feeds(each) for each in self.chains)
         return replace(
             self,
-            strategy=replace(
-                self.strategy,
-                instruments=instruments,
-                index=feeds.index,
-                volatility=feeds.volatility,
-            ),
+            strategy=replace(self.strategy, instruments=instruments, feeds=feeds),
             data=[
                 *data_arguments(self._data_types, instruments, self.data_window),
                 *self._feed_data(feeds),
@@ -152,9 +154,10 @@ class ResolvedRunSpec:
         start, end = self.data_window
         return start - self.lookback, end
 
-    def _feed_data(self, feeds: ChainFeeds) -> list[Mapping[str, Any]]:
+    def _feed_data(self, feeds: Sequence[ChainFeeds]) -> list[Mapping[str, Any]]:
         kinds = [NautilusDataType.IndexPriceUpdate]
-        return data_arguments(kinds, [feeds.index, feeds.volatility], self.data_window)
+        series = [each for feed in feeds for each in (feed.index, feed.volatility)]
+        return data_arguments(kinds, series, self.data_window)
 
     @property
     def chains(self) -> tuple[InstrumentId, ...]:

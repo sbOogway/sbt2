@@ -8,6 +8,7 @@ from nautilus_trader.model import (
     OptionGreeks,
 )
 
+from sbt2.core.market import ChainFeeds
 from sbt2.core.spec import ResolvedRunSpec
 from sbt2.core.strategy import ChainHistory
 from sbt2.data import Catalog, Window
@@ -18,17 +19,26 @@ type Span = tuple[datetime, datetime]
 type Point = tuple[int, float]
 
 
-def read_history(spec: ResolvedRunSpec, catalog: Catalog) -> ChainHistory | None:
-    """What a chain run knew before its start, read from ``catalog``, as the
-    nautilus run streams nothing from before it; none for a run with no chain."""
-    index, volatility = spec.strategy.index, spec.strategy.volatility
-    if index is None or volatility is None:
-        return None
+def read_histories(spec: ResolvedRunSpec, catalog: Catalog) -> dict[str, ChainHistory]:
+    """What each chain of a run knew before its start, by underlying, read from
+    ``catalog``, as the nautilus run streams nothing from before it; none for a
+    run with no chain."""
+    return {
+        each.underlying: _history(spec, each, catalog) for each in spec.strategy.feeds
+    }
+
+
+def _history(
+    spec: ResolvedRunSpec, feeds: ChainFeeds, catalog: Catalog
+) -> ChainHistory:
     start = spec.start
-    indexes = _read(catalog, (index, IndexPriceUpdate), (start - _INDEX_REACH, start))
-    levels = _read(catalog, (volatility, IndexPriceUpdate), _volatility_span(spec))
+    index = (feeds.index, IndexPriceUpdate)
+    indexes = _read(catalog, index, (start - _INDEX_REACH, start))
+    levels = _read(
+        catalog, (feeds.volatility, IndexPriceUpdate), _volatility_span(spec)
+    )
     return ChainHistory(
-        _latest_ivs(spec, catalog),
+        _latest_ivs(spec, feeds.underlying, catalog),
         _last(_points(indexes, "price")),
         _points(levels, "price"),
     )
@@ -38,10 +48,15 @@ def _volatility_span(spec: ResolvedRunSpec) -> Span:
     return spec.volatility_window[0], spec.start
 
 
-def _latest_ivs(spec: ResolvedRunSpec, catalog: Catalog) -> dict[InstrumentId, Point]:
+def _latest_ivs(
+    spec: ResolvedRunSpec, underlying: str, catalog: Catalog
+) -> dict[InstrumentId, Point]:
     found: dict[InstrumentId, Point] = {}
     for contract in catalog.instruments(spec.strategy.instruments).values():
-        if isinstance(contract, CryptoOption):
+        if (
+            isinstance(contract, CryptoOption)
+            and contract.underlying.code == underlying
+        ):
             records = _read(catalog, (contract.id, OptionGreeks), _life(contract, spec))
             latest = _last(_points(records, "mark_iv"))
             if latest is not None:

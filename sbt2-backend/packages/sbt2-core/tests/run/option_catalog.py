@@ -68,6 +68,7 @@ class Terms:
     kind: OptionKind
     expiry: datetime
     strike: str
+    coin: Currency = BTC
 
 
 def option(
@@ -82,9 +83,9 @@ def listed_option(instrument_id: InstrumentId, terms: Terms) -> CryptoOption:
     return CryptoOption(
         instrument_id,
         Symbol(instrument_id.symbol.value),
-        BTC,
-        BTC,
-        BTC,
+        terms.coin,
+        terms.coin,
+        terms.coin,
         True,
         terms.kind,
         Price.from_str(terms.strike),
@@ -125,7 +126,9 @@ def _mark(
     return MarkPriceUpdate(instrument_id, Price(float(mark_at(hour, step)), 4), ts, ts)
 
 
-def _greeks(hour: int, instrument_id: InstrumentId = OPTION_ID) -> OptionGreeks:
+def _greeks(
+    hour: int, instrument_id: InstrumentId = OPTION_ID, price: float = INDEX_PRICE
+) -> OptionGreeks:
     ts = _nanos(hour)
     return OptionGreeks(
         instrument_id,
@@ -134,15 +137,17 @@ def _greeks(hour: int, instrument_id: InstrumentId = OPTION_ID) -> OptionGreeks:
         10.0,
         -50.0,
         mark_iv=MARK_IV,
-        underlying_price=INDEX_PRICE,
+        underlying_price=price,
         ts_event=ts,
         ts_init=ts,
     )
 
 
-def _index(hour: int, price: float = INDEX_PRICE) -> IndexPriceUpdate:
+def _index(
+    hour: int, price: float = INDEX_PRICE, series: InstrumentId = INDEX_ID
+) -> IndexPriceUpdate:
     ts = _nanos(hour)
-    return IndexPriceUpdate(INDEX_ID, Price(price, 2), ts, ts)
+    return IndexPriceUpdate(series, Price(price, 2), ts, ts)
 
 
 def build_expiring_catalog(path: Path, delivery: float | None) -> None:
@@ -204,7 +209,11 @@ STAGGERED_LISTING = {
 
 
 def chain_contract_id(label: str, strike: int, kind: str) -> InstrumentId:
-    return InstrumentId.from_str(f"BTC-{label}-{strike}-{kind}.DERIBIT")
+    return contract_id_of("BTC", f"{label}-{strike}-{kind}")
+
+
+def contract_id_of(code: str, terms: str) -> InstrumentId:
+    return InstrumentId.from_str(f"{code}-{terms}.DERIBIT")
 
 
 def build_chain_catalog(
@@ -300,11 +309,14 @@ def _index_instrument(instrument_id: InstrumentId) -> IndexInstrument:
     )
 
 
-def write_dvol(path: Path, dvol: Mapping[int, float]) -> None:
+def write_dvol(
+    path: Path, dvol: Mapping[int, float], series: InstrumentId = DVOL_ID
+) -> None:
     """Add the DVOL values to the catalog at ``path``; ``dvol`` maps an hour,
-    counted from the start and negative before it, to its value."""
+    counted from the start and negative before it, to its value. ``series`` is
+    the volatility index, the BTC one by default."""
     updates = [
-        IndexPriceUpdate(DVOL_ID, Price(value, 2), _nanos(hour), _nanos(hour))
+        IndexPriceUpdate(series, Price(value, 2), _nanos(hour), _nanos(hour))
         for hour, value in sorted(dvol.items())
     ]
     ParquetDataCatalog(str(path)).write_index_price_updates(
@@ -314,11 +326,12 @@ def write_dvol(path: Path, dvol: Mapping[int, float]) -> None:
 
 def _chain_contracts(
     listing: Mapping[str, tuple[datetime, tuple[int, ...]]],
+    coin: Currency = BTC,
 ) -> list[CryptoOption]:
     return [
         listed_option(
-            chain_contract_id(label, strike, suffix),
-            Terms(kind, expiry, str(strike)),
+            contract_id_of(coin.code, f"{label}-{strike}-{suffix}"),
+            Terms(kind, expiry, str(strike), coin),
         )
         for label, (expiry, strikes) in listing.items()
         for strike in strikes
@@ -328,3 +341,47 @@ def _chain_contracts(
 
 def _hours_until(contract: CryptoOption) -> int:
     return (contract.expiration_ns - _nanos(0)) // 3_600_000_000_000
+
+
+ETH = Currency.from_str("ETH")
+ETH_PRICE = 2500.0
+ETH_INDEX_ID = InstrumentId.from_str("ETH_USD.DERIBIT")
+ETH_DVOL_ID = InstrumentId.from_str("ETH_DVOL.DERIBIT")
+ETH_CHAIN_ID = InstrumentId.from_str("ETH-OPTIONS.DERIBIT")
+ETH_LISTING = {"12JAN24": (datetime(2024, 1, 12, 8, tzinfo=UTC), (2000, 2500, 3000))}
+
+
+def eth_contract_id(label: str, strike: int, kind: str) -> InstrumentId:
+    return contract_id_of("ETH", f"{label}-{strike}-{kind}")
+
+
+def build_two_chain_catalog(
+    path: Path,
+    eth_prices: Sequence[float] | None = None,
+    btc_prices: Sequence[float] | None = None,
+) -> None:
+    """Two days of the BTC contracts of ``build_ladder_catalog`` and of the ETH
+    contracts of ``ETH_LISTING``, calls and puts with marks and IV records every
+    hour, and an hourly index for each underlying: ``eth_prices`` (``ETH_PRICE``
+    by default) and ``btc_prices`` (``INDEX_PRICE`` by default)."""
+    catalog = _new_catalog(path)
+    _write_contracts(catalog, _chain_contracts(LADDER_LISTING))
+    _write_index(catalog, btc_prices or [INDEX_PRICE] * HOURS, None)
+    contracts = _chain_contracts(ETH_LISTING, ETH)
+    catalog.write_instruments(
+        [*contracts, _index_instrument(ETH_INDEX_ID), _index_instrument(ETH_DVOL_ID)]
+    )
+    first, last = _nanos(0), _nanos(HOURS) - 1
+    for each in contracts:
+        catalog.write_mark_price_updates(
+            [_mark(hour, each.id) for hour in range(HOURS)], first, last
+        )
+        catalog.write_option_greeks(
+            [_greeks(hour, each.id, ETH_PRICE) for hour in range(HOURS)], first, last
+        )
+    prices = eth_prices or [ETH_PRICE] * HOURS
+    catalog.write_index_price_updates(
+        [_index(hour, price, ETH_INDEX_ID) for hour, price in enumerate(prices)],
+        first,
+        last,
+    )

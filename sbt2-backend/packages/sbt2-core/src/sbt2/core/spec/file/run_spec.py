@@ -22,7 +22,8 @@ class InvalidStudyNameError(SpecError):
 class RunSpec:
     """One backtest as written in a spec file.
 
-    ``capital`` is a nautilus money string such as ``"10000 USDT"``.
+    ``capital`` is a nautilus money string such as ``"10000 USDT"``, or a list of
+    them, one per currency; the first currency reports the run.
     ``liquidation`` overrides the venue profile's ``liquidation_enabled``.
     ``bars`` says what the declared bars are aggregated from: ``"trades"`` or
     ``"candles"``.
@@ -38,7 +39,7 @@ class RunSpec:
     instruments: list[str]
     period: tuple[datetime, datetime]
     venue: str
-    capital: str
+    capital: str | list[str]
     part: str
     split: Splitter | Mapping[str, Any]
     seed: int = 42

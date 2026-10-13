@@ -5,7 +5,13 @@ from typing import Any, override
 from nautilus_trader.model import IndexPriceUpdate, InstrumentId
 
 from sbt2.core.assets.base import ChainConvention, ChainFeeds, ChainJob
-from sbt2.core.assets.option_chain import ChainBand, dvol_of, index_of, is_chain
+from sbt2.core.assets.option_chain import (
+    ChainBand,
+    dvol_of,
+    index_of,
+    is_chain,
+    underlying_of,
+)
 from sbt2.core.assets.option_chain_selection import select_contracts
 from sbt2.data import Selection, Window
 
@@ -40,4 +46,4 @@ class OptionChain(ChainConvention):
 
     @override
     def feeds(self, chain: InstrumentId) -> ChainFeeds:
-        return ChainFeeds(index_of(chain), dvol_of(chain))
+        return ChainFeeds(underlying_of(chain), index_of(chain), dvol_of(chain))
