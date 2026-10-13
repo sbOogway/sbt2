@@ -4,6 +4,7 @@ from itertools import cycle
 from pathlib import Path
 
 import pytest
+from eth_premium_kit import PARAMS as TWO_CHAIN_PARAMS
 from eth_premium_kit import build_portfolio_catalog, run_portfolio
 from option_catalog import (
     ETH_INDEX_ID,
@@ -14,6 +15,8 @@ from option_catalog import (
     write_dvol,
     write_index_history,
 )
+from option_runs import Scenario as OptionScenario
+from option_runs import run_two_chains
 from premium_kit import LOW_RANK, Scenario, run_scenario
 from premium_probe import ProbePortfolio
 
@@ -207,6 +210,31 @@ def test_correlated_underlyings_share_the_larger_fraction(
     allocation = Decimal("0.325")
     for each, share in zip(eth, (1 / 3, 1 / 6), strict=True):
         target = Decimal(str(share)) * allocation * each.equity
+        step = each.bpr / each.combo.legs[0].quantity * Decimal("0.1")
+        assert each.bpr <= target
+        assert target - each.bpr < step
+
+
+@pytest.mark.integration
+def test_combo_targets_use_the_converted_portfolio_equity(tmp_path: Path) -> None:
+    catalog = tmp_path / "catalog"
+    build_portfolio_catalog(catalog)
+    ProbePortfolio.clear()
+
+    run_two_chains(
+        tmp_path, catalog, OptionScenario(PROBE, TWO_CHAIN_PARAMS + DEFAULTS)
+    )
+
+    assert len(ProbePortfolio.submitted) == 4
+    first = ProbePortfolio.submitted[0]
+    assert first.equity == Decimal(1) + Decimal(20) * Decimal(
+        str(ETH_PRICE / INDEX_PRICE)
+    )
+    assert ProbePortfolio.declined == []
+    for each in ProbePortfolio.submitted:
+        share = Decimal("0.125") if each.combo.defined_risk else Decimal("0.375")
+        cap = Decimal("0.05") if each.combo.defined_risk else Decimal("0.07")
+        target = min(share * Decimal("0.325"), cap) * each.equity
         step = each.bpr / each.combo.legs[0].quantity * Decimal("0.1")
         assert each.bpr <= target
         assert target - each.bpr < step

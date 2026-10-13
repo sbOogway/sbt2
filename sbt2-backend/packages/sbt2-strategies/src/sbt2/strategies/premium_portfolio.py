@@ -244,10 +244,7 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
 
     def _target(self, book: SubBook, unit: Combo, share: float) -> Decimal:
         contract = unit.legs[0].contract
-        account = self.portfolio.account(contract.id.venue)
-        if account is None:
-            raise RuntimeError("the run has no account")
-        equity = account.balance_total(contract.settlement_currency).as_decimal()
+        equity = self.equity(contract.settlement_currency.code)
         rules = self._book_rules()
         allocation = rules.allocation_at(self._iv_rank(book.chain))
         cap = rules.defined_cap if book.defined_risk else rules.undefined_cap

@@ -32,9 +32,7 @@ class ProbePortfolio(PremiumPortfolio):
     @override
     def open_combo(self, combo: Combo) -> Combo:
         contract = combo.legs[0].contract
-        account = self.portfolio.account(contract.id.venue)
-        assert account is not None
-        equity = account.balance_total(contract.settlement_currency).as_decimal()
+        equity = self.equity(contract.settlement_currency.code)
         self.submitted.append(Submission(combo, self.margin_of_combo(combo), equity))
         return super().open_combo(combo)
 
