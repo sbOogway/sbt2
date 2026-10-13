@@ -18,7 +18,7 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.portfolio import PortfolioConfig
 
-from sbt2.core.market import ChainFeeds
+from sbt2.core.market import ChainFeeds, Rates
 from sbt2.data import Catalog, Selection
 
 
@@ -225,11 +225,12 @@ class MarginModel(ABC):
         ...
 
     @abstractmethod
-    def used(self, cache: Cache, grid: Sequence[int], currency: str) -> pd.DataFrame:
+    def used(self, cache: Cache, grid: Sequence[int], rates: Rates) -> pd.DataFrame:
         """The margin the run's positions reserved at each time of ``grid``, in
         nanoseconds, as the ``MARGIN_COLUMNS`` hold: the ``margin_used`` and the
-        ``maintenance_margin`` in ``currency``. A fill counts from the next
-        time on, as in the equity."""
+        ``maintenance_margin`` in the reporting currency of ``rates``, which
+        convert the margin of the positions settled in other currencies. A fill
+        counts from the next time on, as in the equity."""
         ...
 
 

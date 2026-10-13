@@ -113,6 +113,21 @@ class OpenBothStrangles(OnSchedule):
         )
 
 
+class MeasureMargins(OpenBothStrangles):
+    """Notes, at each tick, the initial margin of the positions of each coin."""
+
+    margins: ClassVar[dict[datetime, dict[str, Decimal]]] = {}
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        super().on_schedule(now)
+        held: dict[str, Decimal] = {}
+        for instrument_id, margin in self.margin_of_positions().items():
+            code = instrument_id.symbol.value.partition("-")[0]
+            held[code] = held.get(code, Decimal(0)) + margin
+        self.margins[now] = held
+
+
 class TradeBothStrangles(OpenBothStrangles):
     """Closes both strangles on the tick after they opened."""
 

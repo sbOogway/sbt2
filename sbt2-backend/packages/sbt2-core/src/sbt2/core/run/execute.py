@@ -12,6 +12,7 @@ from nautilus_trader.common import Cache, LoggerConfig, LogLevel
 from nautilus_trader.model import PositionAdjusted, PositionAdjustmentType, Venue
 
 from sbt2.core.assets import MarginModel
+from sbt2.core.market import Rates
 from sbt2.core.results import OutputSink, Reports
 from sbt2.core.run.chain_history import read_histories
 from sbt2.core.run.index_prices import read_index_prices, read_rates
@@ -69,6 +70,7 @@ class _Finished:
     backtest: _Backtest
     spec: ResolvedRunSpec
     strategy: Strategy[Any]
+    rates: Rates
 
 
 @dataclass(frozen=True)
@@ -129,7 +131,8 @@ def _execute(spec: ResolvedRunSpec, sink: OutputSink, plan: _Plan) -> None:
     )
     try:
         strategy = _run(backtest, spec.strategy)
-        _write_output(_Finished(backtest, spec, strategy), sink)
+        rates = read_rates(spec, plan.catalog)
+        _write_output(_Finished(backtest, spec, strategy, rates), sink)
         _write_drawdown_trip(strategy, sink)
     finally:
         backtest.node.dispose()
@@ -176,23 +179,18 @@ def _write_output(finished: _Finished, sink: OutputSink) -> None:
     cache = backtest.node.get_engine_cache(backtest.config_id)
     account = _account(cache, backtest.venue)
     portfolio = backtest.node.get_engine_portfolio(backtest.config_id)
-    _use_rates(spec, backtest.catalog, sink)
+    if len(spec.currencies) > 1:
+        sink.use_rates(finished.rates)
     sink.write_equity(
         portfolio.snapshots(account.id), spec.asset.equity.corrections(cache)
     )
-    _write_margin(backtest, spec, sink)
+    _write_margin(finished, sink)
     sink.write_carry(_funding(cache))
     measured = _Measured(
         read_index_prices(spec, cache.instruments(), backtest.catalog),
         _greeks_frame(finished.strategy),
     )
     sink.write_reports(_reports(cache, account, measured))
-
-
-def _use_rates(spec: ResolvedRunSpec, catalog: Catalog, sink: OutputSink) -> None:
-    rates = read_rates(spec, catalog)
-    if rates is not None:
-        sink.use_rates(rates)
 
 
 def _account(cache: Cache, venue: Venue) -> Any:
@@ -202,14 +200,15 @@ def _account(cache: Cache, venue: Venue) -> Any:
     return account
 
 
-def _write_margin(backtest: _Backtest, spec: ResolvedRunSpec, sink: OutputSink) -> None:
+def _write_margin(finished: _Finished, sink: OutputSink) -> None:
+    backtest = finished.backtest
     if backtest.margin is None:
         return
     cache = backtest.node.get_engine_cache(backtest.config_id)
     account = _account(cache, backtest.venue)
     portfolio = backtest.node.get_engine_portfolio(backtest.config_id)
     grid = sorted(each.ts_event for each in portfolio.snapshots(account.id))
-    sink.write_margin(backtest.margin.used(cache, grid, spec.currency))
+    sink.write_margin(backtest.margin.used(cache, grid, finished.rates))
 
 
 def _write_drawdown_trip(strategy: Strategy[Any], sink: OutputSink) -> None:

@@ -11,7 +11,7 @@ from option_catalog import (
     build_two_chain_catalog,
 )
 from option_runs import run_two_chains
-from two_chain_strategies import OpenBothStrangles
+from two_chain_strategies import MeasureMargins, OpenBothStrangles
 
 from sbt2.core.results import trade_statistics
 
@@ -83,6 +83,35 @@ def test_the_equity_of_a_two_currency_run_is_the_converted_total(
     expected = btc.to_numpy() + eth.to_numpy() * rates
     assert list(equity["ts_event"]) == list(btc.index)
     assert list(equity["total_equity"]) == pytest.approx(list(expected))
+
+
+@pytest.mark.integration
+def test_the_bpr_of_a_two_currency_run_is_in_the_reporting_currency(
+    tmp_path: Path,
+) -> None:
+    MeasureMargins.margins.clear()
+    prices = [ETH_PRICE + 10.0 * hour for hour in range(HOURS)]
+    path = tmp_path / "rising_eth"
+    build_two_chain_catalog(path, eth_prices=prices)
+
+    store, run_id = run_two_chains(
+        tmp_path, path, "two_chain_strategies:MeasureMargins"
+    )
+
+    rows = store.load(run_id, "margin")
+    assert set(rows["currency"]) == {"BTC"}
+    margin = rows.groupby("ts_event")["margin_used"].last()
+    held = {
+        tick: coins
+        for tick, coins in MeasureMargins.margins.items()
+        if set(coins) == {"BTC", "ETH"} and tick in margin.index
+    }
+    assert len(held) > 30
+    for tick, coins in held.items():
+        hour = int((tick - START).total_seconds() // 3600)
+        rate = prices[min(hour, HOURS - 1)] / INDEX_PRICE
+        expected = float(coins["BTC"]) + float(coins["ETH"]) * rate
+        assert margin.loc[tick] == pytest.approx(expected)
 
 
 @pytest.mark.integration

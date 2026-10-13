@@ -28,11 +28,11 @@ def read_index_prices(
     return prices
 
 
-def read_rates(spec: ResolvedRunSpec, catalog: Catalog) -> Rates | None:
+def read_rates(spec: ResolvedRunSpec, catalog: Catalog) -> Rates:
     """What converts the currencies of the run into its reporting currency, from
-    the USD index of each; none for a run in one currency."""
+    the USD index of each; a run in one currency needs none."""
     if len(spec.currencies) == 1:
-        return None
+        return Rates(spec.currency, {})
     window = _window(spec)
     prices = {
         code: _series(catalog, underlying_index(code, spec.venue_name), window)
