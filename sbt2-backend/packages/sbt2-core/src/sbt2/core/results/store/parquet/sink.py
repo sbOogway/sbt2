@@ -22,6 +22,7 @@ from sbt2.core.results.store.parquet.tables import (
     equity_table,
     margin_table,
     portfolio_greeks_table,
+    reported_equity,
     write_table,
 )
 from sbt2.core.results.store.sink import IncompleteRunError, Reports
@@ -88,7 +89,9 @@ class ParquetSink:
         snapshots: Sequence[PortfolioSnapshot],
         corrections: pd.DataFrame | None = None,
     ) -> None:
-        self._write("equity", equity_table(snapshots, corrections))
+        balances = equity_table(snapshots, corrections)
+        self._write("balances", balances)
+        self._write("equity", self._reported(balances))
 
     def write_margin(self, margin: pd.DataFrame) -> None:
         self._write("margin", margin_table(margin))
@@ -122,6 +125,11 @@ class ParquetSink:
     def _write(self, name: str, frame: pd.DataFrame) -> None:
         write_table(frame, self._folder / f"{name}.parquet")
         self._tables[name] = frame
+
+    def _reported(self, balances: pd.DataFrame) -> pd.DataFrame:
+        if self._rates is None:
+            return balances
+        return reported_equity(balances, self._rates)
 
     def _trades(self, reports: Reports) -> pd.DataFrame:
         orders = pd.DataFrame() if reports.orders is None else reports.orders

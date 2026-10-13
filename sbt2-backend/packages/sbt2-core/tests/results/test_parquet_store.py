@@ -147,6 +147,7 @@ def test_a_run_writes_its_tables_spec_and_summary_into_its_folder(
 
     assert sorted(path.name for path in (tmp_path / "runs" / run_id).iterdir()) == [
         "account.parquet",
+        "balances.parquet",
         "carry.parquet",
         "equity.parquet",
         "fills.parquet",
