@@ -151,6 +151,22 @@ def test_a_finished_job_stores_each_run_with_its_strategy_py(tmp_path: Path) -> 
 
 
 @pytest.mark.integration
+def test_the_server_runs_a_spec_with_a_capital_list(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        root, jobs = real_jobs(tmp_path)
+        session = Session(area.routes(jobs))
+        reply = await session.ask(submit_run(run_table(capital=["10000 USDT"])))
+        await finished(jobs, submitted_job(reply))
+
+        store = ParquetResultStore(root.results)
+
+        [run_id] = reply.job_submitted.run_ids
+        assert store.spec(run_id)["venue"]["starting_balances"] == ["10000 USDT"]
+
+    in_one_loop(scenario())
+
+
+@pytest.mark.integration
 def test_an_invalid_spec_answers_invalid_argument_and_starts_no_job(
     tmp_path: Path,
 ) -> None:

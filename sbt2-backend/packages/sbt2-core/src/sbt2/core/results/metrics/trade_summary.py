@@ -9,8 +9,9 @@ _TAIL = 0.05
 def trade_statistics(
     trades: pd.DataFrame, margin: pd.DataFrame, currency: str
 ) -> dict[str, float | None]:
-    """The statistics of the rows of a ``trade_table`` and of the buying power
-    reduction in ``currency``, the ``margin_used`` of the margin table.
+    """The statistics of the rows of a ``trade_table``, over their P/L in the
+    reporting currency, and of the buying power reduction in ``currency``, the
+    ``margin_used`` of the margin table.
 
     The standard deviation is the sample's. The CVaR is the mean of the worst
     5 % of the trade P/Ls, rounded up to a whole trade, so the worst trade for
@@ -23,7 +24,9 @@ def trade_statistics(
 def _trade_part(trades: pd.DataFrame) -> dict[str, float | None]:
     if trades.empty:
         return {"Occurrences": 0}
-    pls = [float(each) for each in trades["pl"]]
+    pls = [
+        float(each) for each in trades["pl_report" if "pl_report" in trades else "pl"]
+    ]
     percents = [float(each) for each in trades["pl_percent"] if pd.notna(each)]
     days = sum(float(each) for each in trades["days_held"])
     return {

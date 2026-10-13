@@ -8,7 +8,7 @@ import pandas as pd
 from nautilus_trader.model import CryptoOption, InstrumentId
 
 from sbt2.core.results.costs.records import InverseInstrumentError
-from sbt2.core.results.metrics import Segment, closed_trades, total
+from sbt2.core.results.metrics import RunTables, Segment, closed_trades
 from sbt2.core.results.pricing import MissingPricesError, PricedRun, on_grid
 from sbt2.data import Catalog
 
@@ -22,8 +22,8 @@ class Book:
         self.equity = run.equity
 
     @property
-    def currency(self) -> str:
-        return self.run.tables.currency
+    def tables(self) -> RunTables:
+        return self.run.tables
 
     @cached_property
     def quantities(self) -> pd.DataFrame:
@@ -41,25 +41,46 @@ class Book:
         return pd.DataFrame(held, index=grid)
 
     @cached_property
-    def multipliers(self) -> dict[str, float]:
-        """Each traded instrument's contract multiplier; an inverse one fails."""
+    def _instruments(self) -> dict[str, Any]:
+        """Each traded instrument; an inverse one fails."""
         ids = [InstrumentId.from_str(str(each)) for each in self.quantities.columns]
-        instruments = _linear_instruments(ids, self.run.catalog)
-        return {str(each): float(instruments[each].multiplier) for each in ids}
+        found = _linear_instruments(ids, self.run.catalog)
+        return {str(each): found[each] for each in ids}
+
+    @cached_property
+    def multipliers(self) -> dict[str, float]:
+        """Each traded instrument's contract multiplier."""
+        return {k: float(each.multiplier) for k, each in self._instruments.items()}
+
+    @cached_property
+    def coins(self) -> dict[str, str]:
+        """The currency each traded instrument is valued in."""
+        return {
+            k: each.settlement_currency.code for k, each in self._instruments.items()
+        }
 
     @cached_property
     def unit_values(self) -> pd.DataFrame:
         """Valuation price times contract multiplier: the value of one unit held."""
         market = self.run.market
         price_type = self.run.spec.asset.valuation_price
+        grid = self.segment.grid
         return pd.DataFrame(
             {
                 instrument: market.prices(InstrumentId.from_str(instrument), price_type)
                 * multiplier
+                * self._factors([self.coins[instrument]] * len(grid), grid)
                 for instrument, multiplier in self.multipliers.items()
             },
-            index=self.segment.grid,
+            index=grid,
         )
+
+    def _factors(self, coins: list[str], times: pd.DatetimeIndex) -> np.ndarray:
+        """By what the values in ``coins`` convert into the reporting currency; a
+        run in one currency has its values as they are."""
+        if self.tables.rates is None:
+            return np.ones(len(times))
+        return self.tables.factors(coins, times)
 
     @cached_property
     def notionals(self) -> pd.DataFrame:
@@ -67,13 +88,14 @@ class Book:
 
     def traded_notional(self, fills: pd.DataFrame) -> pd.Series:
         """Each fill's quantity times its price times the contract multiplier."""
-        multipliers = (
-            fills["instrument_id"].astype(str).map(self.multipliers.__getitem__)
-        )
+        names = fills["instrument_id"].astype(str)
+        times = pd.DatetimeIndex(pd.to_datetime(fills["ts_event"], utc=True))
+        factors = self._factors([self.coins[each] for each in names], times)
         return (
             fills["last_qty"].astype(float)
             * fills["last_px"].astype(float)
-            * multipliers
+            * names.map(self.multipliers.__getitem__)
+            * factors
         )
 
 
@@ -113,7 +135,7 @@ class Slice:
         return cls(
             _within(tables.fills, book.segment),
             _within(tables.carry, book.segment),
-            closed_trades(tables.positions, tables.currency),
+            closed_trades(tables.positions, tables.currency, tables.rates),
             list(book.multipliers),
         )
 
@@ -125,11 +147,11 @@ class Slice:
             [instrument],
         )
 
-    def fees(self, currency: str) -> float:
-        return -total(self.fills, "commission", currency)
+    def fees(self, tables: RunTables) -> float:
+        return -tables.total(self.fills, "commission")
 
-    def carried(self, currency: str) -> float:
-        return total(self.carry, "pnl_change", currency)
+    def carried(self, tables: RunTables) -> float:
+        return tables.total(self.carry, "pnl_change")
 
 
 def signed_quantities(fills: pd.DataFrame) -> np.ndarray:

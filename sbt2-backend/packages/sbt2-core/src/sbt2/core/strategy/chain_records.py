@@ -5,6 +5,8 @@ from dataclasses import dataclass
 
 from nautilus_trader.model import InstrumentId
 
+_DAY_NS = 86_400 * 10**9
+
 
 class _Series:
     """Values in time order, each with the nanosecond time it took effect."""
@@ -32,11 +34,13 @@ class _Series:
 class ChainHistory:
     """What a chain run knew before it started, each record as ``(ns, value)``:
     the latest IV of each contract, the latest index price, and the volatility
-    index over its look-back, in time order."""
+    index over its look-back, in time order. ``closes`` are the index prices at
+    the midnights of the look-back."""
 
     ivs: Mapping[InstrumentId, tuple[int, float]]
     index: tuple[int, float] | None
     volatility: Sequence[tuple[int, float]]
+    closes: Sequence[tuple[int, float]] = ()
 
 
 class ChainRecords:
@@ -54,6 +58,8 @@ class ChainRecords:
         """Hear ``history``, which comes before every record heard after."""
         for contract, (ts, iv) in history.ivs.items():
             self.hear_iv(contract, ts, iv)
+        for ts, close in history.closes:
+            self.hear_index(ts, close)
         if history.index is not None:
             self.hear_index(*history.index)
         for ts, value in history.volatility:
@@ -78,3 +84,11 @@ class ChainRecords:
     def volatility(self, since: int) -> list[float]:
         """The volatility index values from ``since`` to now."""
         return self._volatility.between(since, self.now_ns())
+
+    def daily_closes(self, since: int) -> dict[int, float]:
+        """The index price at each UTC midnight from ``since`` to now, by the
+        midnight in nanoseconds; a midnight with no price known yet is left out."""
+        first = -(-since // _DAY_NS) * _DAY_NS
+        last = self.now_ns() // _DAY_NS * _DAY_NS
+        closes = {day: self._index.at(day) for day in range(first, last + 1, _DAY_NS)}
+        return {day: price for day, price in closes.items() if price is not None}

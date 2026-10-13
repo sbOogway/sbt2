@@ -8,6 +8,8 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from nautilus_trader.model import PortfolioSnapshot, PositionAdjusted
 
+from sbt2.core.market import Rates
+
 _JSON_COLUMNS = b"sbt2.json_columns"
 _TIMESTAMPS = ("ts_event", "ts_init")
 _GREEKS_TYPES = {
@@ -37,6 +39,22 @@ def equity_table(
     if corrections is not None and not corrections.empty:
         frame = _corrected(frame, corrections)
     return _with_timestamps(frame)
+
+
+def reported_equity(balances: pd.DataFrame, rates: Rates) -> pd.DataFrame:
+    """One row per time of a snapshot, in the reporting currency: the latest
+    balance of each currency at that time, converted, added."""
+    latest = balances.groupby(
+        ["ts_event", "account_id", "currency"], sort=False, as_index=False
+    )["total_equity"].last()
+    times = pd.DatetimeIndex(latest["ts_event"])
+    factors = rates.factors(list(latest["currency"]), times)
+    converted = latest.assign(
+        currency=rates.reporting, total_equity=latest["total_equity"] * factors
+    )
+    keys = ["ts_event", "account_id", "currency"]
+    added = converted.groupby(keys, sort=False, as_index=False)["total_equity"].sum()
+    return pd.DataFrame(added)
 
 
 def _corrected(frame: pd.DataFrame, corrections: pd.DataFrame) -> pd.DataFrame:

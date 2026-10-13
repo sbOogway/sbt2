@@ -1,8 +1,12 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
+import numpy as np
 import pandas as pd
 
+from sbt2.core.market import Rates
+from sbt2.core.results.metrics.money import mismatch, split_amounts, total
 from sbt2.core.spec import ResolvedRunSpec
 
 
@@ -33,7 +37,10 @@ class Segment:
 
 @dataclass(frozen=True)
 class RunTables:
-    """A run's stored tables, measured in its settlement ``currency``."""
+    """A run's stored tables, measured in its reporting ``currency``.
+
+    ``rates`` convert the amounts a run holds in other currencies; a run in one
+    currency has none."""
 
     equity: pd.DataFrame
     fills: pd.DataFrame
@@ -43,6 +50,28 @@ class RunTables:
     orders: pd.DataFrame = field(default_factory=pd.DataFrame)
     margin: pd.DataFrame = field(default_factory=pd.DataFrame)
     trades: pd.DataFrame = field(default_factory=pd.DataFrame)
+    rates: Rates | None = None
+
+    def total(self, frame: pd.DataFrame, column: str) -> float:
+        """The sum of a column of money amounts in the reporting currency, each
+        converted at its ``ts_event``; 0 for an empty table."""
+        if self.rates is None or frame.empty:
+            return total(frame, column, self.currency)
+        found, currencies = split_amounts(frame[column])
+        times = pd.DatetimeIndex(pd.to_datetime(frame["ts_event"], utc=True))
+        converted = np.asarray(found) * self.factors(currencies, times)
+        return float(sum(converted.tolist(), 0.0))
+
+    def factors(self, currencies: Sequence[str], times: pd.DatetimeIndex) -> np.ndarray:
+        """By what to multiply an amount in each of ``currencies`` at the matching
+        time to have it in the reporting currency; ``CurrencyMismatchError`` for
+        another currency when the run has no rates."""
+        if self.rates is not None:
+            return self.rates.factors(currencies, times)
+        foreign = set(currencies) - {self.currency}
+        if foreign:
+            raise mismatch(foreign, self.currency)
+        return np.ones(len(times))
 
 
 def equity_curve(equity: pd.DataFrame, currency: str, segment: Segment) -> pd.Series:

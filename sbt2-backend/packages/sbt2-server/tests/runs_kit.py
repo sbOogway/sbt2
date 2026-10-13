@@ -30,7 +30,6 @@ _PLAIN = (
     "strategy",
     "instruments",
     "venue",
-    "capital",
     "seed",
     "equity_interval",
     "liquidation",
@@ -128,6 +127,7 @@ def spec_message(table: Mapping[str, Any]) -> SpecFile:
     """The ``SpecFile`` that carries a spec file's ``table``."""
     message = SpecFile(
         **{key: table[key] for key in _PLAIN if key in table},
+        **_capital(table),
         part=_parts(table.get("part", [])),
         split=struct(table.get("split", {})),
         params=struct(table.get("params", {})),
@@ -139,6 +139,15 @@ def spec_message(table: Mapping[str, Any]) -> SpecFile:
         message.period.start_at.FromDatetime(_utc(start))
         message.period.end_at.FromDatetime(_utc(end))
     return message
+
+
+def _capital(table: Mapping[str, Any]) -> dict[str, Any]:
+    capital = table.get("capital")
+    if capital is None:
+        return {}
+    if isinstance(capital, str):
+        return {"capital": capital}
+    return {"capitals": list(capital)}
 
 
 def run_table(**overrides: Any) -> dict[str, Any]:

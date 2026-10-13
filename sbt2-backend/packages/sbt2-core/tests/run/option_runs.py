@@ -54,3 +54,24 @@ def run_options(
     sink = store.new_run(resolved)
     execute(resolved, sink, RunSettings(catalog, max_chain_contracts=2_000))
     return store, sink.run_id
+
+
+def run_two_chains(
+    tmp_path: Path, catalog: Path, scenario: str | Scenario
+) -> tuple[ParquetResultStore, str]:
+    """Like ``run_options`` with the BTC and the ETH chain of the catalog and a
+    capital of 1 BTC and 20 ETH."""
+    chosen = Scenario(scenario) if isinstance(scenario, str) else scenario
+    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+    text = SPEC.replace("combo_strategies:OpenStrangle", chosen.strategy)
+    text = text.replace(
+        '["BTC-OPTIONS.DERIBIT"]', '["BTC-OPTIONS.DERIBIT", "ETH-OPTIONS.DERIBIT"]'
+    )
+    text = text.replace('capital = "1 BTC"', 'capital = ["1 BTC", "20 ETH"]')
+    spec.write_text(text + chosen.tables)
+    venues.write_text(VENUES)
+    [resolved] = load(spec, venues)
+    store = ParquetResultStore(tmp_path / "results")
+    sink = store.new_run(resolved)
+    execute(resolved, sink, RunSettings(catalog, max_chain_contracts=2_000))
+    return store, sink.run_id

@@ -137,6 +137,7 @@ layers = [
     "sbt2.core.results",
     "sbt2.core.spec",
     "sbt2.core.strategy | sbt2.core.assets | sbt2.core.config",
+    "sbt2.core.market",
     "sbt2.data",
 ]
 

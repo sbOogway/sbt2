@@ -192,7 +192,7 @@ def _config(sheet: _Sheet) -> TearsheetConfig:
 
 
 def _trade_charts(trades: pd.DataFrame) -> list[TearsheetChart]:
-    return [trade_pl(trades["pl"].to_list())] if not trades.empty else []
+    return [trade_pl(trades[_reported(trades)].to_list())] if not trades.empty else []
 
 
 def _core_charts(sheet: _Sheet) -> list[TearsheetChart]:
@@ -208,3 +208,9 @@ def _core_charts(sheet: _Sheet) -> list[TearsheetChart]:
         cost_waterfall(sheet.costs.total.costs),
         instrument_breakdown(sheet.instrument_rows),
     ]
+
+
+def _reported(trades: pd.DataFrame) -> str:
+    """The column of the trade P/L in the reporting currency; a run stored before
+    it was kept has only ``pl``."""
+    return "pl_report" if "pl_report" in trades else "pl"

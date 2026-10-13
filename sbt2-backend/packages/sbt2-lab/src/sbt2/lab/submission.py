@@ -78,6 +78,8 @@ def _spec_file(spec: Mapping[str, Any]) -> SpecFile:
 def _set(wire: SpecFile, key: str, value: Any) -> None:
     if key == "instruments":
         wire.instruments.extend(value)
+    elif key == "capital" and not isinstance(value, str):
+        wire.capitals.extend(value)
     else:
         setattr(wire, key, value)
 

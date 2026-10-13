@@ -9,6 +9,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from nautilus_trader.model import PortfolioSnapshot, PositionAdjusted
 
+from sbt2.core.market import Rates
 from sbt2.core.results.metrics import (
     HeadlineMetrics,
     RunTables,
@@ -21,6 +22,7 @@ from sbt2.core.results.store.parquet.tables import (
     equity_table,
     margin_table,
     portfolio_greeks_table,
+    reported_equity,
     write_table,
 )
 from sbt2.core.results.store.sink import IncompleteRunError, Reports
@@ -73,17 +75,26 @@ class ParquetSink:
         self._run = run
         self._tables: dict[str, pd.DataFrame] = {}
         self._drawdown_tripped_at: datetime | None = None
+        self._rates: Rates | None = None
 
     @property
     def run_id(self) -> str:
         return self._run.run_id
+
+    def use_rates(self, rates: Rates) -> None:
+        self._rates = rates
 
     def write_equity(
         self,
         snapshots: Sequence[PortfolioSnapshot],
         corrections: pd.DataFrame | None = None,
     ) -> None:
-        self._write("equity", equity_table(snapshots, corrections))
+        balances = equity_table(snapshots, corrections)
+        self._write("balances", balances)
+        self._write("equity", self._reported(balances))
+        grid = pd.DatetimeIndex(balances["ts_event"].unique())
+        rates = self._rates or Rates(self._run.spec.currency, {})
+        self._write("rates", rates.table(grid))
 
     def write_margin(self, margin: pd.DataFrame) -> None:
         self._write("margin", margin_table(margin))
@@ -118,6 +129,11 @@ class ParquetSink:
         write_table(frame, self._folder / f"{name}.parquet")
         self._tables[name] = frame
 
+    def _reported(self, balances: pd.DataFrame) -> pd.DataFrame:
+        if self._rates is None:
+            return balances
+        return reported_equity(balances, self._rates)
+
     def _trades(self, reports: Reports) -> pd.DataFrame:
         orders = pd.DataFrame() if reports.orders is None else reports.orders
         reported = RunTables(
@@ -127,6 +143,7 @@ class ParquetSink:
             currency=self._run.spec.currency,
             positions=reports.positions,
             orders=orders,
+            rates=self._rates,
         )
         return trade_table(reported, reports.index_prices)
 
@@ -143,6 +160,7 @@ class ParquetSink:
             fills=self._tables["fills"],
             carry=self._tables["carry"],
             currency=self._run.spec.currency,
+            rates=self._rates,
         )
 
 

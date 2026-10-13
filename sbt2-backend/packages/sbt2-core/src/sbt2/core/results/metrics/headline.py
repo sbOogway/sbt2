@@ -12,7 +12,6 @@ from sbt2.core.results.metrics.curves import (
     curve_returns,
     equity_curve,
 )
-from sbt2.core.results.metrics.money import total
 
 
 @dataclass(frozen=True)
@@ -37,8 +36,8 @@ def headline_metrics(run: RunTables, segment: Segment) -> HeadlineMetrics:
         sharpe=_statistic(SharpeRatio(period=period), returns),
         max_drawdown=_statistic(MaxDrawdown(), returns),
         trade_count=len(run.fills),
-        total_fees=total(run.fills, "commission", run.currency),
-        total_carry=total(run.carry, "pnl_change", run.currency),
+        total_fees=run.total(run.fills, "commission"),
+        total_carry=run.total(run.carry, "pnl_change"),
     )
 
 

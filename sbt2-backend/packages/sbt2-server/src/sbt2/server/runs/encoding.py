@@ -28,7 +28,7 @@ def spec_table(spec: SpecFile) -> dict[str, Any]:
         "instruments": list(spec.instruments),
         "period": _period(spec),
         "venue": spec.venue,
-        "capital": spec.capital,
+        "capital": list(spec.capitals) or spec.capital,
     }
     if spec.part:
         table["part"] = list(spec.part)
@@ -44,6 +44,8 @@ def spec_table(spec: SpecFile) -> dict[str, Any]:
 def _is_set(spec: SpecFile, key: str) -> bool:
     if key == "period":
         return spec.period.HasField("start_at") and spec.period.HasField("end_at")
+    if key == "capital":
+        return bool(spec.capital or spec.capitals)
     return bool(getattr(spec, key))
 
 

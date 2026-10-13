@@ -9,6 +9,7 @@ from sbt2.core.spec.resolve.models import (
 )
 from sbt2.core.spec.resolve.resolve import (
     InstrumentVenueError,
+    InvalidCapitalError,
     InvalidChainError,
     UnknownPartError,
     UnsupportedBarsError,
@@ -28,6 +29,7 @@ __all__ = [
     "FeeModelKind",
     "FillModelKind",
     "InstrumentVenueError",
+    "InvalidCapitalError",
     "InvalidChainError",
     "InvalidModelConfigError",
     "InvalidVenueProfileError",

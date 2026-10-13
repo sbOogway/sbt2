@@ -11,6 +11,7 @@ from nautilus_trader.model import InstrumentId
 from sbt2.core.assets.base import MARGIN_COLUMNS, MarginModel
 from sbt2.core.assets.option_margin import ContractHolding, MarginRates
 from sbt2.core.assets.option_margin_market import OptionMarket
+from sbt2.core.market import Rates
 
 type Timeline = tuple[np.ndarray, np.ndarray]
 
@@ -40,24 +41,61 @@ class OptionMarginModel(MarginModel):
         return quantity * Decimal(str(instrument.multiplier)) * mark
 
     @override
-    def used(self, cache: Cache, grid: Sequence[int], currency: str) -> pd.DataFrame:
+    def used(self, cache: Cache, grid: Sequence[int], rates: Rates) -> pd.DataFrame:
         fills = ReportProvider.generate_fills_report(cache.orders())
         timelines = _timelines(fills)
-        rows = [self._row(cache, timelines, (ts, currency)) for ts in grid]
-        return pd.DataFrame(rows, columns=MARGIN_COLUMNS)
+        own = [
+            (slot, *row)
+            for slot, ts in enumerate(grid)
+            for row in self._rows(cache, timelines, (ts, rates.reporting))
+        ]
+        return _reported(pd.DataFrame(own, columns=["slot", *MARGIN_COLUMNS]), rates)
+
+    def _rows(
+        self, cache: Cache, timelines: dict[InstrumentId, Timeline], at: tuple[int, str]
+    ) -> list[tuple[int, str, float, float]]:
+        """The margin at ``at`` (a time and the currency of a flat book) in the
+        coin of each contract held; one row of zeros when none is held."""
+        ts, flat = at
+        held: dict[str, list[tuple[Any, Decimal]]] = {}
+        for instrument_id, timeline in timelines.items():
+            if quantity := _held_before(timeline, ts):
+                instrument = cache.instrument(instrument_id)
+                if instrument is None:
+                    raise LookupError(f"{instrument_id} is not a loaded instrument")
+                coin = instrument.settlement_currency.code
+                held.setdefault(coin, []).append((instrument, quantity))
+        if not held:
+            return [(ts, flat, 0.0, 0.0)]
+        return [self._row(ts, coin, each) for coin, each in held.items()]
 
     def _row(
-        self, cache: Cache, timelines: dict[InstrumentId, Timeline], at: tuple[int, str]
+        self, ts: int, coin: str, held: list[tuple[Any, Decimal]]
     ) -> tuple[int, str, float, float]:
-        ts, currency = at
-        held = [
-            (cache.instrument(instrument_id), quantity)
-            for instrument_id, timeline in timelines.items()
-            if (quantity := _held_before(timeline, ts))
-        ]
         initial = sum((self.initial(each, q, ts) for each, q in held), Decimal(0))
         kept = sum((self.maintenance(each, q, ts) for each, q in held), Decimal(0))
-        return ts, currency, float(initial), float(kept)
+        return ts, coin, float(initial), float(kept)
+
+
+def _reported(own: pd.DataFrame, rates: Rates) -> pd.DataFrame:
+    """The margin rows with each coin's margin converted into the reporting
+    currency and added, one row a time."""
+    times = pd.DatetimeIndex(pd.to_datetime(own["ts_event"], unit="ns", utc=True))
+    factors = rates.factors(list(own["currency"]), times)
+    scaled = own.assign(
+        currency=rates.reporting,
+        margin_used=own["margin_used"] * factors,
+        maintenance_margin=own["maintenance_margin"] * factors,
+    )
+    added = scaled.groupby("slot", sort=True).agg(
+        {
+            "ts_event": "first",
+            "currency": "first",
+            "margin_used": "sum",
+            "maintenance_margin": "sum",
+        }
+    )
+    return pd.DataFrame(added, columns=MARGIN_COLUMNS).reset_index(drop=True)
 
 
 def _timelines(fills: pd.DataFrame) -> dict[InstrumentId, Timeline]:

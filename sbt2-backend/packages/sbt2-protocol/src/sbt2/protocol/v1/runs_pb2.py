@@ -27,53 +27,53 @@ from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__
 from sbt2.protocol.v1 import config_pb2 as sbt2_dot_protocol_dot_v1_dot_config__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1bsbt2/protocol/v1/runs.proto\x12\x10sbt2.protocol.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dsbt2/protocol/v1/config.proto\"f\n\nSpecPeriod\x12,\n\x08start_at\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12*\n\x06\x65nd_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\xdf\x03\n\x08SpecFile\x12\x10\n\x08strategy\x18\x01 \x01(\t\x12\x13\n\x0binstruments\x18\x02 \x03(\t\x12,\n\x06period\x18\x03 \x01(\x0b\x32\x1c.sbt2.protocol.v1.SpecPeriod\x12\r\n\x05venue\x18\x04 \x01(\t\x12\x0f\n\x07\x63\x61pital\x18\x05 \x01(\t\x12\x0c\n\x04part\x18\x06 \x03(\t\x12&\n\x05split\x18\x07 \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x11\n\x04seed\x18\x08 \x01(\x03H\x00\x88\x01\x01\x12\x1c\n\x0f\x65quity_interval\x18\t \x01(\tH\x01\x88\x01\x01\x12\x18\n\x0bliquidation\x18\n \x01(\x08H\x02\x88\x01\x01\x12\x11\n\x04\x62\x61rs\x18\x0b \x01(\tH\x03\x88\x01\x01\x12\'\n\x06params\x18\x0c \x01(\x0b\x32\x17.google.protobuf.Struct\x12%\n\x04risk\x18\r \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x12\n\x05study\x18\x0e \x01(\tH\x04\x88\x01\x01\x12&\n\x05\x63hain\x18\x0f \x01(\x0b\x32\x17.google.protobuf.StructB\x07\n\x05_seedB\x12\n\x10_equity_intervalB\x0e\n\x0c_liquidationB\x07\n\x05_barsB\x08\n\x06_study\".\n\x0eStrategyModule\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0e\n\x06source\x18\x02 \x01(\t\"i\n\tSubmitRun\x12(\n\x04spec\x18\x01 \x01(\x0b\x32\x1a.sbt2.protocol.v1.SpecFile\x12\x32\n\x08strategy\x18\x02 \x01(\x0b\x32 .sbt2.protocol.v1.StrategyModule\"/\n\x0cJobSubmitted\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12\x0f\n\x07run_ids\x18\x02 \x03(\t\"V\n\x08RunState\x12\x0e\n\x06run_id\x18\x01 \x01(\t\x12*\n\x05state\x18\x02 \x01(\x0e\x32\x1b.sbt2.protocol.v1.RunStatus\x12\x0e\n\x06reason\x18\x03 \x01(\t\"z\n\x03Job\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12)\n\x05state\x18\x02 \x01(\x0e\x32\x1a.sbt2.protocol.v1.JobState\x12(\n\x04runs\x18\x03 \x03(\x0b\x32\x1a.sbt2.protocol.v1.RunState\x12\x0e\n\x06reason\x18\x04 \x01(\t\"\x1b\n\tCancelJob\x12\x0e\n\x06job_id\x18\x01 \x01(\t\"\x0e\n\x0cJobCancelled\"\n\n\x08ListJobs\"+\n\x04Jobs\x12#\n\x04jobs\x18\x01 \x03(\x0b\x32\x15.sbt2.protocol.v1.Job\"\x1e\n\x0cSubscribeJob\x12\x0e\n\x06job_id\x18\x01 \x01(\t\"_\n\rJobSubscribed\x12\x17\n\x0fsubscription_id\x18\x01 \x01(\x04\x12\"\n\x03job\x18\x02 \x01(\x0b\x32\x15.sbt2.protocol.v1.Job\x12\x11\n\tlog_lines\x18\x03 \x03(\t\"\x83\x01\n\tJobUpdate\x12(\n\x04runs\x18\x01 \x03(\x0b\x32\x1a.sbt2.protocol.v1.RunState\x12\x11\n\tlog_lines\x18\x02 \x03(\t\x12)\n\x05state\x18\x03 \x01(\x0e\x32\x1a.sbt2.protocol.v1.JobState\x12\x0e\n\x06reason\x18\x04 \x01(\t\"&\n\x0bUnsubscribe\x12\x17\n\x0fsubscription_id\x18\x01 \x01(\x04\"\x0e\n\x0cUnsubscribed\"F\n\x10\x44\x65scribeStrategy\x12\x32\n\x08strategy\x18\x01 \x01(\x0b\x32 .sbt2.protocol.v1.StrategyModule\"\xb4\x01\n\x11StrategyParameter\x12\x0c\n\x04name\x18\x01 \x01(\t\x12-\n\x04type\x18\x02 \x01(\x0e\x32\x1f.sbt2.protocol.v1.ParameterType\x12\x10\n\x08required\x18\x03 \x01(\x08\x12\'\n\x07\x64\x65\x66\x61ult\x18\x04 \x01(\x0b\x32\x16.google.protobuf.Value\x12\'\n\x07\x63hoices\x18\x05 \x03(\x0b\x32\x16.google.protobuf.Value\"\x8c\x01\n\x0eStrategySchema\x12\x10\n\x08strategy\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12\x1a\n\x12params_description\x18\x03 \x01(\t\x12\x37\n\nparameters\x18\x04 \x03(\x0b\x32#.sbt2.protocol.v1.StrategyParameter*\xb1\x01\n\x08JobState\x12\x19\n\x15JOB_STATE_UNSPECIFIED\x10\x00\x12\x14\n\x10JOB_STATE_QUEUED\x10\x01\x12\x16\n\x12JOB_STATE_CHECKING\x10\x02\x12\x15\n\x11JOB_STATE_RUNNING\x10\x03\x12\x16\n\x12JOB_STATE_FINISHED\x10\x04\x12\x14\n\x10JOB_STATE_FAILED\x10\x05\x12\x17\n\x13JOB_STATE_CANCELLED\x10\x06*\xa1\x01\n\tRunStatus\x12\x1a\n\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x16\n\x12RUN_STATUS_PENDING\x10\x01\x12\x16\n\x12RUN_STATUS_RUNNING\x10\x02\x12\x17\n\x13RUN_STATUS_FINISHED\x10\x03\x12\x15\n\x11RUN_STATUS_FAILED\x10\x04\x12\x18\n\x14RUN_STATUS_CANCELLED\x10\x05\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1bsbt2/protocol/v1/runs.proto\x12\x10sbt2.protocol.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dsbt2/protocol/v1/config.proto\"f\n\nSpecPeriod\x12,\n\x08start_at\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12*\n\x06\x65nd_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\xf1\x03\n\x08SpecFile\x12\x10\n\x08strategy\x18\x01 \x01(\t\x12\x13\n\x0binstruments\x18\x02 \x03(\t\x12,\n\x06period\x18\x03 \x01(\x0b\x32\x1c.sbt2.protocol.v1.SpecPeriod\x12\r\n\x05venue\x18\x04 \x01(\t\x12\x0f\n\x07\x63\x61pital\x18\x05 \x01(\t\x12\x0c\n\x04part\x18\x06 \x03(\t\x12&\n\x05split\x18\x07 \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x11\n\x04seed\x18\x08 \x01(\x03H\x00\x88\x01\x01\x12\x1c\n\x0f\x65quity_interval\x18\t \x01(\tH\x01\x88\x01\x01\x12\x18\n\x0bliquidation\x18\n \x01(\x08H\x02\x88\x01\x01\x12\x11\n\x04\x62\x61rs\x18\x0b \x01(\tH\x03\x88\x01\x01\x12\'\n\x06params\x18\x0c \x01(\x0b\x32\x17.google.protobuf.Struct\x12%\n\x04risk\x18\r \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x12\n\x05study\x18\x0e \x01(\tH\x04\x88\x01\x01\x12&\n\x05\x63hain\x18\x0f \x01(\x0b\x32\x17.google.protobuf.Struct\x12\x10\n\x08\x63\x61pitals\x18\x10 \x03(\tB\x07\n\x05_seedB\x12\n\x10_equity_intervalB\x0e\n\x0c_liquidationB\x07\n\x05_barsB\x08\n\x06_study\".\n\x0eStrategyModule\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x0e\n\x06source\x18\x02 \x01(\t\"i\n\tSubmitRun\x12(\n\x04spec\x18\x01 \x01(\x0b\x32\x1a.sbt2.protocol.v1.SpecFile\x12\x32\n\x08strategy\x18\x02 \x01(\x0b\x32 .sbt2.protocol.v1.StrategyModule\"/\n\x0cJobSubmitted\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12\x0f\n\x07run_ids\x18\x02 \x03(\t\"V\n\x08RunState\x12\x0e\n\x06run_id\x18\x01 \x01(\t\x12*\n\x05state\x18\x02 \x01(\x0e\x32\x1b.sbt2.protocol.v1.RunStatus\x12\x0e\n\x06reason\x18\x03 \x01(\t\"z\n\x03Job\x12\x0e\n\x06job_id\x18\x01 \x01(\t\x12)\n\x05state\x18\x02 \x01(\x0e\x32\x1a.sbt2.protocol.v1.JobState\x12(\n\x04runs\x18\x03 \x03(\x0b\x32\x1a.sbt2.protocol.v1.RunState\x12\x0e\n\x06reason\x18\x04 \x01(\t\"\x1b\n\tCancelJob\x12\x0e\n\x06job_id\x18\x01 \x01(\t\"\x0e\n\x0cJobCancelled\"\n\n\x08ListJobs\"+\n\x04Jobs\x12#\n\x04jobs\x18\x01 \x03(\x0b\x32\x15.sbt2.protocol.v1.Job\"\x1e\n\x0cSubscribeJob\x12\x0e\n\x06job_id\x18\x01 \x01(\t\"_\n\rJobSubscribed\x12\x17\n\x0fsubscription_id\x18\x01 \x01(\x04\x12\"\n\x03job\x18\x02 \x01(\x0b\x32\x15.sbt2.protocol.v1.Job\x12\x11\n\tlog_lines\x18\x03 \x03(\t\"\x83\x01\n\tJobUpdate\x12(\n\x04runs\x18\x01 \x03(\x0b\x32\x1a.sbt2.protocol.v1.RunState\x12\x11\n\tlog_lines\x18\x02 \x03(\t\x12)\n\x05state\x18\x03 \x01(\x0e\x32\x1a.sbt2.protocol.v1.JobState\x12\x0e\n\x06reason\x18\x04 \x01(\t\"&\n\x0bUnsubscribe\x12\x17\n\x0fsubscription_id\x18\x01 \x01(\x04\"\x0e\n\x0cUnsubscribed\"F\n\x10\x44\x65scribeStrategy\x12\x32\n\x08strategy\x18\x01 \x01(\x0b\x32 .sbt2.protocol.v1.StrategyModule\"\xb4\x01\n\x11StrategyParameter\x12\x0c\n\x04name\x18\x01 \x01(\t\x12-\n\x04type\x18\x02 \x01(\x0e\x32\x1f.sbt2.protocol.v1.ParameterType\x12\x10\n\x08required\x18\x03 \x01(\x08\x12\'\n\x07\x64\x65\x66\x61ult\x18\x04 \x01(\x0b\x32\x16.google.protobuf.Value\x12\'\n\x07\x63hoices\x18\x05 \x03(\x0b\x32\x16.google.protobuf.Value\"\x8c\x01\n\x0eStrategySchema\x12\x10\n\x08strategy\x18\x01 \x01(\t\x12\x13\n\x0b\x64\x65scription\x18\x02 \x01(\t\x12\x1a\n\x12params_description\x18\x03 \x01(\t\x12\x37\n\nparameters\x18\x04 \x03(\x0b\x32#.sbt2.protocol.v1.StrategyParameter*\xb1\x01\n\x08JobState\x12\x19\n\x15JOB_STATE_UNSPECIFIED\x10\x00\x12\x14\n\x10JOB_STATE_QUEUED\x10\x01\x12\x16\n\x12JOB_STATE_CHECKING\x10\x02\x12\x15\n\x11JOB_STATE_RUNNING\x10\x03\x12\x16\n\x12JOB_STATE_FINISHED\x10\x04\x12\x14\n\x10JOB_STATE_FAILED\x10\x05\x12\x17\n\x13JOB_STATE_CANCELLED\x10\x06*\xa1\x01\n\tRunStatus\x12\x1a\n\x16RUN_STATUS_UNSPECIFIED\x10\x00\x12\x16\n\x12RUN_STATUS_PENDING\x10\x01\x12\x16\n\x12RUN_STATUS_RUNNING\x10\x02\x12\x17\n\x13RUN_STATUS_FINISHED\x10\x03\x12\x15\n\x11RUN_STATUS_FAILED\x10\x04\x12\x18\n\x14RUN_STATUS_CANCELLED\x10\x05\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'sbt2.protocol.v1.runs_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_JOBSTATE']._serialized_start=1965
-  _globals['_JOBSTATE']._serialized_end=2142
-  _globals['_RUNSTATUS']._serialized_start=2145
-  _globals['_RUNSTATUS']._serialized_end=2306
+  _globals['_JOBSTATE']._serialized_start=1983
+  _globals['_JOBSTATE']._serialized_end=2160
+  _globals['_RUNSTATUS']._serialized_start=2163
+  _globals['_RUNSTATUS']._serialized_end=2324
   _globals['_SPECPERIOD']._serialized_start=143
   _globals['_SPECPERIOD']._serialized_end=245
   _globals['_SPECFILE']._serialized_start=248
-  _globals['_SPECFILE']._serialized_end=727
-  _globals['_STRATEGYMODULE']._serialized_start=729
-  _globals['_STRATEGYMODULE']._serialized_end=775
-  _globals['_SUBMITRUN']._serialized_start=777
-  _globals['_SUBMITRUN']._serialized_end=882
-  _globals['_JOBSUBMITTED']._serialized_start=884
-  _globals['_JOBSUBMITTED']._serialized_end=931
-  _globals['_RUNSTATE']._serialized_start=933
-  _globals['_RUNSTATE']._serialized_end=1019
-  _globals['_JOB']._serialized_start=1021
-  _globals['_JOB']._serialized_end=1143
-  _globals['_CANCELJOB']._serialized_start=1145
-  _globals['_CANCELJOB']._serialized_end=1172
-  _globals['_JOBCANCELLED']._serialized_start=1174
-  _globals['_JOBCANCELLED']._serialized_end=1188
-  _globals['_LISTJOBS']._serialized_start=1190
-  _globals['_LISTJOBS']._serialized_end=1200
-  _globals['_JOBS']._serialized_start=1202
-  _globals['_JOBS']._serialized_end=1245
-  _globals['_SUBSCRIBEJOB']._serialized_start=1247
-  _globals['_SUBSCRIBEJOB']._serialized_end=1277
-  _globals['_JOBSUBSCRIBED']._serialized_start=1279
-  _globals['_JOBSUBSCRIBED']._serialized_end=1374
-  _globals['_JOBUPDATE']._serialized_start=1377
-  _globals['_JOBUPDATE']._serialized_end=1508
-  _globals['_UNSUBSCRIBE']._serialized_start=1510
-  _globals['_UNSUBSCRIBE']._serialized_end=1548
-  _globals['_UNSUBSCRIBED']._serialized_start=1550
-  _globals['_UNSUBSCRIBED']._serialized_end=1564
-  _globals['_DESCRIBESTRATEGY']._serialized_start=1566
-  _globals['_DESCRIBESTRATEGY']._serialized_end=1636
-  _globals['_STRATEGYPARAMETER']._serialized_start=1639
-  _globals['_STRATEGYPARAMETER']._serialized_end=1819
-  _globals['_STRATEGYSCHEMA']._serialized_start=1822
-  _globals['_STRATEGYSCHEMA']._serialized_end=1962
+  _globals['_SPECFILE']._serialized_end=745
+  _globals['_STRATEGYMODULE']._serialized_start=747
+  _globals['_STRATEGYMODULE']._serialized_end=793
+  _globals['_SUBMITRUN']._serialized_start=795
+  _globals['_SUBMITRUN']._serialized_end=900
+  _globals['_JOBSUBMITTED']._serialized_start=902
+  _globals['_JOBSUBMITTED']._serialized_end=949
+  _globals['_RUNSTATE']._serialized_start=951
+  _globals['_RUNSTATE']._serialized_end=1037
+  _globals['_JOB']._serialized_start=1039
+  _globals['_JOB']._serialized_end=1161
+  _globals['_CANCELJOB']._serialized_start=1163
+  _globals['_CANCELJOB']._serialized_end=1190
+  _globals['_JOBCANCELLED']._serialized_start=1192
+  _globals['_JOBCANCELLED']._serialized_end=1206
+  _globals['_LISTJOBS']._serialized_start=1208
+  _globals['_LISTJOBS']._serialized_end=1218
+  _globals['_JOBS']._serialized_start=1220
+  _globals['_JOBS']._serialized_end=1263
+  _globals['_SUBSCRIBEJOB']._serialized_start=1265
+  _globals['_SUBSCRIBEJOB']._serialized_end=1295
+  _globals['_JOBSUBSCRIBED']._serialized_start=1297
+  _globals['_JOBSUBSCRIBED']._serialized_end=1392
+  _globals['_JOBUPDATE']._serialized_start=1395
+  _globals['_JOBUPDATE']._serialized_end=1526
+  _globals['_UNSUBSCRIBE']._serialized_start=1528
+  _globals['_UNSUBSCRIBE']._serialized_end=1566
+  _globals['_UNSUBSCRIBED']._serialized_start=1568
+  _globals['_UNSUBSCRIBED']._serialized_end=1582
+  _globals['_DESCRIBESTRATEGY']._serialized_start=1584
+  _globals['_DESCRIBESTRATEGY']._serialized_end=1654
+  _globals['_STRATEGYPARAMETER']._serialized_start=1657
+  _globals['_STRATEGYPARAMETER']._serialized_end=1837
+  _globals['_STRATEGYSCHEMA']._serialized_start=1840
+  _globals['_STRATEGYSCHEMA']._serialized_end=1980
 # @@protoc_insertion_point(module_scope)
