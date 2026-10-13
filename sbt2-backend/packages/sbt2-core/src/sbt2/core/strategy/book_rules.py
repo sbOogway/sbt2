@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from decimal import Decimal
 from typing import Any
 
@@ -8,12 +7,6 @@ from sbt2.core.strategy.chain import NoMarketError
 from sbt2.core.strategy.combo import Combo
 from sbt2.core.strategy.conversion import Conversion
 from sbt2.core.strategy.short_premium import BookState, ComboProposal, ShortPremiumRules
-
-
-def account_equity(trader: Any, contract: CryptoOption) -> Decimal:
-    """The account's total balance in the settlement currency of ``contract``."""
-    account = trader.portfolio.account(contract.id.venue)
-    return account.balance_total(contract.settlement_currency).as_decimal()
 
 
 class BookRules:
@@ -43,25 +36,13 @@ class BookRules:
         contract = combo.legs[0].contract
         coin = _coin(contract)
         account = self._strategy.portfolio.account(contract.id.venue)
-        balances = account.balances_total().values()
         margins = self._strategy.margin_of_positions()
+        held = [(margin, self._coin_of(each)) for each, margin in margins.items()]
         return BookState(
-            self._total(
-                coin, [(each.as_decimal(), each.currency.code) for each in balances]
-            ),
+            self._conversion.balances(account, coin),
             self._iv_rank(combo),
-            self._total(
-                coin,
-                [(margin, self._coin_of(each)) for each, margin in margins.items()],
-            ),
-            self._total(coin, self._defined()),
-        )
-
-    def _total(self, coin: str, amounts: Iterable[tuple[Decimal, str]]) -> Decimal:
-        """The ``amounts``, each with the coin it is in, added in ``coin``."""
-        return sum(
-            (self._conversion.convert(amount, (own, coin)) for amount, own in amounts),
-            Decimal(0),
+            self._conversion.total(held, coin),
+            self._conversion.total(self._defined(), coin),
         )
 
     def _coin_of(self, instrument_id: Any) -> str:

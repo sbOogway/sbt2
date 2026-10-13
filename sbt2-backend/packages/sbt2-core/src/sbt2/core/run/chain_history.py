@@ -14,6 +14,7 @@ from sbt2.core.strategy import ChainHistory
 from sbt2.data import Catalog, Window
 
 _INDEX_REACH = timedelta(days=1)
+_SEVERAL = 2
 
 type Span = tuple[datetime, datetime]
 type Point = tuple[int, float]
@@ -41,7 +42,29 @@ def _history(
         _latest_ivs(spec, feeds.underlying, catalog),
         _last(_points(indexes, "price")),
         _points(levels, "price"),
+        _closes(spec, index, catalog),
     )
+
+
+def _closes(
+    spec: ResolvedRunSpec, index: tuple[InstrumentId, type], catalog: Catalog
+) -> list[Point]:
+    """The index price at each midnight of the look-back, which only the betas of
+    several chains need."""
+    if len(spec.strategy.feeds) < _SEVERAL:
+        return []
+    span = (spec.start - spec.lookback, spec.start)
+    frame = _read(catalog, index, span)
+    if frame.empty:
+        return []
+    prices = frame["price"].dropna().sort_index()
+    midnights = pd.date_range(pd.Timestamp(span[0]).ceil("D"), span[1], freq="D")
+    found = prices.index.searchsorted(midnights, side="right") - 1
+    return [
+        (int(midnight.value), float(prices.iloc[slot]))
+        for midnight, slot in zip(midnights, found, strict=True)
+        if slot >= 0
+    ]
 
 
 def _volatility_span(spec: ResolvedRunSpec) -> Span:

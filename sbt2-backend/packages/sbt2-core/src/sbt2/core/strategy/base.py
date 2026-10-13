@@ -77,6 +77,9 @@ class StrategyRun:
     ``feeds`` name the index and the volatility index of each chain a run
     streams; the strategy hears their prices and the IV of its contracts.
     ``short_premium`` turns the portfolio rules of a short premium book on.
+    ``currency`` is the reporting currency the portfolio greeks are in, the
+    underlying of the first chain by default, and ``lookback`` is how far back
+    the betas of the underlyings to BTC look.
     """
 
     strategy: str
@@ -87,6 +90,8 @@ class StrategyRun:
     drawdown_limit: Decimal | None = None
     feeds: Sequence[ChainFeeds] = ()
     short_premium: ShortPremiumRules | None = None
+    currency: str | None = None
+    lookback: timedelta = timedelta(0)
 
 
 @dataclass(frozen=True)
@@ -100,6 +105,8 @@ class RunConfig:
     drawdown_limit: str | None = None
     feeds: list[dict[str, str]] | None = None
     short_premium: dict[str, Any] | None = None
+    currency: str | None = None
+    lookback_seconds: float = 0.0
 
 
 def importable_config(run: StrategyRun) -> ImportableStrategyConfig:
@@ -121,6 +128,8 @@ def _run_config(run: StrategyRun) -> RunConfig:
         None if run.drawdown_limit is None else str(run.drawdown_limit),
         [_feed_primitives(each) for each in run.feeds] or None,
         None if run.short_premium is None else run.short_premium.as_primitives(),
+        run.currency,
+        run.lookback.total_seconds(),
     )
 
 
@@ -226,6 +235,7 @@ class Strategy[P](NautilusStrategy, ABC):
         self._markets = Markets(
             [_feeds_of(each) for each in config.feeds or []],
             lambda: weak.clock.timestamp_ns(),
+            timedelta(seconds=config.lookback_seconds),
         )
         self._rules = (
             None
@@ -234,7 +244,9 @@ class Strategy[P](NautilusStrategy, ABC):
         )
         self.portfolio_greeks: list[GreeksSample] = []
         self._greeks = (
-            None if not self._markets.feeds else GreeksDesk(weak, self._markets.indexes)
+            None
+            if not self._markets.feeds
+            else GreeksDesk(weak, self._markets, config.currency)
         )
         self._drawdown = (
             None

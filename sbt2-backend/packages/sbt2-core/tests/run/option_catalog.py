@@ -309,6 +309,14 @@ def _index_instrument(instrument_id: InstrumentId) -> IndexInstrument:
     )
 
 
+def write_index_history(
+    path: Path, prices: Mapping[int, float], series: InstrumentId
+) -> None:
+    """Add index prices of ``series`` to the catalog at ``path``; ``prices`` maps an
+    hour, counted from the start and negative before it, to its price."""
+    write_dvol(path, prices, series)
+
+
 def write_dvol(
     path: Path, dvol: Mapping[int, float], series: InstrumentId = DVOL_ID
 ) -> None:

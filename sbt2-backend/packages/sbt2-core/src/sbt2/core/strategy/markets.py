@@ -1,8 +1,10 @@
 from collections.abc import Callable, Iterator, Mapping, Sequence
+from datetime import timedelta
 
 from nautilus_trader.model import IndexPriceUpdate, InstrumentId, OptionGreeks
 
 from sbt2.core.market import ChainFeeds
+from sbt2.core.strategy.beta import betas
 from sbt2.core.strategy.chain import CachedChain, ChainCache, MultipleChainsError
 from sbt2.core.strategy.chain_records import ChainHistory, ChainRecords
 
@@ -12,8 +14,14 @@ class Markets:
     the underlying: the records of the chain, which its feeds and the IV of its
     contracts fill."""
 
-    def __init__(self, feeds: Sequence[ChainFeeds], now_ns: Callable[[], int]) -> None:
+    def __init__(
+        self,
+        feeds: Sequence[ChainFeeds],
+        now_ns: Callable[[], int],
+        lookback: timedelta,
+    ) -> None:
         self._feeds = tuple(feeds)
+        self._lookback = lookback
         self._records = {each.underlying: ChainRecords(now_ns) for each in feeds}
         self._silent = ChainRecords(now_ns)
 
@@ -69,6 +77,10 @@ class Markets:
             for feed in self._feeds
         }
         return {code: price for code, price in latest.items() if price is not None}
+
+    def betas(self) -> dict[str, float]:
+        """The beta of each underlying to BTC over the look-back of the run."""
+        return betas(self._records, self._lookback)
 
     def preload(self, histories: Mapping[str, ChainHistory]) -> None:
         """Hear what each chain knew before the run, by underlying."""

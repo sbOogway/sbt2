@@ -1,19 +1,29 @@
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 
 import pandas as pd
 import pytest
+from combo_strategies import LADDER_EXPIRY
+from nautilus_trader.model import black_scholes_greeks
 from option_catalog import (
+    ETH_INDEX_ID,
     ETH_PRICE,
     HOURS,
+    INDEX_ID,
     INDEX_PRICE,
+    MARK_IV,
     START,
     build_two_chain_catalog,
+    write_index_history,
 )
 from option_runs import run_two_chains
 from two_chain_strategies import MeasureMargins, OpenBothStrangles
 
 from sbt2.core.results import trade_statistics
+
+BTC_MOVES = [0.02, -0.01, 0.03, -0.02, 0.01, 0.015, -0.025, 0.02, -0.005, 0.01]
+ETH_BETA = 1.5
 
 
 @pytest.fixture(scope="module")
@@ -138,3 +148,63 @@ def test_the_trades_of_a_two_currency_run_report_in_one_currency(
     assert found["Occurrences"] == 2
     assert found["Average P/L"] == pytest.approx(trades["pl_report"].mean())
     assert found["Largest Loss"] == pytest.approx(trades["pl_report"].min())
+
+
+def closes(moves: list[float], last: float) -> list[float]:
+    """Prices that rise by ``moves`` and end at ``last``."""
+    prices = [1.0]
+    for move in moves:
+        prices.append(prices[-1] * (1 + move))
+    return [price * last / prices[-1] for price in prices]
+
+
+def strangle_greeks(
+    index: float, strikes: tuple[int, int], hour: datetime
+) -> tuple[float, float]:
+    """The theta (USD per day) and the delta of the short strangle at ``hour``."""
+    years = (LADDER_EXPIRY - hour) / timedelta(days=365)
+    theta = delta = 0.0
+    for strike, is_call in zip(strikes, (False, True), strict=True):
+        found = black_scholes_greeks(
+            index, 0.0, 0.0, MARK_IV, is_call, float(strike), years
+        )
+        theta -= found.theta
+        delta -= found.delta
+    return theta, delta
+
+
+@pytest.mark.integration
+def test_the_portfolio_greeks_of_a_two_currency_run_weight_eth_by_its_beta(
+    tmp_path: Path,
+) -> None:
+    OpenBothStrangles.clear()
+    path = tmp_path / "with_history"
+    build_two_chain_catalog(path)
+    btc_closes = closes(BTC_MOVES, INDEX_PRICE)
+    eth_closes = closes([ETH_BETA * each for each in BTC_MOVES], ETH_PRICE)
+    midnights = [24 * day for day in range(-10, 0)]
+    before_start = {INDEX_ID: btc_closes[:-1], ETH_INDEX_ID: eth_closes[:-1]}
+    for series, prices in before_start.items():
+        write_index_history(path, dict(zip(midnights, prices, strict=True)), series)
+
+    store, run_id = run_two_chains(
+        tmp_path, path, "two_chain_strategies:OpenBothWithHistory"
+    )
+
+    rows = store.load(run_id, "portfolio_greeks")
+    first_day = rows.loc[
+        (rows["beta_weighted_delta"] != 0)
+        & (rows["ts_event"] < datetime(2024, 1, 2, tzinfo=UTC))
+    ]
+    assert len(first_day) > 15
+    [_, both] = OpenBothStrangles.balances
+    equity = float(both["BTC"]) + float(both["ETH"]) * ETH_PRICE / INDEX_PRICE
+    for row in first_day.itertuples():
+        hour = row.ts_event.to_pydatetime()
+        btc_theta, btc_delta = strangle_greeks(INDEX_PRICE, (40000, 50000), hour)
+        eth_theta, eth_delta = strangle_greeks(ETH_PRICE, (2000, 3000), hour)
+        theta = (btc_theta + eth_theta) / INDEX_PRICE
+        delta = btc_delta + ETH_BETA * ETH_PRICE / INDEX_PRICE * eth_delta
+        assert row.theta == pytest.approx(theta)
+        assert row.beta_weighted_delta == pytest.approx(delta)
+        assert row.theta_ratio == pytest.approx(theta / equity)

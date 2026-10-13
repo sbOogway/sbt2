@@ -140,7 +140,13 @@ class ResolvedRunSpec:
         feeds = tuple(self.asset.chain.feeds(each) for each in self.chains)
         return replace(
             self,
-            strategy=replace(self.strategy, instruments=instruments, feeds=feeds),
+            strategy=replace(
+                self.strategy,
+                instruments=instruments,
+                feeds=feeds,
+                currency=self.currency,
+                lookback=self.lookback,
+            ),
             data=[
                 *data_arguments(self._data_types, instruments, self.data_window),
                 *self._feed_data(feeds),

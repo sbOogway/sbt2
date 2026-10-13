@@ -113,6 +113,15 @@ class OpenBothStrangles(OnSchedule):
         )
 
 
+class OpenBothWithHistory(OpenBothStrangles):
+    """Like ``OpenBothStrangles``, with a year of index prices before its data."""
+
+    @classmethod
+    @override
+    def iv_lookback(cls, params: NoParams) -> timedelta:
+        return IV_LOOKBACK
+
+
 class MeasureMargins(OpenBothStrangles):
     """Notes, at each tick, the initial margin of the positions of each coin."""
 

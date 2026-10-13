@@ -1,5 +1,6 @@
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from decimal import Decimal
+from typing import Any
 
 from sbt2.core.strategy.chain import NoMarketError
 
@@ -25,3 +26,17 @@ class Conversion:
                 f"no index price of {error} to convert {source}"
             ) from error
         return amount * Decimal(str(ratio))
+
+    def total(self, amounts: Iterable[tuple[Decimal, str]], coin: str) -> Decimal:
+        """The ``amounts``, each with the coin it is in, added in ``coin``."""
+        return sum(
+            (self.convert(amount, (own, coin)) for amount, own in amounts),
+            Decimal(0),
+        )
+
+    def balances(self, account: Any, coin: str) -> Decimal:
+        """The total balances of all coins of ``account``, in ``coin``."""
+        held = account.balances_total().values()
+        return self.total(
+            ((each.as_decimal(), each.currency.code) for each in held), coin
+        )
