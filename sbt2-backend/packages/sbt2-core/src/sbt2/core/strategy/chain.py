@@ -31,6 +31,10 @@ class NoMarketError(LookupError):
     """The chain has not heard the IV or the index price a question needs."""
 
 
+class MultipleChainsError(LookupError):
+    """``chain`` was asked in a run that streams several chains."""
+
+
 class Chain(ABC):
     """The option contracts a strategy can pick from, as of now."""
 

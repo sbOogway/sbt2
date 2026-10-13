@@ -3,6 +3,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from nautilus_trader.model import IndexPriceUpdate, InstrumentId, OptionGreeks
 
 from sbt2.core.market import ChainFeeds
+from sbt2.core.strategy.chain import CachedChain, ChainCache, MultipleChainsError
 from sbt2.core.strategy.chain_records import ChainHistory, ChainRecords
 
 
@@ -28,6 +29,30 @@ class Markets:
     def first(self) -> ChainRecords:
         """The records of the first chain; empty when the run streams none."""
         return next(iter(self._records.values()), self._silent)
+
+    def only(self) -> ChainRecords:
+        """The records of the one chain of the run; empty when it streams none,
+        ``MultipleChainsError`` when it streams several."""
+        if len(self._records) > 1:
+            raise MultipleChainsError(
+                f"the run streams the chains {', '.join(self._records)}; "
+                "ask for one from `chains`"
+            )
+        return self.first()
+
+    def chains(
+        self, cache: ChainCache, instrument_ids: Sequence[InstrumentId]
+    ) -> dict[str, CachedChain]:
+        """The chain of each underlying, over its own contracts among
+        ``instrument_ids`` and its own records."""
+        return {
+            code: CachedChain(
+                cache,
+                [each for each in instrument_ids if _underlying(each) == code],
+                records,
+            )
+            for code, records in self._records.items()
+        }
 
     def preload(self, histories: Mapping[str, ChainHistory]) -> None:
         """Hear what each chain knew before the run, by underlying."""

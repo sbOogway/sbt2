@@ -273,8 +273,15 @@ class Strategy[P](NautilusStrategy, ABC):
 
     @property
     def chain(self) -> Chain:
-        """The option contracts the run loaded, to pick from."""
-        return CachedChain(self.cache, self.instrument_ids, self._markets.first())
+        """The option contracts the run loaded, to pick from; a run that streams
+        several chains has to ask ``chains`` for one."""
+        return CachedChain(self.cache, self.instrument_ids, self._markets.only())
+
+    @property
+    def chains(self) -> dict[str, Chain]:
+        """The option chain of each underlying the run streams, by its code, such
+        as ``"BTC"``; each ranks the IV on its own volatility index."""
+        return dict(self._markets.chains(self.cache, self.instrument_ids))
 
     @property
     def short_premium_rules(self) -> ShortPremiumRules | None:
