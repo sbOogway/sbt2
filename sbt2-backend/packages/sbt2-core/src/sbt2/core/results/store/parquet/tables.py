@@ -10,6 +10,12 @@ from nautilus_trader.model import PortfolioSnapshot, PositionAdjusted
 
 _JSON_COLUMNS = b"sbt2.json_columns"
 _TIMESTAMPS = ("ts_event", "ts_init")
+_GREEKS_TYPES = {
+    "ts_event": "int64",
+    "theta": "float64",
+    "theta_ratio": "float64",
+    "beta_weighted_delta": "float64",
+}
 
 
 def equity_table(
@@ -52,6 +58,19 @@ def _corrected(frame: pd.DataFrame, corrections: pd.DataFrame) -> pd.DataFrame:
 def margin_table(margin: pd.DataFrame) -> pd.DataFrame:
     """The margin rows with their times as timestamps."""
     return _with_timestamps(margin)
+
+
+def portfolio_greeks_table(samples: pd.DataFrame | None) -> pd.DataFrame:
+    """The sampled portfolio greeks with their times as timestamps; the columns
+    only, for a run that sampled none."""
+    frame = _no_greeks() if samples is None else samples
+    return _with_timestamps(frame.astype(_GREEKS_TYPES))
+
+
+def _no_greeks() -> pd.DataFrame:
+    return pd.DataFrame(
+        {name: pd.Series(dtype=kind) for name, kind in _GREEKS_TYPES.items()}
+    )
 
 
 def carry_table(adjustments: Iterable[PositionAdjusted]) -> pd.DataFrame:

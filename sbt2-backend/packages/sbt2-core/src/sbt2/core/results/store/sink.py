@@ -12,13 +12,16 @@ class Reports:
     """Nautilus's own reports, as its ``ReportProvider`` returns them.
 
     ``index_prices`` are the index prices by time of the underlying of each
-    option contract, by instrument id, which value the trades in USD."""
+    option contract, by instrument id, which value the trades in USD.
+    ``portfolio_greeks`` holds the sampled ``ts_event`` (ns), ``theta``,
+    ``theta_ratio`` and ``beta_weighted_delta`` of a run with an option chain."""
 
     fills: pd.DataFrame
     positions: pd.DataFrame
     account: pd.DataFrame
     orders: pd.DataFrame | None = None
     index_prices: Mapping[str, pd.Series] | None = None
+    portfolio_greeks: pd.DataFrame | None = None
 
 
 class OutputSink(Protocol):

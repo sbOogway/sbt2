@@ -5,6 +5,7 @@ import importlib.util
 import inspect
 import sys
 import threading
+import weakref
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, fields, replace
@@ -42,13 +43,16 @@ from nautilus_trader.model import (
 from nautilus_trader.trading import ImportableStrategyConfig
 from nautilus_trader.trading import Strategy as NautilusStrategy
 
-from sbt2.core.strategy.chain import CachedChain, Chain
+from sbt2.core.strategy.book_rules import BookRules
+from sbt2.core.strategy.chain import CachedChain, Chain, NoMarketError
 from sbt2.core.strategy.chain_records import ChainHistory, ChainRecords
 from sbt2.core.strategy.combo import Combo, ComboExit, Leg
 from sbt2.core.strategy.combo_book import Change, ComboBook, combo_tag
 from sbt2.core.strategy.drawdown import DrawdownGuard
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
 from sbt2.core.strategy.margin import MarginDesk, MarginModel
+from sbt2.core.strategy.portfolio_greeks import GreeksDesk, GreeksSample
+from sbt2.core.strategy.short_premium import ShortPremiumRules
 
 if TYPE_CHECKING:
     from sbt2.core.results import Benchmark
@@ -69,6 +73,7 @@ class StrategyRun:
     ``drawdown_limit`` is the fraction of peak equity the run may lose.
     ``index`` and ``volatility`` name the index and the volatility index a chain
     run streams; the strategy hears their prices and the IV of its contracts.
+    ``short_premium`` turns the portfolio rules of a short premium book on.
     """
 
     strategy: str
@@ -79,6 +84,7 @@ class StrategyRun:
     drawdown_limit: Decimal | None = None
     index: InstrumentId | None = None
     volatility: InstrumentId | None = None
+    short_premium: ShortPremiumRules | None = None
 
 
 @dataclass(frozen=True)
@@ -92,6 +98,7 @@ class RunConfig:
     drawdown_limit: str | None = None
     index: str | None = None
     volatility: str | None = None
+    short_premium: dict[str, Any] | None = None
 
 
 def importable_config(run: StrategyRun) -> ImportableStrategyConfig:
@@ -113,6 +120,7 @@ def _run_config(run: StrategyRun) -> RunConfig:
         None if run.drawdown_limit is None else str(run.drawdown_limit),
         _text(run.index),
         _text(run.volatility),
+        None if run.short_premium is None else run.short_premium.as_primitives(),
     )
 
 
@@ -122,6 +130,9 @@ def _text(instrument_id: InstrumentId | None) -> str | None:
 
 def _id(text: str | None) -> InstrumentId | None:
     return None if text is None else InstrumentId.from_str(text)
+
+
+_GREEKS_INTERVAL = timedelta(hours=1)
 
 
 def _recording_failure(handler: Callable[..., Any]) -> Callable[..., Any]:
@@ -198,9 +209,24 @@ class Strategy[P](NautilusStrategy, ABC):
         self._settling: set[ClientOrderId] = set()
         self._combos = ComboBook()
         self._margin: MarginDesk | None = None
-        self._records = ChainRecords(lambda: self.clock.timestamp_ns())
+        self._rules = (
+            None
+            if config.short_premium is None
+            else BookRules(
+                ShortPremiumRules.from_primitives(config.short_premium),
+                weakref.proxy(self),
+            )
+        )
+        weak = weakref.proxy(self)
+        self._records = ChainRecords(lambda: weak.clock.timestamp_ns())
         self._index = _id(config.index)
         self._volatility = _id(config.volatility)
+        self.portfolio_greeks: list[GreeksSample] = []
+        self._greeks = (
+            None
+            if self._index is None
+            else GreeksDesk(weak, self._index, self._records.index)
+        )
         self._drawdown = (
             None
             if config.drawdown_limit is None
@@ -255,6 +281,7 @@ class Strategy[P](NautilusStrategy, ABC):
         self._listen_to_market()
         self._arm_settlement()
         self._arm_schedule()
+        self._arm_greeks()
 
     @property
     def combos(self) -> tuple[Combo, ...]:
@@ -265,9 +292,15 @@ class Strategy[P](NautilusStrategy, ABC):
         """Send the legs of ``combo`` as one list of market orders and return the
         combo with its id, which the order tags and the fills carry. The free
         equity must cover the margin of the whole list, else no leg is sent and
-        ``on_margin_refused`` is called. ``on_combo_opened`` is called once every
+        ``on_margin_refused`` is called. With the short premium rules on, a combo
+        that breaks one is not sent either: ``on_combo_refused`` is called and the
+        combo comes back with no id. ``on_combo_opened`` is called once every
         leg is filled; a leg the venue refuses closes the legs that filled, at once, calls
         ``on_combo_failed`` and the combo is never open."""
+        reason = self._rule_refusal(combo)
+        if reason is not None:
+            self.on_combo_refused(combo, reason)
+            return combo
         identified = replace(combo, id=self._combos.next_id())
         orders = [self._leg_order(leg, identified.id) for leg in identified.legs]
         self._combos.opening(identified, orders)
@@ -301,7 +334,7 @@ class Strategy[P](NautilusStrategy, ABC):
 
     def use_margin(self, model: MarginModel) -> None:
         """Margin the strategy's orders and positions with ``model``."""
-        self._margin = MarginDesk(model, self)
+        self._margin = MarginDesk(model, weakref.proxy(self))
 
     def use_history(self, history: ChainHistory) -> None:
         """Tell a chain strategy what the run knew before its start: the data
@@ -322,6 +355,10 @@ class Strategy[P](NautilusStrategy, ABC):
     def on_margin_refused(self, order: Any, reason: str) -> None:
         """``order`` was not sent: its initial margin is more than the free
         equity, ``reason`` says by how much."""
+
+    def on_combo_refused(self, combo: Combo, reason: str) -> None:
+        """``combo`` was not sent: it breaks a short premium rule, ``reason`` names
+        the rule and the numbers."""
 
     def on_settlement(self, fill: OrderFilled) -> None:
         """A position settled at its contract's expiry; ``fill`` closed it."""
@@ -386,6 +423,21 @@ class Strategy[P](NautilusStrategy, ABC):
         interval = self.schedule(self.params)
         if interval is not None:
             self.clock.set_timer("schedule", interval, callback=self._tick)
+
+    def _arm_greeks(self) -> None:
+        if self._greeks is not None:
+            self.clock.set_timer(
+                "portfolio-greeks", _GREEKS_INTERVAL, callback=self._sample_greeks
+            )
+
+    @_recording_failure
+    def _sample_greeks(self, event: TimeEvent) -> None:
+        if self._greeks is None or self.warming_up:
+            return
+        try:
+            self.portfolio_greeks.append(self._greeks.sample(event.ts_event))
+        except NoMarketError:
+            return
 
     def _tick(self, event: TimeEvent) -> None:
         now = unix_nanos_to_dt(event.ts_event)
@@ -492,6 +544,11 @@ class Strategy[P](NautilusStrategy, ABC):
             super().submit_order_list(order_list, *args, **kwargs)
         else:
             self._combos.forget(order_list)
+
+    def _rule_refusal(self, combo: Combo) -> str | None:
+        if self._rules is None or not self._takes_orders:
+            return None
+        return self._rules.refusal(combo)
 
     def _covered(self, orders: Sequence[Any]) -> bool:
         """Whether the free equity covers the orders; if not, the strategy hears

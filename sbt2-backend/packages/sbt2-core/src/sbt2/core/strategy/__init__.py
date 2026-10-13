@@ -37,6 +37,7 @@ from sbt2.core.strategy.schema import (
     UnsupportedParameterTypeError,
     params_schema,
 )
+from sbt2.core.strategy.short_premium import ShortPremiumRules
 
 __all__ = [
     "IV_LOOKBACK",
@@ -55,6 +56,7 @@ __all__ = [
     "NoParams",
     "ParamSpec",
     "RunConfig",
+    "ShortPremiumRules",
     "Strategy",
     "StrategyRun",
     "UnknownParameterError",

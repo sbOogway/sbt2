@@ -243,7 +243,9 @@ class ResolvedRunSpec:
     def _risk_document(self) -> dict[str, Any]:
         limit = self.strategy.drawdown_limit
         drawdown = {} if limit is None else {"drawdown_limit": limit}
-        return {**self.risk, **drawdown}
+        rules = self.strategy.short_premium
+        premium = {} if rules is None else {"short_premium": rules.as_primitives()}
+        return {**self.risk, **drawdown, **premium}
 
     def _core_document(self) -> dict[str, Any]:
         return {

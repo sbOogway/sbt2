@@ -20,6 +20,7 @@ from sbt2.core.results.store.parquet.tables import (
     carry_table,
     equity_table,
     margin_table,
+    portfolio_greeks_table,
     write_table,
 )
 from sbt2.core.results.store.sink import IncompleteRunError, Reports
@@ -97,6 +98,9 @@ class ParquetSink:
         if reports.orders is not None:
             self._write("orders", reports.orders)
         self._write("trades", self._trades(reports))
+        self._write(
+            "portfolio_greeks", portfolio_greeks_table(reports.portfolio_greeks)
+        )
 
     def write_strategy_source(self, source: str) -> None:
         (self._folder / STRATEGY_SOURCE).write_text(source)

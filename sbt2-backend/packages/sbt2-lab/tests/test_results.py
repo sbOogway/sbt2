@@ -158,6 +158,26 @@ def test_the_lab_reads_the_trades_of_a_run() -> None:
 
 @pytest.mark.integration
 @pytest.mark.usefixtures("strategies")
+def test_a_run_reads_its_portfolio_greeks() -> None:
+    server = FakeServer()
+    greeks = pd.DataFrame(
+        {
+            "theta": [0.0, 0.002],
+            "theta_ratio": [0.0, 0.0021],
+            "beta_weighted_delta": [0.0, -0.04],
+        }
+    )
+    server.answer("get_series", series_in_pieces(greeks))
+
+    fetched_greeks = fetched(server, Run.portfolio_greeks)
+
+    pd.testing.assert_frame_equal(fetched_greeks, greeks)
+    [asked] = server.received("get_series")
+    assert asked.get_series.kind == SeriesKind.SERIES_KIND_PORTFOLIO_GREEKS
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
 def test_the_trade_statistics_come_as_a_series_by_name() -> None:
     server = FakeServer()
     frame = pd.DataFrame({"name": ["Occurrences", "POP"], "value": [2.0, 0.5]})

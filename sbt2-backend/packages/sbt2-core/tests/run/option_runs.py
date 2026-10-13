@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 
 from sbt2.core.results import ParquetResultStore
@@ -28,13 +29,25 @@ fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_ra
 """
 
 
+@dataclass(frozen=True)
+class Scenario:
+    """A combo strategy and the spec tables, such as ``[risk.short_premium]``,
+    appended to the spec of its run."""
+
+    strategy: str
+    tables: str = ""
+
+
 def run_options(
-    tmp_path: Path, catalog: Path, strategy: str
+    tmp_path: Path, catalog: Path, scenario: str | Scenario
 ) -> tuple[ParquetResultStore, str]:
-    """Runs the combo strategy ``strategy`` on the option ``catalog`` and
-    returns the store of the run and its id."""
+    """Runs ``scenario`` (a combo strategy, alone or with spec tables) on the
+    option ``catalog`` and returns the store of the run and its id."""
+    chosen = Scenario(scenario) if isinstance(scenario, str) else scenario
     spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
-    spec.write_text(SPEC.replace("combo_strategies:OpenStrangle", strategy))
+    spec.write_text(
+        SPEC.replace("combo_strategies:OpenStrangle", chosen.strategy) + chosen.tables
+    )
     venues.write_text(VENUES)
     [resolved] = load(spec, venues)
     store = ParquetResultStore(tmp_path / "results")

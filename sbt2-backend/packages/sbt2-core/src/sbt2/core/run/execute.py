@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -65,6 +65,21 @@ class _Backtest:
 
 
 @dataclass(frozen=True)
+class _Finished:
+    backtest: _Backtest
+    spec: ResolvedRunSpec
+    strategy: Strategy[Any]
+
+
+@dataclass(frozen=True)
+class _Measured:
+    """What the run measured beyond nautilus's reports."""
+
+    index_prices: Mapping[str, pd.Series]
+    portfolio_greeks: pd.DataFrame | None
+
+
+@dataclass(frozen=True)
 class _Plan:
     config: BacktestRunConfig
     margin: MarginModel | None
@@ -114,7 +129,7 @@ def _execute(spec: ResolvedRunSpec, sink: OutputSink, plan: _Plan) -> None:
     )
     try:
         strategy = _run(backtest, spec.strategy)
-        _write_output(backtest, spec, sink)
+        _write_output(_Finished(backtest, spec, strategy), sink)
         _write_drawdown_trip(strategy, sink)
     finally:
         backtest.node.dispose()
@@ -157,7 +172,8 @@ def _run(backtest: _Backtest, run: StrategyRun) -> Strategy[Any]:
     return strategy
 
 
-def _write_output(backtest: _Backtest, spec: ResolvedRunSpec, sink: OutputSink) -> None:
+def _write_output(finished: _Finished, sink: OutputSink) -> None:
+    backtest, spec = finished.backtest, finished.spec
     cache = backtest.node.get_engine_cache(backtest.config_id)
     account = _account(cache, backtest.venue)
     portfolio = backtest.node.get_engine_portfolio(backtest.config_id)
@@ -166,8 +182,11 @@ def _write_output(backtest: _Backtest, spec: ResolvedRunSpec, sink: OutputSink) 
     )
     _write_margin(backtest, spec, sink)
     sink.write_carry(_funding(cache))
-    prices = read_index_prices(spec, cache.instruments(), backtest.catalog)
-    sink.write_reports(_reports(cache, account, prices))
+    measured = _Measured(
+        read_index_prices(spec, cache.instruments(), backtest.catalog),
+        _greeks_frame(finished.strategy),
+    )
+    sink.write_reports(_reports(cache, account, measured))
 
 
 def _account(cache: Cache, venue: Venue) -> Any:
@@ -192,9 +211,12 @@ def _write_drawdown_trip(strategy: Strategy[Any], sink: OutputSink) -> None:
         sink.write_drawdown_trip(strategy.drawdown_tripped_at)
 
 
-def _reports(
-    cache: Cache, account: Any, index_prices: Mapping[str, pd.Series]
-) -> Reports:
+def _greeks_frame(strategy: Strategy[Any]) -> pd.DataFrame | None:
+    samples = strategy.portfolio_greeks
+    return pd.DataFrame([asdict(each) for each in samples]) if samples else None
+
+
+def _reports(cache: Cache, account: Any, measured: _Measured) -> Reports:
     return Reports(
         fills=ReportProvider.generate_fills_report(cache.orders()),
         positions=ReportProvider.generate_positions_report(
@@ -202,7 +224,8 @@ def _reports(
         ),
         account=ReportProvider.generate_account_report(account),
         orders=ReportProvider.generate_orders_report(cache.orders()),
-        index_prices=index_prices,
+        index_prices=measured.index_prices,
+        portfolio_greeks=measured.portfolio_greeks,
     )
 
 
