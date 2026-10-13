@@ -61,6 +61,15 @@ class Markets:
         }
         return {index: price for index, price in latest.items() if price is not None}
 
+    def prices(self) -> dict[str, float]:
+        """The latest index price of each chain that has heard one, by the code
+        of its underlying."""
+        latest = {
+            feed.underlying: self._records[feed.underlying].index()
+            for feed in self._feeds
+        }
+        return {code: price for code, price in latest.items() if price is not None}
+
     def preload(self, histories: Mapping[str, ChainHistory]) -> None:
         """Hear what each chain knew before the run, by underlying."""
         for code, history in histories.items():

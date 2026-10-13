@@ -49,6 +49,7 @@ from sbt2.core.strategy.chain import CachedChain, Chain, NoMarketError
 from sbt2.core.strategy.chain_records import ChainHistory
 from sbt2.core.strategy.combo import Combo, ComboExit, Leg
 from sbt2.core.strategy.combo_book import Change, ComboBook, combo_tag
+from sbt2.core.strategy.conversion import Conversion
 from sbt2.core.strategy.drawdown import DrawdownGuard
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_time
 from sbt2.core.strategy.margin import MarginDesk, MarginModel
@@ -221,15 +222,15 @@ class Strategy[P](NautilusStrategy, ABC):
             if config.short_premium is None
             else ShortPremiumRules.from_primitives(config.short_premium)
         )
-        self._rules = (
-            None
-            if self._short_premium is None
-            else BookRules(self._short_premium, weakref.proxy(self))
-        )
         weak = weakref.proxy(self)
         self._markets = Markets(
             [_feeds_of(each) for each in config.feeds or []],
             lambda: weak.clock.timestamp_ns(),
+        )
+        self._rules = (
+            None
+            if self._short_premium is None
+            else BookRules(self._short_premium, weak, Conversion(self._markets.prices))
         )
         self.portfolio_greeks: list[GreeksSample] = []
         self._greeks = (
