@@ -41,6 +41,7 @@ class OpenStrangle(OnSchedule):
     margins: ClassVar[list[tuple[Decimal, Decimal]]] = []
     failed: ClassVar[list[tuple[Combo, str]]] = []
     reasons: ClassVar[list[str]] = []
+    declined: ClassVar[list[tuple[Combo, str]]] = []
 
     @classmethod
     def clear(cls) -> None:
@@ -54,6 +55,7 @@ class OpenStrangle(OnSchedule):
             cls.margins,
             cls.failed,
             cls.reasons,
+            cls.declined,
         ):
             each.clear()
 
@@ -101,6 +103,10 @@ class OpenStrangle(OnSchedule):
     @override
     def on_combo_failed(self, combo: Combo, reason: str) -> None:
         self.failed.append((combo, reason))
+
+    @override
+    def on_combo_refused(self, combo: Combo, reason: str) -> None:
+        self.declined.append((combo, reason))
 
     @override
     def on_margin_refused(self, order: MarketOrder, reason: str) -> None:

@@ -42,6 +42,7 @@ from nautilus_trader.model import (
 from nautilus_trader.trading import ImportableStrategyConfig
 from nautilus_trader.trading import Strategy as NautilusStrategy
 
+from sbt2.core.strategy.book_rules import BookRules
 from sbt2.core.strategy.chain import CachedChain, Chain
 from sbt2.core.strategy.chain_records import ChainHistory, ChainRecords
 from sbt2.core.strategy.combo import Combo, ComboExit, Leg
@@ -203,6 +204,13 @@ class Strategy[P](NautilusStrategy, ABC):
         self._settling: set[ClientOrderId] = set()
         self._combos = ComboBook()
         self._margin: MarginDesk | None = None
+        self._rules = (
+            None
+            if config.short_premium is None
+            else BookRules(
+                ShortPremiumRules.from_primitives(config.short_premium), self
+            )
+        )
         self._records = ChainRecords(lambda: self.clock.timestamp_ns())
         self._index = _id(config.index)
         self._volatility = _id(config.volatility)
@@ -270,9 +278,15 @@ class Strategy[P](NautilusStrategy, ABC):
         """Send the legs of ``combo`` as one list of market orders and return the
         combo with its id, which the order tags and the fills carry. The free
         equity must cover the margin of the whole list, else no leg is sent and
-        ``on_margin_refused`` is called. ``on_combo_opened`` is called once every
+        ``on_margin_refused`` is called. With the short premium rules on, a combo
+        that breaks one is not sent either: ``on_combo_refused`` is called and the
+        combo comes back with no id. ``on_combo_opened`` is called once every
         leg is filled; a leg the venue refuses closes the legs that filled, at once, calls
         ``on_combo_failed`` and the combo is never open."""
+        reason = self._rule_refusal(combo)
+        if reason is not None:
+            self.on_combo_refused(combo, reason)
+            return combo
         identified = replace(combo, id=self._combos.next_id())
         orders = [self._leg_order(leg, identified.id) for leg in identified.legs]
         self._combos.opening(identified, orders)
@@ -327,6 +341,10 @@ class Strategy[P](NautilusStrategy, ABC):
     def on_margin_refused(self, order: Any, reason: str) -> None:
         """``order`` was not sent: its initial margin is more than the free
         equity, ``reason`` says by how much."""
+
+    def on_combo_refused(self, combo: Combo, reason: str) -> None:
+        """``combo`` was not sent: it breaks a short premium rule, ``reason`` names
+        the rule and the numbers."""
 
     def on_settlement(self, fill: OrderFilled) -> None:
         """A position settled at its contract's expiry; ``fill`` closed it."""
@@ -497,6 +515,11 @@ class Strategy[P](NautilusStrategy, ABC):
             super().submit_order_list(order_list, *args, **kwargs)
         else:
             self._combos.forget(order_list)
+
+    def _rule_refusal(self, combo: Combo) -> str | None:
+        if self._rules is None or not self._takes_orders:
+            return None
+        return self._rules.refusal(combo)
 
     def _covered(self, orders: Sequence[Any]) -> bool:
         """Whether the free equity covers the orders; if not, the strategy hears
