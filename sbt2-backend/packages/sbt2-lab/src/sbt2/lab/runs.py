@@ -82,6 +82,12 @@ class Run:
         no combos, with its P/L in the coin and in USD at the index at its close."""
         return await self._series(SeriesKind.SERIES_KIND_TRADES)
 
+    async def portfolio_greeks(self) -> pd.DataFrame:
+        """The theta per day in the settlement currency, the theta ratio (theta over
+        equity) and the delta in BTC weighted by beta, one row an hour; empty for
+        a run with no option chain."""
+        return await self._series(SeriesKind.SERIES_KIND_PORTFOLIO_GREEKS)
+
     async def trade_statistics(self) -> pd.Series:
         """The statistics over the trades, such as ``POP`` and ``CVaR 5%``, and the
         average and peak buying power reduction, by name; NaN is undefined."""

@@ -136,6 +136,11 @@ enum SeriesKind {
   // The statistics over the trades and the margin, with the columns name and
   // value (float64, NaN when undefined).
   SERIES_KIND_TRADE_STATISTICS = 4;
+  // The portfolio greeks of a run with an option chain, one row an hour, with
+  // the columns ts_event, theta (per day, in the settlement currency),
+  // theta_ratio (theta over equity) and beta_weighted_delta (in BTC), all
+  // float64 after the time.
+  SERIES_KIND_PORTFOLIO_GREEKS = 5;
 }
 
 message GetSeries {

@@ -58,6 +58,12 @@ class _SeriesKindEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_SeriesKind
     """The statistics over the trades and the margin, with the columns name and
     value (float64, NaN when undefined).
     """
+    SERIES_KIND_PORTFOLIO_GREEKS: _SeriesKind.ValueType  # 5
+    """The portfolio greeks of a run with an option chain, one row an hour, with
+    the columns ts_event, theta (per day, in the settlement currency),
+    theta_ratio (theta over equity) and beta_weighted_delta (in BTC), all
+    float64 after the time.
+    """
 
 class SeriesKind(_SeriesKind, metaclass=_SeriesKindEnumTypeWrapper): ...
 
@@ -69,6 +75,12 @@ SERIES_KIND_TRADES: SeriesKind.ValueType  # 3
 SERIES_KIND_TRADE_STATISTICS: SeriesKind.ValueType  # 4
 """The statistics over the trades and the margin, with the columns name and
 value (float64, NaN when undefined).
+"""
+SERIES_KIND_PORTFOLIO_GREEKS: SeriesKind.ValueType  # 5
+"""The portfolio greeks of a run with an option chain, one row an hour, with
+the columns ts_event, theta (per day, in the settlement currency),
+theta_ratio (theta over equity) and beta_weighted_delta (in BTC), all
+float64 after the time.
 """
 Global___SeriesKind: _TypeAlias = SeriesKind  # noqa: Y015
 

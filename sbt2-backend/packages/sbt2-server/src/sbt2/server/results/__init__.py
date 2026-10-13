@@ -100,8 +100,8 @@ class _Results:
         return records(template, "entries", metrics(measured))
 
     async def get_series(self, request: ClientMessage, outbox: Outbox) -> ServerMessage:
-        """Equity has the columns ts_event, currency and total_equity; fills and
-        trades are the stored rows, fills indexed by client_order_id; the trade
+        """Equity has the columns ts_event, currency and total_equity; fills,
+        trades and portfolio greeks are the stored rows, fills indexed by client_order_id; the trade
         statistics have the columns name and value."""
         with tempfile.TemporaryFile() as staged:
             await offloaded(self._stage_series)(request.get_series, staged)
@@ -125,6 +125,8 @@ class _Results:
                 return self.store.load(selected.run_id, "fills")
             case SeriesKind.SERIES_KIND_TRADES:
                 return self.store.load(selected.run_id, "trades")
+            case SeriesKind.SERIES_KIND_PORTFOLIO_GREEKS:
+                return self.store.load(selected.run_id, "portfolio_greeks")
             case SeriesKind.SERIES_KIND_TRADE_STATISTICS:
                 tables = self.store.stored_run(selected.run_id).tables
                 return trade_statistics(

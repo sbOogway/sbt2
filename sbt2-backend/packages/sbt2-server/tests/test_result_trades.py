@@ -53,3 +53,23 @@ def test_trade_statistics_stream_matches_core(tmp_path: Path) -> None:
         },
         nan_ok=True,
     )
+
+
+@pytest.mark.integration
+def test_the_server_serves_the_portfolio_greeks_of_a_run(tmp_path: Path) -> None:
+    run = stored(tmp_path)
+    times = pd.to_datetime(["2024-01-01 03:00", "2024-01-01 04:00"], utc=True)
+    greeks = pd.DataFrame(
+        {
+            "ts_event": times,
+            "theta": [0.0, 0.002],
+            "theta_ratio": [0.0, 0.0021],
+            "beta_weighted_delta": [0.0, -0.04],
+        }
+    )
+    greeks.to_parquet(run.store.folder(run.run_id) / "portfolio_greeks.parquet")
+
+    replies = series(tmp_path, run.run_id, SeriesKind.SERIES_KIND_PORTFOLIO_GREEKS)
+
+    assert replies[-1].series.last
+    pd.testing.assert_frame_equal(decoded(replies), greeks)
