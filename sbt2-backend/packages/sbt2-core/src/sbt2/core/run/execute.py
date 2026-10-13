@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -18,7 +18,6 @@ from sbt2.core.run.index_prices import read_index_prices
 from sbt2.core.spec import ResolvedRunSpec, SpecError
 from sbt2.core.strategy import (
     ChainHistory,
-    GreeksSample,
     Strategy,
     StrategyRun,
     build_strategy,
@@ -77,7 +76,7 @@ class _Measured:
     """What the run measured beyond nautilus's reports."""
 
     index_prices: Mapping[str, pd.Series]
-    portfolio_greeks: pd.DataFrame
+    portfolio_greeks: pd.DataFrame | None
 
 
 @dataclass(frozen=True)
@@ -212,10 +211,9 @@ def _write_drawdown_trip(strategy: Strategy[Any], sink: OutputSink) -> None:
         sink.write_drawdown_trip(strategy.drawdown_tripped_at)
 
 
-def _greeks_frame(strategy: Strategy[Any]) -> pd.DataFrame:
+def _greeks_frame(strategy: Strategy[Any]) -> pd.DataFrame | None:
     samples = strategy.portfolio_greeks
-    columns = [field.name for field in fields(GreeksSample)]
-    return pd.DataFrame([asdict(each) for each in samples], columns=columns)
+    return pd.DataFrame([asdict(each) for each in samples]) if samples else None
 
 
 def _reports(cache: Cache, account: Any, measured: _Measured) -> Reports:

@@ -108,14 +108,17 @@ def _signed(position: Any) -> Decimal:
     return quantity if position.side == PositionSide.LONG else -quantity
 
 
-def _index_of(contract: CryptoOption) -> InstrumentId:
+def _index_of(contract: CryptoOption, code: str | None = None) -> InstrumentId:
+    """The index of the underlying ``code`` (the contract's own by default) on the
+    contract's venue; named as ``sbt2.core.assets.index_id`` names it, which this
+    package cannot import."""
     return InstrumentId.from_str(
-        f"{contract.underlying.code}_USD.{contract.id.venue.value}"
+        f"{code or contract.underlying.code}_USD.{contract.id.venue.value}"
     )
 
 
 def _weighted(holding: Holding, indexes: Mapping[InstrumentId, float]) -> float:
     own = _index_of(holding.contract)
-    base = InstrumentId.from_str(f"BTC_USD.{holding.contract.id.venue.value}")
+    base = _index_of(holding.contract, "BTC")
     ratio = 1.0 if own == base else indexes[own] / indexes[base]
     return float(holding.quantity) * holding.delta * ratio * BETA

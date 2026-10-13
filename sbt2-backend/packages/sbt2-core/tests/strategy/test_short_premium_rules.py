@@ -13,13 +13,8 @@ from nautilus_trader.model import (
 )
 from option_catalog import START, Terms, listed_option
 
-from sbt2.core.strategy import (
-    BookState,
-    ComboProposal,
-    Holding,
-    ShortPremiumRules,
-    beta_weighted_delta,
-)
+from sbt2.core.strategy.portfolio_greeks import Holding, beta_weighted_delta
+from sbt2.core.strategy.short_premium import BookState, ComboProposal, ShortPremiumRules
 
 RULES = ShortPremiumRules()
 BTC_PUT = listed_option(
