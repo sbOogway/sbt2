@@ -14,7 +14,17 @@ from nautilus_trader.model import IndexPriceUpdate, InstrumentId, MarkPriceUpdat
 
 from sbt2.core.run import DataFolders, MissingDataError, preflight
 from sbt2.core.spec import ResolvedRunSpec, load
-from sbt2.data import Catalog, Window
+from sbt2.data import (
+    Catalog,
+    DayRange,
+    DownloadOptions,
+    DownloadRequest,
+    IngestOptions,
+    IngestRequest,
+    Window,
+    download,
+    ingest,
+)
 
 SPEC = """
 strategy = "run_strategies:ActOnSchedule"
@@ -127,3 +137,19 @@ def test_a_chain_run_without_its_dvol_look_back_names_the_missing_day(
         MissingDataError, match=rf"BTC_DVOL.DERIBIT IndexPriceUpdate {BEFORE}"
     ):
         preflight(spec, ChainSource(), folders_of(tmp_path))
+
+
+@pytest.mark.integration
+def test_preflight_fetches_a_chain_when_only_its_index_is_cached(
+    tmp_path: Path,
+) -> None:
+    folders = folders_of(tmp_path)
+    source = ChainSource()
+    days = DayRange(("BTC",), DAYS[0], DAYS[-1], data=(IndexPriceUpdate.__name__,))
+    download(source, DownloadRequest(days), DownloadOptions(folders.raw))
+    ingest(source, IngestRequest(days), IngestOptions(folders.raw, folders.catalog))
+    source.asked.clear()
+
+    preflight(spec_of(tmp_path), source, folders)
+
+    assert frame_of(folders, IN_BAND, MarkPriceUpdate)

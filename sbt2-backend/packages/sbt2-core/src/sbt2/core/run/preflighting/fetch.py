@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Callable, Iterable, Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from operator import attrgetter
 from pathlib import Path
@@ -109,9 +109,19 @@ def _coverages(
     for selection in _selections(spec, catalog):
         yield selection.window, catalog.coverage(selection, known_gaps)
     for chain in spec.chains:
-        [index] = catalog.coverage(spec.asset.chain.days(chain, spec.data_window))
+        index = _chain_days(spec, catalog, chain)
         days = _with_known_gaps(chain, index, known_gaps)
         yield Window(*spec.data_window), _chain_coverage(spec, days)
+
+
+def _chain_days(
+    spec: ResolvedRunSpec, catalog: Catalog, chain: InstrumentId
+) -> Coverage:
+    [index] = catalog.coverage(spec.asset.chain.days(chain, spec.data_window))
+    if spec.contracts_of(chain, catalog):
+        return index
+    days = spec.asset.calendar.trading_days(*spec.data_window)
+    return replace(index, missing=tuple(sorted(days)))
 
 
 def _with_known_gaps(
