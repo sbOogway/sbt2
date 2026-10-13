@@ -3,6 +3,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from eth_premium_kit import build_portfolio_catalog, run_portfolio
 from option_catalog import build_staggered_catalog, write_dvol
 from premium_kit import LOW_RANK, Scenario, run_scenario
 from premium_probe import ProbePortfolio
@@ -147,3 +148,20 @@ def test_a_combo_target_never_exceeds_the_rules_caps(
     for submission in ProbePortfolio.submitted:
         cap = Decimal("0.05") if submission.combo.defined_risk else Decimal("0.07")
         assert submission.bpr <= cap * submission.equity
+
+
+@pytest.mark.integration
+def test_the_portfolio_runs_both_books_on_each_underlying(tmp_path: Path) -> None:
+    catalog = tmp_path / "catalog"
+    build_portfolio_catalog(catalog)
+    ProbePortfolio.clear()
+
+    run_portfolio(tmp_path, catalog)
+
+    opened = Counter(
+        (combo.legs[0].contract.underlying.code, combo.name)
+        for combo, _ in ProbePortfolio.opened
+    )
+    assert opened == Counter(
+        {(coin, book): 1 for coin in ("BTC", "ETH") for book in (STRANGLE, CONDOR)}
+    )

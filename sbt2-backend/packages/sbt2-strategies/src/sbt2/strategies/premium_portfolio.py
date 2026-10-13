@@ -72,6 +72,8 @@ class SubBook:
     and how to build one combo of unit size at an expiry."""
 
     name: str
+    underlying: str
+    chain: Chain
     defined_risk: bool
     dte: float
     pop: float
@@ -148,6 +150,13 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         self._held.pop(combo.id, None)
 
     def _books(self) -> list[SubBook]:
+        return [
+            book
+            for code, chain in self.chains.items()
+            for book in self._books_on(code, chain)
+        ]
+
+    def _books_on(self, code: str, chain: Chain) -> list[SubBook]:
         params = self.params
         core = StrangleParams(delta=params.core_delta, quantity=ONE)
         body = CondorParams(
@@ -155,14 +164,18 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         )
         return [
             SubBook(
-                "core",
+                f"{code}:core",
+                code,
+                chain,
                 False,
                 params.core_dte,
                 params.core_pop,
                 lambda chain, expiry: strangle(chain, expiry, core),
             ),
             SubBook(
-                "supplemental",
+                f"{code}:supplemental",
+                code,
+                chain,
                 True,
                 params.supplemental_dte,
                 params.supplemental_pop,
@@ -185,7 +198,7 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         held = [each.expiry for each in self._held.values() if each.book == book.name]
         if len(held) >= self.params.ladder or not self._is_due(book, now):
             return
-        expiry = self.chain.nearest_expiry(book.dte)
+        expiry = book.chain.nearest_expiry(book.dte)
         if expiry is None or expiry in held:
             return
         combo = self._sized(book, expiry, share)
@@ -203,7 +216,7 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         )
 
     def _sized(self, book: SubBook, expiry: datetime, share: float) -> Combo | None:
-        unit = book.build(self.chain, expiry)
+        unit = book.build(book.chain, expiry)
         if unit is None:
             return None
         try:
@@ -224,7 +237,7 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
             raise RuntimeError("the run has no account")
         equity = account.balance_total(contract.settlement_currency).as_decimal()
         rules = self._book_rules()
-        allocation = rules.allocation_at(self._iv_rank())
+        allocation = rules.allocation_at(self._iv_rank(book.chain))
         cap = rules.defined_cap if book.defined_risk else rules.undefined_cap
         target = Decimal(str(share)) * allocation * equity / self.params.ladder
         return min(target, cap * equity)
@@ -233,9 +246,9 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         rules = self.short_premium_rules
         return ShortPremiumRules() if rules is None else rules
 
-    def _iv_rank(self) -> float | None:
+    def _iv_rank(self, chain: Chain) -> float | None:
         try:
-            return self.chain.iv_rank()
+            return chain.iv_rank()
         except NoMarketError:
             return None
 
