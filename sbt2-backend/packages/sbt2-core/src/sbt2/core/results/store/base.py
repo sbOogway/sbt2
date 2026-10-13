@@ -16,6 +16,7 @@ from sbt2.data import Catalog, Gap
 Table = Literal[
     "equity",
     "balances",
+    "rates",
     "margin",
     "carry",
     "fills",

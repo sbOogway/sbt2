@@ -8,6 +8,7 @@ from typing import Any, Self, override
 import duckdb
 import pandas as pd
 
+from sbt2.core.market import Rates
 from sbt2.core.results.metrics import RunTables
 from sbt2.core.results.store.base import (
     MissingTableError,
@@ -121,6 +122,7 @@ class ParquetResultStore(ResultStore):
                 orders=self._optional(run_id, "orders"),
                 margin=self._optional(run_id, "margin"),
                 trades=self._optional(run_id, "trades"),
+                rates=self._rates(run_id, summary["currency"]),
             ),
             known_gaps=frozenset(Gap.from_str(each) for each in summary["known_gaps"]),
             strategy_source=source,
@@ -169,6 +171,12 @@ class ParquetResultStore(ResultStore):
             return self.load(run_id, table)
         except MissingTableError:
             return pd.DataFrame()
+
+    def _rates(self, run_id: str, currency: str) -> Rates | None:
+        """The rates the run converted with; none for a run in one currency, or
+        stored before it kept them."""
+        table = self._optional(run_id, "rates")
+        return None if table.empty else Rates.from_table(currency, table)
 
     def _strategy_source(self, run_id: str) -> Path | None:
         source = self._folder(run_id) / STRATEGY_SOURCE

@@ -92,6 +92,9 @@ class ParquetSink:
         balances = equity_table(snapshots, corrections)
         self._write("balances", balances)
         self._write("equity", self._reported(balances))
+        grid = pd.DatetimeIndex(balances["ts_event"].unique())
+        rates = self._rates or Rates(self._run.spec.currency, {})
+        self._write("rates", rates.table(grid))
 
     def write_margin(self, margin: pd.DataFrame) -> None:
         self._write("margin", margin_table(margin))

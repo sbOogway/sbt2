@@ -31,6 +31,13 @@ class NoRateError(LookupError):
     pass
 
 
+def _no_rates(columns: list[str]) -> pd.DataFrame:
+    kinds = ["datetime64[ns, UTC]", "object", "float64"]
+    return pd.DataFrame(
+        {name: pd.Series(dtype=kind) for name, kind in zip(columns, kinds, strict=True)}
+    )
+
+
 @dataclass(frozen=True)
 class Rates:
     """What converts an amount into the ``reporting`` currency of a run: the USD
@@ -39,6 +46,34 @@ class Rates:
 
     reporting: str
     prices: Mapping[str, pd.Series]
+
+    @classmethod
+    def from_table(cls, reporting: str, table: pd.DataFrame) -> Rates:
+        """The rates a ``table`` of ``ts_event``, ``currency`` and ``rate`` holds:
+        one unit of the currency in the reporting one at each time."""
+        prices = {
+            str(code): pd.Series(rows["rate"].to_numpy(), index=rows["ts_event"])
+            for code, rows in table.groupby("currency")
+        }
+        always = pd.Series([1.0], index=pd.DatetimeIndex([pd.Timestamp(0, tz="UTC")]))
+        return cls(reporting, {**prices, reporting: always})
+
+    def table(self, times: pd.DatetimeIndex) -> pd.DataFrame:
+        """The rate of each currency but the reporting one at each of ``times``,
+        as ``from_table`` reads it."""
+        others = sorted(set(self.prices) - {self.reporting})
+        found = [
+            pd.DataFrame(
+                {
+                    "ts_event": times,
+                    "currency": code,
+                    "rate": self.factors([code] * len(times), times),
+                }
+            )
+            for code in others
+        ]
+        columns = ["ts_event", "currency", "rate"]
+        return pd.concat(found, ignore_index=True) if found else _no_rates(columns)
 
     def factors(self, currencies: Sequence[str], times: pd.DatetimeIndex) -> np.ndarray:
         """By what to multiply an amount in each of ``currencies`` at the matching
