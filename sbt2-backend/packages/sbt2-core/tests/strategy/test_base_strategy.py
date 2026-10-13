@@ -33,7 +33,13 @@ from toy_strategies import (
     RecordBars,
 )
 
-from sbt2.core.strategy import RunConfig, StrategyRun, build_strategy, importable_config
+from sbt2.core.strategy import (
+    RunConfig,
+    ShortPremiumRules,
+    StrategyRun,
+    build_strategy,
+    importable_config,
+)
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 TRADE_START = START + timedelta(minutes=3)
@@ -150,6 +156,23 @@ def test_declared_bars_are_subscribed_and_warmup_ends_at_the_trade_start() -> No
     run_instance(strategy)
 
     assert (strategy.warmup_bars, strategy.trading_bars) == (3, BARS_FROM_TRADE_START)
+
+
+@pytest.mark.unit
+def test_a_strategy_reads_the_short_premium_rules_of_the_spec() -> None:
+    rules = ShortPremiumRules(undefined_cap=Decimal("0.03"))
+    config = RunConfig(
+        [str(BTC)], {}, TRADE_START.isoformat(), short_premium=rules.as_primitives()
+    )
+
+    assert CountWarmupBars(config).short_premium_rules == rules
+
+
+@pytest.mark.unit
+def test_a_strategy_without_the_rules_table_has_no_rules() -> None:
+    strategy = CountWarmupBars(RunConfig([str(BTC)], {}, TRADE_START.isoformat()))
+
+    assert strategy.short_premium_rules is None
 
 
 @pytest.mark.unit

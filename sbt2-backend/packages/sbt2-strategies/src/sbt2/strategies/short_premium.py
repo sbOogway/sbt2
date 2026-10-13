@@ -125,7 +125,7 @@ class ShortStrangle(ShortPremium[StrangleParams]):
 
     @override
     def build(self, chain: Chain, expiry: datetime) -> Combo | None:
-        return _strangle(chain, expiry, self.params)
+        return strangle(chain, expiry, self.params)
 
 
 class ShortStraddle(ShortPremium[PremiumParams]):
@@ -150,7 +150,7 @@ class IronCondor(ShortPremium[CondorParams]):
 
     @override
     def build(self, chain: Chain, expiry: datetime) -> Combo | None:
-        return _condor(chain, expiry, self.params)
+        return condor(chain, expiry, self.params)
 
 
 class VerticalSpread(ShortPremium[SpreadParams]):
@@ -198,15 +198,17 @@ class IvRegime(ShortPremium[RegimeParams]):
         except NoMarketError:
             return None
         if rank < self.params.iv_rank_threshold:
-            return _condor(chain, expiry, self.params)
-        return _strangle(chain, expiry, self.params)
+            return condor(chain, expiry, self.params)
+        return strangle(chain, expiry, self.params)
 
 
 def _has_band(params: PremiumParams) -> bool:
     return params.min_iv_rank > 0 or params.max_iv_rank < 1
 
 
-def _strangle(chain: Chain, expiry: datetime, params: StrangleParams) -> Combo | None:
+def strangle(chain: Chain, expiry: datetime, params: StrangleParams) -> Combo | None:
+    """The short strangle nearest ``params.delta`` at ``expiry``, if the chain has
+    both legs."""
     put = chain.nearest_delta(expiry, -params.delta)
     call = chain.nearest_delta(expiry, params.delta)
     if put is None or call is None:
@@ -214,8 +216,10 @@ def _strangle(chain: Chain, expiry: datetime, params: StrangleParams) -> Combo |
     return short_strangle(put, call, params.quantity)
 
 
-def _condor(chain: Chain, expiry: datetime, params: CondorParams) -> Combo | None:
-    body = _strangle(chain, expiry, params)
+def condor(chain: Chain, expiry: datetime, params: CondorParams) -> Combo | None:
+    """The iron condor of ``params`` at ``expiry``, if the chain has its legs and
+    the wings lie beyond the body."""
+    body = strangle(chain, expiry, params)
     put_wing = chain.nearest_delta(expiry, -params.wing_delta)
     call_wing = chain.nearest_delta(expiry, params.wing_delta)
     if body is None or put_wing is None or call_wing is None:

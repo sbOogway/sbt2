@@ -197,6 +197,12 @@ DENSE_LISTING = {
 }
 
 
+STAGGERED_LISTING = {
+    label: (datetime(2024, 1, day, 8, tzinfo=UTC), tuple(range(35000, 55001, 500)))
+    for day, label in ((3, "3JAN24"), (4, "4JAN24"), (5, "5JAN24"), (6, "6JAN24"))
+}
+
+
 def chain_contract_id(label: str, strike: int, kind: str) -> InstrumentId:
     return InstrumentId.from_str(f"BTC-{label}-{strike}-{kind}.DERIBIT")
 
@@ -229,6 +235,14 @@ def build_dense_ladder_catalog(path: Path, mark_step: Decimal = MARK_STEP) -> No
     the wings of a condor are not the short legs."""
     catalog = _new_catalog(path)
     _write_contracts(catalog, _chain_contracts(DENSE_LISTING), mark_step)
+    _write_index(catalog, [INDEX_PRICE] * HOURS, CHAIN_DELIVERY)
+
+
+def build_staggered_catalog(path: Path) -> None:
+    """Like ``build_dense_ladder_catalog`` for four daily expiries, 3 to 6 January,
+    each with a strike every 500."""
+    catalog = _new_catalog(path)
+    _write_contracts(catalog, _chain_contracts(STAGGERED_LISTING))
     _write_index(catalog, [INDEX_PRICE] * HOURS, CHAIN_DELIVERY)
 
 
