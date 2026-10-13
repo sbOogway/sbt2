@@ -1,5 +1,6 @@
 """Runs a short premium strategy on the synthetic option catalogs."""
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +12,7 @@ from sbt2.core.run import RunSettings, execute
 from sbt2.core.spec import load
 
 SPEC = """
-strategy = "sbt2.strategies.short_premium:{name}"
+strategy = "{path}"
 instruments = ["BTC-OPTIONS.DERIBIT"]
 period = [2024-01-01T02:00:00, 2024-01-05]
 split = {{ validation_start = 2024-01-03, test_start = 2024-01-04 }}
@@ -27,7 +28,7 @@ strike_band = "0.5"
 [params]
 interval_hours = 1
 {params}
-"""
+{tables}"""
 VENUES = """
 [deribit_option]
 name = "DERIBIT"
@@ -45,10 +46,30 @@ HIGH_RANK = {-100: 30.0, -50: 100.0, **dict.fromkeys(range(48), 90.0)}
 def run_strategy(
     tmp_path: Path, catalog: Path, name: str, **params: Any
 ) -> tuple[ParquetResultStore, str]:
+    """Runs ``name``, a class of ``sbt2.strategies.short_premium`` or a
+    ``module:Class`` path."""
+    return run_scenario(tmp_path, catalog, Scenario(name), **params)
+
+
+@dataclass(frozen=True)
+class Scenario:
+    """A strategy and the spec ``tables`` that follow its parameters."""
+
+    name: str
+    tables: str = ""
+
+
+def run_scenario(
+    tmp_path: Path, catalog: Path, scenario: Scenario, **params: Any
+) -> tuple[ParquetResultStore, str]:
+    name = scenario.name
+    path = name if ":" in name else f"sbt2.strategies.short_premium:{name}"
     lines = "\n".join(f"{key} = {value!r}" for key, value in params.items())
     tmp_path.mkdir(parents=True, exist_ok=True)
     spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
-    spec.write_text(SPEC.format(name=name, params=lines.replace("'", '"')))
+    spec.write_text(
+        SPEC.format(path=path, params=lines.replace("'", '"'), tables=scenario.tables)
+    )
     venues.write_text(VENUES)
     [resolved] = load(spec, venues)
     store = ParquetResultStore(tmp_path / "results")
