@@ -1,7 +1,9 @@
 from decimal import Decimal
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import pytest
 from premium_kit import legs_of, run_strategy
 
@@ -119,3 +121,73 @@ def test_a_wing_not_beyond_the_short_leg_opens_no_combo(
     store, run_id = run_strategy(tmp_path, ladder, name, wing_delta=0.30)
 
     assert store.load(run_id, "fills").empty
+
+
+NEVER = 1000
+
+
+def closing_fills(store: ParquetResultStore, run_id: str) -> pd.DataFrame:
+    fills = legs_of(store, run_id, "C1")
+    return pd.DataFrame(fills[fills["order_side"] == "BUY"])
+
+
+@pytest.mark.integration
+def test_a_combo_closes_at_the_management_dte(tmp_path: Path, ladder: Path) -> None:
+    store, run_id = run_strategy(
+        tmp_path, ladder, "ShortStrangle", close_dte=45, profit_target=NEVER
+    )
+
+    closing = closing_fills(store, run_id)
+    assert sorted(closing["instrument_id"]) == [SHORT_PUT, SHORT_CALL]
+    assert set(closing["ts_event"]) == {pd.Timestamp("2024-01-01T08:00", tz="UTC")}
+
+
+@pytest.mark.integration
+def test_a_combo_closes_at_the_profit_target(tmp_path: Path, falling: Path) -> None:
+    held = run_strategy(
+        tmp_path / "held", falling, "ShortStrangle", close_dte=0, profit_target=NEVER
+    )
+    store, run_id = run_strategy(
+        tmp_path, falling, "ShortStrangle", close_dte=0, profit_target=20
+    )
+
+    assert closing_fills(*held).empty
+    assert len(closing_fills(store, run_id)) == 2
+
+
+@pytest.mark.integration
+def test_a_combo_closes_at_the_stop_when_one_is_set(
+    tmp_path: Path, ladder: Path
+) -> None:
+    held = run_strategy(
+        tmp_path / "held", ladder, "ShortStrangle", close_dte=0, profit_target=NEVER
+    )
+    store, run_id = run_strategy(
+        tmp_path,
+        ladder,
+        "ShortStrangle",
+        close_dte=0,
+        profit_target=NEVER,
+        loss_target=20,
+    )
+
+    assert closing_fills(*held).empty
+    assert len(closing_fills(store, run_id)) == 2
+
+
+@pytest.mark.integration
+def test_a_new_combo_opens_only_after_the_last_one_closed(
+    tmp_path: Path, ladder: Path
+) -> None:
+    store, run_id = run_strategy(
+        tmp_path, ladder, "ShortStrangle", close_dte=45, profit_target=NEVER
+    )
+
+    spans = [
+        (fills["ts_event"].min(), fills["ts_event"].max())
+        for each in ("C1", "C2", "C3")
+        if not (fills := legs_of(store, run_id, each)).empty
+    ]
+    assert len(spans) == 3
+    for (_, closed), (opened, _) in pairwise(spans):
+        assert opened > closed

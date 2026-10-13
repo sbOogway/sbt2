@@ -46,6 +46,7 @@ def run_strategy(
     tmp_path: Path, catalog: Path, name: str, **params: Any
 ) -> tuple[ParquetResultStore, str]:
     lines = "\n".join(f"{key} = {value!r}" for key, value in params.items())
+    tmp_path.mkdir(parents=True, exist_ok=True)
     spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
     spec.write_text(SPEC.format(name=name, params=lines.replace("'", '"')))
     venues.write_text(VENUES)
