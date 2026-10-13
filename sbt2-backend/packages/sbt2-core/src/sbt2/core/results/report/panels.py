@@ -6,6 +6,7 @@ arguments: its own, such as ``returns`` and ``theme_config``, and the panel's.
 
 import math
 import numbers
+from collections.abc import Sequence
 from dataclasses import astuple
 from typing import Any
 
@@ -23,6 +24,7 @@ from sbt2.core.results.report import series
 _COST_WATERFALL = "sbt2_cost_waterfall"
 _INSTRUMENT_BREAKDOWN = "sbt2_instrument_breakdown"
 _ROLLING_SHARPE = "sbt2_rolling_sharpe"
+_TRADE_PL = "sbt2_trade_pl"
 
 
 def rolling_sharpe(days_per_year: int) -> TearsheetChart:
@@ -41,6 +43,11 @@ def cost_waterfall(costs: CostWaterfall) -> TearsheetChart:
 def instrument_breakdown(rows: pd.DataFrame) -> TearsheetChart:
     """A table of ``rows``, one per traded instrument indexed by its id."""
     return TearsheetCustomChart(chart=_INSTRUMENT_BREAKDOWN, args={"rows": rows})
+
+
+def trade_pl(pls: Sequence[float]) -> TearsheetChart:
+    """A histogram of the P/L of each trade."""
+    return TearsheetCustomChart(chart=_TRADE_PL, args={"pls": list(pls)})
 
 
 def _draw_rolling_sharpe(fig: go.Figure, row: int, col: int, **panel: Any) -> None:
@@ -62,6 +69,22 @@ def _draw_rolling_sharpe(fig: go.Figure, row: int, col: int, **panel: Any) -> No
     )
     fig.update_xaxes(title_text="Date", row=row, col=col)
     fig.update_yaxes(title_text="Sharpe Ratio", row=row, col=col)
+
+
+def _draw_trade_pl(fig: go.Figure, row: int, col: int, **panel: Any) -> None:
+    colors = panel["theme_config"]["colors"]
+    fig.add_trace(
+        go.Histogram(
+            x=panel["pls"],
+            name="Trade P/L",
+            marker={"color": colors["primary"]},
+            showlegend=False,
+        ),
+        row=row,
+        col=col,
+    )
+    fig.update_xaxes(title_text="P/L", row=row, col=col)
+    fig.update_yaxes(title_text="Trades", row=row, col=col)
 
 
 def _draw_cost_waterfall(fig: go.Figure, row: int, col: int, **panel: Any) -> None:
@@ -127,6 +150,7 @@ register_tearsheet_chart(
     "Instrument Breakdown",
     _draw_instrument_breakdown,
 )
+register_tearsheet_chart(_TRADE_PL, "histogram", "Trade P/L", _draw_trade_pl)
 register_tearsheet_chart(
     _ROLLING_SHARPE,
     "scatter",

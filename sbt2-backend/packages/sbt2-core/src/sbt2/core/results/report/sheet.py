@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 from nautilus_trader.analysis import (
     GridLayout,
+    TearsheetChart,
     TearsheetConfig,
     TearsheetDistributionChart,
     TearsheetDrawdownChart,
@@ -30,6 +31,7 @@ from sbt2.core.results.report.panels import (
     cost_waterfall,
     instrument_breakdown,
     rolling_sharpe,
+    trade_pl,
 )
 from sbt2.core.results.report.series import TearsheetPanels
 
@@ -175,15 +177,8 @@ def _config(sheet: _Sheet) -> TearsheetConfig:
     spec = sheet.run.spec
     return TearsheetConfig(
         charts=[
-            TearsheetStatsTableChart(),
-            TearsheetEquityChart(),
-            TearsheetDrawdownChart(),
-            TearsheetMonthlyReturnsChart(),
-            TearsheetDistributionChart(),
-            rolling_sharpe(spec.asset.days_per_year),
-            TearsheetYearlyReturnsChart(),
-            cost_waterfall(sheet.costs.total.costs),
-            instrument_breakdown(sheet.instrument_rows),
+            *_core_charts(sheet),
+            *_trade_charts(sheet.run.tables.trades),
         ],
         layout=GridLayout(
             rows=5,
@@ -194,3 +189,22 @@ def _config(sheet: _Sheet) -> TearsheetConfig:
         title=f"{spec.strategy.strategy}, {spec.part}",
         height=2200,
     )
+
+
+def _trade_charts(trades: pd.DataFrame) -> list[TearsheetChart]:
+    return [trade_pl(trades["pl"].to_list())] if not trades.empty else []
+
+
+def _core_charts(sheet: _Sheet) -> list[TearsheetChart]:
+    spec = sheet.run.spec
+    return [
+        TearsheetStatsTableChart(),
+        TearsheetEquityChart(),
+        TearsheetDrawdownChart(),
+        TearsheetMonthlyReturnsChart(),
+        TearsheetDistributionChart(),
+        rolling_sharpe(spec.asset.days_per_year),
+        TearsheetYearlyReturnsChart(),
+        cost_waterfall(sheet.costs.total.costs),
+        instrument_breakdown(sheet.instrument_rows),
+    ]
