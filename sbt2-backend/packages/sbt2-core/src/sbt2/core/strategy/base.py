@@ -5,6 +5,7 @@ import importlib.util
 import inspect
 import sys
 import threading
+import weakref
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, fields, replace
@@ -212,7 +213,8 @@ class Strategy[P](NautilusStrategy, ABC):
             None
             if config.short_premium is None
             else BookRules(
-                ShortPremiumRules.from_primitives(config.short_premium), self
+                ShortPremiumRules.from_primitives(config.short_premium),
+                weakref.proxy(self),
             )
         )
         self._records = ChainRecords(lambda: self.clock.timestamp_ns())
@@ -222,7 +224,7 @@ class Strategy[P](NautilusStrategy, ABC):
         self._greeks = (
             None
             if self._index is None
-            else GreeksDesk(self, self._index, lambda: self._records.index())
+            else GreeksDesk(weakref.proxy(self), self._index, self._latest_index)
         )
         self._drawdown = (
             None
@@ -420,6 +422,9 @@ class Strategy[P](NautilusStrategy, ABC):
         interval = self.schedule(self.params)
         if interval is not None:
             self.clock.set_timer("schedule", interval, callback=self._tick)
+
+    def _latest_index(self) -> float | None:
+        return self._records.index()
 
     def _arm_greeks(self) -> None:
         if self._greeks is not None:
