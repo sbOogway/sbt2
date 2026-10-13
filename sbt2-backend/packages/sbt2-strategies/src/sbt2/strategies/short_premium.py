@@ -59,6 +59,11 @@ class SpreadParams(CondorParams):
     side: Literal["put", "call"] = "put"
 
 
+@dataclass(frozen=True)
+class RegimeParams(CondorParams):
+    iv_rank_threshold: float = 0.5
+
+
 class ShortPremium[P: PremiumParams](Strategy[P], ABC):
     """Sells one combo of options at a time: on each tick, when it holds none and
     the IV rank is within its band, it opens the combo ``build`` makes at the
@@ -173,6 +178,28 @@ class ShortPut(ShortPremium[StrangleParams]):
     def build(self, chain: Chain, expiry: datetime) -> Combo | None:
         put = chain.nearest_delta(expiry, -self.params.delta)
         return None if put is None else short_put(put, self.params.quantity)
+
+
+class IvRegime(ShortPremium[RegimeParams]):
+    """Sells an iron condor while the IV rank is below ``iv_rank_threshold``, and
+    a strangle, which has no defined risk, from the threshold up."""
+
+    Params = RegimeParams
+
+    @classmethod
+    @override
+    def iv_lookback(cls, params: RegimeParams) -> timedelta:
+        return IV_LOOKBACK
+
+    @override
+    def build(self, chain: Chain, expiry: datetime) -> Combo | None:
+        try:
+            rank = chain.iv_rank()
+        except NoMarketError:
+            return None
+        if rank < self.params.iv_rank_threshold:
+            return _condor(chain, expiry, self.params)
+        return _strangle(chain, expiry, self.params)
 
 
 def _has_band(params: PremiumParams) -> bool:

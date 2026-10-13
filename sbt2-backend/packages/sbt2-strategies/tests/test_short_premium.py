@@ -5,7 +5,7 @@ from typing import Any
 
 import pandas as pd
 import pytest
-from premium_kit import legs_of, run_strategy
+from premium_kit import HIGH_RANK, LOW_RANK, catalog_with_dvol, legs_of, run_strategy
 
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.strategy import Strategy, import_strategy, params_schema, resolve_params
@@ -191,3 +191,45 @@ def test_a_new_combo_opens_only_after_the_last_one_closed(
     assert len(spans) == 3
     for (_, closed), (opened, _) in pairwise(spans):
         assert opened > closed
+
+
+def legs_opened(store: ParquetResultStore, run_id: str) -> int:
+    return len(legs_of(store, run_id, "C1"))
+
+
+@pytest.mark.integration
+def test_iv_regime_opens_an_iron_condor_below_the_threshold(tmp_path: Path) -> None:
+    catalog = catalog_with_dvol(tmp_path / "catalog", LOW_RANK)
+
+    store, run_id = run_strategy(tmp_path, catalog, "IvRegime")
+
+    assert legs_opened(store, run_id) == 4
+
+
+@pytest.mark.integration
+def test_iv_regime_opens_a_strangle_at_or_above_the_threshold(tmp_path: Path) -> None:
+    catalog = catalog_with_dvol(tmp_path / "catalog", HIGH_RANK)
+
+    store, run_id = run_strategy(tmp_path, catalog, "IvRegime")
+
+    assert legs_opened(store, run_id) == 2
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("dvol", "band", "opened"),
+    [
+        (LOW_RANK, {"min_iv_rank": 0.5}, 0),
+        (HIGH_RANK, {"min_iv_rank": 0.5}, 2),
+        (HIGH_RANK, {"max_iv_rank": 0.5}, 0),
+        (LOW_RANK, {"max_iv_rank": 0.5}, 2),
+    ],
+)
+def test_no_combo_opens_outside_the_iv_rank_band(
+    tmp_path: Path, dvol: dict[int, float], band: dict[str, float], opened: int
+) -> None:
+    catalog = catalog_with_dvol(tmp_path / "catalog", dvol)
+
+    store, run_id = run_strategy(tmp_path, catalog, "ShortStrangle", **band)
+
+    assert legs_opened(store, run_id) == opened

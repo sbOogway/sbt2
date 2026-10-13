@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-from option_catalog import write_dvol
+from option_catalog import build_dense_ladder_catalog, write_dvol
 
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
@@ -57,15 +57,19 @@ def run_strategy(
     return store, sink.run_id
 
 
-def with_dvol(catalog: Path, dvol: dict[int, float]) -> Path:
-    write_dvol(catalog, dvol)
-    return catalog
+def catalog_with_dvol(path: Path, dvol: dict[int, float]) -> Path:
+    build_dense_ladder_catalog(path)
+    write_dvol(path, dvol)
+    return path
 
 
 def legs_of(store: ParquetResultStore, run_id: str, combo: str) -> pd.DataFrame:
     """The fills of ``combo`` (``C1``), by time, with the tags of their orders."""
+    fills = store.load(run_id, "fills")
+    if fills.empty:
+        return fills
+    fills = fills.sort_values("ts_event")
     orders = store.load(run_id, "orders").set_index("venue_order_id")["tags"]
-    fills = store.load(run_id, "fills").sort_values("ts_event")
     tagged = fills.assign(
         combo=[next(iter(orders[each])) for each in fills["venue_order_id"]]
     )
