@@ -3,19 +3,27 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import override
+from typing import Literal, override
 
-from nautilus_trader.model import Bar, BarSpecification
+from nautilus_trader.core import unix_nanos_to_dt
+from nautilus_trader.model import Bar, BarSpecification, CryptoOption, OptionKind
 
 from sbt2.core.strategy import (
     IV_LOOKBACK,
     Chain,
+    ChainFilter,
     Combo,
     ComboExit,
     NoMarketError,
     Strategy,
+    iron_condor,
+    short_put,
+    short_straddle,
     short_strangle,
+    vertical_spread,
 )
+
+AT_THE_MONEY = 0.5
 
 
 @dataclass(frozen=True)
@@ -39,6 +47,16 @@ class PremiumParams:
 @dataclass(frozen=True)
 class StrangleParams(PremiumParams):
     delta: float = 0.16
+
+
+@dataclass(frozen=True)
+class CondorParams(StrangleParams):
+    wing_delta: float = 0.10
+
+
+@dataclass(frozen=True)
+class SpreadParams(CondorParams):
+    side: Literal["put", "call"] = "put"
 
 
 class ShortPremium[P: PremiumParams](Strategy[P], ABC):
@@ -105,6 +123,58 @@ class ShortStrangle(ShortPremium[StrangleParams]):
         return _strangle(chain, expiry, self.params)
 
 
+class ShortStraddle(ShortPremium[PremiumParams]):
+    """Sells the put and the call at the money, of one strike."""
+
+    Params = PremiumParams
+
+    @override
+    def build(self, chain: Chain, expiry: datetime) -> Combo | None:
+        call = chain.nearest_delta(expiry, AT_THE_MONEY)
+        put = None if call is None else _put_at(chain, call)
+        if call is None or put is None:
+            return None
+        return short_straddle(put, call, self.params.quantity)
+
+
+class IronCondor(ShortPremium[CondorParams]):
+    """Sells the strangle nearest ``delta`` and buys the wings nearest
+    ``wing_delta``."""
+
+    Params = CondorParams
+
+    @override
+    def build(self, chain: Chain, expiry: datetime) -> Combo | None:
+        return _condor(chain, expiry, self.params)
+
+
+class VerticalSpread(ShortPremium[SpreadParams]):
+    """Sells the contract nearest ``delta`` and buys the one nearest
+    ``wing_delta``, both puts or both calls by ``side``."""
+
+    Params = SpreadParams
+
+    @override
+    def build(self, chain: Chain, expiry: datetime) -> Combo | None:
+        sign = -1 if self.params.side == "put" else 1
+        short = chain.nearest_delta(expiry, sign * self.params.delta)
+        long = chain.nearest_delta(expiry, sign * self.params.wing_delta)
+        if short is None or long is None or not _is_beyond(long, short):
+            return None
+        return vertical_spread(short, long, self.params.quantity)
+
+
+class ShortPut(ShortPremium[StrangleParams]):
+    """Sells the put nearest ``delta``."""
+
+    Params = StrangleParams
+
+    @override
+    def build(self, chain: Chain, expiry: datetime) -> Combo | None:
+        put = chain.nearest_delta(expiry, -self.params.delta)
+        return None if put is None else short_put(put, self.params.quantity)
+
+
 def _has_band(params: PremiumParams) -> bool:
     return params.min_iv_rank > 0 or params.max_iv_rank < 1
 
@@ -115,3 +185,34 @@ def _strangle(chain: Chain, expiry: datetime, params: StrangleParams) -> Combo |
     if put is None or call is None:
         return None
     return short_strangle(put, call, params.quantity)
+
+
+def _condor(chain: Chain, expiry: datetime, params: CondorParams) -> Combo | None:
+    body = _strangle(chain, expiry, params)
+    put_wing = chain.nearest_delta(expiry, -params.wing_delta)
+    call_wing = chain.nearest_delta(expiry, params.wing_delta)
+    if body is None or put_wing is None or call_wing is None:
+        return None
+    [put, call] = (leg.contract for leg in body.legs)
+    if not (_is_beyond(put_wing, put) and _is_beyond(call_wing, call)):
+        return None
+    return iron_condor(body, put_wing, call_wing)
+
+
+def _put_at(chain: Chain, call: CryptoOption) -> CryptoOption | None:
+    strike = float(call.strike_price)
+    found = chain.contracts(
+        ChainFilter(
+            kind=OptionKind.PUT,
+            strikes=(strike, strike),
+            expiry=unix_nanos_to_dt(call.expiration_ns),
+        )
+    )
+    return found[0] if found else None
+
+
+def _is_beyond(wing: CryptoOption, short: CryptoOption) -> bool:
+    """Whether ``wing`` is further out of the money than ``short``."""
+    if short.option_kind == OptionKind.PUT:
+        return float(wing.strike_price) < float(short.strike_price)
+    return float(wing.strike_price) > float(short.strike_price)

@@ -3,14 +3,21 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from premium_kit import run_strategy
+from premium_kit import legs_of, run_strategy
 
+from sbt2.core.results import ParquetResultStore
 from sbt2.core.strategy import Strategy, import_strategy, params_schema, resolve_params
 
 PATH = "sbt2.strategies.short_premium"
-STRATEGIES = ["ShortStrangle"]
-SHORT_PUT = "BTC-15FEB24-35000-P.DERIBIT"
-SHORT_CALL = "BTC-15FEB24-55000-C.DERIBIT"
+STRATEGIES = [
+    "ShortStrangle",
+    "ShortStraddle",
+    "IronCondor",
+    "VerticalSpread",
+    "ShortPut",
+]
+SHORT_PUT = "BTC-15FEB24-37500-P.DERIBIT"
+SHORT_CALL = "BTC-15FEB24-57500-C.DERIBIT"
 
 
 def strategy(name: str) -> type[Strategy[Any]]:
@@ -46,3 +53,69 @@ def test_a_short_strangle_sells_the_put_and_call_nearest_the_delta(
     fills = store.load(run_id, "fills")
     assert sorted(fills["instrument_id"]) == [SHORT_PUT, SHORT_CALL]
     assert set(fills["order_side"]) == {"SELL"}
+
+
+def sold_and_bought(
+    store: ParquetResultStore, run_id: str
+) -> tuple[list[str], list[str]]:
+    fills = legs_of(store, run_id, "C1")
+    sold = fills[fills["order_side"] == "SELL"]["instrument_id"]
+    bought = fills[fills["order_side"] == "BUY"]["instrument_id"]
+    return sorted(sold), sorted(bought)
+
+
+@pytest.mark.integration
+def test_a_short_straddle_sells_the_put_and_call_at_the_money(
+    tmp_path: Path, ladder: Path
+) -> None:
+    store, run_id = run_strategy(tmp_path, ladder, "ShortStraddle")
+
+    sold, bought = sold_and_bought(store, run_id)
+    assert sold == ["BTC-15FEB24-45000-C.DERIBIT", "BTC-15FEB24-45000-P.DERIBIT"]
+    assert bought == []
+
+
+@pytest.mark.integration
+def test_an_iron_condor_buys_wings_nearest_the_wing_delta(
+    tmp_path: Path, ladder: Path
+) -> None:
+    store, run_id = run_strategy(tmp_path, ladder, "IronCondor")
+
+    sold, bought = sold_and_bought(store, run_id)
+    assert sold == [SHORT_PUT, SHORT_CALL]
+    assert bought == ["BTC-15FEB24-35000-P.DERIBIT", "BTC-15FEB24-60000-C.DERIBIT"]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("side", "short", "long"),
+    [
+        ("put", SHORT_PUT, "BTC-15FEB24-35000-P.DERIBIT"),
+        ("call", SHORT_CALL, "BTC-15FEB24-60000-C.DERIBIT"),
+    ],
+)
+def test_a_vertical_spread_sells_delta_and_buys_wing_delta_on_one_side(
+    tmp_path: Path, ladder: Path, side: str, short: str, long: str
+) -> None:
+    store, run_id = run_strategy(tmp_path, ladder, "VerticalSpread", side=side)
+
+    assert sold_and_bought(store, run_id) == ([short], [long])
+
+
+@pytest.mark.integration
+def test_a_short_put_sells_the_put_nearest_the_delta(
+    tmp_path: Path, ladder: Path
+) -> None:
+    store, run_id = run_strategy(tmp_path, ladder, "ShortPut")
+
+    assert sold_and_bought(store, run_id) == ([SHORT_PUT], [])
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("name", ["IronCondor", "VerticalSpread"])
+def test_a_wing_not_beyond_the_short_leg_opens_no_combo(
+    tmp_path: Path, ladder: Path, name: str
+) -> None:
+    store, run_id = run_strategy(tmp_path, ladder, name, wing_delta=0.30)
+
+    assert store.load(run_id, "fills").empty
