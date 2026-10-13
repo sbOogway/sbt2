@@ -113,7 +113,7 @@ class Slice:
         return cls(
             _within(tables.fills, book.segment),
             _within(tables.carry, book.segment),
-            closed_trades(tables.positions, tables.currency),
+            closed_trades(tables.positions, tables.currency, tables.rates),
             list(book.multipliers),
         )
 

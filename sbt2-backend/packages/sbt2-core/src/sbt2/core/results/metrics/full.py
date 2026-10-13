@@ -84,7 +84,7 @@ def full_metrics(
     """
     if curve is None:
         curve = equity_curve(run.equity, run.currency, segment)
-    trades = closed_trades(run.positions, run.currency)
+    trades = closed_trades(run.positions, run.currency, run.rates)
     returns = curve_returns(curve)
     return FullMetrics(
         pnls=_trade_statistics(trades, run.currency),
