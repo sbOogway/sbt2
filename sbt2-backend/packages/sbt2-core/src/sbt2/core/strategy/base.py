@@ -292,6 +292,11 @@ class Strategy[P](NautilusStrategy, ABC):
         as ``"BTC"``; each ranks the IV on its own volatility index."""
         return dict(self._markets.chains(self.cache, self.instrument_ids))
 
+    def index_correlation(self) -> dict[str, dict[str, float]]:
+        """Daily index return correlations over the run's look-back; 1 on the
+        diagonal and for pairs with fewer than five common returns."""
+        return self._markets.index_correlation()
+
     @property
     def short_premium_rules(self) -> ShortPremiumRules | None:
         """The rules of the spec's ``[risk.short_premium]`` table, which
