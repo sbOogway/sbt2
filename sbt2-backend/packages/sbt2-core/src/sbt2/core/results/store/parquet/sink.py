@@ -9,6 +9,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 from nautilus_trader.model import PortfolioSnapshot, PositionAdjusted
 
+from sbt2.core.market import Rates
 from sbt2.core.results.metrics import (
     HeadlineMetrics,
     RunTables,
@@ -73,10 +74,14 @@ class ParquetSink:
         self._run = run
         self._tables: dict[str, pd.DataFrame] = {}
         self._drawdown_tripped_at: datetime | None = None
+        self._rates: Rates | None = None
 
     @property
     def run_id(self) -> str:
         return self._run.run_id
+
+    def use_rates(self, rates: Rates) -> None:
+        self._rates = rates
 
     def write_equity(
         self,
@@ -127,6 +132,7 @@ class ParquetSink:
             currency=self._run.spec.currency,
             positions=reports.positions,
             orders=orders,
+            rates=self._rates,
         )
         return trade_table(reported, reports.index_prices)
 
@@ -143,6 +149,7 @@ class ParquetSink:
             fills=self._tables["fills"],
             carry=self._tables["carry"],
             currency=self._run.spec.currency,
+            rates=self._rates,
         )
 
 

@@ -5,8 +5,8 @@ from dataclasses import dataclass, replace
 import pandas as pd
 
 from sbt2.core.results.metrics.curves import RunTables
-from sbt2.core.results.metrics.money import amounts
-from sbt2.core.results.metrics.trades import closed_trades
+from sbt2.core.results.metrics.money import split_amounts
+from sbt2.core.results.metrics.trades import closed_positions
 from sbt2.core.strategy import combo_ids
 
 TRADE_COLUMNS = [
@@ -20,6 +20,8 @@ TRADE_COLUMNS = [
     "pl_percent",
     "index_at_close",
     "pl_usd",
+    "currency",
+    "pl_report",
 ]
 _BASE = ["trade_id", "instrument_id", "ts_opened", "ts_closed", "credit", "pl"]
 _DAY = pd.Timedelta(days=1)
@@ -36,6 +38,7 @@ class _Fill:
     qty: float
     px: float
     fee: float
+    currency: str
     combos: tuple[str, ...]
     position: str | None
 
@@ -52,6 +55,7 @@ class _Trade:
     closed: pd.Timestamp
     credit: float
     pl: float
+    currency: str
 
 
 def trade_table(
@@ -60,19 +64,20 @@ def trade_table(
     """One row per closed trade, as the ``TRADE_COLUMNS`` name them.
 
     A trade is a combo, found by the combo ids in the tags of the orders of the
-    fills, or else a position. Its ``pl`` is in the settlement currency after
+    fills, or else a position. Its ``pl`` is in its settlement ``currency`` after
     fees, and its ``credit`` the premium taken in at entry, a debit negative.
     A settlement fill shared by several combos is split between them by the
     quantity each held of the contract. ``index_prices`` give each instrument's
     index by time; ``index_at_close`` is its last price at or before the close,
-    and ``pl_usd`` the ``pl`` at that price.
+    and ``pl_usd`` the ``pl`` at that price. ``pl_report`` is the ``pl`` in the
+    run's reporting currency, converted at the close.
     """
     fills = _fills(run)
     tagged = [each for each in fills if each.combos]
     untagged = [each for each in fills if not each.combos]
     trades = [*_combo_trades(tagged), *_position_trades(untagged, run)]
     trades.sort(key=lambda each: each.opened)
-    return _table(trades, index_prices or {})
+    return _table(trades, index_prices or {}, run)
 
 
 def _fills(run: RunTables) -> list[_Fill]:
@@ -80,13 +85,15 @@ def _fills(run: RunTables) -> list[_Fill]:
     if fills.empty:
         return []
     positions = fills["position_id"] if "position_id" in fills else [None] * len(fills)
+    fees, currencies = split_amounts(fills["commission"])
     rows = zip(
         fills["instrument_id"].astype(str),
         pd.to_datetime(fills["ts_event"], utc=True),
         fills["order_side"],
         fills["last_qty"].astype(float),
         fills["last_px"].astype(float),
-        amounts(fills["commission"], run.currency),
+        fees,
+        currencies,
         _combos_of(fills, run.orders),
         positions,
         strict=True,
@@ -99,10 +106,11 @@ def _fills(run: RunTables) -> list[_Fill]:
             qty,
             px,
             fee,
+            currency,
             ids,
             None if position is None else str(position),
         )
-        for instrument, at, side, qty, px, fee, ids, position in rows
+        for instrument, at, side, qty, px, fee, currency, ids, position in rows
     ]
 
 
@@ -176,6 +184,7 @@ def _trade(trade_id: str, shares: list[_Fill]) -> _Trade:
         ordered[-1].at,
         sum(each.flow for each in _entries(ordered)),
         sum(each.flow - each.fee for each in ordered),
+        ordered[0].currency,
     )
 
 
@@ -190,7 +199,7 @@ def _entries(ordered: list[_Fill]) -> list[_Fill]:
 def _position_trades(fills: list[_Fill], run: RunTables) -> list[_Trade]:
     if "ts_closed" not in run.positions:
         return []
-    closed = closed_trades(run.positions, run.currency)
+    closed = closed_positions(run.positions)
     closed = closed.loc[
         closed.index.astype(str).isin({each.position for each in fills})
     ]
@@ -200,14 +209,19 @@ def _position_trades(fills: list[_Fill], run: RunTables) -> list[_Trade]:
         closed["instrument_id"].astype(str),
         pd.to_datetime(closed["ts_opened"], utc=True),
         pd.to_datetime(closed["ts_closed"], utc=True),
-        closed["pnl"].astype(float),
+        zip(closed["pnl"].astype(float), closed["currency"], strict=True),
         strict=True,
     )
     return [
         _Trade(
-            position, instrument, opened, ended, credit.get(position, float("nan")), pnl
+            position,
+            instrument,
+            opened,
+            ended,
+            credit.get(position, float("nan")),
+            *result,
         )
-        for position, instrument, opened, ended, pnl in rows
+        for position, instrument, opened, ended, result in rows
     ]
 
 
@@ -223,7 +237,9 @@ def _position_credit(fills: list[_Fill], closed: pd.DataFrame) -> dict[str, floa
     return dict(credit)
 
 
-def _table(trades: list[_Trade], index_prices: Mapping[str, pd.Series]) -> pd.DataFrame:
+def _table(
+    trades: list[_Trade], index_prices: Mapping[str, pd.Series], run: RunTables
+) -> pd.DataFrame:
     frame = pd.DataFrame(
         {
             "trade_id": [each.trade_id for each in trades],
@@ -233,6 +249,10 @@ def _table(trades: list[_Trade], index_prices: Mapping[str, pd.Series]) -> pd.Da
             "credit": pd.Series([each.credit for each in trades], dtype=float),
             "pl": pd.Series([each.pl for each in trades], dtype=float),
         }
+    )
+    currencies = [each.currency for each in trades]
+    converted = frame["pl"] * run.factors(
+        currencies, pd.DatetimeIndex(frame["ts_closed"])
     )
     index_at_close = pd.Series(
         [_index_at(index_prices.get(each.instrument), each.closed) for each in trades],
@@ -246,6 +266,8 @@ def _table(trades: list[_Trade], index_prices: Mapping[str, pd.Series]) -> pd.Da
             "pl_percent": pl / credit.abs().where(credit != 0) * 100,
             "index_at_close": index_at_close,
             "pl_usd": pl * index_at_close,
+            "currency": pd.Series(currencies, dtype=object),
+            "pl_report": converted,
         },
         columns=TRADE_COLUMNS,
     )

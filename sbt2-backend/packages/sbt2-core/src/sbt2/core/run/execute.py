@@ -14,7 +14,7 @@ from nautilus_trader.model import PositionAdjusted, PositionAdjustmentType, Venu
 from sbt2.core.assets import MarginModel
 from sbt2.core.results import OutputSink, Reports
 from sbt2.core.run.chain_history import read_histories
-from sbt2.core.run.index_prices import read_index_prices
+from sbt2.core.run.index_prices import read_index_prices, read_rates
 from sbt2.core.spec import ResolvedRunSpec, SpecError
 from sbt2.core.strategy import (
     ChainHistory,
@@ -176,6 +176,7 @@ def _write_output(finished: _Finished, sink: OutputSink) -> None:
     cache = backtest.node.get_engine_cache(backtest.config_id)
     account = _account(cache, backtest.venue)
     portfolio = backtest.node.get_engine_portfolio(backtest.config_id)
+    _use_rates(spec, backtest.catalog, sink)
     sink.write_equity(
         portfolio.snapshots(account.id), spec.asset.equity.corrections(cache)
     )
@@ -186,6 +187,12 @@ def _write_output(finished: _Finished, sink: OutputSink) -> None:
         _greeks_frame(finished.strategy),
     )
     sink.write_reports(_reports(cache, account, measured))
+
+
+def _use_rates(spec: ResolvedRunSpec, catalog: Catalog, sink: OutputSink) -> None:
+    rates = read_rates(spec, catalog)
+    if rates is not None:
+        sink.use_rates(rates)
 
 
 def _account(cache: Cache, venue: Venue) -> Any:

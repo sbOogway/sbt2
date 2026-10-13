@@ -35,7 +35,7 @@ class BookRules:
     def _book(self, combo: Combo) -> BookState:
         return BookState(
             account_equity(self._strategy, combo.legs[0].contract),
-            self._iv_rank(),
+            self._iv_rank(combo),
             sum(self._strategy.margin_of_positions().values(), Decimal(0)),
             sum(
                 (
@@ -47,8 +47,9 @@ class BookRules:
             ),
         )
 
-    def _iv_rank(self) -> float | None:
+    def _iv_rank(self, combo: Combo) -> float | None:
         try:
-            return self._strategy.chain.iv_rank()
+            chain = self._strategy.chains[combo.legs[0].contract.underlying.code]
+            return chain.iv_rank()
         except NoMarketError:
             return None

@@ -233,11 +233,7 @@ class Strategy[P](NautilusStrategy, ABC):
         )
         self.portfolio_greeks: list[GreeksSample] = []
         self._greeks = (
-            None
-            if not self._markets.feeds
-            else GreeksDesk(
-                weak, self._markets.feeds[0].index, self._markets.first().index
-            )
+            None if not self._markets.feeds else GreeksDesk(weak, self._markets.indexes)
         )
         self._drawdown = (
             None

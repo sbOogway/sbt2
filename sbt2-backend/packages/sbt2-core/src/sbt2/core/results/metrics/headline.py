@@ -12,7 +12,7 @@ from sbt2.core.results.metrics.curves import (
     curve_returns,
     equity_curve,
 )
-from sbt2.core.results.metrics.money import total
+from sbt2.core.results.metrics.money import split_amounts, total
 
 
 @dataclass(frozen=True)
@@ -37,9 +37,19 @@ def headline_metrics(run: RunTables, segment: Segment) -> HeadlineMetrics:
         sharpe=_statistic(SharpeRatio(period=period), returns),
         max_drawdown=_statistic(MaxDrawdown(), returns),
         trade_count=len(run.fills),
-        total_fees=total(run.fills, "commission", run.currency),
+        total_fees=_total_fees(run),
         total_carry=total(run.carry, "pnl_change", run.currency),
     )
+
+
+def _total_fees(run: RunTables) -> float:
+    """The commissions in the reporting currency, each converted at its fill."""
+    if run.rates is None or run.fills.empty:
+        return total(run.fills, "commission", run.currency)
+    fees, currencies = split_amounts(run.fills["commission"])
+    times = pd.DatetimeIndex(pd.to_datetime(run.fills["ts_event"], utc=True))
+    factors = run.factors(currencies, times)
+    return sum((fee * factor for fee, factor in zip(fees, factors, strict=True)), 0.0)
 
 
 class _ReturnsStatistic(Protocol):

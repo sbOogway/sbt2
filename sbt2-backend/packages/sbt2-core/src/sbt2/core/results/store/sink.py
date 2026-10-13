@@ -6,6 +6,8 @@ from typing import Protocol
 import pandas as pd
 from nautilus_trader.model import PortfolioSnapshot, PositionAdjusted
 
+from sbt2.core.market import Rates
+
 
 @dataclass(frozen=True)
 class Reports:
@@ -29,6 +31,12 @@ class OutputSink(Protocol):
 
     @property
     def run_id(self) -> str: ...
+
+    def use_rates(self, rates: Rates) -> None:
+        """Convert the amounts of the other currencies of the run into its
+        reporting currency with ``rates``, in what is written after. A run in one
+        currency does not call it."""
+        ...
 
     def write_equity(
         self,

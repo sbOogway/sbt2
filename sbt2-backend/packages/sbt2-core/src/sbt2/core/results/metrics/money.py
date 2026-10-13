@@ -18,11 +18,18 @@ def total(frame: pd.DataFrame, column: str, currency: str) -> float:
 
 def amounts(values: Iterable[str], currency: str) -> list[float]:
     """Money amounts as floats; one in another currency than ``currency`` fails."""
-    parts = _split(pa.array(values, type=pa.string()))
-    foreign = set(_element(parts, 1).unique().to_pylist()) - {currency}
+    found, currencies = split_amounts(values)
+    foreign = set(currencies) - {currency}
     if foreign:
-        raise _mismatch(foreign, currency)
-    return pc.cast(_element(parts, 0), pa.float64()).to_numpy().tolist()
+        raise mismatch(foreign, currency)
+    return found
+
+
+def split_amounts(values: Iterable[str]) -> tuple[list[float], list[str]]:
+    """Money amounts as floats, and the currency of each."""
+    parts = _split(pa.array(values, type=pa.string()))
+    found = pc.cast(_element(parts, 0), pa.float64()).to_numpy().tolist()
+    return found, _element(parts, 1).to_pylist()
 
 
 def _split(values: pa.Array) -> pa.Array:
@@ -40,7 +47,7 @@ def _element(parts: pa.Array, index: int) -> pa.Array:
     return pc.call_function("list_element", [parts, index])
 
 
-def _mismatch(foreign: set[str], currency: str) -> CurrencyMismatchError:
+def mismatch(foreign: set[str], currency: str) -> CurrencyMismatchError:
     return CurrencyMismatchError(
         f"amounts in {', '.join(sorted(foreign))}, not the settlement currency {currency}"
     )

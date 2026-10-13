@@ -60,14 +60,13 @@ def portfolio_theta(
 
 
 class GreeksDesk:
-    """Samples the greeks of the positions a strategy holds, priced by its chain
-    and the latest price of its ``index``."""
+    """Samples the greeks of the positions a strategy holds, priced by the chain
+    of each underlying and the latest index prices ``latest`` gives."""
 
     def __init__(
-        self, strategy: Any, index: InstrumentId, latest: Callable[[], float | None]
+        self, strategy: Any, latest: Callable[[], Mapping[InstrumentId, float]]
     ) -> None:
         self._strategy = strategy
-        self._index = index
         self._latest = latest
 
     def sample(self, ts_event: int) -> GreeksSample:
@@ -76,7 +75,7 @@ class GreeksDesk:
         holdings = self._holdings()
         if not holdings:
             return GreeksSample(ts_event, 0.0, 0.0, 0.0)
-        indexes = self._indexes()
+        indexes = self._latest()
         try:
             theta = portfolio_theta(holdings, indexes)
             delta = beta_weighted_delta(holdings, indexes)
@@ -87,21 +86,16 @@ class GreeksDesk:
 
     def _holdings(self) -> list[Holding]:
         cache = self._strategy.cache
+        chains = self._strategy.chains
         held: list[Holding] = []
         for position in cache.positions_open(strategy_id=self._strategy.strategy_id):
             contract = cache.instrument(position.instrument_id)
             if isinstance(contract, CryptoOption):
-                greeks = self._strategy.chain.greeks(contract)
+                greeks = chains[contract.underlying.code].greeks(contract)
                 held.append(
                     Holding(contract, _signed(position), greeks.delta, greeks.theta)
                 )
         return held
-
-    def _indexes(self) -> dict[InstrumentId, float]:
-        price = self._latest()
-        if price is None:
-            raise NoMarketError("the chain has heard no index price yet")
-        return {self._index: price}
 
 
 def _signed(position: Any) -> Decimal:
