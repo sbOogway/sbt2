@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from sbt2.core.market import Rates
-from sbt2.core.results.metrics.money import mismatch
+from sbt2.core.results.metrics.money import mismatch, split_amounts, total
 from sbt2.core.spec import ResolvedRunSpec
 
 
@@ -51,6 +51,16 @@ class RunTables:
     margin: pd.DataFrame = field(default_factory=pd.DataFrame)
     trades: pd.DataFrame = field(default_factory=pd.DataFrame)
     rates: Rates | None = None
+
+    def total(self, frame: pd.DataFrame, column: str) -> float:
+        """The sum of a column of money amounts in the reporting currency, each
+        converted at its ``ts_event``; 0 for an empty table."""
+        if self.rates is None or frame.empty:
+            return total(frame, column, self.currency)
+        found, currencies = split_amounts(frame[column])
+        times = pd.DatetimeIndex(pd.to_datetime(frame["ts_event"], utc=True))
+        converted = np.asarray(found) * self.factors(currencies, times)
+        return float(sum(converted.tolist(), 0.0))
 
     def factors(self, currencies: Sequence[str], times: pd.DatetimeIndex) -> np.ndarray:
         """By what to multiply an amount in each of ``currencies`` at the matching

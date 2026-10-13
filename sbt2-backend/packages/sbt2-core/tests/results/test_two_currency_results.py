@@ -4,9 +4,17 @@ import pandas as pd
 import pytest
 from option_catalog import ETH_PRICE, HOURS, INDEX_PRICE, build_two_chain_catalog
 from option_runs import run_two_chains
+from plotted import plotted
 from two_chain_strategies import OpenBothStrangles
 
-from sbt2.core.results import ParquetResultStore, Segment, full_metrics
+from sbt2.core.results import (
+    ParquetResultStore,
+    PricedRun,
+    Segment,
+    full_metrics,
+    tearsheet,
+)
+from sbt2.data import Catalog
 
 PRICES = [ETH_PRICE + 10.0 * hour for hour in range(HOURS)]
 
@@ -54,6 +62,23 @@ def test_a_stored_two_currency_run_has_full_metrics(
     losers = [each for each in pnls if each < 0]
     assert found.pnls["Avg Loser"] == pytest.approx(sum(losers) / len(losers))
     assert len(found.pnls_by_instrument) == 4
+
+
+@pytest.mark.integration
+def test_the_tearsheet_of_a_two_currency_run_renders(
+    two_currency_run: tuple[ParquetResultStore, str, Path], tmp_path: Path
+) -> None:
+    store, run_id, catalog = two_currency_run
+    run: PricedRun = store.stored_run(run_id).priced(Catalog(catalog))
+    target = tmp_path / "tearsheet.html"
+
+    tearsheet(run, target)
+
+    figure = plotted(target.read_text())
+    trades = store.load(run_id, "trades")
+    assert sorted(figure.trace("Trade P/L")["x"]) == pytest.approx(
+        sorted(trades["pl_report"])
+    )
 
 
 @pytest.mark.integration

@@ -43,7 +43,7 @@ def _activity(costs: CostWaterfall, part: Slice, book: Book) -> Activity:
 def _run_costs(part: Slice, book: Book) -> CostWaterfall:
     """Net PnL is the equity change; gross is what is left before fees and carry."""
     net = float(book.equity.iloc[-1] - book.equity.iloc[0])
-    fees, carry = part.fees(book.currency), part.carried(book.currency)
+    fees, carry = part.fees(book.tables), part.carried(book.tables)
     return CostWaterfall(net - fees - carry, fees, carry, net)
 
 
@@ -60,7 +60,7 @@ def _instrument_costs(part: Slice, book: Book) -> CostWaterfall:
     opened = held.iloc[0] - _signed_at_start(part.fills, book.segment)
     paid = sides(part.fills) * book.traded_notional(part.fills).to_numpy()
     gross = float(held.iloc[-1] * value.iloc[-1] - opened * value.iloc[0] - paid.sum())
-    fees, carry = part.fees(book.currency), part.carried(book.currency)
+    fees, carry = part.fees(book.tables), part.carried(book.tables)
     return CostWaterfall(gross, fees, carry, gross + fees + carry)
 
 
