@@ -573,8 +573,10 @@ class Strategy[P](NautilusStrategy, ABC):
         rule = self.combo_exit(self.params)
         if rule is None:
             return
+        chains = self.chains
         for combo in self.combos:
-            if rule.reached(combo, now, self.chain.quote):
+            chain = chains[combo.legs[0].contract.underlying.code]
+            if rule.reached(combo, now, chain.quote):
                 self.close_combo(combo)
 
     def _subscribed(self, bar_type: BarType) -> BarType:
