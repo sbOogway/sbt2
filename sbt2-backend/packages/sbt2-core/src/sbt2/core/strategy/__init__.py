@@ -29,6 +29,7 @@ from sbt2.core.strategy.combo import (
     short_strangle,
     vertical_spread,
 )
+from sbt2.core.strategy.combo_book import combo_ids
 from sbt2.core.strategy.expiry import SETTLEMENT_TAG
 from sbt2.core.strategy.greeks import Greeks
 from sbt2.core.strategy.schema import (
@@ -59,6 +60,7 @@ __all__ = [
     "UnknownParameterError",
     "UnsupportedParameterTypeError",
     "build_strategy",
+    "combo_ids",
     "import_strategy",
     "importable_config",
     "iron_condor",

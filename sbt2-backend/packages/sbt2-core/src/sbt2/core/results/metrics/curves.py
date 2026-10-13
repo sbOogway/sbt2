@@ -40,6 +40,9 @@ class RunTables:
     carry: pd.DataFrame
     currency: str
     positions: pd.DataFrame = field(default_factory=pd.DataFrame)
+    orders: pd.DataFrame = field(default_factory=pd.DataFrame)
+    margin: pd.DataFrame = field(default_factory=pd.DataFrame)
+    trades: pd.DataFrame = field(default_factory=pd.DataFrame)
 
 
 def equity_curve(equity: pd.DataFrame, currency: str, segment: Segment) -> pd.Series:

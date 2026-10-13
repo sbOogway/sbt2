@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum, auto
@@ -13,6 +13,15 @@ COMBO_TAG_PREFIX = "COMBO:"
 
 def combo_tag(combo_id: str) -> str:
     return f"{COMBO_TAG_PREFIX}{combo_id}"
+
+
+def combo_ids(tags: Iterable[str]) -> tuple[str, ...]:
+    """The ids of the combos in the tags of an order."""
+    return tuple(
+        each.removeprefix(COMBO_TAG_PREFIX)
+        for each in tags
+        if each.startswith(COMBO_TAG_PREFIX)
+    )
 
 
 class Change(Enum):

@@ -16,6 +16,7 @@ from sbt2.core.results.costs import (
     costs_and_exposure,
 )
 from sbt2.core.results.metrics import (
+    TRADE_COLUMNS,
     CurrencyMismatchError,
     FullMetrics,
     HeadlineMetrics,
@@ -25,6 +26,7 @@ from sbt2.core.results.metrics import (
     equity_curve,
     full_metrics,
     headline_metrics,
+    trade_table,
 )
 from sbt2.core.results.pricing import (
     Benchmark,
@@ -59,6 +61,7 @@ from sbt2.core.results.store import (
 )
 
 __all__ = [
+    "TRADE_COLUMNS",
     "Activity",
     "Benchmark",
     "BenchmarkArgumentError",
@@ -110,4 +113,5 @@ __all__ = [
     "study_table",
     "tearsheet",
     "tearsheet_panels",
+    "trade_table",
 ]
