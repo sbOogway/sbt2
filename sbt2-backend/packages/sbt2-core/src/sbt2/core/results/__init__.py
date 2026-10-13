@@ -26,6 +26,7 @@ from sbt2.core.results.metrics import (
     equity_curve,
     full_metrics,
     headline_metrics,
+    trade_statistics,
     trade_table,
 )
 from sbt2.core.results.pricing import (
@@ -113,5 +114,6 @@ __all__ = [
     "study_table",
     "tearsheet",
     "tearsheet_panels",
+    "trade_statistics",
     "trade_table",
 ]
