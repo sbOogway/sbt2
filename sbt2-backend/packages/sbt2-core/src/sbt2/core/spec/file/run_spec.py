@@ -31,7 +31,8 @@ class RunSpec:
     names the part of the ``period`` it gives that the run covers.
     ``risk`` holds nautilus's ``RiskEngineConfig`` arguments and the
     ``drawdown_limit`` the strategy base enforces.
-    ``chain`` sets the bands of the contracts a chain in ``instruments`` loads.
+    ``chain`` sets the bands of the contracts each chain in ``instruments``
+    loads; several chains stream their own index and volatility index.
     ``study`` names the study the run belongs to, if any.
     """
 
