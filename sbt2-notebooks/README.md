@@ -32,8 +32,10 @@ as [premium_management.py](premium_management.py) does for
 strangle, ch. 6 of *The Unlucky Investor's Guide to Options Trading*) and
 [premium_iv_ranges.py](premium_iv_ranges.py) for
 [premium_iv_ranges.ipynb](premium_iv_ranges.ipynb) (its trades by IV rank,
-ch. 3). They need the Deribit option data of 2024 and a year of DVOL before it
-on the server.
+ch. 3). [premium_portfolio.py](premium_portfolio.py) does so for
+[premium_portfolio.ipynb](premium_portfolio.ipynb) (a portfolio of laddered
+strangles and iron condors against a single strangle, ch. 7-8). They need the
+Deribit option data of 2024 and a year of DVOL before it on the server.
 
 The pre-commit hooks lint the modules with ruff and strip the outputs of the
 notebooks.
