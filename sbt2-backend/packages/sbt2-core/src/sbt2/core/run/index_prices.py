@@ -4,7 +4,7 @@ from datetime import timedelta
 import pandas as pd
 from nautilus_trader.model import CryptoOption, IndexPriceUpdate
 
-from sbt2.core.assets import index_id
+from sbt2.core.market import index_id
 from sbt2.core.spec import ResolvedRunSpec
 from sbt2.data import Catalog, Window
 

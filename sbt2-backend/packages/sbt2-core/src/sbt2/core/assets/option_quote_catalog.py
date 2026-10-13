@@ -13,9 +13,10 @@ from nautilus_trader.model import (
 from nautilus_trader.persistence import ParquetDataCatalog
 
 from sbt2.core.assets.base import QuoteJob
-from sbt2.core.assets.option_delivery import delivery_price, expires_within, index_id
+from sbt2.core.assets.option_delivery import delivery_price, expires_within
 from sbt2.core.assets.option_quotes import OptionHistory, QuoteSettings, quote_ticks
 from sbt2.core.assets.option_settlement import settlement_price, settlement_quotes
+from sbt2.core.market import index_id
 from sbt2.data import Catalog, Window
 
 type Span = tuple[datetime, datetime]

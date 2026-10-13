@@ -5,6 +5,8 @@ from typing import Any, Self
 
 from nautilus_trader.model import InstrumentId
 
+from sbt2.core.market import underlying_index
+
 _SUFFIX = "-OPTIONS"
 
 
@@ -61,7 +63,7 @@ def underlying_of(chain: InstrumentId) -> str:
 
 def index_of(chain: InstrumentId) -> InstrumentId:
     """The id of the USD index of the chain's underlying."""
-    return InstrumentId.from_str(f"{underlying_of(chain)}_USD.{chain.venue.value}")
+    return underlying_index(underlying_of(chain), chain.venue.value)
 
 
 def dvol_of(chain: InstrumentId) -> InstrumentId:

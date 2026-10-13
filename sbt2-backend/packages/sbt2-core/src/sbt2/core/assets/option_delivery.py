@@ -22,13 +22,6 @@ def expiry_day(contract: CryptoOption) -> date:
     return _expiry(contract).date()
 
 
-def index_id(contract: CryptoOption) -> InstrumentId:
-    """The id of the series of index prices the contract's underlying has."""
-    return InstrumentId.from_str(
-        f"{contract.underlying.code}_USD.{contract.id.venue.value}"
-    )
-
-
 def delivery_id(contract: CryptoOption) -> InstrumentId:
     """The id of the series of delivery prices the contract settles at."""
     return InstrumentId.from_str(

@@ -18,6 +18,7 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.portfolio import PortfolioConfig
 
+from sbt2.core.market import ChainFeeds
 from sbt2.data import Catalog, Selection
 
 
@@ -270,15 +271,6 @@ class ChainJob:
     chain: InstrumentId
     window: tuple[datetime, datetime]
     table: Mapping[str, Any]
-
-
-@dataclass(frozen=True)
-class ChainFeeds:
-    """The series a chain strategy hears besides the contracts: the ``index`` the
-    contracts are priced on and the ``volatility`` index of the underlying."""
-
-    index: InstrumentId
-    volatility: InstrumentId
 
 
 class ChainConvention(ABC):

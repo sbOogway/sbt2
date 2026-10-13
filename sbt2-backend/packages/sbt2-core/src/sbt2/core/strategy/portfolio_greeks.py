@@ -5,6 +5,7 @@ from typing import Any
 
 from nautilus_trader.model import CryptoOption, InstrumentId, PositionSide
 
+from sbt2.core.market import underlying_index
 from sbt2.core.strategy.book_rules import account_equity
 from sbt2.core.strategy.chain import NoMarketError
 
@@ -110,11 +111,8 @@ def _signed(position: Any) -> Decimal:
 
 def _index_of(contract: CryptoOption, code: str | None = None) -> InstrumentId:
     """The index of the underlying ``code`` (the contract's own by default) on the
-    contract's venue; named as ``sbt2.core.assets.index_id`` names it, which this
-    package cannot import."""
-    return InstrumentId.from_str(
-        f"{code or contract.underlying.code}_USD.{contract.id.venue.value}"
-    )
+    contract's venue."""
+    return underlying_index(code or contract.underlying.code, contract.id.venue.value)
 
 
 def _weighted(holding: Holding, indexes: Mapping[InstrumentId, float]) -> float:

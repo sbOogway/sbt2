@@ -10,8 +10,8 @@ from nautilus_trader.model import (
     MarkPriceUpdate,
 )
 
-from sbt2.core.assets.option_delivery import index_id
 from sbt2.core.assets.option_margin import OptionQuote
+from sbt2.core.market import index_id
 from sbt2.data import Catalog, Window
 
 _LOOKBACK = timedelta(days=1)
