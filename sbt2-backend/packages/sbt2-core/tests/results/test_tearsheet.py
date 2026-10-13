@@ -1,6 +1,7 @@
 import math
 from dataclasses import astuple, replace
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
@@ -8,7 +9,10 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import pytest
+from combo_strategies import OpenStrangle
 from nautilus_trader.model import InstrumentId
+from option_catalog import build_ladder_catalog
+from option_runs import run_options
 from plotted import Plotted, plotted
 from price_catalog import BTC, ETH, PriceCatalog, run_on
 
@@ -19,6 +23,7 @@ from sbt2.core.results import (
     costs_and_exposure,
     tearsheet,
 )
+from sbt2.data import Catalog
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 HOUR = timedelta(hours=1)
@@ -322,3 +327,56 @@ def test_the_tearsheet_of_a_run_without_trades_has_no_trade_pl_panel(
     figure = drawn(btc_round_trip(prices), tmp_path)
 
     assert figure.named("Trade P/L") == []
+
+
+@pytest.fixture(scope="module")
+def two_trades(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> tuple[PricedRun, pd.DataFrame]:
+    catalog = tmp_path_factory.mktemp("ladder_catalog")
+    build_ladder_catalog(catalog, mark_step=Decimal("-0.001"))
+    OpenStrangle.clear()
+    store, run_id = run_options(
+        tmp_path_factory.mktemp("two_trades"), catalog, "combo_strategies:TwoTrades"
+    )
+    run = store.stored_run(run_id).priced(Catalog(catalog))
+    return run, store.load(run_id, "trades")
+
+
+@pytest.mark.integration
+def test_the_tearsheet_of_an_option_run_has_a_trade_pl_panel(
+    two_trades: tuple[PricedRun, pd.DataFrame], tmp_path: Path
+) -> None:
+    run, trades = two_trades
+
+    figure = drawn(run, tmp_path)
+
+    assert len(trades) == 2
+    assert sorted(figure.trace("Trade P/L")["x"]) == pytest.approx(sorted(trades["pl"]))
+
+
+@pytest.mark.integration
+def test_the_cost_waterfall_of_an_option_run_adds_up_to_its_pnl(
+    two_trades: tuple[PricedRun, pd.DataFrame], tmp_path: Path
+) -> None:
+    run, _ = two_trades
+
+    [waterfall] = drawn(run, tmp_path).of_type("waterfall")
+
+    gross, fees, carry, net = waterfall["y"]
+    assert gross + fees + carry == pytest.approx(net)
+    assert net == pytest.approx(run.equity.iloc[-1] - run.equity.iloc[0])
+    assert fees < 0
+
+
+@pytest.mark.integration
+def test_the_instrument_breakdown_of_an_option_run_has_a_row_per_leg(
+    two_trades: tuple[PricedRun, pd.DataFrame], tmp_path: Path
+) -> None:
+    run, _ = two_trades
+    traded = set(run.tables.fills["instrument_id"].astype(str))
+
+    rows = instrument_rows(drawn(run, tmp_path))
+
+    assert len(traded) == 4
+    assert set(rows) == traded
