@@ -136,7 +136,8 @@ def _vols(history: OptionHistory) -> tuple[np.ndarray, np.ndarray]:
     be, else the IV the record holds."""
     greeks = history.greeks
     times = _nanos(greeks.index)
-    marks = history.marks["price"].reindex(greeks.index, method="ffill")
+    last_marks = history.marks["price"].groupby(level=0).last()
+    marks = last_marks.reindex(greeks.index, method="ffill")
     records = zip(
         times, greeks["underlying_price"], greeks["mark_iv"], marks, strict=True
     )

@@ -191,6 +191,12 @@ LADDER_LISTING = {
 }
 
 
+DENSE_LISTING = {
+    "12JAN24": LADDER_LISTING["12JAN24"],
+    "15FEB24": (datetime(2024, 2, 15, 8, tzinfo=UTC), tuple(range(20000, 70001, 2500))),
+}
+
+
 def chain_contract_id(label: str, strike: int, kind: str) -> InstrumentId:
     return InstrumentId.from_str(f"BTC-{label}-{strike}-{kind}.DERIBIT")
 
@@ -215,6 +221,14 @@ def build_ladder_catalog(path: Path, mark_step: Decimal = MARK_STEP) -> None:
     move by ``mark_step`` an hour."""
     catalog = _new_catalog(path)
     _write_contracts(catalog, _chain_contracts(LADDER_LISTING), mark_step)
+    _write_index(catalog, [INDEX_PRICE] * HOURS, CHAIN_DELIVERY)
+
+
+def build_dense_ladder_catalog(path: Path, mark_step: Decimal = MARK_STEP) -> None:
+    """Like ``build_ladder_catalog`` with a strike every 2500 for 15 February, so
+    the wings of a condor are not the short legs."""
+    catalog = _new_catalog(path)
+    _write_contracts(catalog, _chain_contracts(DENSE_LISTING), mark_step)
     _write_index(catalog, [INDEX_PRICE] * HOURS, CHAIN_DELIVERY)
 
 
