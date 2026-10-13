@@ -159,6 +159,26 @@ def test_the_quotes_come_on_the_venues_interval() -> None:
 
 
 @pytest.mark.unit
+def test_trades_at_one_instant_centre_the_quote_on_the_last_mark() -> None:
+    mark = call_price(INDEX, VOL, years_left(START))
+    marked = history(contract(), {START: mark}, {})
+    twice = pd.DatetimeIndex([START, START], name="ts_event")
+    marked = OptionHistory(
+        marked.contract,
+        pd.DataFrame({"price": [mark * 2, mark]}, index=twice),
+        pd.DataFrame(
+            {"mark_iv": [0.3, 0.3], "underlying_price": [INDEX, INDEX]},
+            index=pd.DatetimeIndex([START, START + timedelta(seconds=1)]),
+        ),
+        marked.index,
+    )
+
+    [quote] = quote_ticks(marked, QuoteSettings(), span(1))
+
+    assert mid(quote) == pytest.approx(mark, abs=1e-4)
+
+
+@pytest.mark.unit
 def test_a_contract_has_no_quote_before_its_first_mark() -> None:
     first = START + timedelta(minutes=5, seconds=30)
     mark = call_price(INDEX, VOL, years_left(first))
