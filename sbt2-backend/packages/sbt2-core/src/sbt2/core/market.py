@@ -1,5 +1,6 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import timedelta
 
 import numpy as np
 import pandas as pd
@@ -25,6 +26,11 @@ def underlying_index(code: str, venue: str) -> InstrumentId:
 def index_id(contract: CryptoOption) -> InstrumentId:
     """The id of the series of index prices the contract's underlying has."""
     return underlying_index(contract.underlying.code, contract.id.venue.value)
+
+
+# The run reads index prices from a day before its start, and that day may be
+# missing from the catalog; its first snapshot then precedes the first price.
+_EARLY = timedelta(days=1)
 
 
 class NoRateError(LookupError):
@@ -78,7 +84,8 @@ class Rates:
     def factors(self, currencies: Sequence[str], times: pd.DatetimeIndex) -> np.ndarray:
         """By what to multiply an amount in each of ``currencies`` at the matching
         time of ``times`` to have it in the reporting currency. A price holds
-        until the next; ``NoRateError`` when a currency has none, or none yet."""
+        until the next, and from a day before the first; ``NoRateError`` when a
+        currency has none, or none yet."""
         factors = np.ones(len(times))
         named = np.asarray(currencies)
         for currency in set(currencies) - {self.reporting}:
@@ -96,7 +103,9 @@ class Rates:
         ordered = series.groupby(level=0).last().sort_index()
         last = ordered.index.searchsorted(times, side="right") - 1
         values = ordered.to_numpy(dtype=float)
-        found = np.where(last >= 0, values[np.maximum(last, 0)], np.nan)
+        first = pd.DatetimeIndex(ordered.index)[0]
+        early = (last < 0) & (times >= first - _EARLY)
+        found = np.where((last >= 0) | early, values[np.maximum(last, 0)], np.nan)
         if np.isnan(found).any():
             raise NoRateError(f"no index price of {currency} yet at some times")
         return found
