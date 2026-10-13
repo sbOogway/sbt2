@@ -46,6 +46,13 @@ def test_a_price_holds_until_the_next_one() -> None:
 @pytest.mark.unit
 def test_a_coin_without_a_price_yet_cannot_convert() -> None:
     with pytest.raises(NoRateError, match="ETH yet"):
-        RATES.factors(["ETH"], pd.DatetimeIndex([NOON - HOUR]))
+        RATES.factors(["ETH"], pd.DatetimeIndex([NOON - HOUR * 25]))
     with pytest.raises(NoRateError, match="to convert SOL"):
         RATES.factors(["SOL"], at(0))
+
+
+@pytest.mark.unit
+def test_a_time_within_a_day_before_the_first_price_converts_at_it() -> None:
+    found = RATES.factors(["ETH"], pd.DatetimeIndex([NOON - HOUR]))
+
+    assert list(found) == pytest.approx([2_000.0 / 40_000.0])

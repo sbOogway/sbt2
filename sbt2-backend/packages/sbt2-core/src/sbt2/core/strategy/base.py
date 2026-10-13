@@ -292,6 +292,27 @@ class Strategy[P](NautilusStrategy, ABC):
         as ``"BTC"``; each ranks the IV on its own volatility index."""
         return dict(self._markets.chains(self.cache, self.instrument_ids))
 
+    def equity(self, currency: str) -> Decimal:
+        """All run balances in ``currency``, at the latest index prices."""
+        conversion = Conversion(self._markets.prices)
+        accounts = [
+            self.portfolio.account(venue)
+            for venue in {each.venue for each in self.instrument_ids}
+        ]
+        return sum(
+            (
+                conversion.balances(account, currency)
+                for account in accounts
+                if account is not None
+            ),
+            Decimal(0),
+        )
+
+    def index_correlation(self) -> dict[str, dict[str, float]]:
+        """Daily index return correlations over the run's look-back; 1 on the
+        diagonal and for pairs with fewer than five common returns."""
+        return self._markets.index_correlation()
+
     @property
     def short_premium_rules(self) -> ShortPremiumRules | None:
         """The rules of the spec's ``[risk.short_premium]`` table, which
@@ -552,8 +573,10 @@ class Strategy[P](NautilusStrategy, ABC):
         rule = self.combo_exit(self.params)
         if rule is None:
             return
+        chains = self.chains
         for combo in self.combos:
-            if rule.reached(combo, now, self.chain.quote):
+            chain = chains[combo.legs[0].contract.underlying.code]
+            if rule.reached(combo, now, chain.quote):
                 self.close_combo(combo)
 
     def _subscribed(self, bar_type: BarType) -> BarType:

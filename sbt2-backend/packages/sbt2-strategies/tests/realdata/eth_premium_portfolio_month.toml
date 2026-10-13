@@ -1,0 +1,19 @@
+strategy = "sbt2.strategies.premium_portfolio:PremiumPortfolio"
+instruments = ["BTC-OPTIONS.DERIBIT", "ETH-OPTIONS.DERIBIT"]
+period = [2025-01-01, 2025-02-05]
+split = { validation_start = 2025-02-01, test_start = 2025-02-03 }
+part = "train"
+venue = "deribit_option"
+capital = ["1 BTC", "20 ETH"]
+
+[chain]
+min_dte = 7
+max_dte = 21
+strike_band = "0.2"
+
+[params]
+core_dte = 14
+supplemental_dte = 14
+close_dte = 3
+
+[risk.short_premium]

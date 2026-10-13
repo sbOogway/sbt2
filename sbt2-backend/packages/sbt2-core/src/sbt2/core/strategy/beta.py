@@ -23,8 +23,7 @@ def betas(records: Mapping[str, ChainRecords], lookback: timedelta) -> dict[str,
 
 
 def _beta(own: ChainRecords, base: ChainRecords, lookback: timedelta) -> float:
-    since = own.now_ns() - int(lookback / timedelta(microseconds=1)) * 1_000
-    returns = _paired_returns(own.daily_closes(since), base.daily_closes(since))
+    returns = _returns(own, base, lookback)
     if returns.shape[1] < _MIN_RETURNS:
         return 1.0
     variance = np.var(returns[1], ddof=1)
@@ -42,3 +41,28 @@ def _paired_returns(own: dict[int, float], base: dict[int, float]) -> np.ndarray
         if day - _DAY_NS in own and day - _DAY_NS in base
     ]
     return np.array(pairs, dtype=float).reshape(-1, 2).T
+
+
+def correlations(
+    records: Mapping[str, ChainRecords], lookback: timedelta
+) -> dict[str, dict[str, float]]:
+    """Daily index return correlations; 1 for sparse or constant histories."""
+    return {
+        code: {
+            other: 1.0 if code == other else _correlation(own, peer, lookback)
+            for other, peer in records.items()
+        }
+        for code, own in records.items()
+    }
+
+
+def _correlation(own: ChainRecords, peer: ChainRecords, lookback: timedelta) -> float:
+    returns = _returns(own, peer, lookback)
+    if returns.shape[1] < _MIN_RETURNS or np.any(np.var(returns, axis=1) <= 0):
+        return 1.0
+    return float(np.corrcoef(returns)[0, 1])
+
+
+def _returns(own: ChainRecords, peer: ChainRecords, lookback: timedelta) -> np.ndarray:
+    since = own.now_ns() - int(lookback / timedelta(microseconds=1)) * 1_000
+    return _paired_returns(own.daily_closes(since), peer.daily_closes(since))

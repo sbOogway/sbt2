@@ -4,7 +4,7 @@ from datetime import timedelta
 from nautilus_trader.model import IndexPriceUpdate, InstrumentId, OptionGreeks
 
 from sbt2.core.market import ChainFeeds
-from sbt2.core.strategy.beta import betas
+from sbt2.core.strategy.beta import betas, correlations
 from sbt2.core.strategy.chain import CachedChain, ChainCache, MultipleChainsError
 from sbt2.core.strategy.chain_records import ChainHistory, ChainRecords
 
@@ -84,6 +84,9 @@ class Markets:
     def betas(self) -> dict[str, float]:
         """The beta of each underlying to BTC over the look-back of the run."""
         return betas(self._records, self._lookback)
+
+    def index_correlation(self) -> dict[str, dict[str, float]]:
+        return correlations(self._records, self._lookback)
 
     def preload(self, histories: Mapping[str, ChainHistory]) -> None:
         """Hear what each chain knew before the run, by underlying."""

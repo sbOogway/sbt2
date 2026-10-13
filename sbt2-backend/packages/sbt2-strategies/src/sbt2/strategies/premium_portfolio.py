@@ -30,7 +30,6 @@ from sbt2.strategies.short_premium import (
 )
 
 ONE = Decimal(1)
-ONE_UNDERLYING = [[1.0]]
 
 
 @dataclass(frozen=True)
@@ -72,6 +71,8 @@ class SubBook:
     and how to build one combo of unit size at an expiry."""
 
     name: str
+    underlying: str
+    chain: Chain
     defined_risk: bool
     dte: float
     pop: float
@@ -148,6 +149,13 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         self._held.pop(combo.id, None)
 
     def _books(self) -> list[SubBook]:
+        return [
+            book
+            for code, chain in self.chains.items()
+            for book in self._books_on(code, chain)
+        ]
+
+    def _books_on(self, code: str, chain: Chain) -> list[SubBook]:
         params = self.params
         core = StrangleParams(delta=params.core_delta, quantity=ONE)
         body = CondorParams(
@@ -155,14 +163,18 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         )
         return [
             SubBook(
-                "core",
+                f"{code}:core",
+                code,
+                chain,
                 False,
                 params.core_dte,
                 params.core_pop,
                 lambda chain, expiry: strangle(chain, expiry, core),
             ),
             SubBook(
-                "supplemental",
+                f"{code}:supplemental",
+                code,
+                chain,
                 True,
                 params.supplemental_dte,
                 params.supplemental_pop,
@@ -171,21 +183,34 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         ]
 
     def _shares(self, books: list[SubBook]) -> list[float]:
-        fractions = [
-            shared_fractions(
-                [kelly_fraction(self.params.risk_free, book.dte, book.pop)],
-                ONE_UNDERLYING,
-                self.params.correlation_group,
-            )[0]
-            for book in books
-        ]
-        return proportions(fractions)
+        correlation = self.index_correlation()
+        fractions: dict[str, float] = {}
+        for kind in dict.fromkeys(book.defined_risk for book in books):
+            group = [book for book in books if book.defined_risk == kind]
+            shared = self._fractions(group, correlation)
+            fractions.update(zip((book.name for book in group), shared, strict=True))
+        return proportions([fractions[book.name] for book in books])
+
+    def _fractions(
+        self, books: list[SubBook], correlation: dict[str, dict[str, float]]
+    ) -> list[float]:
+        return shared_fractions(
+            [
+                kelly_fraction(self.params.risk_free, book.dte, book.pop)
+                for book in books
+            ],
+            [
+                [correlation[book.underlying][peer.underlying] for peer in books]
+                for book in books
+            ],
+            self.params.correlation_group,
+        )
 
     def _fill_ladder(self, book: SubBook, share: float, now: datetime) -> None:
         held = [each.expiry for each in self._held.values() if each.book == book.name]
         if len(held) >= self.params.ladder or not self._is_due(book, now):
             return
-        expiry = self.chain.nearest_expiry(book.dte)
+        expiry = book.chain.nearest_expiry(book.dte)
         if expiry is None or expiry in held:
             return
         combo = self._sized(book, expiry, share)
@@ -203,7 +228,7 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         )
 
     def _sized(self, book: SubBook, expiry: datetime, share: float) -> Combo | None:
-        unit = book.build(self.chain, expiry)
+        unit = book.build(book.chain, expiry)
         if unit is None:
             return None
         try:
@@ -219,12 +244,9 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
 
     def _target(self, book: SubBook, unit: Combo, share: float) -> Decimal:
         contract = unit.legs[0].contract
-        account = self.portfolio.account(contract.id.venue)
-        if account is None:
-            raise RuntimeError("the run has no account")
-        equity = account.balance_total(contract.settlement_currency).as_decimal()
+        equity = self.equity(contract.settlement_currency.code)
         rules = self._book_rules()
-        allocation = rules.allocation_at(self._iv_rank())
+        allocation = rules.allocation_at(self._iv_rank(book.chain))
         cap = rules.defined_cap if book.defined_risk else rules.undefined_cap
         target = Decimal(str(share)) * allocation * equity / self.params.ladder
         return min(target, cap * equity)
@@ -233,9 +255,9 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         rules = self.short_premium_rules
         return ShortPremiumRules() if rules is None else rules
 
-    def _iv_rank(self) -> float | None:
+    def _iv_rank(self, chain: Chain) -> float | None:
         try:
-            return self.chain.iv_rank()
+            return chain.iv_rank()
         except NoMarketError:
             return None
 

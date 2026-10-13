@@ -666,3 +666,63 @@ def test_a_day_without_a_delivery_price_is_missing_at_source(
 
     with pytest.raises(MissingAtSourceError, match=missing_day.isoformat()):
         fetched(source.day_file("BTC_USD_DELIVERY", IndexPriceUpdate, missing_day))
+
+
+def _null_trade_files(root: Path, field: str) -> tuple[Path, Path]:
+    spec = json.loads(Path(__file__).with_name("deribit_responses.json").read_text())
+    snapshot = root / "BTC2026-10-07.json"
+    snapshot.write_text(json.dumps(spec[4]["response"]["result"]))
+    trades = spec[0]["response"]["result"]["trades"][:2]
+    day = root / "BTC2025-01-01.json"
+    day.write_text(json.dumps([{**trades[0], field: None}, trades[1]]))
+    return snapshot, day
+
+
+@pytest.mark.unit
+def test_a_trade_without_a_mark_price_gives_no_mark_update(
+    deribit: Source, tmp_path: Path
+) -> None:
+    snapshot, day = _null_trade_files(tmp_path, "mark_price")
+    instruments = deribit.parse_instruments(snapshot)
+    parsed = {
+        kind: deribit.parse_day(
+            day,
+            kind,
+            {
+                each: instruments[each]
+                for each in deribit.day_instrument_ids(day, kind, instruments)
+            },
+        )
+        for kind in (TradeTick, MarkPriceUpdate)
+    }
+
+    assert len(parsed[TradeTick][CALL_135K]) == 1
+    assert sum(len(records) for records in parsed[TradeTick].values()) == 2
+    assert parsed[MarkPriceUpdate][CALL_135K] == []
+    assert sum(len(records) for records in parsed[MarkPriceUpdate].values()) == 1
+
+
+@pytest.mark.unit
+def test_a_trade_without_an_index_price_gives_no_greeks_and_no_index_update(
+    deribit: Source, tmp_path: Path
+) -> None:
+    snapshot, day = _null_trade_files(tmp_path, "index_price")
+    instruments = deribit.parse_instruments(snapshot)
+    parsed = {
+        kind: deribit.parse_day(
+            day,
+            kind,
+            {
+                each: instruments[each]
+                for each in deribit.day_instrument_ids(day, kind, instruments)
+            },
+        )
+        for kind in (TradeTick, OptionGreeks, IndexPriceUpdate)
+    }
+
+    assert len(parsed[TradeTick][CALL_135K]) == 1
+    assert sum(len(records) for records in parsed[TradeTick].values()) == 2
+    assert parsed[OptionGreeks][CALL_135K] == []
+    assert sum(len(records) for records in parsed[OptionGreeks].values()) == 1
+    [index] = parsed[IndexPriceUpdate][BTC_INDEX]
+    assert index.ts_event == 1_735_689_605_718 * 1_000_000

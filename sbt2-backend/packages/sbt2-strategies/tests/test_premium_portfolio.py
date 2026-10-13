@@ -1,13 +1,27 @@
 from collections import Counter
 from decimal import Decimal
+from itertools import cycle
 from pathlib import Path
 
 import pytest
-from option_catalog import build_staggered_catalog, write_dvol
+from eth_premium_kit import PARAMS as TWO_CHAIN_PARAMS
+from eth_premium_kit import build_portfolio_catalog, run_portfolio
+from option_catalog import (
+    ETH_INDEX_ID,
+    ETH_PRICE,
+    INDEX_ID,
+    INDEX_PRICE,
+    build_staggered_catalog,
+    write_dvol,
+    write_index_history,
+)
+from option_runs import Scenario as OptionScenario
+from option_runs import run_two_chains
 from premium_kit import LOW_RANK, Scenario, run_scenario
 from premium_probe import ProbePortfolio
 
 from sbt2.core.strategy import Combo, import_strategy, params_schema, resolve_params
+from sbt2.strategies import premium_portfolio as portfolio_module
 from sbt2.strategies.premium_sizing import kelly_fraction
 
 PATH = "sbt2.strategies.premium_portfolio:PremiumPortfolio"
@@ -147,3 +161,80 @@ def test_a_combo_target_never_exceeds_the_rules_caps(
     for submission in ProbePortfolio.submitted:
         cap = Decimal("0.05") if submission.combo.defined_risk else Decimal("0.07")
         assert submission.bpr <= cap * submission.equity
+
+
+@pytest.mark.integration
+def test_the_portfolio_runs_both_books_on_each_underlying(tmp_path: Path) -> None:
+    catalog = tmp_path / "catalog"
+    build_portfolio_catalog(catalog)
+    ProbePortfolio.clear()
+
+    run_portfolio(tmp_path, catalog)
+
+    opened = Counter(
+        (combo.legs[0].contract.underlying.code, combo.name)
+        for combo, _ in ProbePortfolio.opened
+    )
+    assert opened == Counter(
+        {(coin, book): 1 for coin in ("BTC", "ETH") for book in (STRANGLE, CONDOR)}
+    )
+
+
+@pytest.mark.integration
+def test_correlated_underlyings_share_the_larger_fraction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    catalog = tmp_path / "catalog"
+    build_portfolio_catalog(catalog)
+    moves = [1.0, 1.02, 1.01, 1.04, 1.03, 1.05, 1.0]
+    for series, last in ((INDEX_ID, INDEX_PRICE), (ETH_INDEX_ID, ETH_PRICE)):
+        write_index_history(
+            catalog,
+            {24 * (i - 6): value * last for i, value in enumerate(moves[:-1])},
+            series,
+        )
+    fractions = cycle([0.04, 0.01, 0.02, 0.01])
+    monkeypatch.setattr(
+        portfolio_module, "kelly_fraction", lambda _rate, _dte, _pop: next(fractions)
+    )
+    ProbePortfolio.clear()
+
+    run_portfolio(tmp_path, catalog)
+
+    eth = [
+        each
+        for each in ProbePortfolio.submitted
+        if each.combo.legs[0].contract.underlying.code == "ETH"
+    ]
+    assert len(eth) == 2
+    allocation = Decimal("0.325")
+    for each, share in zip(eth, (1 / 3, 1 / 6), strict=True):
+        target = Decimal(str(share)) * allocation * each.equity
+        step = each.bpr / each.combo.legs[0].quantity * Decimal("0.1")
+        assert each.bpr <= target
+        assert target - each.bpr < step
+
+
+@pytest.mark.integration
+def test_combo_targets_use_the_converted_portfolio_equity(tmp_path: Path) -> None:
+    catalog = tmp_path / "catalog"
+    build_portfolio_catalog(catalog)
+    ProbePortfolio.clear()
+
+    run_two_chains(
+        tmp_path, catalog, OptionScenario(PROBE, TWO_CHAIN_PARAMS + DEFAULTS)
+    )
+
+    assert len(ProbePortfolio.submitted) == 4
+    first = ProbePortfolio.submitted[0]
+    assert first.equity == Decimal(1) + Decimal(20) * Decimal(
+        str(ETH_PRICE / INDEX_PRICE)
+    )
+    assert ProbePortfolio.declined == []
+    for each in ProbePortfolio.submitted:
+        share = Decimal("0.125") if each.combo.defined_risk else Decimal("0.375")
+        cap = Decimal("0.05") if each.combo.defined_risk else Decimal("0.07")
+        target = min(share * Decimal("0.325"), cap) * each.equity
+        step = each.bpr / each.combo.legs[0].quantity * Decimal("0.1")
+        assert each.bpr <= target
+        assert target - each.bpr < step

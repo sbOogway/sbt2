@@ -11,6 +11,7 @@ from sbt2.core.strategy import (
     Chain,
     ChainFilter,
     Combo,
+    ComboExit,
     NoParams,
     short_strangle,
 )
@@ -145,3 +146,26 @@ class TradeBothStrangles(OpenBothStrangles):
         super().on_schedule(now)
         for combo in self.combos:
             self.close_combo(combo)
+
+
+class ReadIndexCorrelation(ReadChainRanks):
+    seen: ClassVar[dict[datetime, dict[str, dict[str, float]]]] = {}
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        self.seen[now] = self.index_correlation()
+
+
+class ReadEquity(OnSchedule):
+    seen: ClassVar[list[dict[str, Decimal]]] = []
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        self.seen.append({coin: self.equity(coin) for coin in self.chains})
+
+
+class ExitBothStrangles(OpenBothStrangles):
+    @classmethod
+    @override
+    def combo_exit(cls, params: NoParams) -> ComboExit:
+        return ComboExit(dte=12, profit_target=Decimal(1000))

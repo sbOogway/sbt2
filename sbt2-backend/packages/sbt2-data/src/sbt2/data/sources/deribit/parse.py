@@ -136,7 +136,11 @@ def _by_contract(
 def _index_prices(
     path: Path, instruments: Mapping[InstrumentId, IndexInstrument]
 ) -> dict[InstrumentId, list[IndexPriceUpdate]]:
-    trades = json.loads(path.read_text())
+    trades = [
+        trade
+        for trade in json.loads(path.read_text())
+        if trade["index_price"] is not None
+    ]
     return {
         each.id: [_index_price(trade, each) for trade in trades]
         for each in instruments.values()
@@ -192,7 +196,11 @@ def _tick(trade: Mapping[str, Any], contract: CryptoOption) -> TradeTick:
     )
 
 
-def _mark_price(trade: Mapping[str, Any], contract: CryptoOption) -> MarkPriceUpdate:
+def _mark_price(
+    trade: Mapping[str, Any], contract: CryptoOption
+) -> MarkPriceUpdate | None:
+    if trade["mark_price"] is None:
+        return None
     ts = int(trade["timestamp"]) * _NANOS_PER_MILLI
     return MarkPriceUpdate(
         contract.id, Price(trade["mark_price"], _MARK_PRECISION), ts, ts
@@ -213,7 +221,7 @@ def _option_greeks(
     Deribit sends an IV of 0 for a deep in-the-money trade; its greeks are
     undefined, so it gives none.
     """
-    if not trade["iv"]:
+    if not trade["iv"] or trade["index_price"] is None:
         return None
     ts = int(trade["timestamp"]) * _NANOS_PER_MILLI
     iv = trade["iv"] / 100
