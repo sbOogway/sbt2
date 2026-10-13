@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from nautilus_trader.model import InstrumentId
+from nautilus_trader.model import CryptoOption, InstrumentId
 
 from sbt2.core.results.costs.records import InverseInstrumentError
 from sbt2.core.results.metrics import Segment, closed_trades, total
@@ -84,12 +84,17 @@ def _linear_instruments(
     missing = [str(each) for each in ids if each not in instruments]
     if missing:
         raise MissingPricesError(f"no instrument {', '.join(missing)} in the catalog")
-    inverse = [str(each) for each in ids if instruments[each].is_inverse]
+    inverse = [str(each) for each in ids if _is_inverse(instruments[each])]
     if inverse:
         raise InverseInstrumentError(
             f"{', '.join(inverse)} is inverse; exposure values linear instruments only"
         )
     return instruments
+
+
+def _is_inverse(instrument: Any) -> bool:
+    """An option is priced in its settlement coin, so it values like a linear one."""
+    return bool(instrument.is_inverse) and not isinstance(instrument, CryptoOption)
 
 
 @dataclass(frozen=True)
