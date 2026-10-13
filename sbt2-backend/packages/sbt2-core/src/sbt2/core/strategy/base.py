@@ -209,13 +209,15 @@ class Strategy[P](NautilusStrategy, ABC):
         self._settling: set[ClientOrderId] = set()
         self._combos = ComboBook()
         self._margin: MarginDesk | None = None
-        self._rules = (
+        self._short_premium = (
             None
             if config.short_premium is None
-            else BookRules(
-                ShortPremiumRules.from_primitives(config.short_premium),
-                weakref.proxy(self),
-            )
+            else ShortPremiumRules.from_primitives(config.short_premium)
+        )
+        self._rules = (
+            None
+            if self._short_premium is None
+            else BookRules(self._short_premium, weakref.proxy(self))
         )
         weak = weakref.proxy(self)
         self._records = ChainRecords(lambda: weak.clock.timestamp_ns())
@@ -263,6 +265,12 @@ class Strategy[P](NautilusStrategy, ABC):
     def chain(self) -> Chain:
         """The option contracts the run loaded, to pick from."""
         return CachedChain(self.cache, self.instrument_ids, self._records)
+
+    @property
+    def short_premium_rules(self) -> ShortPremiumRules | None:
+        """The rules of the spec's ``[risk.short_premium]`` table, which
+        ``open_combo`` applies; ``None`` when the table is absent."""
+        return self._short_premium
 
     @property
     def warming_up(self) -> bool:
