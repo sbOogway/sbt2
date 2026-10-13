@@ -40,6 +40,10 @@ message SpecFile {
   // The chain table: min_dte, max_dte and strike_band, which bound the contracts
   // of an option chain named in the instruments.
   google.protobuf.Struct chain = 15;
+  // A nautilus money string for each currency of a run with several, such as
+  // "1 BTC" and "20 ETH"; the first reports the run. When set it wins over
+  // capital.
+  repeated string capitals = 16;
 }
 
 // A single-module strategy, sent as source.

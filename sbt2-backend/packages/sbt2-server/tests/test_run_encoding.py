@@ -49,6 +49,23 @@ def test_spec_file_message_round_trips_to_the_spec_table() -> None:
 
 
 @pytest.mark.unit
+def test_spec_file_message_carries_a_capital_list() -> None:
+    capital = ["1 BTC", "20 ETH"]
+
+    table = spec_table(spec_message({**TABLE, "capital": capital}))
+
+    assert table["capital"] == capital
+
+
+@pytest.mark.unit
+def test_the_capitals_win_over_the_capital() -> None:
+    message = spec_message(TABLE)
+    message.capitals.extend(["1 BTC", "20 ETH"])
+
+    assert spec_table(message)["capital"] == ["1 BTC", "20 ETH"]
+
+
+@pytest.mark.unit
 def test_spec_file_message_carries_the_chain_table() -> None:
     chain = {"min_dte": 7, "max_dte": 45, "strike_band": "0.2"}
 

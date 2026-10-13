@@ -119,6 +119,7 @@ class SpecFile(_message.Message):
     RISK_FIELD_NUMBER: _builtins.int
     STUDY_FIELD_NUMBER: _builtins.int
     CHAIN_FIELD_NUMBER: _builtins.int
+    CAPITALS_FIELD_NUMBER: _builtins.int
     strategy: _builtins.str
     """The strategy's class in the uploaded module, as "module:Class"."""
     venue: _builtins.str
@@ -160,6 +161,13 @@ class SpecFile(_message.Message):
         of an option chain named in the instruments.
         """
 
+    @_builtins.property
+    def capitals(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+        """A nautilus money string for each currency of a run with several, such as
+        "1 BTC" and "20 ETH"; the first reports the run. When set it wins over
+        capital.
+        """
+
     def __init__(
         self,
         *,
@@ -178,10 +186,11 @@ class SpecFile(_message.Message):
         risk: _struct_pb2.Struct | None = ...,
         study: _builtins.str | None = ...,
         chain: _struct_pb2.Struct | None = ...,
+        capitals: _abc.Iterable[_builtins.str] | None = ...,
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["_bars", b"_bars", "_equity_interval", b"_equity_interval", "_liquidation", b"_liquidation", "_seed", b"_seed", "_study", b"_study", "bars", b"bars", "chain", b"chain", "equity_interval", b"equity_interval", "liquidation", b"liquidation", "params", b"params", "period", b"period", "risk", b"risk", "seed", b"seed", "split", b"split", "study", b"study"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["_bars", b"_bars", "_equity_interval", b"_equity_interval", "_liquidation", b"_liquidation", "_seed", b"_seed", "_study", b"_study", "bars", b"bars", "capital", b"capital", "chain", b"chain", "equity_interval", b"equity_interval", "instruments", b"instruments", "liquidation", b"liquidation", "params", b"params", "part", b"part", "period", b"period", "risk", b"risk", "seed", b"seed", "split", b"split", "strategy", b"strategy", "study", b"study", "venue", b"venue"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_bars", b"_bars", "_equity_interval", b"_equity_interval", "_liquidation", b"_liquidation", "_seed", b"_seed", "_study", b"_study", "bars", b"bars", "capital", b"capital", "capitals", b"capitals", "chain", b"chain", "equity_interval", b"equity_interval", "instruments", b"instruments", "liquidation", b"liquidation", "params", b"params", "part", b"part", "period", b"period", "risk", b"risk", "seed", b"seed", "split", b"split", "strategy", b"strategy", "study", b"study", "venue", b"venue"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     _WhichOneofReturnType__bars: _TypeAlias = _typing.Literal["bars"]  # noqa: Y015
     _WhichOneofArgType__bars: _TypeAlias = _typing.Literal["_bars", b"_bars"]  # noqa: Y015
