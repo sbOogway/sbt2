@@ -44,9 +44,11 @@ class PortfolioParams:
 
     The size of a book follows Equation 8.1 of the book from ``risk_free`` and its
     probability of profit; underlyings correlated at ``correlation_group`` or
-    more share the larger fraction. The books split the share of the equity that
-    the IV rank allows, between ``allocation_low`` at a rank of 0 and
-    ``allocation_high`` at a rank of 1, as the rules of the spec do."""
+    more share the larger fraction. The books split the allocation of the
+    ``[risk.short_premium]`` rules of the spec, or of the book's default rules
+    without them, at the IV rank. The target of a combo and the share of the
+    supplemental book stay within the caps and the defined-risk share of the
+    rules."""
 
     core_delta: float = 0.16
     core_dte: float = 45
@@ -61,8 +63,6 @@ class PortfolioParams:
     loss_target: Decimal = Decimal(0)
     risk_free: float = 0.03
     correlation_group: float = 0.7
-    allocation_low: Decimal = Decimal("0.25")
-    allocation_high: Decimal = Decimal("0.50")
     interval_hours: int = 24
 
 
@@ -72,6 +72,7 @@ class SubBook:
     and how to build one combo of unit size at an expiry."""
 
     name: str
+    defined_risk: bool
     dte: float
     pop: float
     build: Callable[[Chain, datetime], Combo | None]
@@ -128,7 +129,9 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         if self.warming_up:
             return
         books = self._books()
-        shares = self._shares(books)
+        shares = _within_defined_share(
+            self._shares(books), books, self._book_rules().defined_share
+        )
         for book, share in zip(books, shares, strict=True):
             self._fill_ladder(book, share, now)
 
@@ -153,12 +156,14 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         return [
             SubBook(
                 "core",
+                False,
                 params.core_dte,
                 params.core_pop,
                 lambda chain, expiry: strangle(chain, expiry, core),
             ),
             SubBook(
                 "supplemental",
+                True,
                 params.supplemental_dte,
                 params.supplemental_pop,
                 lambda chain, expiry: condor(chain, expiry, body),
@@ -203,7 +208,7 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
             return None
         try:
             one_contract = self.margin_of_combo(unit)
-            target = self._target(unit, share)
+            target = self._target(book, unit, share)
         except LookupError:
             return None
         if one_contract <= 0:
@@ -212,16 +217,21 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         quantity = contract_quantity(target, one_contract, step)
         return _scaled(unit, quantity) if quantity > 0 else None
 
-    def _target(self, unit: Combo, share: float) -> Decimal:
+    def _target(self, book: SubBook, unit: Combo, share: float) -> Decimal:
         contract = unit.legs[0].contract
         account = self.portfolio.account(contract.id.venue)
         if account is None:
             raise RuntimeError("the run has no account")
         equity = account.balance_total(contract.settlement_currency).as_decimal()
-        band = (self.params.allocation_low, self.params.allocation_high)
-        rules = ShortPremiumRules(band)
+        rules = self._book_rules()
         allocation = rules.allocation_at(self._iv_rank())
-        return Decimal(str(share)) * allocation * equity / self.params.ladder
+        cap = rules.defined_cap if book.defined_risk else rules.undefined_cap
+        target = Decimal(str(share)) * allocation * equity / self.params.ladder
+        return min(target, cap * equity)
+
+    def _book_rules(self) -> ShortPremiumRules:
+        rules = self.short_premium_rules
+        return ShortPremiumRules() if rules is None else rules
 
     def _iv_rank(self) -> float | None:
         try:
@@ -235,3 +245,21 @@ def _scaled(unit: Combo, quantity: Decimal) -> Combo:
         unit,
         legs=tuple(replace(leg, quantity=leg.quantity * quantity) for leg in unit.legs),
     )
+
+
+def _within_defined_share(
+    shares: list[float], books: list[SubBook], limit: Decimal
+) -> list[float]:
+    """``shares`` with the defined-risk books cut to ``limit`` in all, and the rest
+    given to the others in proportion."""
+    defined = sum(
+        share for share, book in zip(shares, books, strict=True) if book.defined_risk
+    )
+    if defined <= float(limit):
+        return shares
+    scale = float(limit) / defined
+    other = (1 - float(limit)) / (1 - defined) if defined < 1 else 0.0
+    return [
+        share * (scale if book.defined_risk else other)
+        for share, book in zip(shares, books, strict=True)
+    ]

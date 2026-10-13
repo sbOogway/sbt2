@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from decimal import Decimal
 from typing import ClassVar, override
@@ -45,3 +45,13 @@ class ProbePortfolio(PremiumPortfolio):
     @override
     def on_combo_opened(self, combo: Combo) -> None:
         self.opened.append((combo, self.combos))
+
+
+class OversizedPortfolio(ProbePortfolio):
+    """A portfolio that sends combos ten times the size it works out, which the
+    rules refuse."""
+
+    @override
+    def open_combo(self, combo: Combo) -> Combo:
+        legs = tuple(replace(leg, quantity=leg.quantity * 10) for leg in combo.legs)
+        return super().open_combo(replace(combo, legs=legs))

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 from option_catalog import build_staggered_catalog, write_dvol
-from premium_kit import LOW_RANK, Scenario, run_scenario, run_strategy
+from premium_kit import LOW_RANK, Scenario, run_scenario
 from premium_probe import ProbePortfolio
 
 from sbt2.core.strategy import Combo, import_strategy, params_schema, resolve_params
@@ -12,6 +12,8 @@ from sbt2.strategies.premium_sizing import kelly_fraction
 
 PATH = "sbt2.strategies.premium_portfolio:PremiumPortfolio"
 PROBE = "premium_probe:ProbePortfolio"
+OVERSIZED = "premium_probe:OversizedPortfolio"
+DEFAULTS = "[risk.short_premium]\n"
 NEVER = 1000
 TWO_DAYS = {
     "core_dte": 2,
@@ -20,6 +22,7 @@ TWO_DAYS = {
     "profit_target": NEVER,
 }
 STRANGLE, CONDOR = "short strangle", "iron condor"
+LOOSE = "[risk.short_premium]\nundefined_cap = 1\ndefined_cap = 1\ndefined_share = 1\n"
 
 
 @pytest.fixture(scope="module")
@@ -46,8 +49,6 @@ def test_the_defaults_follow_the_book() -> None:
     assert (params.close_dte, params.profit_target) == (21, Decimal(50))
     assert params.loss_target == 0
     assert (params.risk_free, params.correlation_group) == (0.03, 0.7)
-    assert params.allocation_low == Decimal("0.25")
-    assert params.allocation_high == Decimal("0.50")
 
 
 @pytest.mark.unit
@@ -58,7 +59,7 @@ def test_the_params_schema_lists_the_portfolio_parameters() -> None:
     assert {"supplemental_delta", "wing_delta", "supplemental_dte"} <= names
     assert {"supplemental_pop", "ladder", "risk_free", "correlation_group"} <= names
     assert {"close_dte", "profit_target", "loss_target"} <= names
-    assert {"allocation_low", "allocation_high", "interval_hours"} <= names
+    assert "interval_hours" in names
 
 
 @pytest.mark.integration
@@ -67,7 +68,7 @@ def test_the_core_book_opens_strangles_and_the_supplemental_book_iron_condors(
 ) -> None:
     ProbePortfolio.clear()
 
-    run_strategy(tmp_path, staggered, PROBE, ladder=2, **TWO_DAYS)
+    run_scenario(tmp_path, staggered, Scenario(PROBE, LOOSE), ladder=2, **TWO_DAYS)
 
     names = Counter(combo.name for combo, _ in ProbePortfolio.opened)
     assert set(names) == {STRANGLE, CONDOR}
@@ -82,7 +83,7 @@ def test_each_book_holds_at_most_ladder_combos_on_staggered_expiries(
 ) -> None:
     ProbePortfolio.clear()
 
-    run_strategy(tmp_path, staggered, PROBE, ladder=2, **TWO_DAYS)
+    run_scenario(tmp_path, staggered, Scenario(PROBE, LOOSE), ladder=2, **TWO_DAYS)
 
     for name in (STRANGLE, CONDOR):
         held = [
@@ -101,7 +102,7 @@ def test_combo_size_follows_the_pop_weights_of_the_allocation(
 ) -> None:
     ProbePortfolio.clear()
 
-    run_strategy(tmp_path, staggered, PROBE, ladder=2, **TWO_DAYS)
+    run_scenario(tmp_path, staggered, Scenario(PROBE, LOOSE), ladder=2, **TWO_DAYS)
 
     core = kelly_fraction(0.03, 2, 0.79)
     supplemental = kelly_fraction(0.03, 2, 0.70)
@@ -121,13 +122,28 @@ def test_a_combo_the_rules_refuse_is_not_retried_on_the_same_tick(
     tmp_path: Path, staggered: Path
 ) -> None:
     ProbePortfolio.clear()
-    tight = "[risk.short_premium]\nundefined_cap = 0.0001\ndefined_cap = 0.0001\n"
 
     store, run_id = run_scenario(
-        tmp_path, staggered, Scenario(PROBE, tight), ladder=2, **TWO_DAYS
+        tmp_path, staggered, Scenario(OVERSIZED, DEFAULTS), ladder=1, **TWO_DAYS
     )
 
     assert store.load(run_id, "fills").empty
     tries = Counter((moment, combo.name) for moment, combo in ProbePortfolio.declined)
     assert {name for _, name in tries} == {STRANGLE, CONDOR}
     assert set(tries.values()) == {1}
+
+
+@pytest.mark.integration
+def test_a_combo_target_never_exceeds_the_rules_caps(
+    tmp_path: Path, staggered: Path
+) -> None:
+    ProbePortfolio.clear()
+
+    run_scenario(tmp_path, staggered, Scenario(PROBE, DEFAULTS), ladder=1, **TWO_DAYS)
+
+    assert ProbePortfolio.declined == []
+    names = {combo.name for combo, _ in ProbePortfolio.opened}
+    assert names == {STRANGLE, CONDOR}
+    for submission in ProbePortfolio.submitted:
+        cap = Decimal("0.05") if submission.combo.defined_risk else Decimal("0.07")
+        assert submission.bpr <= cap * submission.equity
