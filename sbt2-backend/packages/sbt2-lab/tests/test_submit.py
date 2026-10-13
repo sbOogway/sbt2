@@ -22,12 +22,12 @@ SPEC = {
 }
 
 
-def submitted(server: FakeServer, strategy: str) -> None:
+def submitted(server: FakeServer, strategy: str, spec: dict = SPEC) -> None:
     serve_job(server, [summary("run-1")])
 
     async def scenario(url: str) -> None:
         async with await Lab.connect(url, TOKEN) as lab:
-            await lab.run(SPEC, strategy)
+            await lab.run(spec, strategy)
 
     run(scenario, server)
 
@@ -62,6 +62,19 @@ def test_run_submits_the_spec_and_the_strategy_module() -> None:
     assert not spec.HasField("bars")
     module = request.submit_run.strategy
     assert (module.name, module.source) == ("my_strats", CROSS)
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
+def test_the_lab_sends_a_capital_list() -> None:
+    server = FakeServer()
+
+    submitted(server, "my_strats:Cross", {**SPEC, "capital": ["1 BTC", "20 ETH"]})
+
+    [request] = server.received("submit_run")
+    spec = request.submit_run.spec
+    assert list(spec.capitals) == ["1 BTC", "20 ETH"]
+    assert spec.capital == ""
 
 
 @pytest.mark.integration
