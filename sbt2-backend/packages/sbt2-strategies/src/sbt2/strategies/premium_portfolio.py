@@ -30,7 +30,6 @@ from sbt2.strategies.short_premium import (
 )
 
 ONE = Decimal(1)
-ONE_UNDERLYING = [[1.0]]
 
 
 @dataclass(frozen=True)
@@ -184,15 +183,28 @@ class PremiumPortfolio(Strategy[PortfolioParams]):
         ]
 
     def _shares(self, books: list[SubBook]) -> list[float]:
-        fractions = [
-            shared_fractions(
-                [kelly_fraction(self.params.risk_free, book.dte, book.pop)],
-                ONE_UNDERLYING,
-                self.params.correlation_group,
-            )[0]
-            for book in books
-        ]
-        return proportions(fractions)
+        correlation = self.index_correlation()
+        fractions: dict[str, float] = {}
+        for kind in dict.fromkeys(book.defined_risk for book in books):
+            group = [book for book in books if book.defined_risk == kind]
+            shared = self._fractions(group, correlation)
+            fractions.update(zip((book.name for book in group), shared, strict=True))
+        return proportions([fractions[book.name] for book in books])
+
+    def _fractions(
+        self, books: list[SubBook], correlation: dict[str, dict[str, float]]
+    ) -> list[float]:
+        return shared_fractions(
+            [
+                kelly_fraction(self.params.risk_free, book.dte, book.pop)
+                for book in books
+            ],
+            [
+                [correlation[book.underlying][peer.underlying] for peer in books]
+                for book in books
+            ],
+            self.params.correlation_group,
+        )
 
     def _fill_ladder(self, book: SubBook, share: float, now: datetime) -> None:
         held = [each.expiry for each in self._held.values() if each.book == book.name]
