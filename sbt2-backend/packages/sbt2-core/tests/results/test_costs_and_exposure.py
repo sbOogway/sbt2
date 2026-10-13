@@ -5,7 +5,10 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from combo_strategies import CHAIN_EXPIRY, OpenStrangle
 from nautilus_trader.model import InstrumentId, MarkPriceUpdate
+from option_catalog import build_chain_catalog, build_ladder_catalog
+from option_runs import run_options
 from price_catalog import BTC, ETH, PriceCatalog, perpetual_with, run_on
 
 from sbt2.core.results import (
@@ -15,7 +18,7 @@ from sbt2.core.results import (
     RunTables,
     costs_and_exposure,
 )
-from sbt2.data import Gap
+from sbt2.data import Catalog, Gap
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 HOUR = timedelta(hours=1)
@@ -382,3 +385,54 @@ def test_a_position_opened_at_the_part_start_counts_in_its_instrument_net(
     assert astuple(result.by_instrument[str(BTC)].costs) == pytest.approx(
         astuple(result.total.costs)
     )
+
+
+@pytest.fixture(scope="module")
+def ladder(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    path = tmp_path_factory.mktemp("ladder_catalog")
+    build_ladder_catalog(path)
+    return path
+
+
+@pytest.fixture(scope="module")
+def expiring(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    path = tmp_path_factory.mktemp("chain_catalog")
+    build_chain_catalog(path)
+    return path
+
+
+def option_run(tmp_path: Path, catalog: Path, strategy: str) -> PricedRun:
+    OpenStrangle.clear()
+    store, run_id = run_options(tmp_path, catalog, strategy)
+    return store.stored_run(run_id).priced(Catalog(catalog))
+
+
+@pytest.mark.integration
+def test_option_exposure_is_quantity_times_mark_times_multiplier(
+    tmp_path: Path, ladder: Path
+) -> None:
+    run = option_run(tmp_path, ladder, "combo_strategies:OpenStrangle")
+    activities = costs_and_exposure(run).by_instrument
+    legs = [InstrumentId.from_str(each) for each in activities]
+    instruments = run.catalog.instruments(legs)
+    last = run.equity.index[-1]
+
+    assert len(legs) == 2
+    for leg in legs:
+        mark = run.market.prices(leg, MarkPriceUpdate)[last]
+        multiplier = float(instruments[leg].multiplier)
+        leverage = activities[str(leg)].exposure.net_leverage[last]
+        assert leverage * run.equity[last] == pytest.approx(-mark * multiplier)
+        assert leverage < 0
+
+
+@pytest.mark.integration
+def test_option_exposure_is_zero_after_expiry(tmp_path: Path, expiring: Path) -> None:
+    run = option_run(tmp_path, expiring, "combo_strategies:HoldStraddleToExpiry")
+
+    exposure = costs_and_exposure(run).total.exposure
+
+    net, gross = exposure.net_leverage, exposure.gross_leverage
+    assert not net.isna().any()
+    assert (net[net.index >= CHAIN_EXPIRY] == 0.0).all()
+    assert gross[gross.index < CHAIN_EXPIRY].max() > 0
