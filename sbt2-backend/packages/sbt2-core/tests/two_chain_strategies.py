@@ -153,3 +153,11 @@ class ReadIndexCorrelation(ReadChainRanks):
     @override
     def on_schedule(self, now: datetime) -> None:
         self.seen[now] = self.index_correlation()
+
+
+class ReadEquity(OnSchedule):
+    seen: ClassVar[list[dict[str, Decimal]]] = []
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        self.seen.append({coin: self.equity(coin) for coin in self.chains})

@@ -292,6 +292,22 @@ class Strategy[P](NautilusStrategy, ABC):
         as ``"BTC"``; each ranks the IV on its own volatility index."""
         return dict(self._markets.chains(self.cache, self.instrument_ids))
 
+    def equity(self, currency: str) -> Decimal:
+        """All run balances in ``currency``, at the latest index prices."""
+        conversion = Conversion(self._markets.prices)
+        accounts = [
+            self.portfolio.account(venue)
+            for venue in {each.venue for each in self.instrument_ids}
+        ]
+        return sum(
+            (
+                conversion.balances(account, currency)
+                for account in accounts
+                if account is not None
+            ),
+            Decimal(0),
+        )
+
     def index_correlation(self) -> dict[str, dict[str, float]]:
         """Daily index return correlations over the run's look-back; 1 on the
         diagonal and for pairs with fewer than five common returns."""
