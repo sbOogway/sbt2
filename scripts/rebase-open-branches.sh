@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Rebases every open local branch onto origin/main, fetched first, and force-pushes
+# Rebases every open local branch, except the gui branch, onto origin/main, fetched first, and force-pushes
 # the ones that track a remote branch. Runs from any branch, by hand or as the
 # post-merge hook. Leaves a branch alone when it is checked out in a worktree, when
 # its remote has commits it lacks, or when the rebase conflicts.
@@ -10,6 +10,7 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 
 base=main
 remote=origin
+keep=gui
 target=$remote/$base
 
 say() {
@@ -22,7 +23,7 @@ checked_out() {
 
 open_branches() {
     git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads |
-        awk -v base="$base" '$1 != base && $2 != "[gone]" { print $1 }'
+        awk -v base="$base" -v keep="$keep" '$1 != base && $1 != keep && $2 != "[gone]" { print $1 }'
 }
 
 behind_its_remote() {
