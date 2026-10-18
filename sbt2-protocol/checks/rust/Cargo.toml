@@ -7,7 +7,7 @@ description = "Decodes and re-encodes the golden fixtures with prost"
 license = "LGPL-3.0-or-later"
 
 [dependencies]
-# the version the GUI pins
+# the version the gui branch pins
 prost = "=0.14.4"
 prost-types = "=0.14.4"
 prost-reflect = { version = "0.16.5", features = ["text-format"] }

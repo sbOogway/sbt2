@@ -3,7 +3,8 @@
 # sbt2
 
 Backtesting framework on [nautilus_trader](https://nautilustrader.io), with a
-server and a protocol for a future GUI.
+server and a protocol for a GUI. The GUI lives on the
+[`gui`](https://github.com/sbOogway/sbt2/tree/gui) branch.
 
 [![CI](https://woodpecker.mattiapapaccioli.com/api/badges/1/status.svg)](https://woodpecker.mattiapapaccioli.com/repos/1)
 [![codecov](https://codecov.io/gh/sbOogway/sbt2/graph/badge.svg)](https://codecov.io/gh/sbOogway/sbt2)
@@ -21,15 +22,13 @@ server and a protocol for a future GUI.
   server. Its [README](sbt2-backend/README.md) has the quick start.
 - [sbt2-protocol/](sbt2-protocol): the protobuf messages between the server and
   its GUI. Its [README](sbt2-protocol/README.md) has the protocol rules.
-- [sbt2-gui/](sbt2-gui): the GUI, written in Rust with
-  [iced](https://iced.rs). Its [README](sbt2-gui/README.md) has the build.
 - [sbt2-notebooks/](sbt2-notebooks): Jupyter notebooks that run strategies on
   the server. Its [README](sbt2-notebooks/README.md) shows how to start them.
 
 ## Install
 
 Each [release](https://github.com/sbOogway/sbt2/releases) has the Python
-distributions, the Linux GUI and `SHA256SUMS`, which covers every file of the
+distributions and `SHA256SUMS`, which covers every file of the
 release. The notes name the server image with its digest.
 
 ### Server
@@ -64,19 +63,6 @@ The server listens on `127.0.0.1:8765`. `podman auto-update` pulls a new
 `:latest` and restarts the service. If the new image does not become healthy,
 it rolls back to the old one.
 
-### GUI
-
-The GUI is for Linux x86_64. The maintainer builds it on Fedora 44, so the
-binary needs a glibc as new as that machine's, glibc 2.43. On an older system,
-build it from source (see [sbt2-gui/README.md](sbt2-gui/README.md)).
-Download the tarball and `SHA256SUMS` from the release, then:
-
-```sh
-sha256sum --check --ignore-missing SHA256SUMS
-tar -xzf sbt2-gui-X.Y.Z-x86_64-linux.tar.gz
-./sbt2-gui-X.Y.Z-x86_64-linux/sbt2-gui
-```
-
 ## Development
 
 ```sh
@@ -103,8 +89,8 @@ version that git-cliff picks from its Conventional Commits. A merge with no
 `feat`, `fix`, `perf`, `refactor` or `revert` change gets no new version, so it
 gets no tag. The newest tagged merge is the release; `VERSION=X.Y.Z` makes
 `HEAD` the release with that version. The target refuses when there is nothing
-to release. It builds the wheels, the GUI and the server image of the release,
-and smoke-tests the GUI and the image. It writes the files, `SHA256SUMS`, the
+to release. It builds the wheels and the server image of the release,
+and smoke-tests the image. It writes the files, `SHA256SUMS`, the
 notes and the planned tags to the git-ignored `dist/release/`; the image stays
 in the local podman store. Nothing leaves the machine.
 
@@ -128,10 +114,10 @@ GH_TOKEN=...    # or a gh login; can edit the releases
 GHCR_TOKEN=...  # classic token with write:packages
 ```
 
-To add the GUI or the image to an existing release, use `make release-gui` or
-`make release-image`. They act on the newest `vX.Y.Z` tag; `TAG=vX.Y.Z` picks
-another release. A target refuses when the release has its artifact already,
-unless `FORCE=1`. Each builds the tag's commit in a temporary worktree.
+To add the image to an existing release, use `make release-image`. It acts on
+the newest `vX.Y.Z` tag; `TAG=vX.Y.Z` picks another release. It refuses when the
+release has the image already, unless `FORCE=1`. It builds the tag's commit in a
+temporary worktree.
 
 ## License
 

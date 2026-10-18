@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help sync notebooks check test-backend test-protocol test-gui build publish release release-gui release-image rebase-open-branches
+.PHONY: help sync notebooks check test-backend test-protocol build publish release release-image rebase-open-branches
 
 help:
 	@echo "make sync          prepare the locked backend, protocol and notebook environments"
@@ -8,8 +8,6 @@ help:
 	@echo "make check         run the hooks and both components' test suites"
 	@echo "make test-backend  run the backend test suite"
 	@echo "make test-protocol run the Python and Rust protocol tests"
-	@echo "make test-gui      run the GUI's format, lint and test checks"
-	@echo "make release-gui   backfill: build the Linux GUI and upload it to a release"
 	@echo "make release-image backfill: build the image, test it and push it to GHCR"
 	@echo "make build         plan the tags of the merges since the last tag and build the newest"
 	@echo "make publish       publish the release that make build left"
@@ -28,7 +26,6 @@ check:
 	prek run --all-files --show-diff-on-failure
 	$(MAKE) test-backend
 	$(MAKE) test-protocol
-	$(MAKE) test-gui
 
 test-backend:
 	uv --directory sbt2-backend run --locked pytest
@@ -36,14 +33,6 @@ test-backend:
 test-protocol:
 	prek run protocol-tests --all-files
 	cargo test --locked --manifest-path sbt2-protocol/checks/rust/Cargo.toml
-
-test-gui:
-	cd sbt2-gui && cargo fmt --all --check
-	cd sbt2-gui && cargo clippy --locked --all-targets -- -D warnings
-	cd sbt2-gui && cargo test --locked
-
-release-gui:
-	scripts/release-gui.sh
 
 release-image:
 	scripts/release-image.sh
