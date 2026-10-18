@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Rebases every open local branch, except the gui branch, onto origin/main, fetched first, and force-pushes
-# the ones that track a remote branch. Runs from any branch, by hand or as the
-# post-merge hook. Leaves a branch alone when it is checked out in a worktree, when
-# its remote has commits it lacks, or when the rebase conflicts.
+# Rebases every open local branch, except the gui branch, onto origin/main,
+# fetched first, and force-pushes the ones that track a remote branch. Runs from
+# any branch, by hand or as the post-merge hook. Leaves a branch alone when it is
+# checked out in a worktree, when its remote has commits it lacks, or when the
+# rebase conflicts.
 set -euo pipefail
 
 # git exports these to hooks; they would point every git call below at this checkout

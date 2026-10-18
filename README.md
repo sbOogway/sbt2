@@ -114,9 +114,10 @@ GH_TOKEN=...    # or a gh login; can edit the releases
 GHCR_TOKEN=...  # classic token with write:packages
 ```
 
-To add the image to an existing release, use `make release-image`. It acts on the newest `vX.Y.Z` tag; `TAG=vX.Y.Z` picks
-another release. It refuses when the release has the image already,
-unless `FORCE=1`. It builds the tag's commit in a temporary worktree.
+To add the image to an existing release, use `make release-image`. It acts on
+the newest `vX.Y.Z` tag; `TAG=vX.Y.Z` picks another release. It refuses when the
+release has the image already, unless `FORCE=1`. It builds the tag's commit in a
+temporary worktree.
 
 ## License
 
