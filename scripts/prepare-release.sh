@@ -18,7 +18,7 @@ fi
 
 git tag "$next"
 "${cliff[@]}" --latest --strip all --output "$out/notes.md" 2>/dev/null
-printf '\nThe Linux GUI and the server image follow, once the maintainer has built them.\n' >>"$out/notes.md"
+printf '\nThe server image follows, once the maintainer has built it.\n' >>"$out/notes.md"
 uv build --project sbt2-backend --all-packages --out-dir "$out/dist"
 echo "$next" >"$out/tag"
 echo "prepare-release: prepared $next"

@@ -3,7 +3,7 @@
 # HEAD is origin/main with a clean tree and make check passes. Each merge on main since the newest
 # tag gets a planned tag with the version git-cliff picks for it; a merge that git-cliff gives no
 # new version gets none. The newest of these merges is the release; $VERSION makes HEAD the
-# release with that version. Builds its wheels, GUI and image, and writes its notes. No tag
+# release with that version. Builds its wheels and image, and writes its notes. No tag
 # leaves this machine.
 # Needs GH_TOKEN or a gh login, to find the last release for the notes.
 # SBT2_RELEASE_CHECK replaces the make check command; only the tests of this script use it.
@@ -112,7 +112,6 @@ build_all() {
     mkdir -p "$files"
     run_build env UV_DYNAMIC_VERSIONING_BYPASS="$version" \
         uv build --project "$WORK/src/sbt2-backend" --all-packages --out-dir "$files"
-    run_build "$here/build-gui.sh" "$version" "$WORK/src" "$files"
     run_build "$here/build-image.sh" "$version" "$WORK/src"
     (cd "$files" && sha256sum -- * >"$WORK/SHA256SUMS")
     mv "$WORK/SHA256SUMS" "$files/"
