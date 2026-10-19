@@ -25,6 +25,7 @@ Table = Literal[
     "orders",
     "trades",
     "portfolio_greeks",
+    "refusals",
     "summary",
 ]
 

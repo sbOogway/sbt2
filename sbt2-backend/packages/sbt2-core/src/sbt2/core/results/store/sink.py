@@ -16,7 +16,9 @@ class Reports:
     ``index_prices`` are the index prices by time of the underlying of each
     option contract, by instrument id, which value the trades in USD.
     ``portfolio_greeks`` holds the sampled ``ts_event`` (ns), ``theta``,
-    ``theta_ratio`` and ``beta_weighted_delta`` of a run with an option chain."""
+    ``theta_ratio`` and ``beta_weighted_delta`` of a run with an option chain.
+    ``refusals`` holds the ``ts_event`` (ns), ``legs`` (instrument ids) and
+    ``reason`` of each combo the short premium rules refused."""
 
     fills: pd.DataFrame
     positions: pd.DataFrame
@@ -24,6 +26,7 @@ class Reports:
     orders: pd.DataFrame | None = None
     index_prices: Mapping[str, pd.Series] | None = None
     portfolio_greeks: pd.DataFrame | None = None
+    refusals: pd.DataFrame | None = None
 
 
 class OutputSink(Protocol):

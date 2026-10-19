@@ -22,6 +22,7 @@ from sbt2.core.results.store.parquet.tables import (
     equity_table,
     margin_table,
     portfolio_greeks_table,
+    refusals_table,
     reported_equity,
     write_table,
 )
@@ -53,6 +54,7 @@ SUMMARY_SCHEMA = pa.schema(
             for each in fields(HeadlineMetrics)
         ),
         ("drawdown_tripped_at", _UTC),
+        ("refused_combos", pa.int64()),
     ]
 )
 
@@ -112,6 +114,7 @@ class ParquetSink:
         self._write(
             "portfolio_greeks", portfolio_greeks_table(reports.portfolio_greeks)
         )
+        self._write("refusals", refusals_table(reports.refusals))
 
     def write_strategy_source(self, source: str) -> None:
         (self._folder / STRATEGY_SOURCE).write_text(source)
@@ -122,6 +125,7 @@ class ParquetSink:
     def finalize(self) -> None:
         metrics = headline_metrics(self._run_tables(), self._run.segment)
         row = _summary(self._run, metrics, self._drawdown_tripped_at)
+        row["refused_combos"] = len(self._tables.get("refusals", ()))
         summary = pa.Table.from_pylist([row], SUMMARY_SCHEMA)
         pq.write_table(summary, self._folder / f"{SUMMARY}.parquet")
 

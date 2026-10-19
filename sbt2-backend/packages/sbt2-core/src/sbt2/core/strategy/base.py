@@ -3,6 +3,7 @@ import hashlib
 import importlib
 import importlib.util
 import inspect
+import logging
 import sys
 import threading
 import weakref
@@ -59,6 +60,18 @@ from sbt2.core.strategy.short_premium import ShortPremiumRules
 
 if TYPE_CHECKING:
     from sbt2.core.results import Benchmark
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class Refusal:
+    """A combo the short premium rules refused: ``ts_event`` (ns), the
+    instrument ids of its legs and the ``reason``."""
+
+    ts_event: int
+    legs: tuple[str, ...]
+    reason: str
 
 
 @dataclass(frozen=True)
@@ -242,6 +255,7 @@ class Strategy[P](NautilusStrategy, ABC):
             if self._short_premium is None
             else BookRules(self._short_premium, weak, Conversion(self._markets.prices))
         )
+        self.refusals: list[Refusal] = []
         self.portfolio_greeks: list[GreeksSample] = []
         self._greeks = (
             None
@@ -354,6 +368,7 @@ class Strategy[P](NautilusStrategy, ABC):
         ``on_combo_failed`` and the combo is never open."""
         reason = self._rule_refusal(combo)
         if reason is not None:
+            self._note_refusal(combo, reason)
             self.on_combo_refused(combo, reason)
             return combo
         identified = replace(combo, id=self._combos.next_id())
@@ -361,6 +376,11 @@ class Strategy[P](NautilusStrategy, ABC):
         self._combos.opening(identified, orders)
         self.submit_order_list(orders)
         return identified
+
+    def _note_refusal(self, combo: Combo, reason: str) -> None:
+        legs = tuple(str(leg.contract.id) for leg in combo.legs)
+        logger.warning("combo refused: %s: %s", ", ".join(legs), reason)
+        self.refusals.append(Refusal(self.clock.timestamp_ns(), legs, reason))
 
     def close_combo(self, combo: Combo) -> None:
         """Close the legs of an open ``combo`` still held with market orders,

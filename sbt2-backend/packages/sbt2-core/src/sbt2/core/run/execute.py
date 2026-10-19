@@ -79,6 +79,7 @@ class _Measured:
 
     index_prices: Mapping[str, pd.Series]
     portfolio_greeks: pd.DataFrame | None
+    refusals: pd.DataFrame | None
 
 
 @dataclass(frozen=True)
@@ -189,6 +190,7 @@ def _write_output(finished: _Finished, sink: OutputSink) -> None:
     measured = _Measured(
         read_index_prices(spec, cache.instruments(), backtest.catalog),
         _greeks_frame(finished.strategy),
+        _refusals_frame(finished.strategy),
     )
     sink.write_reports(_reports(cache, account, measured))
 
@@ -221,6 +223,11 @@ def _greeks_frame(strategy: Strategy[Any]) -> pd.DataFrame | None:
     return pd.DataFrame([asdict(each) for each in samples]) if samples else None
 
 
+def _refusals_frame(strategy: Strategy[Any]) -> pd.DataFrame | None:
+    refusals = strategy.refusals
+    return pd.DataFrame([asdict(each) for each in refusals]) if refusals else None
+
+
 def _reports(cache: Cache, account: Any, measured: _Measured) -> Reports:
     return Reports(
         fills=ReportProvider.generate_fills_report(cache.orders()),
@@ -231,6 +238,7 @@ def _reports(cache: Cache, account: Any, measured: _Measured) -> Reports:
         orders=ReportProvider.generate_orders_report(cache.orders()),
         index_prices=measured.index_prices,
         portfolio_greeks=measured.portfolio_greeks,
+        refusals=measured.refusals,
     )
 
 

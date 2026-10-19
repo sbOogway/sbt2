@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -38,6 +39,67 @@ def test_a_refused_combo_sends_no_leg_and_calls_on_combo_refused(
     assert combo.name == "short strangle"
     assert reason.startswith("undefined_cap")
     assert "BPR" in reason
+
+
+@pytest.mark.integration
+def test_a_refused_combo_is_logged_with_its_reason(
+    tmp_path: Path, ladder: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    OpenStrangle.clear()
+
+    with caplog.at_level(logging.WARNING):
+        run_options(
+            tmp_path, ladder, Scenario("combo_strategies:OpenStrangle", SMALL_CAPS)
+        )
+
+    [(_, reason)] = OpenStrangle.declined
+    [record] = [each for each in caplog.records if "refused" in each.message]
+    assert record.levelno == logging.WARNING
+    assert "BTC-12JAN24-40000-P.DERIBIT" in record.message
+    assert "BTC-12JAN24-50000-C.DERIBIT" in record.message
+    assert reason in record.message
+
+
+@pytest.mark.integration
+def test_an_option_run_stores_the_combos_the_rules_refuse(
+    tmp_path: Path, ladder: Path
+) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run_options(
+        tmp_path, ladder, Scenario("combo_strategies:OpenStrangle", SMALL_CAPS)
+    )
+
+    rows = store.load(run_id, "refusals")
+    [(_, reason)] = OpenStrangle.declined
+    assert list(rows.columns) == ["ts_event", "legs", "reason"]
+    [row] = rows.to_dict("records")
+    assert row["ts_event"] == pd.Timestamp("2024-01-01T03:00:00", tz="UTC")
+    assert list(row["legs"]) == [
+        "BTC-12JAN24-40000-P.DERIBIT",
+        "BTC-12JAN24-50000-C.DERIBIT",
+    ]
+    assert row["reason"] == reason
+
+
+@pytest.mark.integration
+def test_the_summary_counts_the_refused_combos(tmp_path: Path, ladder: Path) -> None:
+    (tmp_path / "refusing").mkdir()
+    (tmp_path / "plain").mkdir()
+    OpenStrangle.clear()
+    store, refusing = run_options(
+        tmp_path / "refusing",
+        ladder,
+        Scenario("combo_strategies:OpenStrangle", SMALL_CAPS),
+    )
+    OpenStrangle.clear()
+    store_without, plain = run_options(
+        tmp_path / "plain", ladder, "combo_strategies:OpenStrangle"
+    )
+
+    counts = store.runs().set_index("run_id")["refused_combos"]
+    assert counts[refusing] == len(store.load(refusing, "refusals")) == 1
+    assert store_without.runs().set_index("run_id")["refused_combos"][plain] == 0
 
 
 @pytest.mark.integration
