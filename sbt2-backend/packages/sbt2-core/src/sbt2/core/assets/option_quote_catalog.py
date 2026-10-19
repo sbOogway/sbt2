@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -148,14 +148,17 @@ def _index_on_grid(
     from the day before the span on."""
     (start, end), settings = grid
     step = f"{settings.interval_seconds}s"
-    days = [
-        _on_grid(
-            catalog.frame(index_id, IndexPriceUpdate, Window.of_days(day, day)), step
-        )
-        for day in Window(start - timedelta(days=1), end).days
-    ]
-    carried = pd.concat(days).groupby(level=0).last().ffill().dropna()
+    days = Window(start - timedelta(days=1), end).days
+    frame = catalog.frame(index_id, IndexPriceUpdate, Window.of_days(days[0], days[-1]))
+    # Grid each day on its own: a day without updates adds no grid times.
+    on_grid = [_on_grid(_of_day(frame, day), step) for day in days]
+    carried = pd.concat(on_grid).groupby(level=0).last().ffill().dropna()
     return pd.Series(carried)
+
+
+def _of_day(frame: pd.DataFrame, day: date) -> pd.DataFrame:
+    window = Window.of_days(day, day)
+    return frame.loc[(frame.index >= window.start) & (frame.index < window.end)]
 
 
 def _on_grid(frame: pd.DataFrame, step: str) -> pd.Series:

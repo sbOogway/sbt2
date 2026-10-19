@@ -278,3 +278,19 @@ def test_the_quotes_are_the_same_with_batched_reads(tmp_path: Path) -> None:
     for each, quotes in expected.items():
         assert quotes
         assert stored.query(NautilusDataType.QuoteTick, [str(each)]) == quotes
+
+
+@pytest.mark.integration
+def test_the_index_is_read_in_one_query_for_the_run(
+    tmp_path: Path, queries: list[Any]
+) -> None:
+    build_catalog(tmp_path / "catalog", [*days_before_the_run((4,)), *run_hours()])
+    week = (datetime(2024, 1, 5, tzinfo=UTC), RUN[1])
+    job = QuoteJob(tmp_path / "catalog", [OPTION_ID], week, {})
+
+    write_quotes(job, SETTINGS, quotes_folder(tmp_path))
+
+    index_reads = [
+        each for each in queries if each[0] == NautilusDataType.IndexPriceUpdate
+    ]
+    assert len(index_reads) == 1
