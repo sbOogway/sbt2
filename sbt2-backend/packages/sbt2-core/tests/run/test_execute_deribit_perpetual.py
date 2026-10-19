@@ -35,12 +35,12 @@ source = "deribit"
 asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
 marks = "bars"
-fee_model = { kind = "maker_taker", config = { maker_rate = "0", taker_rate = "0.0005" } }
+fee_model = { kind = "maker_taker", config = { maker_rate = "0.00015", taker_rate = "0.00035" } }
 """
 CONTRACTS = 100_000
 OPEN_HOUR = 3
 CLOSE_HOUR = 23
-TAKER_RATE = 0.0005
+TAKER_RATE = 0.00035
 TOLERANCE = 2e-8
 
 

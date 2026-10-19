@@ -416,8 +416,8 @@ def test_deribit_perpetual_builds_a_nautilus_venue(tmp_path: Path) -> None:
     assert venue.liquidation_enabled is False
     assert isinstance(venue.fee_model, MakerTakerFeeModel)
     assert resolved.venue["fee_model"]["config"] == {
-        "maker_rate": "0",
-        "taker_rate": "0.0005",
+        "maker_rate": "0.00015",
+        "taker_rate": "0.00035",
     }
 
 
