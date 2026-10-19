@@ -19,7 +19,7 @@ from sbt2.data.sources.base import (
     Source,
     UnsupportedDataTypeError,
 )
-from sbt2.data.sources.deribit import parse
+from sbt2.data.sources.deribit import parse, perpetual
 from sbt2.data.sources.deribit.api import DeribitApi, Endpoints
 from sbt2.data.sources.deribit.series import Kind, Series, series_of
 
@@ -47,7 +47,7 @@ class DeribitSource(Source):
     def instrument_id(self, symbol: str) -> InstrumentId:
         """The id of the currency's options as a whole, which known gaps name, or of
         the index of a series."""
-        if series_of(symbol) is not None:
+        if series_of(symbol) is not None or symbol in perpetual.SYMBOLS:
             return parse.series_id(symbol)
         if symbol not in _CURRENCIES:
             raise ValueError(
@@ -56,8 +56,9 @@ class DeribitSource(Source):
         return InstrumentId.from_str(f"{symbol}{_OPTIONS_SUFFIX}.{parse.VENUE}")
 
     def symbol(self, instrument_id: InstrumentId) -> str:
-        if instrument_id.venue.value == parse.VENUE and series_of(
-            instrument_id.symbol.value
+        if instrument_id.venue.value == parse.VENUE and (
+            series_of(instrument_id.symbol.value)
+            or instrument_id.symbol.value in perpetual.SYMBOLS
         ):
             return instrument_id.symbol.value
         currency = instrument_id.symbol.value.split("-")[0]
@@ -85,6 +86,12 @@ class DeribitSource(Source):
         return super().is_known_gap(symbol, TradeTick, day)
 
     def instrument_snapshot(self, symbol: str, taken_on: date) -> RawFile:
+        currency = perpetual.currency_of(symbol)
+        if currency is not None:
+            return RawFile(
+                _perpetual_dir(symbol) / "instrument" / _json_name(symbol, taken_on),
+                partial(self._api.perpetual_snapshot, currency),
+            )
         series = series_of(symbol)
         if series is not None:
             return RawFile(
@@ -141,6 +148,10 @@ class DeribitSource(Source):
                 f"deribit lists no data type {name}; it lists {_TRADES}"
             )
         return TradeTick
+
+
+def _perpetual_dir(symbol: str) -> PurePosixPath:
+    return PurePosixPath("deribit", "perpetual", symbol)
 
 
 def _series_dir(series: Series) -> PurePosixPath:

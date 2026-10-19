@@ -10,6 +10,7 @@ import pandas as pd
 from nautilus_trader.model import (
     AggressorSide,
     CryptoOption,
+    CryptoPerpetual,
     Currency,
     GreeksConvention,
     IndexInstrument,
@@ -26,6 +27,7 @@ from nautilus_trader.model import (
     black_scholes_greeks,
 )
 
+from sbt2.data.sources.deribit import perpetual
 from sbt2.data.sources.deribit.series import Kind, Series, series_of
 
 VENUE = "DERIBIT"
@@ -88,6 +90,9 @@ def instruments(path: Path) -> Mapping[InstrumentId, Any]:
     """The snapshot's instruments, initialised at the start of the day it was taken
     on: the option contracts and their USD index, or the index of a series."""
     symbol = _snapshot_symbol(path)
+    if perpetual.currency_of(symbol) is not None:
+        built = _perpetual(json.loads(path.read_text()), _snapshot_day_nanos(path))
+        return {built.id: built}
     if series_of(symbol) is not None:
         index = _index(symbol, _snapshot_day_nanos(path))
         return {index.id: index}
@@ -280,6 +285,33 @@ def _contract(spec: Mapping[str, Any], ts_init: int) -> CryptoOption:
         ts_init,
         ts_init,
         multiplier=Quantity(spec["contract_size"], _decimals(spec["contract_size"])),
+    )
+
+
+def _perpetual(spec: Mapping[str, Any], ts_init: int) -> CryptoPerpetual:
+    """The inverse perpetual, in USD amounts settled in the coin.
+
+    The margin is the lowest tier of Deribit's standard margin: the initial one
+    is 1 over the maximum leverage and the maintenance one 2/3 of it.
+    """
+    tick = _decimals(spec["tick_size"])
+    lot = _decimals(spec["min_trade_amount"])
+    initial = Decimal(1) / Decimal(spec["max_leverage"])
+    return CryptoPerpetual(
+        contract_id(spec["instrument_name"]),
+        Symbol(spec["instrument_name"]),
+        Currency.from_str(spec["base_currency"]),
+        Currency.from_str(spec["quote_currency"]),
+        Currency.from_str(spec["settlement_currency"]),
+        True,
+        tick,
+        lot,
+        Price(spec["tick_size"], tick),
+        Quantity(spec["min_trade_amount"], lot),
+        int(spec["creation_timestamp"]) * _NANOS_PER_MILLI,
+        ts_init,
+        margin_init=initial,
+        margin_maint=initial * 2 / 3,
     )
 
 

@@ -75,6 +75,16 @@ class DeribitApi:
             ]
         return _json(specs)
 
+    async def perpetual_snapshot(self, currency: str) -> bytes:
+        """The currency's inverse perpetual as Deribit sends it."""
+        name = f"{currency}-PERPETUAL"
+        async with self._http(self._endpoints.live) as http:
+            futures = await _get(
+                http, _INSTRUMENTS, _instrument_params(currency, "false", "future")
+            )
+        (spec,) = (each for each in futures if each["instrument_name"] == name)
+        return _json(spec)
+
     async def volatility_index(self, currency: str, day: date) -> bytes:
         """The hourly DVOL rows ``[time, open, high, low, close]`` of the UTC day."""
         start, end = _day_window(day)
@@ -162,8 +172,10 @@ def _trade_params(currency: str, start: int, end: int) -> dict[str, str]:
     }
 
 
-def _instrument_params(currency: str, expired: str) -> dict[str, str]:
-    return {"currency": currency, "kind": "option", "expired": expired}
+def _instrument_params(
+    currency: str, expired: str, kind: str = "option"
+) -> dict[str, str]:
+    return {"currency": currency, "kind": kind, "expired": expired}
 
 
 def _dvol_params(currency: str, start: int, end: int) -> dict[str, str]:

@@ -3206,5 +3206,263 @@
     "records_total": 2636
    }
   }
+ },
+ {
+  "request": "/api/v2/public/get_instruments?currency=BTC&kind=future&expired=false",
+  "response": {
+   "result": [
+    {
+     "underlying_type": "crypto",
+     "settlement_currency": "BTC",
+     "tick_size": 2.5,
+     "block_trade_tick_size": 0.01,
+     "min_trade_amount": 10.0,
+     "state": "open",
+     "instrument_name": "BTC-20OCT26",
+     "base_currency_uuid": "5b71fc48-3dd3-540c-809b-f8c94d0e68b5",
+     "taker_commission": 0.00035,
+     "kind": "future",
+     "future_type": "reversed",
+     "is_active": true,
+     "counter_currency": "USD",
+     "max_leverage": 25,
+     "max_liquidation_commission": 0.01,
+     "lot_size": 1,
+     "index_id": 1000033,
+     "quote_currency_uuid": "dc311642-e9fb-4ba9-a312-c75c1aef4ae1",
+     "instrument_type": "reversed",
+     "instrument_id": 715671,
+     "product_group": "BTC",
+     "base_currency": "BTC",
+     "tick_size_steps": [],
+     "price_index": "btc_usd",
+     "max_non_default_leverage": 5.0,
+     "quote_currency": "USD",
+     "maker_commission": 0.00015,
+     "block_trade_commission": 0.00025,
+     "creation_timestamp": 1792137611000,
+     "settlement_period": "day",
+     "contract_size": 10.0,
+     "expiration_timestamp": 1792483200000,
+     "block_trade_min_trade_amount": 200000
+    },
+    {
+     "underlying_type": "crypto",
+     "settlement_currency": "BTC",
+     "tick_size": 0.5,
+     "block_trade_tick_size": 0.01,
+     "min_trade_amount": 10.0,
+     "state": "open",
+     "instrument_name": "BTC-PERPETUAL",
+     "base_currency_uuid": "5b71fc48-3dd3-540c-809b-f8c94d0e68b5",
+     "taker_commission": 0.00035,
+     "kind": "future",
+     "future_type": "reversed",
+     "is_active": true,
+     "counter_currency": "USD",
+     "max_leverage": 50,
+     "max_liquidation_commission": 0.01,
+     "lot_size": 1,
+     "index_id": 1000033,
+     "quote_currency_uuid": "dc311642-e9fb-4ba9-a312-c75c1aef4ae1",
+     "instrument_type": "reversed",
+     "instrument_id": 210838,
+     "product_group": "BTC",
+     "base_currency": "BTC",
+     "tick_size_steps": [],
+     "price_index": "btc_usd",
+     "max_non_default_leverage": 5.0,
+     "quote_currency": "USD",
+     "maker_commission": 0.00015,
+     "block_trade_commission": 0.00025,
+     "creation_timestamp": 1534242287000,
+     "settlement_period": "perpetual",
+     "contract_size": 10.0,
+     "expiration_timestamp": 32503708800000,
+     "block_trade_min_trade_amount": 200000
+    }
+   ]
+  }
+ },
+ {
+  "request": "/api/v2/public/get_funding_rate_history?instrument_name=BTC-PERPETUAL&start_timestamp=1735689599999&end_timestamp=1735775999999",
+  "response": {
+   "result": [
+    {
+     "timestamp": 1735689600000,
+     "index_price": 93370.2,
+     "interest_8h": 0.00023566167261539764,
+     "interest_1h": 2.729681589401948e-05,
+     "prev_index_price": 93290.59
+    },
+    {
+     "timestamp": 1735693200000,
+     "index_price": 94205.24,
+     "interest_8h": 0.00022163907092642886,
+     "interest_1h": 3.32778795656059e-05,
+     "prev_index_price": 93370.2
+    },
+    {
+     "timestamp": 1735696800000,
+     "index_price": 93418.1,
+     "interest_8h": 0.0002105145305218716,
+     "interest_1h": 2.063748043617852e-05,
+     "prev_index_price": 94205.24
+    },
+    {
+     "timestamp": 1735700400000,
+     "index_price": 93872.66,
+     "interest_8h": 0.00020255193892971396,
+     "interest_1h": 2.16177627555151e-05,
+     "prev_index_price": 93418.1
+    },
+    {
+     "timestamp": 1735704000000,
+     "index_price": 93628.85,
+     "interest_8h": 0.0002002206448460154,
+     "interest_1h": 2.3265021133506293e-05,
+     "prev_index_price": 93872.66
+    },
+    {
+     "timestamp": 1735707600000,
+     "index_price": 93347.81,
+     "interest_8h": 0.00019204370495380727,
+     "interest_1h": 2.418229133828726e-05,
+     "prev_index_price": 93628.85
+    },
+    {
+     "timestamp": 1735711200000,
+     "index_price": 93588.38,
+     "interest_8h": 0.00019025723886054519,
+     "interest_1h": 2.184936827969006e-05,
+     "prev_index_price": 93347.81
+    },
+    {
+     "timestamp": 1735714800000,
+     "index_price": 93538.24,
+     "interest_8h": 0.00020868296278947032,
+     "interest_1h": 3.717790877526036e-05,
+     "prev_index_price": 93588.38
+    },
+    {
+     "timestamp": 1735718400000,
+     "index_price": 93488.07,
+     "interest_8h": 0.00021959431950764678,
+     "interest_1h": 3.812187117150454e-05,
+     "prev_index_price": 93538.24
+    },
+    {
+     "timestamp": 1735722000000,
+     "index_price": 93241.61,
+     "interest_8h": 0.000219521027983137,
+     "interest_1h": 3.129230519262476e-05,
+     "prev_index_price": 93488.07
+    },
+    {
+     "timestamp": 1735725600000,
+     "index_price": 93206.0,
+     "interest_8h": 0.00021826560104579087,
+     "interest_1h": 2.1004085071170683e-05,
+     "prev_index_price": 93241.61
+    },
+    {
+     "timestamp": 1735729200000,
+     "index_price": 93116.74,
+     "interest_8h": 0.0002242870870767006,
+     "interest_1h": 2.64928950715821e-05,
+     "prev_index_price": 93206.0
+    },
+    {
+     "timestamp": 1735732800000,
+     "index_price": 93248.63,
+     "interest_8h": 0.00023526186673005116,
+     "interest_1h": 3.4571770873826196e-05,
+     "prev_index_price": 93116.74
+    },
+    {
+     "timestamp": 1735736400000,
+     "index_price": 93610.39,
+     "interest_8h": 0.0002567107668612615,
+     "interest_1h": 4.62156208282108e-05,
+     "prev_index_price": 93248.63
+    },
+    {
+     "timestamp": 1735740000000,
+     "index_price": 93801.9,
+     "interest_8h": 0.000292474514591416,
+     "interest_1h": 5.702125328386019e-05,
+     "prev_index_price": 93610.39
+    },
+    {
+     "timestamp": 1735743600000,
+     "index_price": 93956.58,
+     "interest_8h": 0.00031034066123124097,
+     "interest_1h": 5.5336371068155146e-05,
+     "prev_index_price": 93801.9
+    },
+    {
+     "timestamp": 1735747200000,
+     "index_price": 94205.52,
+     "interest_8h": 0.00031203097817070425,
+     "interest_1h": 4.0164370840044196e-05,
+     "prev_index_price": 93956.58
+    },
+    {
+     "timestamp": 1735750800000,
+     "index_price": 93860.42,
+     "interest_8h": 0.0003276275368376755,
+     "interest_1h": 4.8121344566477505e-05,
+     "prev_index_price": 94205.52
+    },
+    {
+     "timestamp": 1735754400000,
+     "index_price": 93909.57,
+     "interest_8h": 0.0003544201980947022,
+     "interest_1h": 4.8250262971793444e-05,
+     "prev_index_price": 93860.42
+    },
+    {
+     "timestamp": 1735758000000,
+     "index_price": 94103.01,
+     "interest_8h": 0.00038064978457718403,
+     "interest_1h": 5.348809800606547e-05,
+     "prev_index_price": 93909.57
+    },
+    {
+     "timestamp": 1735761600000,
+     "index_price": 94402.52,
+     "interest_8h": 0.00040410782406202756,
+     "interest_1h": 5.806682781946229e-05,
+     "prev_index_price": 94103.01
+    },
+    {
+     "timestamp": 1735765200000,
+     "index_price": 94578.98,
+     "interest_8h": 0.0004316021779873183,
+     "interest_1h": 7.293350838051724e-05,
+     "prev_index_price": 94402.52
+    },
+    {
+     "timestamp": 1735768800000,
+     "index_price": 94742.39,
+     "interest_8h": 0.0004337131394861585,
+     "interest_1h": 5.8849408290829285e-05,
+     "prev_index_price": 94578.98
+    },
+    {
+     "timestamp": 1735772400000,
+     "index_price": 94600.84,
+     "interest_8h": 0.0004125114095036105,
+     "interest_1h": 3.3790963280568735e-05,
+     "prev_index_price": 94742.39
+    }
+   ]
+  }
+ },
+ {
+  "request": "/api/v2/public/get_funding_rate_history?instrument_name=BTC-PERPETUAL&start_timestamp=1451606399999&end_timestamp=1451692799999",
+  "response": {
+   "result": []
+  }
  }
 ]

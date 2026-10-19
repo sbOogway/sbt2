@@ -11,6 +11,7 @@ from nautilus_trader.model import (
     AggressorSide,
     Bar,
     CryptoOption,
+    CryptoPerpetual,
     GreeksConvention,
     IndexInstrument,
     IndexPriceUpdate,
@@ -726,3 +727,36 @@ def test_a_trade_without_an_index_price_gives_no_greeks_and_no_index_update(
     assert sum(len(records) for records in parsed[OptionGreeks].values()) == 1
     [index] = parsed[IndexPriceUpdate][BTC_INDEX]
     assert index.ts_event == 1_735_689_605_718 * 1_000_000
+
+
+BTC_PERPETUAL = InstrumentId.from_str("BTC-PERPETUAL.DERIBIT")
+
+
+@pytest.mark.unit
+def test_the_perpetual_snapshot_gives_an_inverse_crypto_perpetual(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+    assert source.instrument_id("BTC-PERPETUAL") == BTC_PERPETUAL
+    assert source.symbol(BTC_PERPETUAL) == "BTC-PERPETUAL"
+
+    raw = source.instrument_snapshot("BTC-PERPETUAL", SNAPSHOT_DAY)
+    snapshot = saved(raw, tmp_path)
+    instruments = source.parse_instruments(snapshot)
+
+    assert raw.path == PurePosixPath(
+        "deribit/perpetual/BTC-PERPETUAL/instrument/BTC-PERPETUAL2026-10-07.json"
+    )
+    assert list(instruments) == [BTC_PERPETUAL]
+    perpetual = instruments[BTC_PERPETUAL]
+    assert isinstance(perpetual, CryptoPerpetual)
+    assert perpetual.is_inverse
+    assert str(perpetual.base_currency) == "BTC"
+    assert str(perpetual.quote_currency) == "USD"
+    assert str(perpetual.settlement_currency) == "BTC"
+    assert str(perpetual.price_increment) == "0.5"
+    assert str(perpetual.size_increment) == "10"
+    assert str(perpetual.multiplier) == "1"
+    assert float(perpetual.margin_init) == pytest.approx(0.02)
+    assert float(perpetual.margin_maint) == pytest.approx(0.02 * 2 / 3)
+    assert perpetual.ts_init == 1_791_331_200_000_000_000
