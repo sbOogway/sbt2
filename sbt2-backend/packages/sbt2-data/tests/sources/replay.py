@@ -2,7 +2,7 @@
 
 import json
 import threading
-from collections.abc import Generator, Mapping
+from collections.abc import Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -26,11 +26,11 @@ def _key(target: str) -> Key:
     return url.path, frozenset(parse_qsl(url.query))
 
 
-def _recorded(recorded: Path) -> Mapping[Key, Any]:
-    return {
-        _key(each["request"]): each["response"]
-        for each in json.loads(recorded.read_text())
-    }
+def _recorded(recorded: Path | Sequence[Mapping[str, Any]]) -> Mapping[Key, Any]:
+    entries = (
+        json.loads(recorded.read_text()) if isinstance(recorded, Path) else recorded
+    )
+    return {_key(each["request"]): each["response"] for each in entries}
 
 
 def _handler(
@@ -57,8 +57,9 @@ def _handler(
 
 
 @contextmanager
-def replay(recorded: Path) -> Generator[Replay]:
-    """Serve the responses recorded in ``recorded``, keyed by request target."""
+def replay(recorded: Path | Sequence[Mapping[str, Any]]) -> Generator[Replay]:
+    """Serve the responses recorded in ``recorded``, a JSON file or its entries,
+    keyed by request target."""
     requests: list[str] = []
     handler = _handler(_recorded(recorded), requests)
     server = ThreadingHTTPServer(("127.0.0.1", 0), handler)

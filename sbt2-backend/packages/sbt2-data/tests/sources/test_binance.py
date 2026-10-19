@@ -32,12 +32,12 @@ def test_binance_klines_parse_into_one_minute_bars(tmp_path: Path) -> None:
     first = bars[0]
     assert str(first.bar_type) == "BTCUSDT-PERP.BINANCE-1-MINUTE-LAST-EXTERNAL"
     assert (str(first.open), str(first.high), str(first.low), str(first.close)) == (
-        "93548.80",
-        "93599.90",
-        "93514.20",
-        "93599.90",
+        "90000.00",
+        "90005.00",
+        "89995.00",
+        "90001.00",
     )
-    assert str(first.volume) == "71.187"
+    assert str(first.volume) == "1.000"
     assert first.ts_event == DAY_NANOS + MINUTE_NANOS - 1
     assert bars[-1].ts_event == DAY_NANOS + 1440 * MINUTE_NANOS - 1
 

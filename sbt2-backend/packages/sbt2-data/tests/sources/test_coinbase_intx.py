@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from coinbase_intx_replay import coinbase_intx_replay
 from kline_helpers import (
+    CLOSES,
     DAY,
     DAY_NANOS,
     MINUTE_NANOS,
@@ -30,12 +31,12 @@ def test_coinbase_intx_klines_parse_into_one_minute_bars(tmp_path: Path) -> None
     first = bars[0]
     assert str(first.bar_type) == "BTC-PERP.COINBASE_INTX-1-MINUTE-LAST-EXTERNAL"
     assert (str(first.open), str(first.high), str(first.low), str(first.close)) == (
-        "93425.2",
-        "93452.0",
-        "93392.0",
-        "93452.0",
+        "90000.0",
+        "90005.0",
+        "89995.0",
+        "90001.0",
     )
-    assert str(first.volume) == "42.5844"
+    assert str(first.volume) == "1.5000"
     assert first.ts_event == DAY_NANOS + MINUTE_NANOS - 1
 
 
@@ -48,11 +49,7 @@ def test_a_day_of_coinbase_intx_klines_is_downloaded(tmp_path: Path) -> None:
 
         stamps = [each.ts_event for each in coinbase.parse(candles, Bar, instrument)]
 
-    # Coinbase sends no candle for a minute without a trade.
-    assert len(stamps) == 1398
-    assert stamps == sorted(set(stamps))
-    assert stamps[0] > DAY_NANOS
-    assert stamps[-1] == DAY_NANOS + 1440 * MINUTE_NANOS - 1
+    assert stamps == CLOSES
 
 
 @pytest.mark.unit

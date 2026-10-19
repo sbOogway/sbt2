@@ -895,12 +895,12 @@ def test_deribit_klines_parse_into_one_minute_bars(
     first = bars[0]
     assert str(first.bar_type) == "BTC-PERPETUAL.DERIBIT-1-MINUTE-LAST-EXTERNAL"
     assert (str(first.open), str(first.high), str(first.low), str(first.close)) == (
-        "93445.5",
-        "93451.0",
-        "93398.0",
-        "93451.0",
+        "90000.0",
+        "90005.0",
+        "89995.0",
+        "90001.0",
     )
-    assert str(first.volume) == "1.38195605"
+    assert str(first.volume) == "0.50000000"
     assert first.ts_event == DAY_START_MS * 1_000_000 + MINUTE_NANOS - 1
     assert bars[-1].ts_event == (DAY_START_MS + 86_400_000) * 1_000_000 - 1
 
