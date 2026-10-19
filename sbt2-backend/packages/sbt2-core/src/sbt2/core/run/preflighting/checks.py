@@ -25,9 +25,9 @@ def preflight(
     """
     _check_snapshots(spec)
     _check_liquidation(spec)
-    known_gaps = check_coverage(spec, source, folders)
-    _check_instruments(spec, Catalog(folders.catalog))
-    return known_gaps
+    covered = check_coverage(spec, source, folders)
+    _check_instruments(spec, covered.catalog)
+    return covered.known_gaps
 
 
 def _check_snapshots(spec: ResolvedRunSpec) -> None:

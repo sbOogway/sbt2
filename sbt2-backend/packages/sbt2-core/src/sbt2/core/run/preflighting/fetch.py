@@ -7,6 +7,7 @@ from pathlib import Path
 
 from nautilus_trader.model import IndexPriceUpdate, InstrumentId, TradeTick
 
+from sbt2.core.run.preflighting.catalog import ReadOnceCatalog
 from sbt2.core.run.preflighting.errors import MissingDataError
 from sbt2.core.spec import ResolvedRunSpec
 from sbt2.data import (
@@ -36,22 +37,33 @@ class DataFolders:
     catalog: Path
 
 
+@dataclass(frozen=True)
+class Covered:
+    """The known-gap days of a covered run, and the catalog that holds it."""
+
+    known_gaps: tuple[Gap, ...]
+    catalog: Catalog
+
+
 def check_coverage(
     spec: ResolvedRunSpec, source: Source, folders: DataFolders
-) -> tuple[Gap, ...]:
-    """Fetch the days the catalog lacks, and return the known gaps."""
+) -> Covered:
+    """Fetch the days the catalog lacks, and return the known gaps with the
+    catalog as it is after the fetch."""
     folders.catalog.mkdir(parents=True, exist_ok=True)
-    uncovered = _uncovered(spec, Catalog(folders.catalog), source.known_gaps)
+    catalog = ReadOnceCatalog(folders.catalog)
+    uncovered = _uncovered(spec, catalog, source.known_gaps)
     # The first fetch brings the contracts, which tell what delivery data is due.
     for _ in range(2):
         if not uncovered.missing:
             break
         _fetch(source, uncovered.missing, folders)
-        uncovered = _uncovered(spec, Catalog(folders.catalog), source.known_gaps)
+        catalog = ReadOnceCatalog(folders.catalog)
+        uncovered = _uncovered(spec, catalog, source.known_gaps)
     if uncovered.missing:
         described = ", ".join(map(str, uncovered.missing))
         raise MissingDataError(f"the catalog lacks {described}")
-    return uncovered.known_gaps
+    return Covered(uncovered.known_gaps, catalog)
 
 
 def _fetch(source: Source, missing: tuple[Gap, ...], folders: DataFolders) -> None:
