@@ -63,6 +63,29 @@ The server listens on `127.0.0.1:8765`. `podman auto-update` pulls a new
 `:latest` and restarts the service. If the new image does not become healthy,
 it rolls back to the old one.
 
+Make podman accept only signed server images. Install the public key, the
+policy and the signature lookup from
+[sbt2-backend/deploy/](sbt2-backend/deploy/):
+
+```sh
+mkdir -p ~/.config/containers/registries.d
+cp sbt2-backend/deploy/sbt2-server.pub ~/.config/containers/
+sed "s|@HOME@|$HOME|" sbt2-backend/deploy/policy.json >~/.config/containers/policy.json
+cp sbt2-backend/deploy/registries.d/sbt2.yaml ~/.config/containers/registries.d/
+```
+
+`~/.config/containers/policy.json` replaces `/etc/containers/policy.json` for
+your user. If you have one already, add only the `ghcr.io/sboogway/sbt2-server`
+entry to it. Then `podman auto-update` refuses a server image without a valid
+signature, before the health check. To check an image by hand:
+
+```sh
+podman pull ghcr.io/sboogway/sbt2-server:latest
+```
+
+The pull fails with `Source image rejected` when the signature is missing or
+wrong.
+
 The server speaks plain `ws://`, so publish its port only on loopback. For
 remote access, open an SSH tunnel and point the client at it:
 
@@ -121,6 +144,29 @@ root (mode 600). A variable set in the environment wins over `.env`:
 GH_TOKEN=...    # or a gh login; can edit the releases
 GHCR_TOKEN=...  # classic token with write:packages
 ```
+
+The push signs the image with a sigstore key, and then pulls it under the host
+policy to check the signature. The private key and its passphrase stay outside
+the repo; set their paths in the environment:
+
+```sh
+SBT2_SIGNING_KEY=~/.config/sbt2/signing/sbt2-server.private
+SBT2_SIGNING_PASSPHRASE_FILE=~/.config/sbt2/signing/passphrase
+```
+
+Without them, or without the public key `sbt2-backend/deploy/sbt2-server.pub`,
+`make publish` and `make release-image` stop before they change anything. The
+push also needs the signature lookup in `~/.config/containers/registries.d/`,
+as on the server host. To make the key pair once:
+
+```sh
+mkdir -p ~/.config/sbt2/signing && chmod 700 ~/.config/sbt2/signing
+cd ~/.config/sbt2/signing
+openssl rand -base64 32 >passphrase && chmod 600 passphrase
+skopeo generate-sigstore-key --output-prefix sbt2-server --passphrase-file passphrase
+```
+
+Then commit `sbt2-server.pub` as `sbt2-backend/deploy/sbt2-server.pub`.
 
 To add the image to an existing release, use `make release-image`. It acts on
 the newest `vX.Y.Z` tag; `TAG=vX.Y.Z` picks another release. It refuses when the

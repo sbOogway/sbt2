@@ -2,7 +2,8 @@
 # Builds the server image of a release, smoke-tests it and pushes it to GHCR as :X.Y.Z, and
 # as :latest when the release is the newest. The release is $TAG or the newest vX.Y.Z tag.
 # Refuses when the release names an image already, unless FORCE=1.
-# Needs GH_TOKEN or a gh login, and GHCR_TOKEN, a classic token with write:packages.
+# Needs GH_TOKEN or a gh login, GHCR_TOKEN, a classic token with write:packages, and the
+# signing key in SBT2_SIGNING_KEY with its passphrase in SBT2_SIGNING_PASSPHRASE_FILE.
 set -euo pipefail
 shopt -s inherit_errexit
 
@@ -16,6 +17,7 @@ notes_name_image() {
 }
 
 [ -n "${GHCR_TOKEN:-}" ] || die "set GHCR_TOKEN to a classic token with write:packages"
+check_signing_key
 use_github_token
 tag=$(release_tag)
 version=${tag#v}

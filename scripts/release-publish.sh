@@ -4,7 +4,8 @@
 # pushes the tags of the older merges and publishes, which creates the release's tag on GitHub.
 # A re-run finishes the draft. Then it updates the sbt2-server service on this machine, if there
 # is one, and removes the build.
-# Needs GH_TOKEN or a gh login, and GHCR_TOKEN (classic, write:packages).
+# Needs GH_TOKEN or a gh login, GHCR_TOKEN (classic, write:packages), and the signing key in
+# SBT2_SIGNING_KEY with its passphrase in SBT2_SIGNING_PASSPHRASE_FILE.
 set -euo pipefail
 shopt -s inherit_errexit
 
@@ -57,6 +58,7 @@ push_older_tags() {
 }
 
 [ -n "${GHCR_TOKEN:-}" ] || die "set GHCR_TOKEN to a classic token with write:packages"
+check_signing_key
 use_github_token
 check_build
 make_work

@@ -12,6 +12,11 @@ GHCR_TOKEN=${GHCR_TOKEN:-}
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$root" || exit 1
 
+# The image is signed with a sigstore key pair. The private key and its passphrase stay
+# outside the repo; the hosts check the signature with the public key in deploy/.
+DEPLOY_DIR=$root/sbt2-backend/deploy
+SIGNING_PUBLIC_KEY=${SBT2_SIGNING_PUBLIC_KEY:-$DEPLOY_DIR/sbt2-server.pub}
+
 # make build writes the release here and make publish reads it: the planned tags, the commit
 # built from, the notes and the files. The image stays in the local podman store.
 RELEASE_DIR=${SBT2_RELEASE_DIR:-$root/dist/release}
@@ -55,6 +60,15 @@ use_github_token() {
 # The header goes through a file descriptor, so the token stays out of the process list
 github_api() {
     curl -fsS -H @<(echo "Authorization: Bearer $GH_TOKEN") -H "Accept: application/vnd.github+json" "$@"
+}
+
+# Refuses unless the private key, its passphrase and the public key are there
+check_signing_key() {
+    [ -r "${SBT2_SIGNING_KEY:-}" ] ||
+        die "set SBT2_SIGNING_KEY to the sigstore private key that signs the image"
+    [ -r "${SBT2_SIGNING_PASSPHRASE_FILE:-}" ] ||
+        die "set SBT2_SIGNING_PASSPHRASE_FILE to the file with the passphrase of the signing key"
+    [ -r "$SIGNING_PUBLIC_KEY" ] || die "there is no public key $SIGNING_PUBLIC_KEY; commit it first"
 }
 
 # Refuses unless $RELEASE_DIR holds a build of the current origin/main
@@ -177,21 +191,42 @@ login() {
     podman login --authfile "$WORK/auth.json" --username "${REPO%%/*}" --password-stdin "$IMAGE_REGISTRY" <<<"$GHCR_TOKEN" >&2
 }
 
-# Pushes the local image of version $1 as the tag $2 of the repository, and prints its digest
+# Pushes the local image of version $1 as the tag $2 of the repository, signed, and prints its
+# digest. The signature names the tag, so each tag gets its own. A pull of the signed image
+# stores its signatures on the local image, and podman refuses to push those again.
 push_tag() {
     local version=$1 tag=$2
     podman push --authfile "$WORK/auth.json" --digestfile "$WORK/digest" \
+        --remove-signatures --sign-by-sigstore-private-key "$SBT2_SIGNING_KEY" \
+        --sign-passphrase-file "$SBT2_SIGNING_PASSPHRASE_FILE" \
         "localhost/sbt2-server:$version" "docker://$IMAGE_REPOSITORY:$tag" >&2
     cat "$WORK/digest"
 }
 
-# Pushes the image of version $1 as :$1, and as :latest when the version is the newest
+# Writes to $WORK/policy.json the host policy, with the public key of the repo
+write_verify_policy() {
+    jq --arg repo "$IMAGE_REPOSITORY" --arg key "$SIGNING_PUBLIC_KEY" \
+        '.transports.docker |= with_entries(.key = $repo | .value[].keyPath = $key)' \
+        "$DEPLOY_DIR/policy.json" >"$WORK/policy.json"
+}
+
+# Pulls the pushed image $1 under the host policy, so it fails unless the signature verifies
+verify_signature() {
+    write_verify_policy
+    podman pull --quiet --authfile "$WORK/auth.json" --signature-policy "$WORK/policy.json" \
+        "docker://$1" >&2 || die "$1 does not verify with $SIGNING_PUBLIC_KEY"
+}
+
+# Pushes the image of version $1 as :$1, and as :latest when the version is the newest, and
+# checks the signatures
 push_image() {
-    local version=$1 digest
+    local version=$1 digest latest
     login
     digest=$(push_tag "$version" "$version")
+    verify_signature "$IMAGE_REPOSITORY@$digest"
     if is_newest_version "$version"; then
-        push_tag "$version" latest >/dev/null
+        latest=$(push_tag "$version" latest)
+        verify_signature "$IMAGE_REPOSITORY@$latest"
     fi
     echo "$digest"
 }
