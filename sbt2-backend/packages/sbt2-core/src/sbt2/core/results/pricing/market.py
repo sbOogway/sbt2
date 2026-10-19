@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from functools import cached_property
 
 import pandas as pd
-from nautilus_trader.model import InstrumentId
+from nautilus_trader.model import Bar, InstrumentId
 
 from sbt2.core.results.metrics import RunTables, Segment, equity_curve
 from sbt2.core.spec import ResolvedRunSpec
@@ -47,11 +47,15 @@ class Market:
         return self._read[key]
 
     def _read_prices(self, instrument: InstrumentId, price_type: type) -> pd.Series:
-        self._check_coverage(instrument, price_type)
-        frame = self.catalog.frame(instrument, price_type, self.window)
+        """The prices of the asset class's data: for a venue that makes its marks
+        from the bars, the bars' closes."""
+        stored = self.run.asset.quotes.priced_from(price_type, self.run.venue)
+        self._check_coverage(instrument, stored)
+        frame = self.catalog.frame(instrument, stored, self.window)
         if frame.empty:
-            raise _no_prices(instrument, price_type, self.window.days)
-        return on_grid(pd.Series(frame["price"]), self.grid).bfill()
+            raise _no_prices(instrument, stored, self.window.days)
+        column = "close" if stored is Bar else "price"
+        return on_grid(pd.Series(frame[column]), self.grid).bfill()
 
     def _check_coverage(self, instrument: InstrumentId, price_type: type) -> None:
         selection = Selection((instrument,), (price_type,), self.window)

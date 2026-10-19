@@ -5,7 +5,6 @@ from sbt2.core.results.costs.records import (
     CostWaterfall,
     Exposure,
     HoldingTime,
-    InverseInstrumentError,
 )
 
 __all__ = [
@@ -14,6 +13,5 @@ __all__ = [
     "CostsAndExposure",
     "Exposure",
     "HoldingTime",
-    "InverseInstrumentError",
     "costs_and_exposure",
 ]

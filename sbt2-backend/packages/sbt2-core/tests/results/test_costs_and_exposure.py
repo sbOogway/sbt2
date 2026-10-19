@@ -12,7 +12,6 @@ from option_runs import run_options
 from price_catalog import BTC, ETH, PriceCatalog, perpetual_with, run_on
 
 from sbt2.core.results import (
-    InverseInstrumentError,
     MissingPricesError,
     PricedRun,
     RunTables,
@@ -217,24 +216,6 @@ def test_missing_valuation_prices_fail(prices: PriceCatalog) -> None:
         match=re.escape("MarkPriceUpdate for BTCUSDT-LINEAR.BYBIT on 2024-01-02"),
     ):
         exposure_of(run, prices, end)
-
-
-@pytest.mark.unit
-def test_an_inverse_instrument_fails(prices: PriceCatalog) -> None:
-    end = START + HOUR
-    inverse = InstrumentId.from_str("BTCUSD-INVERSE.BYBIT")
-    prices.add_instrument(
-        perpetual_with(
-            inverse, is_inverse=True, quote_currency="USD", settlement_currency="BTC"
-        )
-    )
-    prices.add_marks(inverse, {START: 50_000.0})
-    run = tables(flat(10_000.0, end), [of(inverse, fill(START, 1, 50_000.0))], [])
-
-    with pytest.raises(InverseInstrumentError, match=re.escape("BTCUSD-INVERSE.BYBIT")):
-        costs_and_exposure(
-            PricedRun(run_on([inverse], START, end), run, prices.catalog)
-        )
 
 
 @pytest.mark.unit

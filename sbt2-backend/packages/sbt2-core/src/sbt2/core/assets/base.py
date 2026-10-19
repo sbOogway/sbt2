@@ -139,6 +139,12 @@ class QuoteConvention(ABC):
         configs that stream them; none when the catalog's own quotes are used."""
         ...
 
+    def priced_from(self, price_type: type, venue: Mapping[str, Any]) -> type:
+        """The catalog data type a stored run's ``price_type`` prices are read
+        from; by default the type itself."""
+        del venue
+        return price_type
+
 
 class NoQuotes(QuoteConvention):
     """The venue streams the quotes the catalog holds."""

@@ -2,7 +2,7 @@ from datetime import timedelta
 
 import pandas as pd
 
-from sbt2.core.results.costs.book import Book, Slice, sides, signed_quantities
+from sbt2.core.results.costs.book import Book, Slice, signed_quantities
 from sbt2.core.results.costs.records import (
     Activity,
     CostsAndExposure,
@@ -58,8 +58,12 @@ def _instrument_costs(part: Slice, book: Book) -> CostWaterfall:
     value = book.unit_values[instrument]
     held = book.quantities[instrument]
     opened = held.iloc[0] - _signed_at_start(part.fills, book.segment)
-    paid = sides(part.fills) * book.traded_notional(part.fills).to_numpy()
-    gross = float(held.iloc[-1] * value.iloc[-1] - opened * value.iloc[0] - paid.sum())
+    direction = book.directions[instrument]
+    paid = book.cash_paid(part.fills)
+    gross = float(
+        direction * (held.iloc[-1] * value.iloc[-1] - opened * value.iloc[0])
+        - paid.sum()
+    )
     fees, carry = part.fees(book.tables), part.carried(book.tables)
     return CostWaterfall(gross, fees, carry, gross + fees + carry)
 

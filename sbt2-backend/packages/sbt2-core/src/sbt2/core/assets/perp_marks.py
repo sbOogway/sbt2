@@ -54,6 +54,12 @@ class PerpMarks(QuoteConvention):
         return (kinds - {MarkPriceUpdate}) | {Bar}
 
     @override
+    def priced_from(self, price_type: type, venue: Mapping[str, Any]) -> type:
+        if price_type is MarkPriceUpdate and _from_bars(venue):
+            return Bar
+        return price_type
+
+    @override
     def write(self, job: QuoteJob, folder: Path) -> list[BacktestDataConfig]:
         if not _from_bars(job.venue):
             return []
