@@ -16,7 +16,16 @@ from nautilus_trader.model import (
     QuoteTick,
 )
 from nautilus_trader.persistence import ParquetDataCatalog
-from option_catalog import INDEX_ID, OPTION_ID, option
+from option_catalog import (
+    DELIVERY_ID,
+    EXPIRING_CALL,
+    EXPIRING_PUT,
+    INDEX_ID,
+    OPTION_ID,
+    START,
+    build_expiring_catalog,
+    option,
+)
 
 from sbt2.core.assets import OptionHistory, QuoteJob, QuoteSettings, quote_ticks
 from sbt2.core.assets.option_quote_catalog import write_quotes
@@ -294,3 +303,17 @@ def test_the_index_is_read_in_one_query_for_the_run(
         each for each in queries if each[0] == NautilusDataType.IndexPriceUpdate
     ]
     assert len(index_reads) == 1
+
+
+@pytest.mark.integration
+def test_contracts_of_one_expiry_read_the_delivery_price_once(
+    tmp_path: Path, queries: list[Any]
+) -> None:
+    build_expiring_catalog(tmp_path / "catalog", delivery=41_000.0)
+    run = (START + timedelta(hours=2), START + timedelta(days=2))
+    job = QuoteJob(tmp_path / "catalog", [EXPIRING_CALL, EXPIRING_PUT], run, {})
+
+    write_quotes(job, SETTINGS, quotes_folder(tmp_path))
+
+    deliveries = [each for each in queries if str(DELIVERY_ID) in each[1]]
+    assert len(deliveries) == 1

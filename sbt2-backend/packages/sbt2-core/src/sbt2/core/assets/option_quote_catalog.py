@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import pandas as pd
@@ -13,7 +14,11 @@ from nautilus_trader.model import (
 from nautilus_trader.persistence import ParquetDataCatalog
 
 from sbt2.core.assets.base import QuoteJob
-from sbt2.core.assets.option_delivery import delivery_price, expires_within
+from sbt2.core.assets.option_delivery import (
+    delivery_id,
+    delivery_price,
+    expires_within,
+)
 from sbt2.core.assets.option_quotes import OptionHistory, QuoteSettings, quote_ticks
 from sbt2.core.assets.option_settlement import settlement_price, settlement_quotes
 from sbt2.core.market import index_id
@@ -47,6 +52,7 @@ class _Quoter:
         self._target = target
         self._catalog = Catalog(job.catalog)
         self._indexes: dict[InstrumentId, pd.Series] = {}
+        self._deliveries: dict[tuple[InstrumentId, int], Decimal] = {}
         self.contracts = list(self._catalog.instruments(job.instruments).values())
         target.write_instruments(self.contracts)
         self._marks = _frames(
@@ -76,8 +82,15 @@ class _Quoter:
         """The closing quotes of a contract that expires within the run."""
         if not expires_within(contract, self._job.window):
             return []
-        delivery = delivery_price(self._catalog, contract)
+        delivery = self._delivery(contract)
         return settlement_quotes(contract, settlement_price(contract, delivery))
+
+    def _delivery(self, contract: CryptoOption) -> Decimal:
+        """The delivery price, read once for all contracts of an expiry."""
+        key = (delivery_id(contract), contract.expiration_ns)
+        if key not in self._deliveries:
+            self._deliveries[key] = delivery_price(self._catalog, contract)
+        return self._deliveries[key]
 
     def _index(self, index_id: InstrumentId) -> pd.Series:
         if index_id not in self._indexes:
