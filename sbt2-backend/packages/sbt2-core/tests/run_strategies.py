@@ -382,3 +382,38 @@ class HoldOnQuoteBars(Strategy[NoParams]):
     @override
     def inputs(cls, params: NoParams) -> Sequence[BarSpecification]:
         return (BarSpecification.from_str("1-HOUR-BID"),)
+
+
+class BuyUsdThenSell(Strategy[HoldParams]):
+    """Buys 100000 USD of an inverse perpetual on the first bar after warm-up and
+    sells them ``hold_bars`` later."""
+
+    Params = HoldParams
+
+    @classmethod
+    @override
+    def warmup(cls, params: HoldParams) -> timedelta:
+        return timedelta(hours=2)
+
+    @classmethod
+    @override
+    def inputs(cls, params: HoldParams) -> Sequence[BarSpecification]:
+        return (HOURLY_BARS,)
+
+    def on_start(self) -> None:
+        super().on_start()
+        self.bars = 0
+
+    def on_bar(self, bar: Bar) -> None:
+        if self.warming_up:
+            return
+        self.bars += 1
+        side = {1: OrderSide.BUY, 1 + self.params.hold_bars: OrderSide.SELL}.get(
+            self.bars
+        )
+        if side is not None:
+            self.submit_order(
+                self.order_factory.market(
+                    bar.bar_type.instrument_id, side, Quantity.from_str("100000")
+                )
+            )

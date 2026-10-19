@@ -11,6 +11,8 @@ name = "DERIBIT"
 source = "deribit"
 asset_class = "CRYPTOCURRENCY"
 instrument_class = "SWAP"
+# Deribit serves no mark price history: the mark is the close of the 1-minute bar.
+marks = "bars"
 # Deribit's perpetual fees: 0 % for the maker and 0.05 % for the taker.
 fee_model = { kind = "maker_taker", config = { maker_rate = "0", taker_rate = "0.0005" } }
 

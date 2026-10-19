@@ -419,3 +419,12 @@ def test_deribit_perpetual_builds_a_nautilus_venue(tmp_path: Path) -> None:
         "maker_rate": "0",
         "taker_rate": "0.0005",
     }
+
+
+@pytest.mark.unit
+def test_an_invalid_marks_setting_is_rejected(tmp_path: Path) -> None:
+    venues = ConfigFolder(tmp_path / "config").venues
+    profile = {**PROFILE, "marks": "index"}
+
+    with pytest.raises(InvalidVenueProfileError, match="marks"):
+        put_venue_profile(venues, "p", profile)

@@ -128,8 +128,9 @@ class QuoteConvention(ABC):
         ...
 
     @abstractmethod
-    def source_types(self, kinds: set[type]) -> set[type]:
-        """The catalog data types a run needing ``kinds`` of data reads."""
+    def source_types(self, kinds: set[type], venue: Mapping[str, Any]) -> set[type]:
+        """The catalog data types a run needing ``kinds`` of data reads on the
+        venue with the arguments ``venue``."""
         ...
 
     @abstractmethod
@@ -151,7 +152,8 @@ class NoQuotes(QuoteConvention):
         del inputs
         return []
 
-    def source_types(self, kinds: set[type]) -> set[type]:
+    def source_types(self, kinds: set[type], venue: Mapping[str, Any]) -> set[type]:
+        del venue
         return kinds
 
     def write(self, job: QuoteJob, folder: Path) -> list[BacktestDataConfig]:
