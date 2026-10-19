@@ -23,6 +23,7 @@ from sbt2.data.sources.base import (
 )
 from sbt2.data.sources.deribit import parse, perpetual
 from sbt2.data.sources.deribit.api import DeribitApi, Endpoints
+from sbt2.data.sources.deribit.candles import DeribitCandles, DeribitClient
 from sbt2.data.sources.deribit.series import Kind, Series, series_of
 
 _PUBLIC = Endpoints()
@@ -39,10 +40,14 @@ class DeribitSource(Source):
     name = "deribit"
 
     def __init__(
-        self, known_gaps: frozenset[Gap] = frozenset(), endpoints: Endpoints = _PUBLIC
+        self,
+        known_gaps: frozenset[Gap] = frozenset(),
+        endpoints: Endpoints = _PUBLIC,
+        client: DeribitClient | None = None,
     ) -> None:
         super().__init__(known_gaps)
         self._api = DeribitApi(endpoints)
+        self._candles = DeribitCandles(client)
 
     @property
     def data_types(self) -> tuple[type, ...]:
@@ -146,7 +151,7 @@ class DeribitSource(Source):
         if data_type is FundingRateUpdate:
             fetch, folder = self._api.funding, "funding"
         elif data_type is Bar:
-            fetch, folder = self._api.candles, "candles"
+            fetch, folder = self._candles.day, "candles"
         else:
             raise UnsupportedDataTypeError(
                 f"{symbol} serves FundingRateUpdate and Bar, not {data_type.__name__}"

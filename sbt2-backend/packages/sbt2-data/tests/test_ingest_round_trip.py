@@ -355,7 +355,7 @@ KLINES = [
         1.0,
     ),
     (coinbase_intx_replay, "BTC-PERP", "BTC-PERP.COINBASE_INTX", 1440, 1.5),
-    (deribit_replay, "BTC-PERPETUAL", "BTC-PERPETUAL.DERIBIT", 1440, 0.5),
+    (deribit_replay, "BTC-PERPETUAL", "BTC-PERPETUAL.DERIBIT", 1440, 1.0),
 ]
 
 

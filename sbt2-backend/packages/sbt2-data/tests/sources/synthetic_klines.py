@@ -15,7 +15,6 @@ from urllib.parse import urlencode
 DAY_START_MS = 1_735_689_600_000
 MINUTE_MS = 60_000
 MINUTES = 1440
-OKX_PAGE = 100
 COINBASE_PAGE = 288
 
 
@@ -54,33 +53,6 @@ def binance_zip() -> tuple[bytes, bytes]:
     return dump, f"{hashlib.sha256(dump).hexdigest()}  {name}\n".encode()
 
 
-def okx_pages(symbol: str) -> list[dict[str, Any]]:
-    """The recorded-response entries for the pages OKX answers, newest first."""
-    entries = []
-    after = opened_ms(MINUTES)
-    for page in range(-(-MINUTES // OKX_PAGE)):
-        top = MINUTES - 1 - page * OKX_PAGE
-        rows = []
-        for n in range(top, max(top - OKX_PAGE, -1), -1):
-            o, h, low, c = _prices(n, 1)
-            rows.append(
-                [str(opened_ms(n)), o, h, low, c, str(_units(n)), "0", "0", "1"]
-            )
-        query = {
-            "instId": symbol,
-            "bar": "1m",
-            "before": DAY_START_MS - 1,
-            "after": after,
-            "limit": OKX_PAGE,
-        }
-        target = f"/api/v5/market/history-candles?{urlencode(query)}"
-        entries.append(
-            {"request": target, "response": {"code": "0", "msg": "", "data": rows}}
-        )
-        after = int(rows[-1][0])
-    return entries
-
-
 def coinbase_pages(symbol: str) -> list[dict[str, Any]]:
     """The recorded-response entries for the five pages Coinbase answers."""
     first = datetime(2025, 1, 1, tzinfo=UTC)
@@ -111,26 +83,3 @@ def coinbase_pages(symbol: str) -> list[dict[str, Any]]:
         target = f"/api/v1/instruments/{symbol}/candles?{urlencode(query)}"
         entries.append({"request": target, "response": {"aggregations": rows}})
     return entries
-
-
-def deribit_chart(symbol: str) -> dict[str, Any]:
-    """The recorded-response entry for the day's chart data."""
-    columns = [_prices(n, 1) for n in range(MINUTES)]
-    result = {
-        "ticks": [opened_ms(n) for n in range(MINUTES)],
-        "open": [float(each[0]) for each in columns],
-        "high": [float(each[1]) for each in columns],
-        "low": [float(each[2]) for each in columns],
-        "close": [float(each[3]) for each in columns],
-        "volume": [_units(n) * 0.5 for n in range(MINUTES)],
-        "cost": [0.0] * MINUTES,
-        "status": "ok",
-    }
-    query = {
-        "instrument_name": symbol,
-        "start_timestamp": DAY_START_MS,
-        "end_timestamp": DAY_START_MS + 86_400_000 - 1,
-        "resolution": 1,
-    }
-    target = f"/api/v2/public/get_tradingview_chart_data?{urlencode(query)}"
-    return {"request": target, "response": {"result": result}}

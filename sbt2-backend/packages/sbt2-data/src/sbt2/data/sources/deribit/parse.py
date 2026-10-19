@@ -10,7 +10,6 @@ import pandas as pd
 from nautilus_trader.model import (
     AggressorSide,
     Bar,
-    BarType,
     CryptoOption,
     CryptoPerpetual,
     Currency,
@@ -30,9 +29,10 @@ from nautilus_trader.model import (
     black_scholes_greeks,
 )
 
-from sbt2.data.sources.base import candle_type
 from sbt2.data.sources.deribit import perpetual
 from sbt2.data.sources.deribit.series import Kind, Series, series_of
+from sbt2.data.sources.klines import bars
+from sbt2.data.sources.nautilus_bars import read_klines
 
 VENUE = "DERIBIT"
 
@@ -41,9 +41,6 @@ _INDEX_PRECISION = 2
 _FUNDING_MINUTES = 60
 # Deribit sends marks with up to 8 decimals, finer than the contract tick.
 _MARK_PRECISION = 8
-_VOLUME_PRECISION = 8
-_NANOS_PER_MINUTE = 60_000_000_000
-_CHART_FIELDS = ("ticks", "open", "high", "low", "close", "volume")
 _EXPIRY_TIME = pd.Timedelta(hours=8)
 _YEAR_NANOS = 365 * 86_400 * 1_000_000_000
 _AGGRESSOR_SIDES = {"buy": AggressorSide.BUY, "sell": AggressorSide.SELL}
@@ -201,34 +198,9 @@ def _funding_update(
 def _candles(
     path: Path, instruments: Mapping[InstrumentId, CryptoPerpetual]
 ) -> dict[InstrumentId, list[Bar]]:
-    """Each candle 1 ns before its close, as Bybit's candles are, so a day's last
-    candle stays inside the day's catalog file bounds."""
+    """The volume is in contracts, USD for the inverse perpetual."""
     ((instrument_id, perpetual_),) = instruments.items()
-    chart = json.loads(path.read_text())
-    rows = zip(*(chart[each] for each in _CHART_FIELDS), strict=True)
-    bars = [_bar(candle_type(instrument_id), perpetual_, row) for row in rows]
-    return {instrument_id: sorted(bars, key=lambda each: each.ts_event)}
-
-
-def _bar(bar_type: BarType, perpetual_: CryptoPerpetual, row: tuple[Any, ...]) -> Bar:
-    """The volume is in the base coin, with the precision Deribit gives it, not
-    the contract's."""
-    opened, open_, high, low, close, volume = row
-    ts = int(opened) * _NANOS_PER_MILLI + _NANOS_PER_MINUTE - 1
-
-    def price(value: float) -> Price:
-        return Price(value, perpetual_.price_precision)
-
-    return Bar(
-        bar_type,
-        price(open_),
-        price(high),
-        price(low),
-        price(close),
-        Quantity(volume, _VOLUME_PRECISION),
-        ts,
-        ts,
-    )
+    return {instrument_id: list(bars(read_klines(path), perpetual_))}
 
 
 def _dvol_update(row: Sequence[float], index: IndexInstrument) -> IndexPriceUpdate:

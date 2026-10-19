@@ -1,13 +1,13 @@
 import asyncio
 import json
 import re
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
-from deribit_replay import deribit_replay
+from deribit_replay import deribit_replay, deribit_stub
 from nautilus_trader.model import (
     AggressorSide,
     Bar,
@@ -876,7 +876,7 @@ MINUTE_NANOS = 60_000_000_000
 def test_deribit_klines_parse_into_one_minute_bars(
     replayed_deribit: tuple[Source, Replay], tmp_path: Path
 ) -> None:
-    source, served = replayed_deribit
+    source, _ = replayed_deribit
     snapshot = saved(
         source.instrument_snapshot("BTC-PERPETUAL", SNAPSHOT_DAY), tmp_path
     )
@@ -887,10 +887,6 @@ def test_deribit_klines_parse_into_one_minute_bars(
     bars = list(source.parse(day, Bar, perpetual))
 
     assert raw.path == PurePosixPath(PERPETUAL_CANDLES_FILE)
-    query = parse_qs(urlsplit(served.requests[-1]).query)
-    assert query["resolution"] == ["1"]
-    assert query["start_timestamp"] == [str(DAY_START_MS)]
-    assert query["end_timestamp"] == [str(DAY_END_MS)]
     assert len(bars) == 1440
     first = bars[0]
     assert str(first.bar_type) == "BTC-PERPETUAL.DERIBIT-1-MINUTE-LAST-EXTERNAL"
@@ -900,15 +896,18 @@ def test_deribit_klines_parse_into_one_minute_bars(
         "89995.0",
         "90001.0",
     )
-    assert str(first.volume) == "0.50000000"
-    assert first.ts_event == DAY_START_MS * 1_000_000 + MINUTE_NANOS - 1
+    assert str(first.volume) == "1"
+    assert (
+        first.ts_event == first.ts_init == DAY_START_MS * 1_000_000 + MINUTE_NANOS - 1
+    )
     assert bars[-1].ts_event == (DAY_START_MS + 86_400_000) * 1_000_000 - 1
 
 
 @pytest.mark.integration
-def test_a_day_of_deribit_klines_is_downloaded(tmp_path: Path) -> None:
+def test_a_day_of_deribit_klines_is_downloaded_once_per_bar(tmp_path: Path) -> None:
     days = DayRange(("BTC-PERPETUAL",), DAY, DAY, ("Bar",))
-    with deribit_replay() as deribit:
+    stub = deribit_stub()
+    with deribit_replay(stub) as deribit:
         tally = download(
             deribit, DownloadRequest(days, SNAPSHOT_DAY), DownloadOptions(tmp_path)
         )
@@ -921,6 +920,10 @@ def test_a_day_of_deribit_klines_is_downloaded(tmp_path: Path) -> None:
     assert {each.outcome for each in tally.results} == {Outcome.FETCHED}
     start = DAY_START_MS * 1_000_000
     assert stamps == [start + n * MINUTE_NANOS - 1 for n in range(1, 1441)]
+    ((first, last),) = stub.windows
+    assert first == datetime(2025, 1, 1, tzinfo=UTC)
+    assert last == datetime(2025, 1, 1, 23, 59, 59, 999000, tzinfo=UTC)
+    assert len(stub.cached) == 1
 
 
 @pytest.mark.unit

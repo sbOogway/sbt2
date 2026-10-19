@@ -13,7 +13,6 @@ _INSTRUMENTS = "/api/v2/public/get_instruments"
 _DVOL = "/api/v2/public/get_volatility_index_data"
 _DELIVERY_PRICES = "/api/v2/public/get_delivery_prices"
 _FUNDING = "/api/v2/public/get_funding_rate_history"
-_CHART = "/api/v2/public/get_tradingview_chart_data"
 _HOURLY = "3600"
 _DELIVERY_PAGE = 100
 _PAGE_SIZE = 1000
@@ -131,19 +130,6 @@ class DeribitApi:
             )
         return _json(records)
 
-    async def candles(self, symbol: str, day: date) -> bytes:
-        """The 1-minute candles of the perpetual in the UTC day, as Deribit sends
-        them: lists by field, the time of a candle being its open and the volume
-        in the base coin."""
-        start, end = _day_window(day)
-        async with self._http(self._endpoints.live) as http:
-            chart = await _get(http, _CHART, _chart_params(symbol, start, end))
-        if not chart["ticks"]:
-            raise MissingAtSourceError(
-                f"deribit has no {symbol} candles on {day.isoformat()}"
-            )
-        return _json(chart)
-
     def _http(self, base_url: str) -> httpx.AsyncClient:
         return httpx.AsyncClient(base_url=base_url, timeout=_TIMEOUT)
 
@@ -224,15 +210,6 @@ def _funding_params(symbol: str, start: int, end: int) -> dict[str, str]:
         "instrument_name": symbol,
         "start_timestamp": str(start),
         "end_timestamp": str(end),
-    }
-
-
-def _chart_params(symbol: str, start: int, end: int) -> dict[str, str]:
-    return {
-        "instrument_name": symbol,
-        "start_timestamp": str(start),
-        "end_timestamp": str(end),
-        "resolution": "1",
     }
 
 

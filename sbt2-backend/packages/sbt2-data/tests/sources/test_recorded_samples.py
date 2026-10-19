@@ -67,10 +67,10 @@ def test_a_recorded_coinbase_intx_candle_sample_parses(tmp_path: Path) -> None:
 @pytest.mark.unit
 def test_a_recorded_deribit_candle_sample_parses(tmp_path: Path) -> None:
     sample = tmp_path / "BTC-PERPETUAL2025-01-01.json"
-    sample.write_text((HERE / "deribit_chart_sample.json").read_text())
+    sample.write_text(json.dumps(load_sample("deribit_nautilus_sample.json")))
     with deribit_replay() as deribit:
         bars = parsed(deribit, "BTC-PERPETUAL", sample, tmp_path)
 
     assert len(bars) == 3
     assert bars[0].ts_event == FIRST_STAMP
-    assert ohlcv(bars[0]) == ("93445.5", "93451.0", "93398.0", "93451.0", "1.38195605")
+    assert ohlcv(bars[0]) == ("93445.5", "93451.0", "93398.0", "93451.0", "129120")
