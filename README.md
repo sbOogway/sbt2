@@ -145,6 +145,29 @@ GH_TOKEN=...    # or a gh login; can edit the releases
 GHCR_TOKEN=...  # classic token with write:packages
 ```
 
+The push signs the image with a sigstore key, and then pulls it under the host
+policy to check the signature. The private key and its passphrase stay outside
+the repo; set their paths in the environment:
+
+```sh
+SBT2_SIGNING_KEY=~/.config/sbt2/signing/sbt2-server.private
+SBT2_SIGNING_PASSPHRASE_FILE=~/.config/sbt2/signing/passphrase
+```
+
+Without them, or without the public key `sbt2-backend/deploy/sbt2-server.pub`,
+`make publish` and `make release-image` stop before they change anything. The
+push also needs the signature lookup in `~/.config/containers/registries.d/`,
+as on the server host. To make the key pair once:
+
+```sh
+mkdir -p ~/.config/sbt2/signing && chmod 700 ~/.config/sbt2/signing
+cd ~/.config/sbt2/signing
+openssl rand -base64 32 >passphrase && chmod 600 passphrase
+skopeo generate-sigstore-key --output-prefix sbt2-server --passphrase-file passphrase
+```
+
+Then commit `sbt2-server.pub` as `sbt2-backend/deploy/sbt2-server.pub`.
+
 To add the image to an existing release, use `make release-image`. It acts on
 the newest `vX.Y.Z` tag; `TAG=vX.Y.Z` picks another release. It refuses when the
 release has the image already, unless `FORCE=1`. It builds the tag's commit in a
