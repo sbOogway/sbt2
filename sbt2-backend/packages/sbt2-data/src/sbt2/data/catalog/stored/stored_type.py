@@ -62,6 +62,10 @@ class StoredType(ABC):
         """The inverse of ``identifier``."""
         return InstrumentId.from_str(identifier)
 
+    def record_instrument_id(self, record: Any) -> InstrumentId:
+        """The instrument a record of this type belongs to."""
+        return record.instrument_id
+
     def metadata(self, day: DayFile) -> dict[str, str]:
         instrument = day.instrument
         return {"instrument_id": str(instrument.id), **self._precisions(instrument)}

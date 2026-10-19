@@ -1,4 +1,5 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 
 import pandas as pd
@@ -13,7 +14,11 @@ from nautilus_trader.model import (
 from nautilus_trader.persistence import ParquetDataCatalog
 
 from sbt2.core.assets.base import QuoteJob
-from sbt2.core.assets.option_delivery import delivery_price, expires_within
+from sbt2.core.assets.option_delivery import (
+    delivery_id,
+    delivery_price,
+    expires_within,
+)
 from sbt2.core.assets.option_quotes import OptionHistory, QuoteSettings, quote_ticks
 from sbt2.core.assets.option_settlement import settlement_price, settlement_quotes
 from sbt2.core.market import index_id
@@ -47,13 +52,24 @@ class _Quoter:
         self._target = target
         self._catalog = Catalog(job.catalog)
         self._indexes: dict[InstrumentId, pd.Series] = {}
+        self._deliveries: dict[tuple[InstrumentId, int], Decimal] = {}
         self.contracts = list(self._catalog.instruments(job.instruments).values())
         target.write_instruments(self.contracts)
+        self._marks = _frames(
+            self._catalog, (self.contracts, MarkPriceUpdate), job.window
+        )
+        self._greeks = _frames(
+            self._catalog, (self.contracts, OptionGreeks), job.window
+        )
 
     def write(self, contract: CryptoOption) -> bool:
         """Write the contract's quotes; whether it has any."""
-        index = self._index(index_id(contract))
-        history = _history(self._catalog, contract, (self._job.window, index))
+        history = OptionHistory(
+            contract,
+            self._marks[contract.id],
+            self._greeks[contract.id],
+            self._index(index_id(contract)),
+        )
         quotes = quote_ticks(history, self._settings, self._job.window)
         if quotes:
             quotes += self._settlement(contract)
@@ -66,8 +82,15 @@ class _Quoter:
         """The closing quotes of a contract that expires within the run."""
         if not expires_within(contract, self._job.window):
             return []
-        delivery = delivery_price(self._catalog, contract)
+        delivery = self._delivery(contract)
         return settlement_quotes(contract, settlement_price(contract, delivery))
+
+    def _delivery(self, contract: CryptoOption) -> Decimal:
+        """The delivery price, read once for all contracts of an expiry."""
+        key = (delivery_id(contract), contract.expiration_ns)
+        if key not in self._deliveries:
+            self._deliveries[key] = delivery_price(self._catalog, contract)
+        return self._deliveries[key]
 
     def _index(self, index_id: InstrumentId) -> pd.Series:
         if index_id not in self._indexes:
@@ -85,36 +108,46 @@ def _no_quotes(job: QuoteJob) -> str:
     )
 
 
-def _history(
-    catalog: Catalog, contract: CryptoOption, read: tuple[Span, pd.Series]
-) -> OptionHistory:
-    """The marks and Greeks from the run's start on, with the last of each before
-    it: the quotes need no more."""
-    span, index = read
-    return OptionHistory(
-        contract,
-        _frame(catalog, (contract, MarkPriceUpdate), span),
-        _frame(catalog, (contract, OptionGreeks), span),
-        index,
-    )
-
-
-def _frame(
-    catalog: Catalog, series: tuple[CryptoOption, type], span: Span
-) -> pd.DataFrame:
-    """The records from the day before ``span`` on. When none of them is before
-    the span, the last one is older: read from the contract's activation."""
-    contract, kind = series
+def _frames(
+    catalog: Catalog, series: tuple[list[CryptoOption], type], span: Span
+) -> dict[InstrumentId, pd.DataFrame]:
+    """Each contract's records from the day before ``span`` on, with the last one
+    before the span: the quotes need no more. When none of a contract's records is
+    before the span, the last one is older: read from the contract's activation."""
+    contracts, kind = series
     start, end = span
-    activation = _moment(contract.activation_ns)
-    day_before = start.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(
-        days=1
-    )
-    first = max(activation, day_before)
-    frame = catalog.frame(contract.id, kind, Window(first, end))
-    if first > activation and not (frame.index < start).any():
-        return catalog.frame(contract.id, kind, Window(activation, end))
-    return frame
+    first = _day_start(start) - timedelta(days=1)
+    frames = _since_activation(catalog, (contracts, kind), Window(first, end))
+    stale = [
+        each
+        for each in contracts
+        if _activation(each) < first and not (frames[each.id].index < start).any()
+    ]
+    if stale:
+        since = min(_activation(each) for each in stale)
+        frames |= _since_activation(catalog, (stale, kind), Window(since, end))
+    return frames
+
+
+def _since_activation(
+    catalog: Catalog, series: tuple[list[CryptoOption], type], window: Window
+) -> dict[InstrumentId, pd.DataFrame]:
+    """The contracts' records in ``window``, none before a contract's activation."""
+    contracts, kind = series
+    frames = catalog.frames([each.id for each in contracts], kind, window)
+    return {each.id: _active(frames[each.id], each) for each in contracts}
+
+
+def _active(frame: pd.DataFrame, contract: CryptoOption) -> pd.DataFrame:
+    return frame.loc[frame.index >= _activation(contract)]
+
+
+def _day_start(moment: datetime) -> datetime:
+    return moment.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def _activation(contract: CryptoOption) -> datetime:
+    return _moment(contract.activation_ns)
 
 
 def _moment(nanos: int) -> datetime:
@@ -128,14 +161,17 @@ def _index_on_grid(
     from the day before the span on."""
     (start, end), settings = grid
     step = f"{settings.interval_seconds}s"
-    days = [
-        _on_grid(
-            catalog.frame(index_id, IndexPriceUpdate, Window.of_days(day, day)), step
-        )
-        for day in Window(start - timedelta(days=1), end).days
-    ]
-    carried = pd.concat(days).groupby(level=0).last().ffill().dropna()
+    days = Window(start - timedelta(days=1), end).days
+    frame = catalog.frame(index_id, IndexPriceUpdate, Window.of_days(days[0], days[-1]))
+    # Grid each day on its own: a day without updates adds no grid times.
+    on_grid = [_on_grid(_of_day(frame, day), step) for day in days]
+    carried = pd.concat(on_grid).groupby(level=0).last().ffill().dropna()
     return pd.Series(carried)
+
+
+def _of_day(frame: pd.DataFrame, day: date) -> pd.DataFrame:
+    window = Window.of_days(day, day)
+    return frame.loc[(frame.index >= window.start) & (frame.index < window.end)]
 
 
 def _on_grid(frame: pd.DataFrame, step: str) -> pd.Series:
