@@ -85,6 +85,23 @@ def portfolio_greeks_table(samples: pd.DataFrame | None) -> pd.DataFrame:
     return _with_timestamps(frame.astype(_GREEKS_TYPES))
 
 
+def refusals_table(refusals: pd.DataFrame | None) -> pd.DataFrame:
+    """The refused combos with their times as timestamps; the columns only,
+    for a run that refused none."""
+    frame = _no_refusals() if refusals is None else refusals
+    return _with_timestamps(frame)
+
+
+def _no_refusals() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "ts_event": pd.Series(dtype="int64"),
+            "legs": pd.Series(dtype="object"),
+            "reason": pd.Series(dtype="object"),
+        }
+    )
+
+
 def _no_greeks() -> pd.DataFrame:
     return pd.DataFrame(
         {name: pd.Series(dtype=kind) for name, kind in _GREEKS_TYPES.items()}

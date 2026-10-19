@@ -22,6 +22,7 @@ from sbt2.core.results.store.parquet.tables import (
     equity_table,
     margin_table,
     portfolio_greeks_table,
+    refusals_table,
     reported_equity,
     write_table,
 )
@@ -112,6 +113,7 @@ class ParquetSink:
         self._write(
             "portfolio_greeks", portfolio_greeks_table(reports.portfolio_greeks)
         )
+        self._write("refusals", refusals_table(reports.refusals))
 
     def write_strategy_source(self, source: str) -> None:
         (self._folder / STRATEGY_SOURCE).write_text(source)

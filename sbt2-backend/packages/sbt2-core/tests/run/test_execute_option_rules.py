@@ -61,6 +61,28 @@ def test_a_refused_combo_is_logged_with_its_reason(
 
 
 @pytest.mark.integration
+def test_an_option_run_stores_the_combos_the_rules_refuse(
+    tmp_path: Path, ladder: Path
+) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run_options(
+        tmp_path, ladder, Scenario("combo_strategies:OpenStrangle", SMALL_CAPS)
+    )
+
+    rows = store.load(run_id, "refusals")
+    [(_, reason)] = OpenStrangle.declined
+    assert list(rows.columns) == ["ts_event", "legs", "reason"]
+    [row] = rows.to_dict("records")
+    assert row["ts_event"] == pd.Timestamp("2024-01-01T03:00:00", tz="UTC")
+    assert list(row["legs"]) == [
+        "BTC-12JAN24-40000-P.DERIBIT",
+        "BTC-12JAN24-50000-C.DERIBIT",
+    ]
+    assert row["reason"] == reason
+
+
+@pytest.mark.integration
 def test_a_run_without_the_table_opens_the_same_combo(
     tmp_path: Path, ladder: Path
 ) -> None:
@@ -106,7 +128,7 @@ def test_an_option_run_stores_its_portfolio_greeks(
     assert len(held) > 30
     [balance] = OpenStrangle.balances
     for row in held.itertuples():
-        theta, delta = strangle_greeks(row.ts_event.to_pydatetime())
+        theta, delta = strangle_greeks(row["ts_event"].to_pydatetime())
         assert row.theta == pytest.approx(theta)
         assert row.beta_weighted_delta == pytest.approx(delta)
         assert row.theta_ratio == pytest.approx(theta / float(balance))
