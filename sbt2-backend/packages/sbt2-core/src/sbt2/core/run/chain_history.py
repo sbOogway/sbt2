@@ -14,6 +14,7 @@ from sbt2.core.strategy import ChainHistory
 from sbt2.data import Catalog, Window
 
 _INDEX_REACH = timedelta(days=1)
+_IV_REACH = timedelta(days=1)
 _SEVERAL = 2
 
 type Span = tuple[datetime, datetime]
@@ -74,21 +75,45 @@ def _volatility_span(spec: ResolvedRunSpec) -> Span:
 def _latest_ivs(
     spec: ResolvedRunSpec, underlying: str, catalog: Catalog
 ) -> dict[InstrumentId, Point]:
+    """The last IV of each contract before the run. Most contracts have one in the
+    day before it; only the others are read from their activation."""
+    contracts = [
+        each
+        for each in catalog.instruments(spec.strategy.instruments).values()
+        if isinstance(each, CryptoOption)
+        and each.underlying.code == underlying
+        and _activation(each) < spec.start
+    ]
+    recent = spec.start - _IV_REACH
+    found = _ivs(catalog, contracts, (recent, spec.start))
+    stale = [
+        each
+        for each in contracts
+        if each.id not in found and _activation(each) < recent
+    ]
+    if stale:
+        since = min(_activation(each) for each in stale)
+        found |= _ivs(catalog, stale, (since, spec.start))
+    return {each.id: found[each.id] for each in contracts if each.id in found}
+
+
+def _ivs(
+    catalog: Catalog, contracts: list[CryptoOption], span: Span
+) -> dict[InstrumentId, Point]:
+    """The last IV of each contract over ``span``, from its activation on."""
+    ids = [each.id for each in contracts]
+    frames = catalog.frames(ids, OptionGreeks, Window(*span))
     found: dict[InstrumentId, Point] = {}
-    for contract in catalog.instruments(spec.strategy.instruments).values():
-        if (
-            isinstance(contract, CryptoOption)
-            and contract.underlying.code == underlying
-        ):
-            records = _read(catalog, (contract.id, OptionGreeks), _life(contract, spec))
-            latest = _last(_points(records, "mark_iv"))
-            if latest is not None:
-                found[contract.id] = latest
+    for each in contracts:
+        frame = frames[each.id]
+        latest = _last(_points(frame.loc[frame.index >= _activation(each)], "mark_iv"))
+        if latest is not None:
+            found[each.id] = latest
     return found
 
 
-def _life(contract: CryptoOption, spec: ResolvedRunSpec) -> Span:
-    return datetime.fromtimestamp(contract.activation_ns / 1e9, UTC), spec.start
+def _activation(contract: CryptoOption) -> datetime:
+    return datetime.fromtimestamp(contract.activation_ns / 1e9, UTC)
 
 
 def _read(
