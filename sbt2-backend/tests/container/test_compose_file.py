@@ -28,6 +28,6 @@ def test_compose_runs_the_server_with_its_data_and_config_volumes() -> None:
         environment["SBT2_DATA"]: "data",
         environment["SBT2_CONFIG"]: "config",
     }
-    assert server["ports"] == ["8765:8765"]
+    assert server["ports"] == ["127.0.0.1:8765:8765"]
     assert environment["SBT2_SERVER_TOKEN"].startswith("${SBT2_SERVER_TOKEN")
     assert "/health" in server["healthcheck"]["test"][-1]
