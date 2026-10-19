@@ -123,7 +123,7 @@ def test_an_instrument_id_of_another_venue_has_no_deribit_symbol(
 
 
 @pytest.mark.unit
-def test_trades_marks_greeks_index_prices_and_funding_are_the_data_types(
+def test_trades_marks_greeks_index_prices_funding_and_candles_are_the_data_types(
     deribit: Source,
 ) -> None:
     assert deribit.data_types == (
@@ -132,6 +132,7 @@ def test_trades_marks_greeks_index_prices_and_funding_are_the_data_types(
         OptionGreeks,
         IndexPriceUpdate,
         FundingRateUpdate,
+        Bar,
     )
     with pytest.raises(UnsupportedDataTypeError):
         deribit.day_file("BTC", Bar, DAY)
@@ -139,7 +140,9 @@ def test_trades_marks_greeks_index_prices_and_funding_are_the_data_types(
 
 @pytest.mark.unit
 def test_every_data_type_reads_the_same_raw_day_file(deribit: Source) -> None:
-    options = [each for each in deribit.data_types if each is not FundingRateUpdate]
+    options = [
+        each for each in deribit.data_types if each not in (FundingRateUpdate, Bar)
+    ]
     paths = {deribit.day_file("BTC", each, DAY).path for each in options}
 
     assert len(paths) == 1
@@ -817,13 +820,13 @@ def test_the_funding_history_parses_into_hourly_funding_rate_updates(
 
 
 @pytest.mark.unit
-def test_funding_is_planned_for_a_perpetual_and_not_for_options(
+def test_funding_and_candles_are_planned_for_a_perpetual_and_not_for_options(
     deribit: Source,
 ) -> None:
     perpetual = DayRange(("BTC-PERPETUAL",), DAY, DAY).plan(deribit)
     options = DayRange(("BTC",), DAY, DAY).plan(deribit)
 
-    assert [each[1] for each in perpetual] == [FundingRateUpdate]
+    assert [each[1] for each in perpetual] == [FundingRateUpdate, Bar]
     assert FundingRateUpdate not in [each[1] for each in options]
     with pytest.raises(UnsupportedDataTypeError):
         deribit.day_file("BTC", FundingRateUpdate, DAY)
@@ -861,3 +864,70 @@ def test_a_day_of_perpetual_funding_is_downloaded_and_ingested(
     assert len(frame) == 24
     perpetual = stored.instruments([BTC_PERPETUAL])[BTC_PERPETUAL]
     assert isinstance(perpetual, CryptoPerpetual)
+
+
+PERPETUAL_CANDLES_FILE = (
+    "deribit/perpetual/BTC-PERPETUAL/candles/BTC-PERPETUAL2025-01-01.json"
+)
+MINUTE_NANOS = 60_000_000_000
+
+
+@pytest.mark.unit
+def test_deribit_klines_parse_into_one_minute_bars(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, served = replayed_deribit
+    snapshot = saved(
+        source.instrument_snapshot("BTC-PERPETUAL", SNAPSHOT_DAY), tmp_path
+    )
+    raw = source.day_file("BTC-PERPETUAL", Bar, DAY)
+    day = saved(raw, tmp_path)
+    (perpetual,) = source.parse_instruments(snapshot).values()
+
+    bars = list(source.parse(day, Bar, perpetual))
+
+    assert raw.path == PurePosixPath(PERPETUAL_CANDLES_FILE)
+    query = parse_qs(urlsplit(served.requests[-1]).query)
+    assert query["resolution"] == ["1"]
+    assert query["start_timestamp"] == [str(DAY_START_MS)]
+    assert query["end_timestamp"] == [str(DAY_END_MS)]
+    assert len(bars) == 1440
+    first = bars[0]
+    assert str(first.bar_type) == "BTC-PERPETUAL.DERIBIT-1-MINUTE-LAST-EXTERNAL"
+    assert (str(first.open), str(first.high), str(first.low), str(first.close)) == (
+        "93445.5",
+        "93451.0",
+        "93398.0",
+        "93451.0",
+    )
+    assert str(first.volume) == "1.38195605"
+    assert first.ts_event == DAY_START_MS * 1_000_000 + MINUTE_NANOS - 1
+    assert bars[-1].ts_event == (DAY_START_MS + 86_400_000) * 1_000_000 - 1
+
+
+@pytest.mark.integration
+def test_a_day_of_deribit_klines_is_downloaded(tmp_path: Path) -> None:
+    days = DayRange(("BTC-PERPETUAL",), DAY, DAY, ("Bar",))
+    with deribit_replay() as deribit:
+        tally = download(
+            deribit, DownloadRequest(days, SNAPSHOT_DAY), DownloadOptions(tmp_path)
+        )
+        (snapshot,) = deribit.parse_instruments(
+            tmp_path / deribit.instrument_snapshot("BTC-PERPETUAL", SNAPSHOT_DAY).path
+        ).values()
+        candles = tmp_path / deribit.day_file("BTC-PERPETUAL", Bar, DAY).path
+        stamps = [each.ts_event for each in deribit.parse(candles, Bar, snapshot)]
+
+    assert {each.outcome for each in tally.results} == {Outcome.FETCHED}
+    start = DAY_START_MS * 1_000_000
+    assert stamps == [start + n * MINUTE_NANOS - 1 for n in range(1, 1441)]
+
+
+@pytest.mark.unit
+def test_a_day_without_candles_is_missing_at_source(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, _ = replayed_deribit
+
+    with pytest.raises(MissingAtSourceError, match=r"BTC-PERPETUAL candles on 2016"):
+        fetched(source.day_file("BTC-PERPETUAL", Bar, date(2016, 1, 1)))

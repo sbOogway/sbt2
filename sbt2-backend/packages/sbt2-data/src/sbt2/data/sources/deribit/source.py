@@ -6,6 +6,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, override
 
 from nautilus_trader.model import (
+    Bar,
     FundingRateUpdate,
     IndexPriceUpdate,
     InstrumentId,
@@ -28,6 +29,7 @@ _PUBLIC = Endpoints()
 _CURRENCIES = ("BTC", "ETH")
 _OPTIONS_SUFFIX = "-OPTIONS"
 _TRADES = "trades"
+_PERPETUAL_DATA = (FundingRateUpdate, Bar)
 
 
 class DeribitSource(Source):
@@ -50,6 +52,7 @@ class DeribitSource(Source):
             OptionGreeks,
             IndexPriceUpdate,
             FundingRateUpdate,
+            Bar,
         )
 
     def instrument_id(self, symbol: str) -> InstrumentId:
@@ -76,11 +79,11 @@ class DeribitSource(Source):
 
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         if symbol in perpetual.SYMBOLS:
-            return self._funding_day_file(symbol, data_type, day)
+            return self._perpetual_day_file(symbol, data_type, day)
         series = series_of(symbol)
         if series is not None:
             return self._series_day_file(series, data_type, day)
-        if data_type not in self.data_types or data_type is FundingRateUpdate:
+        if data_type not in self.data_types or data_type in _PERPETUAL_DATA:
             raise UnsupportedDataTypeError(f"deribit serves no {data_type.__name__}")
         return RawFile(
             _currency_dir(symbol) / _TRADES / _json_name(symbol, day),
@@ -90,13 +93,13 @@ class DeribitSource(Source):
     @override
     def is_known_gap(self, symbol: str, data_type: type, day: date) -> bool:
         """A day without trades is a day without any of the data types. A series
-        has index prices only and a perpetual funding only, so neither is ever
-        requested for another data type; options have no funding."""
+        has index prices only and a perpetual funding and candles only, so neither
+        is ever requested for another data type; options have neither."""
         if symbol in perpetual.SYMBOLS:
-            return data_type is not FundingRateUpdate
+            return data_type not in _PERPETUAL_DATA
         if series_of(symbol) is not None:
             return data_type is not IndexPriceUpdate
-        if data_type is FundingRateUpdate:
+        if data_type in _PERPETUAL_DATA:
             return True
         return super().is_known_gap(symbol, TradeTick, day)
 
@@ -139,14 +142,18 @@ class DeribitSource(Source):
     ) -> Mapping[InstrumentId, Sequence[Any]]:
         return parse.day_records(path, data_type, instruments)
 
-    def _funding_day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
-        if data_type is not FundingRateUpdate:
+    def _perpetual_day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
+        if data_type is FundingRateUpdate:
+            fetch, folder = self._api.funding, "funding"
+        elif data_type is Bar:
+            fetch, folder = self._api.candles, "candles"
+        else:
             raise UnsupportedDataTypeError(
-                f"{symbol} serves FundingRateUpdate, not {data_type.__name__}"
+                f"{symbol} serves FundingRateUpdate and Bar, not {data_type.__name__}"
             )
         return RawFile(
-            _perpetual_dir(symbol) / "funding" / _json_name(symbol, day),
-            partial(self._api.funding, symbol, day),
+            _perpetual_dir(symbol) / folder / _json_name(symbol, day),
+            partial(fetch, symbol, day),
         )
 
     def _series_day_file(self, series: Series, data_type: type, day: date) -> RawFile:

@@ -183,7 +183,7 @@ def test_deribit_option_trades_round_trip_through_the_catalog(
     deribit: Source, tmp_path: Path
 ) -> None:
     assert download_and_ingest(deribit, tmp_path) == [IngestOutcome.WRITTEN] * (
-        len(deribit.data_types) - 1  # the options have no funding
+        len(deribit.data_types) - 2  # the options have no funding or candles
     )
 
     stored = {each: stored_trades(tmp_path, each) for each in TRADED}
@@ -277,7 +277,7 @@ def test_a_rerun_skips_the_day_already_in_the_catalog(
     )
 
     assert [each.outcome for each in tally.results] == [IngestOutcome.SKIPPED] * (
-        len(deribit.data_types) - 1  # the options have no funding
+        len(deribit.data_types) - 2  # the options have no funding or candles
     )
     assert len(stored_trades(tmp_path, PUT_88K)) == TRADED[PUT_88K]
 
