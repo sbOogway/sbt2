@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -38,6 +39,25 @@ def test_a_refused_combo_sends_no_leg_and_calls_on_combo_refused(
     assert combo.name == "short strangle"
     assert reason.startswith("undefined_cap")
     assert "BPR" in reason
+
+
+@pytest.mark.integration
+def test_a_refused_combo_is_logged_with_its_reason(
+    tmp_path: Path, ladder: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    OpenStrangle.clear()
+
+    with caplog.at_level(logging.WARNING):
+        run_options(
+            tmp_path, ladder, Scenario("combo_strategies:OpenStrangle", SMALL_CAPS)
+        )
+
+    [(_, reason)] = OpenStrangle.declined
+    [record] = [each for each in caplog.records if "refused" in each.message]
+    assert record.levelno == logging.WARNING
+    assert "BTC-12JAN24-40000-P.DERIBIT" in record.message
+    assert "BTC-12JAN24-50000-C.DERIBIT" in record.message
+    assert reason in record.message
 
 
 @pytest.mark.integration

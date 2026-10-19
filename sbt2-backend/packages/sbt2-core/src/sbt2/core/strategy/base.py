@@ -3,6 +3,7 @@ import hashlib
 import importlib
 import importlib.util
 import inspect
+import logging
 import sys
 import threading
 import weakref
@@ -59,6 +60,8 @@ from sbt2.core.strategy.short_premium import ShortPremiumRules
 
 if TYPE_CHECKING:
     from sbt2.core.results import Benchmark
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -354,6 +357,7 @@ class Strategy[P](NautilusStrategy, ABC):
         ``on_combo_failed`` and the combo is never open."""
         reason = self._rule_refusal(combo)
         if reason is not None:
+            logger.warning("combo refused: %s: %s", _leg_ids(combo), reason)
             self.on_combo_refused(combo, reason)
             return combo
         identified = replace(combo, id=self._combos.next_id())
@@ -651,6 +655,10 @@ def _hearing_market(handler: Callable[..., Any]) -> Callable[..., Any]:
         return handler(self, event)
 
     return heard
+
+
+def _leg_ids(combo: Combo) -> str:
+    return ", ".join(str(leg.contract.id) for leg in combo.legs)
 
 
 def _signed_leg(leg: Leg) -> Decimal:
