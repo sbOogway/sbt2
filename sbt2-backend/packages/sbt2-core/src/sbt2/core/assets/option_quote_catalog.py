@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -53,7 +54,7 @@ class _Quoter:
     def write(self, contract: CryptoOption) -> bool:
         """Write the contract's quotes; whether it has any."""
         index = self._index(index_id(contract))
-        history = _history(self._catalog, contract, (self._job.window[1], index))
+        history = _history(self._catalog, contract, (self._job.window, index))
         quotes = quote_ticks(history, self._settings, self._job.window)
         if quotes:
             quotes += self._settlement(contract)
@@ -86,16 +87,56 @@ def _no_quotes(job: QuoteJob) -> str:
 
 
 def _history(
-    catalog: Catalog, contract: CryptoOption, until: tuple[datetime, pd.Series]
+    catalog: Catalog, contract: CryptoOption, read: tuple[Span, pd.Series]
 ) -> OptionHistory:
-    end, index = until
-    window = Window(_moment(contract.activation_ns), end)
+    """The marks and Greeks from the run's start on, with the last of each before
+    it: the quotes need no more."""
+    span, index = read
+    window = Window(_first_read(catalog, contract, span[0]), span[1])
     return OptionHistory(
         contract,
         catalog.frame(contract.id, MarkPriceUpdate, window),
         catalog.frame(contract.id, OptionGreeks, window),
         index,
     )
+
+
+def _first_read(catalog: Catalog, contract: CryptoOption, start: datetime) -> datetime:
+    """The start of the day of the last mark or Greeks record before ``start``,
+    searching back from it to the contract's activation; ``start`` when there is
+    none."""
+    activation = _moment(contract.activation_ns)
+    if activation >= start:
+        return activation
+    found = [
+        each
+        for kind in (MarkPriceUpdate, OptionGreeks)
+        if (each := _last_day_start(catalog, (contract.id, kind), (activation, start)))
+    ]
+    return min(found, default=start)
+
+
+def _last_day_start(
+    catalog: Catalog, series: tuple[InstrumentId, type], before: Span
+) -> datetime | None:
+    activation, start = before
+    for window in _days_back(activation, start.astimezone(UTC)):
+        if not catalog.frame(series[0], series[1], window).empty:
+            return window.start
+    return None
+
+
+def _days_back(activation: datetime, start: datetime) -> Iterator[Window]:
+    """The windows of whole days from the one before ``start`` back to
+    ``activation``, the first cut at ``start`` and the last at ``activation``."""
+    end = start
+    while end > activation:
+        midnight = end.replace(hour=0, minute=0, second=0, microsecond=0)
+        begin = max(
+            midnight if midnight < end else midnight - timedelta(days=1), activation
+        )
+        yield Window(begin, end)
+        end = begin
 
 
 def _moment(nanos: int) -> datetime:
