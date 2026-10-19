@@ -1077,7 +1077,7 @@ dev = [
 [[package]]
 name = "sbt2-notebooks"
 version = "0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "ipywidgets", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "jupyterlab", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
