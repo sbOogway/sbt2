@@ -15,8 +15,11 @@ from sbt2.data.sources.base import (
     UnsupportedDataTypeError,
     candle_type,
 )
+from sbt2.data.sources.binance import BinanceSource
 from sbt2.data.sources.bybit import BybitSource
+from sbt2.data.sources.coinbase_intx import CoinbaseIntxSource
 from sbt2.data.sources.deribit import DeribitSource
+from sbt2.data.sources.okx import OkxSource
 from sbt2.data.tomlfiles import read_toml, write_toml
 
 __all__ = [
@@ -38,7 +41,13 @@ __all__ = [
     "source",
 ]
 
-_SOURCES: tuple[type[Source], ...] = (BybitSource, DeribitSource)
+_SOURCES: tuple[type[Source], ...] = (
+    BinanceSource,
+    BybitSource,
+    CoinbaseIntxSource,
+    DeribitSource,
+    OkxSource,
+)
 
 
 class UnknownSourceError(LookupError):
