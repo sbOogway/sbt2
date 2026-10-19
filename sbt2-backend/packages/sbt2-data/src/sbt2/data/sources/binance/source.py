@@ -8,9 +8,16 @@ from functools import partial
 from pathlib import Path
 from typing import override
 
+from nautilus_trader.model import CryptoPerpetual, InstrumentId
+
 from sbt2.data.sources.base import Fetch, Gap
 from sbt2.data.sources.binance.api import BinanceApi, Endpoints
-from sbt2.data.sources.klines import Kline, KlineSource, PerpetualSpec
+from sbt2.data.sources.klines import (
+    Kline,
+    KlineSource,
+    PerpetualSpec,
+    perpetual_of,
+)
 
 _PUBLIC = Endpoints()
 _PERCENT = Decimal(100)
@@ -52,7 +59,12 @@ class BinanceSource(KlineSource):
                 yield Kline(int(row[0]), *row[1:6])
 
     @override
-    def _spec(self, snapshot: Path, ts_init: int) -> PerpetualSpec:
+    def _instrument(
+        self, snapshot: Path, instrument_id: InstrumentId, ts_init: int
+    ) -> CryptoPerpetual:
+        return perpetual_of(instrument_id, self._spec(snapshot), ts_init)
+
+    def _spec(self, snapshot: Path) -> PerpetualSpec:
         spec = json.loads(snapshot.read_text())
         filters = {each["filterType"]: each for each in spec["filters"]}
         return PerpetualSpec(

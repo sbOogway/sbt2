@@ -161,9 +161,7 @@ class KlineSource(Source, ABC):
     def parse_instruments(self, path: Path) -> Mapping[InstrumentId, Any]:
         symbol = path.stem[: -len("YYYY-MM-DD")]
         ts_init = _snapshot_day_nanos(path)
-        instrument = _perpetual(
-            self.instrument_id(symbol), self._spec(path, ts_init), ts_init
-        )
+        instrument = self._instrument(path, self.instrument_id(symbol), ts_init)
         return {instrument.id: instrument}
 
     @override
@@ -187,7 +185,9 @@ class KlineSource(Source, ABC):
         """The klines of one raw day file."""
 
     @abstractmethod
-    def _spec(self, snapshot: Path, ts_init: int) -> PerpetualSpec:
+    def _instrument(
+        self, snapshot: Path, instrument_id: InstrumentId, ts_init: int
+    ) -> CryptoPerpetual:
         """The perpetual a snapshot describes."""
 
 
@@ -195,9 +195,10 @@ def _price(text: str, instrument: Any) -> Price:
     return Price(float(text), instrument.price_precision)
 
 
-def _perpetual(
+def perpetual_of(
     instrument_id: InstrumentId, spec: PerpetualSpec, ts_init: int
 ) -> CryptoPerpetual:
+    """The perpetual of an exchange's spec."""
     price_precision = _decimals(spec.price_increment)
     size_precision = _decimals(spec.size_increment)
     return CryptoPerpetual(

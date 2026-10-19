@@ -1,5 +1,6 @@
 """Real candles, recorded from each exchange, in the raw file each source saves."""
 
+import json
 import zipfile
 from pathlib import Path
 
@@ -8,8 +9,9 @@ from binance_server import binance_replay
 from coinbase_intx_replay import coinbase_intx_replay
 from deribit_replay import deribit_replay
 from kline_helpers import DAY_NANOS, MINUTE_NANOS, snapshot_instrument
+from nautilus_stubs import load_sample
 from nautilus_trader.model import Bar
-from okx_replay import okx_replay
+from okx_client import okx_stubbed
 
 from sbt2.data.sources import Source
 
@@ -42,8 +44,9 @@ def test_a_recorded_binance_candle_sample_parses(tmp_path: Path) -> None:
 
 @pytest.mark.unit
 def test_a_recorded_okx_candle_sample_parses(tmp_path: Path) -> None:
-    with okx_replay() as okx:
-        bars = parsed(okx, "BTC-USDT-SWAP", HERE / "okx_candles_sample.json", tmp_path)
+    sample = tmp_path / "BTC-USDT-SWAP2025-01-01.json"
+    sample.write_text(json.dumps(load_sample("okx_nautilus_sample.json")["bars"]))
+    bars = parsed(okx_stubbed(), "BTC-USDT-SWAP", sample, tmp_path)
 
     assert len(bars) == 3
     assert bars[0].ts_event == FIRST_STAMP

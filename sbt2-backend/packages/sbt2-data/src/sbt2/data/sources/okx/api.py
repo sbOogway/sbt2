@@ -1,95 +1,77 @@
 import json
-from collections.abc import Mapping
-from dataclasses import dataclass
-from datetime import date
-from typing import Any
+from datetime import date, timedelta
+from typing import Any, Protocol
 
-import httpx
+from nautilus_trader.adapters.okx import OKXHttpClient
+from nautilus_trader.model import Bar, InstrumentId
 
-from sbt2.data.sources.base import MissingAtSourceError
-from sbt2.data.sources.klines import Pacer, utc_day_window
+from sbt2.data.sources.base import MissingAtSourceError, candle_type
+from sbt2.data.sources.klines import utc_day_window
+from sbt2.data.sources.nautilus_bars import BarsClient, dump_bars, utc_time
 
-_INSTRUMENTS = "/api/v5/public/instruments"
-_HISTORY_CANDLES = "/api/v5/market/history-candles"
 _PAGE_SIZE = 100
 _NO_SUCH_INSTRUMENT = "51001"
-_TIMEOUT = httpx.Timeout(60.0)
+# The client asks for keys although the public calls do not use them.
+_KEY = "public"
 
 
-class OkxApiError(RuntimeError):
-    pass
+class OkxClient(BarsClient, Protocol):
+    """What the source uses of ``OKXHttpClient``."""
 
-
-@dataclass(frozen=True)
-class Endpoints:
-    """OKX's API host, and the seconds kept between two calls: the candles
-    history allows 20 calls in 2 seconds."""
-
-    api: str = "https://www.okx.com"
-    pause: float = 0.12
+    async def request_instrument(self, instrument_id: InstrumentId) -> Any: ...
 
 
 class OkxApi:
-    """OKX's public REST API."""
+    """OKX's public API, through nautilus' HTTP client."""
 
-    def __init__(self, endpoints: Endpoints) -> None:
-        self._endpoints = endpoints
-        self._pacer = Pacer(endpoints.pause)
+    def __init__(self, client: OkxClient | None = None) -> None:
+        self._client = client
 
     async def candles(self, symbol: str, day: date) -> bytes:
-        """The UTC day's 1-minute candles as OKX sends them, each once.
+        """The UTC day's 1-minute bars, each once.
 
-        OKX returns at most 100 candles, newest first, older than ``after``
-        and newer than ``before``; the next page continues from the oldest.
+        The client returns the newest 100 bars of a window, so the window's end
+        moves back to the oldest bar until a page is not full. OKX leaves out
+        the bar at the window's start, so the window starts 1 ms early.
         """
-        start, end = (int(each.timestamp() * 1000) for each in utc_day_window(day))
-        found: dict[str, list[str]] = {}
-        after = end
-        async with self._http() as http:
-            while True:
-                params = _candle_params(symbol, start - 1, after)
-                page = await self._get(http, _HISTORY_CANDLES, params)
-                found.update((each[0], each) for each in page)
-                if len(page) < _PAGE_SIZE:
-                    break
-                after = int(page[-1][0])
+        client = self._http()
+        instrument_id = InstrumentId.from_str(f"{symbol}.OKX")
+        await _instrument(client, instrument_id)
+        first, end = utc_day_window(day)
+        start = first - timedelta(milliseconds=1)
+        found: dict[int, Bar] = {}
+        while True:
+            page = await client.request_bars(
+                candle_type(instrument_id), start=start, end=end
+            )
+            found.update((each.ts_event, each) for each in page)
+            if len(page) < _PAGE_SIZE:
+                break
+            end = utc_time(min(each.ts_event for each in page))
         if not found:
             raise MissingAtSourceError(
                 f"okx has no {symbol} candles on {day.isoformat()}"
             )
-        return json.dumps(
-            sorted(found.values(), key=lambda each: int(each[0]))
-        ).encode()
+        return dump_bars(found.values())
 
     async def instrument_snapshot(self, symbol: str) -> bytes:
-        """The swap's spec as OKX sends it."""
-        params = {"instType": "SWAP", "instId": symbol}
-        async with self._http() as http:
-            (spec,) = await self._get(http, _INSTRUMENTS, params)
-        return json.dumps(spec).encode()
+        """The swap as nautilus builds it from OKX's spec."""
+        instrument = await _instrument(
+            self._http(), InstrumentId.from_str(f"{symbol}.OKX")
+        )
+        return json.dumps(instrument.to_dict()).encode()
 
-    async def _get(
-        self, http: httpx.AsyncClient, path: str, params: Mapping[str, str]
-    ) -> list[Any]:
-        await self._pacer.wait()
-        response = await http.get(path, params=params)
-        response.raise_for_status()
-        body = response.json()
-        if body["code"] == _NO_SUCH_INSTRUMENT:
-            raise MissingAtSourceError(f"okx lists no {params['instId']}")
-        if body["code"] != "0":
-            raise OkxApiError(f"okx error {body['code']}: {body['msg']}")
-        return body["data"]
-
-    def _http(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(base_url=self._endpoints.api, timeout=_TIMEOUT)
+    def _http(self) -> OkxClient:
+        return self._client or OKXHttpClient(_KEY, _KEY, _KEY)
 
 
-def _candle_params(symbol: str, before: int, after: int) -> dict[str, str]:
-    return {
-        "instId": symbol,
-        "bar": "1m",
-        "before": str(before),
-        "after": str(after),
-        "limit": str(_PAGE_SIZE),
-    }
+async def _instrument(client: OkxClient, instrument_id: InstrumentId) -> Any:
+    """The swap, which the real client also caches for its bar requests."""
+    try:
+        return await client.request_instrument(instrument_id)
+    except ValueError as error:
+        if _NO_SUCH_INSTRUMENT in str(error):
+            raise MissingAtSourceError(
+                f"okx lists no {instrument_id.symbol}"
+            ) from error
+        raise

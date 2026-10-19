@@ -6,9 +6,16 @@ from functools import partial
 from pathlib import Path
 from typing import override
 
+from nautilus_trader.model import CryptoPerpetual, InstrumentId
+
 from sbt2.data.sources.base import Fetch, Gap
 from sbt2.data.sources.coinbase_intx.api import CoinbaseIntxApi, Endpoints
-from sbt2.data.sources.klines import Kline, KlineSource, PerpetualSpec
+from sbt2.data.sources.klines import (
+    Kline,
+    KlineSource,
+    PerpetualSpec,
+    perpetual_of,
+)
 
 _PUBLIC = Endpoints()
 _MAINT_SHARE = Decimal(1) / Decimal(2)
@@ -51,6 +58,11 @@ class CoinbaseIntxSource(KlineSource):
             )
 
     @override
+    def _instrument(
+        self, snapshot: Path, instrument_id: InstrumentId, ts_init: int
+    ) -> CryptoPerpetual:
+        return perpetual_of(instrument_id, self._spec(snapshot, ts_init), ts_init)
+
     def _spec(self, snapshot: Path, ts_init: int) -> PerpetualSpec:
         """The margin is a placeholder: the initial one is Coinbase's base
         requirement and the maintenance one half of it."""

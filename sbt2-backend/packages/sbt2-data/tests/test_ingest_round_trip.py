@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterator
-from contextlib import AbstractContextManager
+from contextlib import AbstractContextManager, nullcontext
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -40,7 +40,7 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.persistence import ParquetDataCatalog
 from nautilus_trader.trading import Strategy
-from okx_replay import okx_replay
+from okx_client import okx_stubbed
 
 from sbt2.data import (
     Catalog,
@@ -347,7 +347,13 @@ KLINE_DAY = date(2025, 1, 1)
 KLINE_SNAPSHOT_DAY = date(2026, 10, 19)
 KLINES = [
     (binance_replay, "BTCUSDT", "BTCUSDT-PERP.BINANCE", 1440, 1.0),
-    (okx_replay, "BTC-USDT-SWAP", "BTC-USDT-SWAP.OKX", 1440, 1.0),
+    (
+        lambda: nullcontext(okx_stubbed()),
+        "BTC-USDT-SWAP",
+        "BTC-USDT-SWAP.OKX",
+        1440,
+        1.0,
+    ),
     (coinbase_intx_replay, "BTC-PERP", "BTC-PERP.COINBASE_INTX", 1440, 1.5),
     (deribit_replay, "BTC-PERPETUAL", "BTC-PERPETUAL.DERIBIT", 1440, 0.5),
 ]
