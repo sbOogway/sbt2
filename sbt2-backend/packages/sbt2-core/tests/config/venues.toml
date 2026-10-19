@@ -6,6 +6,16 @@ instrument_class = "SWAP"
 # Bybit's base (non-VIP) rates for USDT perpetuals.
 fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
 
+[deribit_perpetual]
+name = "DERIBIT"
+source = "deribit"
+asset_class = "CRYPTOCURRENCY"
+instrument_class = "SWAP"
+# Deribit serves no mark price history: the mark is the close of the 1-minute bar.
+marks = "bars"
+# Deribit's perpetual fees as its API lists them for BTC-PERPETUAL: 0.015 % maker, 0.035 % taker.
+fee_model = { kind = "maker_taker", config = { maker_rate = "0.00015", taker_rate = "0.00035" } }
+
 [deribit_option]
 name = "DERIBIT"
 source = "deribit"

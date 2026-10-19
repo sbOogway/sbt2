@@ -37,9 +37,10 @@ class OptionQuotes(QuoteConvention):
         return [each for each in inputs if each.price_type == PriceType.LAST]
 
     @override
-    def source_types(self, kinds: set[type]) -> set[type]:
+    def source_types(self, kinds: set[type], venue: Mapping[str, Any]) -> set[type]:
         """Quotes and trades are not read from the catalog: the quotes are made
         from the IV records, and trades must not reach the venue's book."""
+        del venue
         return (kinds - {QuoteTick, TradeTick}) | {OptionGreeks}
 
     @override

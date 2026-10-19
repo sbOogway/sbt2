@@ -12,7 +12,6 @@ from sbt2.core.results.costs import (
     CostWaterfall,
     Exposure,
     HoldingTime,
-    InverseInstrumentError,
     costs_and_exposure,
 )
 from sbt2.core.results.metrics import (
@@ -78,7 +77,6 @@ __all__ = [
     "HeadlineMetrics",
     "HoldingTime",
     "IncompleteRunError",
-    "InverseInstrumentError",
     "MissingPricesError",
     "MissingTableError",
     "OutputSink",

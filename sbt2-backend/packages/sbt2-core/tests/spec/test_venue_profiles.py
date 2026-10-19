@@ -393,3 +393,38 @@ def test_an_invalid_margin_setting_is_rejected(
 
     with pytest.raises(InvalidVenueProfileError, match="margin"):
         put_venue_profile(venues, "p", profile)
+
+
+PERPETUAL_SPEC = (
+    SPEC.replace("BTCUSDT-LINEAR.BYBIT", "BTC-PERPETUAL.DERIBIT")
+    .replace("bybit_linear", "deribit_perpetual")
+    .replace("10000 USDT", "1 BTC")
+    .replace("spec_strategies:MinuteLookback", "run_strategies:BuyThenSell")
+)
+
+
+@pytest.mark.unit
+def test_deribit_perpetual_builds_a_nautilus_venue(tmp_path: Path) -> None:
+    spec = tmp_path / "spec.toml"
+    spec.write_text(PERPETUAL_SPEC)
+
+    [resolved] = load(spec, CONFIG / "venues.toml")
+    [venue] = resolved.run_config("/catalog").venues
+
+    assert venue.name == "DERIBIT"
+    assert venue.oms_type == OmsType.NETTING
+    assert venue.liquidation_enabled is False
+    assert isinstance(venue.fee_model, MakerTakerFeeModel)
+    assert resolved.venue["fee_model"]["config"] == {
+        "maker_rate": "0.00015",
+        "taker_rate": "0.00035",
+    }
+
+
+@pytest.mark.unit
+def test_an_invalid_marks_setting_is_rejected(tmp_path: Path) -> None:
+    venues = ConfigFolder(tmp_path / "config").venues
+    profile = {**PROFILE, "marks": "index"}
+
+    with pytest.raises(InvalidVenueProfileError, match="marks"):
+        put_venue_profile(venues, "p", profile)

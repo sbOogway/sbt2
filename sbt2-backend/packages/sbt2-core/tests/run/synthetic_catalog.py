@@ -41,7 +41,7 @@ def build_catalog(path: Path) -> None:
         minutes = range(first, last, 60_000_000_000)
         catalog.write_trade_ticks([_trade(ts) for ts in minutes], first, last)
         catalog.write_mark_price_updates([_mark(ts) for ts in minutes], first, last)
-        _write_funding(path, _fundings(day), (first, last))
+        write_funding(path, _fundings(day), (first, last))
 
 
 def perpetual() -> CryptoPerpetual:
@@ -94,11 +94,11 @@ def _fundings(day: int) -> list[FundingRateUpdate]:
     ]
 
 
-def _write_funding(
+def write_funding(
     path: Path, fundings: Sequence[FundingRateUpdate], bounds: tuple[int, int]
 ) -> None:
     """Nautilus's catalog has no Python writer for funding rates."""
-    directory = path / "data" / "funding_rates" / str(INSTRUMENT_ID)
+    directory = path / "data" / "funding_rates" / str(fundings[0].instrument_id)
     directory.mkdir(parents=True, exist_ok=True)
     name = "_".join(_file_timestamp(ts) for ts in bounds) + ".parquet"
     pq.write_table(_funding_table(fundings), directory / name)

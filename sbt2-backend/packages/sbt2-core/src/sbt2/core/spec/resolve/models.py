@@ -115,7 +115,7 @@ def _type(annotation: Any, default: Any) -> type:
     return str
 
 
-_RUN_SETTINGS = frozenset({"quotes", "delivery_fee", "margin"})
+_RUN_SETTINGS = frozenset({"quotes", "delivery_fee", "margin", "marks"})
 
 
 def venue_objects(arguments: Mapping[str, Any]) -> dict[str, Any]:

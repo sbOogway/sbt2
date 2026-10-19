@@ -128,8 +128,9 @@ class QuoteConvention(ABC):
         ...
 
     @abstractmethod
-    def source_types(self, kinds: set[type]) -> set[type]:
-        """The catalog data types a run needing ``kinds`` of data reads."""
+    def source_types(self, kinds: set[type], venue: Mapping[str, Any]) -> set[type]:
+        """The catalog data types a run needing ``kinds`` of data reads on the
+        venue with the arguments ``venue``."""
         ...
 
     @abstractmethod
@@ -137,6 +138,12 @@ class QuoteConvention(ABC):
         """Make the run's quotes into a catalog in ``folder``, and return the data
         configs that stream them; none when the catalog's own quotes are used."""
         ...
+
+    def priced_from(self, price_type: type, venue: Mapping[str, Any]) -> type:
+        """The catalog data type a stored run's ``price_type`` prices are read
+        from; by default the type itself."""
+        del venue
+        return price_type
 
 
 class NoQuotes(QuoteConvention):
@@ -151,7 +158,8 @@ class NoQuotes(QuoteConvention):
         del inputs
         return []
 
-    def source_types(self, kinds: set[type]) -> set[type]:
+    def source_types(self, kinds: set[type], venue: Mapping[str, Any]) -> set[type]:
+        del venue
         return kinds
 
     def write(self, job: QuoteJob, folder: Path) -> list[BacktestDataConfig]:

@@ -7,10 +7,13 @@ from typing import Any, NamedTuple
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from deribit_replay import deribit_replay
 from nautilus_trader.model import (
     AggressorSide,
     Bar,
     CryptoOption,
+    CryptoPerpetual,
+    FundingRateUpdate,
     GreeksConvention,
     IndexInstrument,
     IndexPriceUpdate,
@@ -23,7 +26,19 @@ from nautilus_trader.model import (
 )
 from replay import Replay
 
-from sbt2.data import DayRange
+from sbt2.data import (
+    Catalog,
+    DayRange,
+    DownloadOptions,
+    DownloadRequest,
+    IngestOptions,
+    IngestOutcome,
+    IngestRequest,
+    Outcome,
+    Window,
+    download,
+    ingest,
+)
 from sbt2.data.sources import (
     MissingAtSourceError,
     RawFile,
@@ -108,7 +123,7 @@ def test_an_instrument_id_of_another_venue_has_no_deribit_symbol(
 
 
 @pytest.mark.unit
-def test_trades_marks_greeks_and_index_prices_are_the_data_types(
+def test_trades_marks_greeks_index_prices_and_funding_are_the_data_types(
     deribit: Source,
 ) -> None:
     assert deribit.data_types == (
@@ -116,6 +131,7 @@ def test_trades_marks_greeks_and_index_prices_are_the_data_types(
         MarkPriceUpdate,
         OptionGreeks,
         IndexPriceUpdate,
+        FundingRateUpdate,
     )
     with pytest.raises(UnsupportedDataTypeError):
         deribit.day_file("BTC", Bar, DAY)
@@ -123,7 +139,8 @@ def test_trades_marks_greeks_and_index_prices_are_the_data_types(
 
 @pytest.mark.unit
 def test_every_data_type_reads_the_same_raw_day_file(deribit: Source) -> None:
-    paths = {deribit.day_file("BTC", each, DAY).path for each in deribit.data_types}
+    options = [each for each in deribit.data_types if each is not FundingRateUpdate]
+    paths = {deribit.day_file("BTC", each, DAY).path for each in options}
 
     assert len(paths) == 1
 
@@ -726,3 +743,121 @@ def test_a_trade_without_an_index_price_gives_no_greeks_and_no_index_update(
     assert sum(len(records) for records in parsed[OptionGreeks].values()) == 1
     [index] = parsed[IndexPriceUpdate][BTC_INDEX]
     assert index.ts_event == 1_735_689_605_718 * 1_000_000
+
+
+BTC_PERPETUAL = InstrumentId.from_str("BTC-PERPETUAL.DERIBIT")
+
+
+@pytest.mark.unit
+def test_the_perpetual_snapshot_gives_an_inverse_crypto_perpetual(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+    assert source.instrument_id("BTC-PERPETUAL") == BTC_PERPETUAL
+    assert source.symbol(BTC_PERPETUAL) == "BTC-PERPETUAL"
+
+    raw = source.instrument_snapshot("BTC-PERPETUAL", SNAPSHOT_DAY)
+    snapshot = saved(raw, tmp_path)
+    instruments = source.parse_instruments(snapshot)
+
+    assert raw.path == PurePosixPath(
+        "deribit/perpetual/BTC-PERPETUAL/instrument/BTC-PERPETUAL2026-10-07.json"
+    )
+    assert list(instruments) == [BTC_PERPETUAL]
+    perpetual = instruments[BTC_PERPETUAL]
+    assert isinstance(perpetual, CryptoPerpetual)
+    assert perpetual.is_inverse
+    assert str(perpetual.base_currency) == "BTC"
+    assert str(perpetual.quote_currency) == "USD"
+    assert str(perpetual.settlement_currency) == "BTC"
+    assert str(perpetual.price_increment) == "0.5"
+    assert str(perpetual.size_increment) == "10"
+    assert str(perpetual.multiplier) == "1"
+    assert float(perpetual.margin_init) == pytest.approx(0.02)
+    assert float(perpetual.margin_maint) == pytest.approx(0.02 * 2 / 3)
+    assert perpetual.ts_init == 1_791_331_200_000_000_000
+
+
+PERPETUAL_FUNDING_FILE = (
+    "deribit/perpetual/BTC-PERPETUAL/funding/BTC-PERPETUAL2025-01-01.json"
+)
+
+
+@pytest.mark.unit
+def test_the_funding_history_parses_into_hourly_funding_rate_updates(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, served = replayed_deribit
+    snapshot = saved(
+        source.instrument_snapshot("BTC-PERPETUAL", SNAPSHOT_DAY), tmp_path
+    )
+    raw = source.day_file("BTC-PERPETUAL", FundingRateUpdate, DAY)
+    day = saved(raw, tmp_path)
+    instruments = source.parse_instruments(snapshot)
+    ids = source.day_instrument_ids(day, FundingRateUpdate, instruments)
+
+    parsed = source.parse_day(
+        day, FundingRateUpdate, {each: instruments[each] for each in ids}
+    )
+
+    assert raw.path == PurePosixPath(PERPETUAL_FUNDING_FILE)
+    query = parse_qs(urlsplit(served.requests[-1]).query)
+    assert query["instrument_name"] == ["BTC-PERPETUAL"]
+    assert query["start_timestamp"] == [str(DAY_START_MS - 1)]
+    assert query["end_timestamp"] == [str(DAY_END_MS)]
+    ((instrument_id, updates),) = parsed.items()
+    assert instrument_id == BTC_PERPETUAL
+    assert len(updates) == 24
+    assert updates[0] == FundingRateUpdate.from_dict(updates[0].to_dict())
+    assert {each.interval for each in updates} == {60}
+    assert updates[0].ts_event == updates[0].ts_init == DAY_START_MS * 1_000_000
+    assert updates[1].ts_event == (DAY_START_MS + 3_600_000) * 1_000_000
+    rates = [each["interest_1h"] for each in json.loads(day.read_text())]
+    assert [float(each.rate) for each in updates] == pytest.approx(rates)
+
+
+@pytest.mark.unit
+def test_funding_is_planned_for_a_perpetual_and_not_for_options(
+    deribit: Source,
+) -> None:
+    perpetual = DayRange(("BTC-PERPETUAL",), DAY, DAY).plan(deribit)
+    options = DayRange(("BTC",), DAY, DAY).plan(deribit)
+
+    assert [each[1] for each in perpetual] == [FundingRateUpdate]
+    assert FundingRateUpdate not in [each[1] for each in options]
+    with pytest.raises(UnsupportedDataTypeError):
+        deribit.day_file("BTC", FundingRateUpdate, DAY)
+    with pytest.raises(UnsupportedDataTypeError):
+        deribit.day_file("BTC-PERPETUAL", TradeTick, DAY)
+
+
+@pytest.mark.unit
+def test_a_day_without_funding_is_missing_at_source(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, _ = replayed_deribit
+
+    with pytest.raises(MissingAtSourceError, match=r"BTC-PERPETUAL funding on 2016"):
+        fetched(source.day_file("BTC-PERPETUAL", FundingRateUpdate, date(2016, 1, 1)))
+
+
+@pytest.mark.integration
+def test_a_day_of_perpetual_funding_is_downloaded_and_ingested(
+    tmp_path: Path,
+) -> None:
+    raw, catalog = tmp_path / "raw", tmp_path / "catalog"
+    days = DayRange(("BTC-PERPETUAL",), DAY, DAY)
+    with deribit_replay() as deribit:
+        fetched_files = download(
+            deribit, DownloadRequest(days, SNAPSHOT_DAY), DownloadOptions(raw)
+        )
+        written = ingest(deribit, IngestRequest(days), IngestOptions(raw, catalog))
+
+    assert {each.outcome for each in fetched_files.results} == {Outcome.FETCHED}
+    assert (raw / PERPETUAL_FUNDING_FILE).is_file()
+    assert {each.outcome for each in written.results} == {IngestOutcome.WRITTEN}
+    stored = Catalog(catalog)
+    frame = stored.frame(BTC_PERPETUAL, FundingRateUpdate, Window.of_days(DAY, DAY))
+    assert len(frame) == 24
+    perpetual = stored.instruments([BTC_PERPETUAL])[BTC_PERPETUAL]
+    assert isinstance(perpetual, CryptoPerpetual)

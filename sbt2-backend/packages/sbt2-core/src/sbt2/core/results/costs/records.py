@@ -4,10 +4,6 @@ from datetime import timedelta
 import pandas as pd
 
 
-class InverseInstrumentError(ValueError):
-    pass
-
-
 @dataclass(frozen=True)
 class CostWaterfall:
     """From gross PnL to net PnL, in the settlement currency.

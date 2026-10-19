@@ -23,6 +23,7 @@ from sbt2.core.assets.option_margin_market import NoMarkError
 from sbt2.core.assets.option_quote_catalog import NoQuotesError
 from sbt2.core.assets.option_quotes import OptionHistory, QuoteSettings, quote_ticks
 from sbt2.core.assets.option_settlement import DeliveryFee, settlement_price
+from sbt2.core.assets.perp_marks import NoMarksError
 from sbt2.core.market import index_id
 
 __all__ = [
@@ -41,6 +42,7 @@ __all__ = [
     "NoBuyAndHoldError",
     "NoDeliveryPriceError",
     "NoMarkError",
+    "NoMarksError",
     "NoQuotesError",
     "NoTakerRateError",
     "OptionHistory",

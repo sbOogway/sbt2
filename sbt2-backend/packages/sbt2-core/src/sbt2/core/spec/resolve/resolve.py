@@ -69,7 +69,7 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
         source=profile.source,
         venue=_seeded(_venue_arguments(spec, venue), spec.seed),
         data=data_arguments(
-            data_types(bars, strategy.inputs(params), asset),
+            data_types(bars, strategy.inputs(params), profile),
             instruments,
             (start - strategy.warmup(params), end),
         ),

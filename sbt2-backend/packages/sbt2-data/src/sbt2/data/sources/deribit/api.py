@@ -12,6 +12,7 @@ _TRADES = "/api/v2/public/get_last_trades_by_currency_and_time"
 _INSTRUMENTS = "/api/v2/public/get_instruments"
 _DVOL = "/api/v2/public/get_volatility_index_data"
 _DELIVERY_PRICES = "/api/v2/public/get_delivery_prices"
+_FUNDING = "/api/v2/public/get_funding_rate_history"
 _HOURLY = "3600"
 _DELIVERY_PAGE = 100
 _PAGE_SIZE = 1000
@@ -75,6 +76,16 @@ class DeribitApi:
             ]
         return _json(specs)
 
+    async def perpetual_snapshot(self, currency: str) -> bytes:
+        """The currency's inverse perpetual as Deribit sends it."""
+        name = f"{currency}-PERPETUAL"
+        async with self._http(self._endpoints.live) as http:
+            futures = await _get(
+                http, _INSTRUMENTS, _instrument_params(currency, "false", "future")
+            )
+        (spec,) = (each for each in futures if each["instrument_name"] == name)
+        return _json(spec)
+
     async def volatility_index(self, currency: str, day: date) -> bytes:
         """The hourly DVOL rows ``[time, open, high, low, close]`` of the UTC day."""
         start, end = _day_window(day)
@@ -101,6 +112,23 @@ class DeribitApi:
                 f"deribit has no {currency} delivery price on {day.isoformat()}"
             )
         return _json([record])
+
+    async def funding(self, symbol: str, day: date) -> bytes:
+        """The hourly funding records of the perpetual stamped in the UTC day.
+
+        Deribit leaves out a record stamped at the start, so the request starts
+        1 ms earlier.
+        """
+        start, end = _day_window(day)
+        async with self._http(self._endpoints.live) as http:
+            records = await _get(
+                http, _FUNDING, _funding_params(symbol, start - 1, end)
+            )
+        if not records:
+            raise MissingAtSourceError(
+                f"deribit has no {symbol} funding on {day.isoformat()}"
+            )
+        return _json(records)
 
     def _http(self, base_url: str) -> httpx.AsyncClient:
         return httpx.AsyncClient(base_url=base_url, timeout=_TIMEOUT)
@@ -162,8 +190,10 @@ def _trade_params(currency: str, start: int, end: int) -> dict[str, str]:
     }
 
 
-def _instrument_params(currency: str, expired: str) -> dict[str, str]:
-    return {"currency": currency, "kind": "option", "expired": expired}
+def _instrument_params(
+    currency: str, expired: str, kind: str = "option"
+) -> dict[str, str]:
+    return {"currency": currency, "kind": kind, "expired": expired}
 
 
 def _dvol_params(currency: str, start: int, end: int) -> dict[str, str]:
@@ -172,6 +202,14 @@ def _dvol_params(currency: str, start: int, end: int) -> dict[str, str]:
         "start_timestamp": str(start),
         "end_timestamp": str(end),
         "resolution": _HOURLY,
+    }
+
+
+def _funding_params(symbol: str, start: int, end: int) -> dict[str, str]:
+    return {
+        "instrument_name": symbol,
+        "start_timestamp": str(start),
+        "end_timestamp": str(end),
     }
 
 

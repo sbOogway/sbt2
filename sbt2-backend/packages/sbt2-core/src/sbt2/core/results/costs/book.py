@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 from nautilus_trader.model import CryptoOption, InstrumentId
 
-from sbt2.core.results.costs.records import InverseInstrumentError
 from sbt2.core.results.metrics import RunTables, Segment, closed_trades
 from sbt2.core.results.pricing import MissingPricesError, PricedRun, on_grid
 from sbt2.data import Catalog
@@ -42,15 +41,26 @@ class Book:
 
     @cached_property
     def _instruments(self) -> dict[str, Any]:
-        """Each traded instrument; an inverse one fails."""
+        """Each traded instrument."""
         ids = [InstrumentId.from_str(str(each)) for each in self.quantities.columns]
-        found = _linear_instruments(ids, self.run.catalog)
+        found = _listed_instruments(ids, self.run.catalog)
         return {str(each): found[each] for each in ids}
 
     @cached_property
     def multipliers(self) -> dict[str, float]:
         """Each traded instrument's contract multiplier."""
         return {k: float(each.multiplier) for k, each in self._instruments.items()}
+
+    @cached_property
+    def directions(self) -> dict[str, float]:
+        """1 for a linear instrument, whose position is worth its quantity times
+        the price, and -1 for an inverse one, whose position is worth minus its
+        quantity over the price: the gain of a long is what its entry gains over
+        its exit, in the coin."""
+        return {
+            k: -1.0 if _is_inverse(each) else 1.0
+            for k, each in self._instruments.items()
+        }
 
     @cached_property
     def coins(self) -> dict[str, str]:
@@ -61,14 +71,19 @@ class Book:
 
     @cached_property
     def unit_values(self) -> pd.DataFrame:
-        """Valuation price times contract multiplier: the value of one unit held."""
+        """The size of one unit held, in the reporting currency: the valuation
+        price times the contract multiplier, or for an inverse instrument the
+        multiplier over the price."""
         market = self.run.market
         price_type = self.run.spec.asset.valuation_price
         grid = self.segment.grid
         return pd.DataFrame(
             {
-                instrument: market.prices(InstrumentId.from_str(instrument), price_type)
-                * multiplier
+                instrument: _size(
+                    market.prices(InstrumentId.from_str(instrument), price_type),
+                    multiplier,
+                    self.directions[instrument],
+                )
                 * self._factors([self.coins[instrument]] * len(grid), grid)
                 for instrument, multiplier in self.multipliers.items()
             },
@@ -87,30 +102,41 @@ class Book:
         return self.quantities.filter(items=self.multipliers) * self.unit_values
 
     def traded_notional(self, fills: pd.DataFrame) -> pd.Series:
-        """Each fill's quantity times its price times the contract multiplier."""
+        """Each fill's size: its quantity times its price times the contract
+        multiplier, or for an inverse instrument the multiplier over the price."""
         names = fills["instrument_id"].astype(str)
         times = pd.DatetimeIndex(pd.to_datetime(fills["ts_event"], utc=True))
         factors = self._factors([self.coins[each] for each in names], times)
         return (
             fills["last_qty"].astype(float)
-            * fills["last_px"].astype(float)
-            * names.map(self.multipliers.__getitem__)
+            * _size(
+                fills["last_px"].astype(float),
+                names.map(self.multipliers.__getitem__),
+                names.map(self.directions.__getitem__),
+            )
             * factors
         )
 
+    def cash_paid(self, fills: pd.DataFrame) -> np.ndarray:
+        """What the fills paid, signed: negative for a buy of an inverse
+        instrument, whose position is a liability worth minus its size."""
+        names = fills["instrument_id"].astype(str)
+        directions = names.map(self.directions.__getitem__).to_numpy(dtype=float)
+        return sides(fills) * self.traded_notional(fills).to_numpy() * directions
 
-def _linear_instruments(
+
+def _size(prices: Any, multiplier: Any, direction: Any) -> Any:
+    """``price * multiplier`` for a direction of 1, ``multiplier / price`` for -1."""
+    return np.where(direction > 0, prices * multiplier, multiplier / prices)
+
+
+def _listed_instruments(
     ids: list[InstrumentId], catalog: Catalog
 ) -> Mapping[InstrumentId, Any]:
     instruments = catalog.instruments(ids)
     missing = [str(each) for each in ids if each not in instruments]
     if missing:
         raise MissingPricesError(f"no instrument {', '.join(missing)} in the catalog")
-    inverse = [str(each) for each in ids if _is_inverse(instruments[each])]
-    if inverse:
-        raise InverseInstrumentError(
-            f"{', '.join(inverse)} is inverse; exposure values linear instruments only"
-        )
     return instruments
 
 

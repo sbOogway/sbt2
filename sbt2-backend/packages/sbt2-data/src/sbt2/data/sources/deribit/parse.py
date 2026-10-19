@@ -10,7 +10,9 @@ import pandas as pd
 from nautilus_trader.model import (
     AggressorSide,
     CryptoOption,
+    CryptoPerpetual,
     Currency,
+    FundingRateUpdate,
     GreeksConvention,
     IndexInstrument,
     IndexPriceUpdate,
@@ -26,12 +28,14 @@ from nautilus_trader.model import (
     black_scholes_greeks,
 )
 
+from sbt2.data.sources.deribit import perpetual
 from sbt2.data.sources.deribit.series import Kind, Series, series_of
 
 VENUE = "DERIBIT"
 
 _NANOS_PER_MILLI = 1_000_000
 _INDEX_PRECISION = 2
+_FUNDING_MINUTES = 60
 # Deribit sends marks with up to 8 decimals, finer than the contract tick.
 _MARK_PRECISION = 8
 _EXPIRY_TIME = pd.Timedelta(hours=8)
@@ -88,6 +92,9 @@ def instruments(path: Path) -> Mapping[InstrumentId, Any]:
     """The snapshot's instruments, initialised at the start of the day it was taken
     on: the option contracts and their USD index, or the index of a series."""
     symbol = _snapshot_symbol(path)
+    if perpetual.currency_of(symbol) is not None:
+        built = _perpetual(json.loads(path.read_text()), _snapshot_day_nanos(path))
+        return {built.id: built}
     if series_of(symbol) is not None:
         index = _index(symbol, _snapshot_day_nanos(path))
         return {index.id: index}
@@ -100,7 +107,10 @@ def traded_ids(path: Path, data_type: type) -> tuple[InstrumentId, ...]:
     the file is missing."""
     if not path.is_file():
         return ()
-    series = series_of(_snapshot_symbol(path))
+    symbol = _snapshot_symbol(path)
+    if perpetual.currency_of(symbol) is not None:
+        return (contract_id(symbol),)
+    series = series_of(symbol)
     if series is not None:
         return (series_id(series.symbol),)
     names = {each["instrument_name"] for each in json.loads(path.read_text())}
@@ -113,7 +123,10 @@ def day_records(
     path: Path, data_type: type, instruments: Mapping[InstrumentId, Any]
 ) -> Mapping[InstrumentId, list[Any]]:
     """The day file's ``data_type`` records by instrument, each list in time order."""
-    series = series_of(_snapshot_symbol(path))
+    symbol = _snapshot_symbol(path)
+    if perpetual.currency_of(symbol) is not None:
+        return _funding_updates(path, instruments)
+    series = series_of(symbol)
     if series is not None:
         return _series_updates(path, series, instruments)
     return _PARSERS[data_type](path, instruments)
@@ -154,6 +167,29 @@ def _series_updates(
     build = _SERIES_UPDATES[series.kind]
     rows = json.loads(path.read_text())
     return {instrument_id: [build(row, index) for row in rows]}
+
+
+def _funding_updates(
+    path: Path, instruments: Mapping[InstrumentId, CryptoPerpetual]
+) -> dict[InstrumentId, list[FundingRateUpdate]]:
+    """The hour's interest at the end of the hour it accrued over, which is the
+    timestamp Deribit gives it, so a position pays what it held through the hour."""
+    ((instrument_id, _),) = instruments.items()
+    rows = sorted(json.loads(path.read_text()), key=lambda each: each["timestamp"])
+    return {instrument_id: [_funding_update(instrument_id, row) for row in rows]}
+
+
+def _funding_update(
+    instrument_id: InstrumentId, row: Mapping[str, Any]
+) -> FundingRateUpdate:
+    ts = int(row["timestamp"]) * _NANOS_PER_MILLI
+    return FundingRateUpdate(
+        instrument_id,
+        Decimal(repr(row["interest_1h"])),
+        ts,
+        ts,
+        interval=_FUNDING_MINUTES,
+    )
 
 
 def _dvol_update(row: Sequence[float], index: IndexInstrument) -> IndexPriceUpdate:
@@ -280,6 +316,33 @@ def _contract(spec: Mapping[str, Any], ts_init: int) -> CryptoOption:
         ts_init,
         ts_init,
         multiplier=Quantity(spec["contract_size"], _decimals(spec["contract_size"])),
+    )
+
+
+def _perpetual(spec: Mapping[str, Any], ts_init: int) -> CryptoPerpetual:
+    """The inverse perpetual, in USD amounts settled in the coin.
+
+    The margin is the lowest tier of Deribit's standard margin: the initial one
+    is 1 over the maximum leverage and the maintenance one 2/3 of it.
+    """
+    tick = _decimals(spec["tick_size"])
+    lot = _decimals(spec["min_trade_amount"])
+    initial = Decimal(1) / Decimal(spec["max_leverage"])
+    return CryptoPerpetual(
+        contract_id(spec["instrument_name"]),
+        Symbol(spec["instrument_name"]),
+        Currency.from_str(spec["base_currency"]),
+        Currency.from_str(spec["quote_currency"]),
+        Currency.from_str(spec["settlement_currency"]),
+        True,
+        tick,
+        lot,
+        Price(spec["tick_size"], tick),
+        Quantity(spec["min_trade_amount"], lot),
+        int(spec["creation_timestamp"]) * _NANOS_PER_MILLI,
+        ts_init,
+        margin_init=initial,
+        margin_maint=initial * 2 / 3,
     )
 
 
