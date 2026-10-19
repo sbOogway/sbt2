@@ -192,12 +192,11 @@ login() {
 }
 
 # Pushes the local image of version $1 as the tag $2 of the repository, signed, and prints its
-# digest. The signature names the tag, so each tag gets its own. A pull of the signed image
-# stores its signatures on the local image, and podman refuses to push those again.
+# digest. The signature names the tag, so each tag gets its own.
 push_tag() {
     local version=$1 tag=$2
     podman push --authfile "$WORK/auth.json" --digestfile "$WORK/digest" \
-        --remove-signatures --sign-by-sigstore-private-key "$SBT2_SIGNING_KEY" \
+        --sign-by-sigstore-private-key "$SBT2_SIGNING_KEY" \
         --sign-passphrase-file "$SBT2_SIGNING_PASSPHRASE_FILE" \
         "localhost/sbt2-server:$version" "docker://$IMAGE_REPOSITORY:$tag" >&2
     cat "$WORK/digest"
@@ -210,11 +209,15 @@ write_verify_policy() {
         "$DEPLOY_DIR/policy.json" >"$WORK/policy.json"
 }
 
-# Pulls the pushed image $1 under the host policy, so it fails unless the signature verifies
+# Copies the pushed image $1 to a scratch directory under the host policy, so it fails unless
+# the signature verifies. The signatures are registry attachments, which the registries.d
+# file of the host names.
 verify_signature() {
     write_verify_policy
-    podman pull --quiet --authfile "$WORK/auth.json" --signature-policy "$WORK/policy.json" \
-        "docker://$1" >&2 || die "$1 does not verify with $SIGNING_PUBLIC_KEY"
+    skopeo --policy "$WORK/policy.json" --registries.d "$DEPLOY_DIR/registries.d" \
+        copy --quiet --authfile "$WORK/auth.json" "docker://$1" "dir:$WORK/verify" >&2 ||
+        die "$1 does not verify with $SIGNING_PUBLIC_KEY"
+    rm -rf "$WORK/verify"
 }
 
 # Pushes the image of version $1 as :$1, and as :latest when the version is the newest, and

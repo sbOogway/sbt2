@@ -14,11 +14,11 @@ SIGNING = (
     "SBT2_SIGNING_PASSPHRASE_FILE",
     "SBT2_SIGNING_PUBLIC_KEY",
 )
-# logs its call; a pull with --signature-policy keeps a copy of the policy
+# logs its call; a skopeo copy with --policy keeps a copy of the policy
 FAKE = """#!/bin/sh
 echo "$(basename "$0") $*" >>"$FAKE_LOG"
 while [ $# -gt 0 ]; do
-    [ "$1" = --signature-policy ] && cp "$2" "$FAKE_POLICY"
+    [ "$1" = --policy ] && cp "$2" "$FAKE_POLICY"
     shift
 done
 exit "${FAKE_STATUS:-0}"
@@ -28,7 +28,7 @@ exit "${FAKE_STATUS:-0}"
 def make_bin(tmp_path: Path) -> Path:
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    for name in ("podman", "curl", "git", "gh"):
+    for name in ("podman", "skopeo", "curl", "git", "gh"):
         command = bin_dir / name
         command.write_text(FAKE)
         command.chmod(0o755)
@@ -107,22 +107,26 @@ def test_push_signs_the_image_with_the_private_key(tmp_path: Path) -> None:
     assert f"--sign-by-sigstore-private-key {files['SBT2_SIGNING_KEY']} " in push
     sign_passphrase = f"--sign-passphrase-file {files['SBT2_SIGNING_PASSPHRASE_FILE']} "
     assert sign_passphrase in push
-    assert "--remove-signatures" in push
     assert push.endswith(
         "localhost/sbt2-server:1.2.3 docker://ghcr.io/sboogway/sbt2-server:latest"
     )
 
 
 @pytest.mark.unit
-def test_verify_pulls_under_a_policy_with_the_public_key(tmp_path: Path) -> None:
+def test_the_signature_check_uses_skopeo_with_the_host_policy(
+    tmp_path: Path,
+) -> None:
     files = signing_files(tmp_path)
 
     done = in_lib(tmp_path, "verify_signature ghcr.io/x@sha256:abc", files)
 
     assert done.returncode == 0
-    [pull] = calls(tmp_path)
-    assert pull.startswith("podman pull ")
-    assert pull.endswith(" docker://ghcr.io/x@sha256:abc")
+    [copy] = calls(tmp_path)
+    assert copy.startswith(f"skopeo --policy {tmp_path / 'work' / 'policy.json'} ")
+    assert " --registries.d " in copy
+    assert " copy " in copy
+    assert " docker://ghcr.io/x@sha256:abc dir:" in copy
+    assert "--signature-policy" not in copy
     policy = json.loads((tmp_path / "policy.json").read_text())
     assert policy["transports"]["docker"]["ghcr.io/sboogway/sbt2-server"] == [
         {"type": "sigstoreSigned", "keyPath": files["SBT2_SIGNING_PUBLIC_KEY"]}
@@ -130,7 +134,7 @@ def test_verify_pulls_under_a_policy_with_the_public_key(tmp_path: Path) -> None
 
 
 @pytest.mark.unit
-def test_verify_fails_when_the_signature_is_rejected(tmp_path: Path) -> None:
+def test_a_failed_skopeo_check_stops_the_release(tmp_path: Path) -> None:
     files = signing_files(tmp_path)
 
     done = in_lib(
