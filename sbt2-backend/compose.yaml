@@ -17,7 +17,7 @@ services:
       - data:/data
       - config:/config
     ports:
-      - "8765:8765"
+      - "127.0.0.1:8765:8765"
     # an image built in the OCI format drops the Containerfile's HEALTHCHECK
     healthcheck:
       test:
