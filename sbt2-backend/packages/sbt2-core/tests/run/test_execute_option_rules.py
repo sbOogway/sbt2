@@ -83,6 +83,26 @@ def test_an_option_run_stores_the_combos_the_rules_refuse(
 
 
 @pytest.mark.integration
+def test_the_summary_counts_the_refused_combos(tmp_path: Path, ladder: Path) -> None:
+    (tmp_path / "refusing").mkdir()
+    (tmp_path / "plain").mkdir()
+    OpenStrangle.clear()
+    store, refusing = run_options(
+        tmp_path / "refusing",
+        ladder,
+        Scenario("combo_strategies:OpenStrangle", SMALL_CAPS),
+    )
+    OpenStrangle.clear()
+    store_without, plain = run_options(
+        tmp_path / "plain", ladder, "combo_strategies:OpenStrangle"
+    )
+
+    counts = store.runs().set_index("run_id")["refused_combos"]
+    assert counts[refusing] == len(store.load(refusing, "refusals")) == 1
+    assert store_without.runs().set_index("run_id")["refused_combos"][plain] == 0
+
+
+@pytest.mark.integration
 def test_a_run_without_the_table_opens_the_same_combo(
     tmp_path: Path, ladder: Path
 ) -> None:
@@ -128,7 +148,7 @@ def test_an_option_run_stores_its_portfolio_greeks(
     assert len(held) > 30
     [balance] = OpenStrangle.balances
     for row in held.itertuples():
-        theta, delta = strangle_greeks(row["ts_event"].to_pydatetime())
+        theta, delta = strangle_greeks(row.ts_event.to_pydatetime())
         assert row.theta == pytest.approx(theta)
         assert row.beta_weighted_delta == pytest.approx(delta)
         assert row.theta_ratio == pytest.approx(theta / float(balance))

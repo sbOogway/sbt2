@@ -155,6 +155,7 @@ def test_a_run_writes_its_tables_spec_and_summary_into_its_folder(
         "portfolio_greeks.parquet",
         "positions.parquet",
         "rates.parquet",
+        "refusals.parquet",
         "spec.json",
         "summary.parquet",
         "trades.parquet",
@@ -526,6 +527,20 @@ def test_runs_stored_before_the_trip_column_are_still_listed(
 
     assert listed(runs) == [older, newer]
     assert list(runs["drawdown_tripped_at"].isna()) == [True, True]
+
+
+@pytest.mark.unit
+@pytest.mark.characterization
+def test_a_store_from_before_refusals_reads_a_zero_count(
+    store: ParquetResultStore, output: RunOutput
+) -> None:
+    run_id = finished_run(store, output)
+    path = store.folder(run_id) / "summary.parquet"
+    pq.write_table(pq.read_table(path).drop_columns("refused_combos"), path)
+
+    runs = store.runs()
+
+    assert list(runs["refused_combos"]) == [0]
 
 
 @pytest.mark.unit

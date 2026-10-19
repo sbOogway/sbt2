@@ -38,7 +38,7 @@ _SPEC = "spec.json"
 _CONTEXT = "context.json"
 _SOURCE = "strategy.py"
 _RUNS = """
-SELECT * FROM (
+SELECT * REPLACE (coalesce(refused_combos, 0) AS refused_combos) FROM (
     SELECT * FROM summary_schema
     UNION ALL BY NAME
     SELECT * FROM read_parquet($1, union_by_name = true)

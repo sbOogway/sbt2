@@ -54,6 +54,7 @@ SUMMARY_SCHEMA = pa.schema(
             for each in fields(HeadlineMetrics)
         ),
         ("drawdown_tripped_at", _UTC),
+        ("refused_combos", pa.int64()),
     ]
 )
 
@@ -124,6 +125,7 @@ class ParquetSink:
     def finalize(self) -> None:
         metrics = headline_metrics(self._run_tables(), self._run.segment)
         row = _summary(self._run, metrics, self._drawdown_tripped_at)
+        row["refused_combos"] = len(self._tables.get("refusals", ()))
         summary = pa.Table.from_pylist([row], SUMMARY_SCHEMA)
         pq.write_table(summary, self._folder / f"{SUMMARY}.parquet")
 
