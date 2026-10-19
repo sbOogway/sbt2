@@ -38,7 +38,7 @@ present:
 
 ```sh
 podman pull ghcr.io/sboogway/sbt2-server:latest
-podman run -d -p 8765:8765 -e SBT2_SERVER_TOKEN=<token> \
+podman run -d -p 127.0.0.1:8765:8765 -e SBT2_SERVER_TOKEN=<token> \
   -v sbt2-data:/data -v sbt2-config:/config ghcr.io/sboogway/sbt2-server:latest
 ```
 
@@ -62,6 +62,14 @@ loginctl enable-linger "$USER"  # keeps it running after logout
 The server listens on `127.0.0.1:8765`. `podman auto-update` pulls a new
 `:latest` and restarts the service. If the new image does not become healthy,
 it rolls back to the old one.
+
+The server speaks plain `ws://`, so publish its port only on loopback. For
+remote access, open an SSH tunnel and point the client at it:
+
+```sh
+ssh -N -L 8765:127.0.0.1:8765 user@host
+export SBT2_SERVER_URL=ws://127.0.0.1:8765
+```
 
 ## Development
 
