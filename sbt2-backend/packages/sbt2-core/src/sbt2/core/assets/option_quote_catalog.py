@@ -53,7 +53,7 @@ class _Quoter:
     def write(self, contract: CryptoOption) -> bool:
         """Write the contract's quotes; whether it has any."""
         index = self._index(index_id(contract))
-        history = _history(self._catalog, contract, (self._job.window[1], index))
+        history = _history(self._catalog, contract, (self._job.window, index))
         quotes = quote_ticks(history, self._settings, self._job.window)
         if quotes:
             quotes += self._settlement(contract)
@@ -86,16 +86,35 @@ def _no_quotes(job: QuoteJob) -> str:
 
 
 def _history(
-    catalog: Catalog, contract: CryptoOption, until: tuple[datetime, pd.Series]
+    catalog: Catalog, contract: CryptoOption, read: tuple[Span, pd.Series]
 ) -> OptionHistory:
-    end, index = until
-    window = Window(_moment(contract.activation_ns), end)
+    """The marks and Greeks from the run's start on, with the last of each before
+    it: the quotes need no more."""
+    span, index = read
     return OptionHistory(
         contract,
-        catalog.frame(contract.id, MarkPriceUpdate, window),
-        catalog.frame(contract.id, OptionGreeks, window),
+        _frame(catalog, (contract, MarkPriceUpdate), span),
+        _frame(catalog, (contract, OptionGreeks), span),
         index,
     )
+
+
+def _frame(
+    catalog: Catalog, series: tuple[CryptoOption, type], span: Span
+) -> pd.DataFrame:
+    """The records from the day before ``span`` on. When none of them is before
+    the span, the last one is older: read from the contract's activation."""
+    contract, kind = series
+    start, end = span
+    activation = _moment(contract.activation_ns)
+    day_before = start.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(
+        days=1
+    )
+    first = max(activation, day_before)
+    frame = catalog.frame(contract.id, kind, Window(first, end))
+    if first > activation and not (frame.index < start).any():
+        return catalog.frame(contract.id, kind, Window(activation, end))
+    return frame
 
 
 def _moment(nanos: int) -> datetime:

@@ -1,4 +1,6 @@
+from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 import pytest
 from chain_source import (
@@ -153,3 +155,24 @@ def test_preflight_fetches_a_chain_when_only_its_index_is_cached(
     preflight(spec_of(tmp_path), source, folders)
 
     assert frame_of(folders, IN_BAND, MarkPriceUpdate)
+
+
+@pytest.mark.integration
+def test_a_preflight_reads_the_catalog_instruments_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    folders = folders_of(tmp_path)
+    preflight(spec_of(tmp_path), ChainSource(), folders)
+    reads: list[int] = []
+    read = Catalog.instruments
+
+    def counted(self: Catalog, instrument_ids: Iterable[InstrumentId]) -> Any:
+        ids = list(instrument_ids)
+        reads.append(len(ids))
+        return read(self, ids)
+
+    monkeypatch.setattr(Catalog, "instruments", counted)
+
+    preflight(spec_of(tmp_path), ChainSource(), folders)
+
+    assert len(reads) == 1
