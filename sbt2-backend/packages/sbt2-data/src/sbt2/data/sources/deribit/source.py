@@ -31,7 +31,8 @@ _TRADES = "trades"
 
 
 class DeribitSource(Source):
-    """Deribit options: one raw file per currency and UTC day holds every contract."""
+    """Deribit options, one raw file per currency and UTC day for every contract,
+    and the BTC and ETH perpetuals, whose hourly funding is one file per day."""
 
     name = "deribit"
 
