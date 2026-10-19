@@ -1,0 +1,13 @@
+{
+  "default": [{ "type": "insecureAcceptAnything" }],
+  "transports": {
+    "docker": {
+      "ghcr.io/sboogway/sbt2-server": [
+        {
+          "type": "sigstoreSigned",
+          "keyPath": "@HOME@/.config/containers/sbt2-server.pub"
+        }
+      ]
+    }
+  }
+}

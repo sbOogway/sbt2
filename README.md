@@ -63,6 +63,29 @@ The server listens on `127.0.0.1:8765`. `podman auto-update` pulls a new
 `:latest` and restarts the service. If the new image does not become healthy,
 it rolls back to the old one.
 
+Make podman accept only signed server images. Install the public key, the
+policy and the signature lookup from
+[sbt2-backend/deploy/](sbt2-backend/deploy/):
+
+```sh
+mkdir -p ~/.config/containers/registries.d
+cp sbt2-backend/deploy/sbt2-server.pub ~/.config/containers/
+sed "s|@HOME@|$HOME|" sbt2-backend/deploy/policy.json >~/.config/containers/policy.json
+cp sbt2-backend/deploy/registries.d/sbt2.yaml ~/.config/containers/registries.d/
+```
+
+`~/.config/containers/policy.json` replaces `/etc/containers/policy.json` for
+your user. If you have one already, add only the `ghcr.io/sboogway/sbt2-server`
+entry to it. Then `podman auto-update` refuses a server image without a valid
+signature, before the health check. To check an image by hand:
+
+```sh
+podman pull ghcr.io/sboogway/sbt2-server:latest
+```
+
+The pull fails with `Source image rejected` when the signature is missing or
+wrong.
+
 The server speaks plain `ws://`, so publish its port only on loopback. For
 remote access, open an SSH tunnel and point the client at it:
 

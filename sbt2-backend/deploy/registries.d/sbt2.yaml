@@ -1,0 +1,4 @@
+# The sigstore signatures of the sbt2 images are attachments in the registry
+docker:
+  ghcr.io/sboogway:
+    use-sigstore-attachments: true
