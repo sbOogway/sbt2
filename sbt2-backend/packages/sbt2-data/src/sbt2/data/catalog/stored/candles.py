@@ -24,6 +24,9 @@ class Candles(StoredType):
     def instrument_id(self, identifier: str) -> InstrumentId:
         return BarType.from_str(identifier).instrument_id
 
+    def record_instrument_id(self, record: Any) -> InstrumentId:
+        return record.bar_type.instrument_id
+
     def metadata(self, day: DayFile) -> dict[str, str]:
         instrument = day.instrument
         return {

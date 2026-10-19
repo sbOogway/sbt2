@@ -158,8 +158,21 @@ class Catalog:
         self, instrument_id: InstrumentId, data_type: type, window: Window
     ) -> pd.DataFrame:
         """The instrument's ``data_type`` records in the window, indexed by event time."""
-        records = self._records(_Series(instrument_id, data_type), window)
-        return stored_type(data_type).frame(records)
+        return self.frames((instrument_id,), data_type, window)[instrument_id]
+
+    def frames(
+        self, instrument_ids: Iterable[InstrumentId], data_type: type, window: Window
+    ) -> Mapping[InstrumentId, pd.DataFrame]:
+        """``frame`` of each instrument, read in one query.
+
+        An instrument without records in the window has an empty frame.
+        """
+        stored = stored_type(data_type)
+        ids = tuple(dict.fromkeys(instrument_ids))
+        grouped: dict[InstrumentId, list[Any]] = {each: [] for each in ids}
+        for record in self._records(stored, ids, window):
+            grouped[stored.record_instrument_id(record)].append(record)
+        return {each: stored.frame(records) for each, records in grouped.items()}
 
     def status(
         self, known_gaps: frozenset[Gap], window: Window | None = None
@@ -220,11 +233,16 @@ class Catalog:
         names = self._nautilus.list_instruments(stored.nautilus_type)
         return [stored.instrument_id(each) for each in sorted(names)]
 
-    def _records(self, series: _Series, window: Window) -> list[Any]:
+    def _records(
+        self, stored: StoredType, ids: Sequence[InstrumentId], window: Window
+    ) -> list[Any]:
+        # Each nautilus query lists every instrument folder of its data type,
+        # which takes seconds on a large catalog: query many ids at once.
+        if not ids:
+            return []
         first, last = window.nanos
-        return self._nautilus.query(
-            series.nautilus_type, [series.identifier], first, last
-        )
+        identifiers = [stored.identifier(each) for each in ids]
+        return self._nautilus.query(stored.nautilus_type, identifiers, first, last)
 
 
 def _nanos(moment: datetime) -> int:
