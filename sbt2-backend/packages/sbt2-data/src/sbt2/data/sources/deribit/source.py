@@ -133,6 +133,12 @@ class DeribitSource(Source):
                 _perpetual_dir(symbol) / "instrument" / _json_name(symbol, taken_on),
                 partial(self._api.perpetual_snapshot, currency),
             )
+        currency = futures.currency_of(symbol)
+        if currency is not None:
+            return RawFile(
+                _futures_dir(currency) / "instrument" / _json_name(symbol, taken_on),
+                partial(self._api.future_snapshot, currency),
+            )
         series = series_of(symbol)
         if series is not None:
             return RawFile(
@@ -207,6 +213,10 @@ class DeribitSource(Source):
 
 def _perpetual_dir(symbol: str) -> PurePosixPath:
     return PurePosixPath("deribit", "perpetual", symbol)
+
+
+def _futures_dir(currency: str) -> PurePosixPath:
+    return PurePosixPath("deribit", "future", currency)
 
 
 def _series_dir(series: Series) -> PurePosixPath:

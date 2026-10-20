@@ -11,6 +11,7 @@ from deribit_replay import deribit_replay, deribit_stub
 from nautilus_trader.model import (
     AggressorSide,
     Bar,
+    CryptoFuture,
     CryptoOption,
     CryptoPerpetual,
     FundingRateUpdate,
@@ -954,3 +955,45 @@ def test_futures_and_spot_symbols_map_to_their_instrument_ids_and_back(
     assert deribit.symbol(InstrumentId.from_str("BTC-10JAN25-88000-P.DERIBIT")) == "BTC"
     with pytest.raises(ValueError, match="SOL_USDC"):
         deribit.instrument_id("SOL_USDC")
+
+
+FUTURES_DAY_NAMES = [
+    "BTC-3JAN25",
+    "BTC-10JAN25",
+    "BTC-31JAN25",
+    "BTC-28FEB25",
+    "BTC-28MAR25",
+    "BTC-27JUN25",
+    "BTC-26SEP25",
+    "BTC-26DEC25",
+]
+JUN25 = InstrumentId.from_str("BTC-27JUN25.DERIBIT")
+
+
+@pytest.mark.unit
+def test_futures_snapshot_gives_one_inverse_crypto_future_per_contract_with_its_expiry(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+
+    raw = source.instrument_snapshot("BTC-FUTURES", SNAPSHOT_DAY)
+    instruments = source.parse_instruments(saved(raw, tmp_path))
+
+    assert raw.path == PurePosixPath(
+        "deribit/future/BTC/instrument/BTC-FUTURES2026-10-07.json"
+    )
+    names = {each.symbol.value for each in instruments}
+    assert set(FUTURES_DAY_NAMES) <= names
+    assert {"BTC-27DEC24", "BTC-17JAN25", "BTC-20OCT26"} <= names
+    assert "BTC-PERPETUAL" not in names
+    future = instruments[JUN25]
+    assert isinstance(future, CryptoFuture)
+    assert future.is_inverse
+    assert str(future.underlying) == "BTC"
+    assert str(future.quote_currency) == "USD"
+    assert str(future.settlement_currency) == "BTC"
+    assert str(future.price_increment) == "2.5"
+    assert str(future.size_increment) == "10"
+    assert future.activation_ns == 1_719_561_614_000_000_000
+    assert future.expiration_ns == 1_751_011_200_000_000_000
+    assert future.ts_init == 1_791_331_200_000_000_000

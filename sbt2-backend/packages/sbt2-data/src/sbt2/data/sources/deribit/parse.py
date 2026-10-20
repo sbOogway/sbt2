@@ -10,6 +10,7 @@ import pandas as pd
 from nautilus_trader.model import (
     AggressorSide,
     Bar,
+    CryptoFuture,
     CryptoOption,
     CryptoPerpetual,
     Currency,
@@ -29,7 +30,7 @@ from nautilus_trader.model import (
     black_scholes_greeks,
 )
 
-from sbt2.data.sources.deribit import perpetual
+from sbt2.data.sources.deribit import futures, perpetual
 from sbt2.data.sources.deribit.series import Kind, Series, series_of
 from sbt2.data.sources.klines import bars
 from sbt2.data.sources.nautilus_bars import read_klines
@@ -101,6 +102,10 @@ def instruments(path: Path) -> Mapping[InstrumentId, Any]:
     if series_of(symbol) is not None:
         index = _index(symbol, _snapshot_day_nanos(path))
         return {index.id: index}
+    if futures.currency_of(symbol) is not None:
+        ts_init = _snapshot_day_nanos(path)
+        built = [_future(each, ts_init) for each in json.loads(path.read_text())]
+        return {each.id: each for each in built}
     return Contracts(json.loads(path.read_text()), symbol, _snapshot_day_nanos(path))
 
 
@@ -356,6 +361,33 @@ def _perpetual(spec: Mapping[str, Any], ts_init: int) -> CryptoPerpetual:
         Price(spec["tick_size"], tick),
         Quantity(spec["min_trade_amount"], lot),
         int(spec["creation_timestamp"]) * _NANOS_PER_MILLI,
+        ts_init,
+        margin_init=initial,
+        margin_maint=initial * 2 / 3,
+    )
+
+
+def _future(spec: Mapping[str, Any], ts_init: int) -> CryptoFuture:
+    """The dated future, in USD amounts settled in the coin, with the margin of the
+    perpetual."""
+    tick = _decimals(spec["tick_size"])
+    lot = _decimals(spec["min_trade_amount"])
+    initial = Decimal(1) / Decimal(spec["max_leverage"])
+    created = int(spec["creation_timestamp"]) * _NANOS_PER_MILLI
+    return CryptoFuture(
+        contract_id(spec["instrument_name"]),
+        Symbol(spec["instrument_name"]),
+        Currency.from_str(spec["base_currency"]),
+        Currency.from_str(spec["quote_currency"]),
+        Currency.from_str(spec["settlement_currency"]),
+        spec["future_type"] == "reversed",
+        created,
+        int(spec["expiration_timestamp"]) * _NANOS_PER_MILLI,
+        tick,
+        lot,
+        Price(spec["tick_size"], tick),
+        Quantity(spec["min_trade_amount"], lot),
+        created,
         ts_init,
         margin_init=initial,
         margin_maint=initial * 2 / 3,

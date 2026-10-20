@@ -66,19 +66,32 @@ class DeribitApi:
 
     async def instrument_snapshot(self, currency: str) -> bytes:
         """Every option of the currency as Deribit sends it, expired ones too."""
+        return _json(await self._listed(currency, "option"))
+
+    async def future_specs(self, currency: str) -> list[dict[str, Any]]:
+        """Every dated future of the currency as Deribit sends it, expired ones too,
+        each once."""
+        listed = await self._listed(currency, "future")
+        found = {each["instrument_name"]: each for each in listed}
+        return [each for name, each in found.items() if name != _perpetual(currency)]
+
+    async def future_snapshot(self, currency: str) -> bytes:
+        """The dated futures of the currency, as ``future_specs`` gives them."""
+        return _json(await self.future_specs(currency))
+
+    async def _listed(self, currency: str, kind: str) -> list[dict[str, Any]]:
         async with self._http(self._endpoints.api) as http:
-            specs = [
+            return [
                 spec
                 for expired in ("false", "true")
                 for spec in await _get(
-                    http, _INSTRUMENTS, _instrument_params(currency, expired)
+                    http, _INSTRUMENTS, _instrument_params(currency, expired, kind)
                 )
             ]
-        return _json(specs)
 
     async def perpetual_snapshot(self, currency: str) -> bytes:
         """The currency's inverse perpetual as Deribit sends it."""
-        name = f"{currency}-PERPETUAL"
+        name = _perpetual(currency)
         async with self._http(self._endpoints.live) as http:
             futures = await _get(
                 http, _INSTRUMENTS, _instrument_params(currency, "false", "future")
@@ -171,6 +184,10 @@ async def _delivery_page(http: httpx.AsyncClient, index: str, number: int) -> An
         "count": str(_DELIVERY_PAGE),
     }
     return await _get(http, _DELIVERY_PRICES, params)
+
+
+def _perpetual(currency: str) -> str:
+    return f"{currency}-PERPETUAL"
 
 
 def _next_start(page: Mapping[str, Any], new: list[dict[str, Any]]) -> int:
