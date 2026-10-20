@@ -56,6 +56,7 @@ from sbt2.core.strategy.expiry import SETTLEMENT_TAG, closing_side, settlement_t
 from sbt2.core.strategy.margin import MarginDesk, MarginModel
 from sbt2.core.strategy.markets import Markets
 from sbt2.core.strategy.portfolio_greeks import GreeksDesk, GreeksSample
+from sbt2.core.strategy.schema import is_str_tuple
 from sbt2.core.strategy.short_premium import ShortPremiumRules
 from sbt2.data import candle_type
 
@@ -807,6 +808,8 @@ def _reject_unknown(strategy: type[Strategy[Any]], values: Mapping[str, Any]) ->
 def _typed(name: str, value: Any, kind: Any) -> Any:
     if get_origin(kind) is Literal:
         return _chosen(name, value, get_args(kind))
+    if is_str_tuple(kind):
+        return _names(name, value)
     if not isinstance(kind, type):
         return value
     if isinstance(value, kind) and not (isinstance(value, bool) and kind is not bool):
@@ -817,6 +820,14 @@ def _typed(name: str, value: Any, kind: Any) -> Any:
         return float(value)
     raise InvalidParameterError(
         f"parameter {name} must be {kind.__name__}, got {value!r}"
+    )
+
+
+def _names(name: str, value: Any) -> tuple[str, ...]:
+    if isinstance(value, tuple | list) and all(isinstance(each, str) for each in value):
+        return tuple(value)
+    raise InvalidParameterError(
+        f"parameter {name} must be a list of str, got {value!r}"
     )
 
 

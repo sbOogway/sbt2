@@ -123,6 +123,8 @@ class _ParameterTypeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_Paramet
     PARAMETER_TYPE_BOOLEAN: _ParameterType.ValueType  # 4
     PARAMETER_TYPE_DECIMAL: _ParameterType.ValueType  # 5
     """A decimal string, as everywhere in the protocol."""
+    PARAMETER_TYPE_STRING_LIST: _ParameterType.ValueType  # 6
+    """A list of strings; its default is a list value."""
 
 class ParameterType(_ParameterType, metaclass=_ParameterTypeEnumTypeWrapper): ...
 
@@ -134,6 +136,8 @@ PARAMETER_TYPE_NUMBER: ParameterType.ValueType  # 3
 PARAMETER_TYPE_BOOLEAN: ParameterType.ValueType  # 4
 PARAMETER_TYPE_DECIMAL: ParameterType.ValueType  # 5
 """A decimal string, as everywhere in the protocol."""
+PARAMETER_TYPE_STRING_LIST: ParameterType.ValueType  # 6
+"""A list of strings; its default is a list value."""
 Global___ParameterType: _TypeAlias = ParameterType  # noqa: Y015
 
 @_typing.final

@@ -2,7 +2,7 @@ import inspect
 from decimal import Decimal
 from typing import Any
 
-from google.protobuf.struct_pb2 import Value
+from google.protobuf.struct_pb2 import ListValue, Value
 
 from sbt2.core.strategy import ParamSpec, Strategy, params_schema
 from sbt2.protocol.v1.config_pb2 import ParameterType
@@ -14,6 +14,7 @@ _TYPES: dict[type, ParameterType.ValueType] = {
     Decimal: ParameterType.PARAMETER_TYPE_DECIMAL,
     str: ParameterType.PARAMETER_TYPE_STRING,
     bool: ParameterType.PARAMETER_TYPE_BOOLEAN,
+    tuple: ParameterType.PARAMETER_TYPE_STRING_LIST,
 }
 
 
@@ -55,6 +56,8 @@ def _parameter(spec: ParamSpec) -> StrategyParameter:
 def _value(value: Any) -> Value:
     if isinstance(value, bool):
         return Value(bool_value=value)
+    if isinstance(value, tuple):
+        return Value(list_value=ListValue(values=[_value(each) for each in value]))
     if isinstance(value, int | float):
         return Value(number_value=value)
     return Value(string_value=str(value))
