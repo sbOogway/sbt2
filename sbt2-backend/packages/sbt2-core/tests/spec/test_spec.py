@@ -55,6 +55,7 @@ from sbt2.core.spec import (
     load,
     load_table,
 )
+from sbt2.core.spec.file import expand
 from sbt2.core.strategy import IV_LOOKBACK, ShortPremiumRules, UnknownParameterError
 from sbt2.data import Catalog
 
@@ -757,6 +758,20 @@ def test_parameter_lists_expand_into_their_cartesian_product(
         {"lookback": 50, "stop": Decimal("0.01")},
         {"lookback": 50, "stop": Decimal("0.02")},
     ]
+
+
+@pytest.mark.unit
+def test_a_list_valued_parameter_is_written_as_a_list_in_the_list() -> None:
+    feeds = ["A.X", "B.Y"]
+
+    [one] = expand({"part": "train", "params": {"feeds": [feeds]}})
+    first, second = expand({"part": "train", "params": {"feeds": [feeds, ["C.Z"]]}})
+
+    assert one.table["params"] == {"feeds": feeds}
+    assert (first.table["params"]["feeds"], second.table["params"]["feeds"]) == (
+        feeds,
+        ["C.Z"],
+    )
 
 
 @pytest.mark.unit

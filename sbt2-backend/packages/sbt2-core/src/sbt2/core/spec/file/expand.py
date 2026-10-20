@@ -25,7 +25,9 @@ def expand(table: Mapping[str, Any]) -> list[Expanded]:
 
     Without ``part``, a spec runs its train and validation parts; test must be
     asked for. Lists in ``params`` expand into their Cartesian product, in the
-    order the file gives them.
+    order the file gives them. A parameter whose value is a list, such as a
+    ``tuple[str, ...]``, is written as a list in the list: ``feeds = [["a", "b"]]``
+    is one run, and ``[["a"], ["b"]]`` two.
     """
     params = table.get("params", {})
     return [
