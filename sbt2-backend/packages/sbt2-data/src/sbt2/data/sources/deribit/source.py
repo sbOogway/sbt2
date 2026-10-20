@@ -50,7 +50,7 @@ class DeribitSource(Source):
     ) -> None:
         super().__init__(known_gaps)
         self._api = DeribitApi(endpoints)
-        self._candles = DeribitCandles(client)
+        self._candles = DeribitCandles(self._api, client)
 
     @property
     def data_types(self) -> tuple[type, ...]:
@@ -103,6 +103,9 @@ class DeribitSource(Source):
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         if symbol in perpetual.SYMBOLS:
             return self._perpetual_day_file(symbol, data_type, day)
+        currency = futures.currency_of(symbol)
+        if currency is not None:
+            return self._futures_day_file(currency, data_type, day)
         series = series_of(symbol)
         if series is not None:
             return self._series_day_file(series, data_type, day)
@@ -183,6 +186,17 @@ class DeribitSource(Source):
         return RawFile(
             _perpetual_dir(symbol) / folder / _json_name(symbol, day),
             partial(fetch, symbol, day),
+        )
+
+    def _futures_day_file(self, currency: str, data_type: type, day: date) -> RawFile:
+        symbol = futures.symbol_of(currency)
+        if data_type is not Bar:
+            raise UnsupportedDataTypeError(
+                f"{symbol} serves Bar, not {data_type.__name__}"
+            )
+        return RawFile(
+            _futures_dir(currency) / "candles" / _json_name(symbol, day),
+            partial(self._candles.futures_day, currency, day),
         )
 
     def _series_day_file(self, series: Series, data_type: type, day: date) -> RawFile:

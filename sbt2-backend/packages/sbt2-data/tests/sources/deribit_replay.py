@@ -16,14 +16,31 @@ from sbt2.data.sources.deribit import DeribitSource, Endpoints
 
 BTC_PERPETUAL_BARS = BarType.from_str("BTC-PERPETUAL.DERIBIT-1-MINUTE-LAST-EXTERNAL")
 
+CONTRACTS = (
+    "BTC-27DEC24",
+    "BTC-3JAN25",
+    "BTC-10JAN25",
+    "BTC-31JAN25",
+    "BTC-28FEB25",
+    "BTC-28MAR25",
+    "BTC-27JUN25",
+    "BTC-26SEP25",
+    "BTC-26DEC25",
+    "BTC-17JAN25",
+)
+
 RECORDED: list[dict[str, Any]] = json.loads(
     Path(__file__).with_name("deribit_responses.json").read_text()
 )
 
 
 def deribit_stub() -> DeribitClientStub:
-    """A client that holds a day of the BTC perpetual's bars."""
-    return DeribitClientStub(synthetic_day(BTC_PERPETUAL_BARS, 0))
+    """A client that holds a day of bars of the BTC perpetual and of each of the
+    recorded BTC dated futures, the ones not alive that day too."""
+    types = [BTC_PERPETUAL_BARS] + [
+        BarType.from_str(f"{each}.DERIBIT-1-MINUTE-LAST-EXTERNAL") for each in CONTRACTS
+    ]
+    return DeribitClientStub([bar for each in types for bar in synthetic_day(each, 0)])
 
 
 @contextmanager

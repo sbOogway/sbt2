@@ -1,6 +1,7 @@
 import asyncio
 import json
 import re
+from collections import Counter
 from datetime import UTC, date, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, NamedTuple
@@ -997,3 +998,61 @@ def test_futures_snapshot_gives_one_inverse_crypto_future_per_contract_with_its_
     assert future.activation_ns == 1_719_561_614_000_000_000
     assert future.expiration_ns == 1_751_011_200_000_000_000
     assert future.ts_init == 1_791_331_200_000_000_000
+
+
+FUTURES_FILE = "deribit/future/BTC/candles/BTC-FUTURES2025-01-01.json"
+
+
+def futures_bars(source: Source, day: date = DAY) -> list[Bar]:
+    return [
+        Bar.from_dict(each)
+        for each in fetched(source.day_file("BTC-FUTURES", Bar, day))
+    ]
+
+
+@pytest.mark.integration
+def test_futures_day_file_holds_the_bars_of_every_future_alive_that_day(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, _ = replayed_deribit
+
+    raw = source.day_file("BTC-FUTURES", Bar, DAY)
+    bars = futures_bars(source)
+
+    assert raw.path == PurePosixPath(FUTURES_FILE)
+    by_future = Counter(each.bar_type.instrument_id.symbol.value for each in bars)
+    assert by_future == dict.fromkeys(FUTURES_DAY_NAMES, 1440)
+
+
+@pytest.mark.integration
+def test_futures_day_includes_expired_futures(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, served = replayed_deribit
+
+    names = {each.bar_type.instrument_id.symbol.value for each in futures_bars(source)}
+
+    assert "BTC-3JAN25" in names
+    assert any("expired=true" in each for each in served.requests)
+
+
+@pytest.mark.integration
+def test_futures_day_leaves_out_the_perpetual(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, _ = replayed_deribit
+
+    names = {each.bar_type.instrument_id.symbol.value for each in futures_bars(source)}
+
+    assert "BTC-PERPETUAL" not in names
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("day", [date(2016, 1, 1), date(2025, 1, 2)])
+def test_day_without_any_future_bar_is_missing_at_source(
+    replayed_deribit: tuple[Source, Replay], day: date
+) -> None:
+    source, _ = replayed_deribit
+
+    with pytest.raises(MissingAtSourceError, match=r"BTC futures candles on"):
+        fetched(source.day_file("BTC-FUTURES", Bar, day))
