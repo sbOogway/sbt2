@@ -64,6 +64,12 @@ class VwapSession[P: VwapParams](Strategy[P], ABC):
     def feeds(cls, params: P, /) -> Sequence[InstrumentId]:
         return tuple(InstrumentId.from_str(each) for each in params.feeds)
 
+    @staticmethod
+    def closing_minute(bar: Bar) -> int:
+        """The minute of the UTC day at which ``bar`` closes; 0 for the last
+        bar of the day."""
+        return ((bar.ts_event + 1) // _MINUTE_NS) % _DAY_MINUTES
+
     @abstractmethod
     def decide(self, bar: Bar, vwap: MultiVenueVwap) -> float | None: ...
 
@@ -87,7 +93,7 @@ class VwapSession[P: VwapParams](Strategy[P], ABC):
 
     def _hear(self, bar: Bar) -> None:
         self.observe(bar)
-        closes_at = ((bar.ts_event + 1) // _MINUTE_NS) % _DAY_MINUTES
+        closes_at = self.closing_minute(bar)
         if closes_at == 0:
             self.end_session(bar)
             self._move_to(0.0, bar)
