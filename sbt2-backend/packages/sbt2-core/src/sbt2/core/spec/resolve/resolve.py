@@ -81,6 +81,7 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
         risk=risk.engine,
         chain=_chain(asset, instruments, spec.chain),
         lookback=lookback(strategy, params, risk.short_premium),
+        feeds=tuple(strategy.feeds(params)),
         study=_study(spec, split),
     )
 

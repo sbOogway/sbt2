@@ -59,6 +59,7 @@ def spec_fields(
         "end": datetime.fromisoformat(document["end"]),
         "risk": risk.engine,
         "chain": document.get("chain", {}),
+        "feeds": tuple(_instrument_ids(document.get("feeds", []))),
         "lookback": lookback(
             strategy,
             resolve_params(strategy, document["strategy"]["params"]),

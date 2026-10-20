@@ -57,6 +57,7 @@ from sbt2.core.strategy.margin import MarginDesk, MarginModel
 from sbt2.core.strategy.markets import Markets
 from sbt2.core.strategy.portfolio_greeks import GreeksDesk, GreeksSample
 from sbt2.core.strategy.short_premium import ShortPremiumRules
+from sbt2.data import candle_type
 
 if TYPE_CHECKING:
     from sbt2.core.results import Benchmark
@@ -354,6 +355,8 @@ class Strategy[P](NautilusStrategy, ABC):
     def on_start(self) -> None:
         for bar_type in self.bar_types():
             self.subscribe_bars(self._subscribed(bar_type))
+        for feed in self.feeds(self.params):
+            self.subscribe_bars(candle_type(feed))
         self._listen_to_market()
         self._arm_settlement()
         self._arm_schedule()

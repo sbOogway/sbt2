@@ -18,6 +18,7 @@ from sbt2.core.assets import AssetProfile, ChainFeeds, ChainJob, QuoteJob
 from sbt2.core.spec.resolve.canonical import canonical_hash, canonical_json
 from sbt2.core.spec.resolve.data import data_arguments
 from sbt2.core.spec.resolve.document import spec_fields
+from sbt2.core.spec.resolve.feeds import feed_data, feed_venues
 from sbt2.core.spec.resolve.models import venue_objects
 from sbt2.core.spec.split import Splitter
 from sbt2.core.strategy import SETTLEMENT_TAG, StrategyRun
@@ -49,6 +50,8 @@ class ResolvedRunSpec:
     enters the hashed document only when set.
     ``lookback`` is how far before the data window the volatility index of a
     chain is loaded; the strategy sets it and it is not hashed.
+    ``feeds`` are the instruments, on other venues, whose 1-minute candles the
+    strategy hears besides its own; they enter the hashed document only when set.
     ``study``, like ``source``, is neither hashed nor compared: the same
     backtest has the same hash in or out of a study.
     """
@@ -66,6 +69,7 @@ class ResolvedRunSpec:
     risk: Mapping[str, Any] = field(default_factory=dict)
     chain: Mapping[str, Any] = field(default_factory=dict)
     lookback: timedelta = timedelta(0)
+    feeds: tuple[InstrumentId, ...] = ()
     study: Study | None = field(default=None, compare=False)
 
     @classmethod
@@ -207,12 +211,13 @@ class ResolvedRunSpec:
         ``quotes`` stream the quotes made at run time.
         """
         return BacktestRunConfig(
-            [self._venue_config()],
+            [self._venue_config(), *feed_venues(self.feeds, self.venue_name)],
             [
                 *(
                     BacktestDataConfig(catalog_path=catalog_path, **arguments)
                     for arguments in self.data
                 ),
+                *feed_data(self.feeds, catalog_path, self.data_window),
                 *quotes,
             ],
             engine=BacktestEngineConfig(
@@ -247,6 +252,8 @@ class ResolvedRunSpec:
             document["risk"] = risk
         if self.chain:
             document["chain"] = dict(self.chain)
+        if self.feeds:
+            document["feeds"] = [str(each) for each in self.feeds]
         return document
 
     def _risk_document(self) -> dict[str, Any]:
