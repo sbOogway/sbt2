@@ -7,6 +7,7 @@ from nautilus_trader.model import Bar, InstrumentId, TradeTick
 from sbt2.data.sources import (
     Gap,
     ListedGap,
+    Source,
     UnknownSourceError,
     UnsupportedDataTypeError,
     add_known_gaps,
@@ -15,7 +16,10 @@ from sbt2.data.sources import (
     remove_known_gaps,
     source,
 )
+from sbt2.data.sources.binance import BinanceSource
+from sbt2.data.sources.coinbase_intx import CoinbaseIntxSource
 from sbt2.data.sources.deribit import DeribitSource
+from sbt2.data.sources.okx import OkxSource
 
 
 @pytest.mark.unit
@@ -52,13 +56,40 @@ def test_known_gaps_can_name_candles(tmp_path: Path) -> None:
 
 @pytest.mark.unit
 def test_unknown_source_is_refused(tmp_path: Path) -> None:
-    with pytest.raises(UnknownSourceError, match="known: bybit"):
+    with pytest.raises(
+        UnknownSourceError, match="known: binance, bybit, coinbase_intx, deribit, okx"
+    ):
         source("nope", tmp_path / "known_gaps.toml")
 
 
 @pytest.mark.unit
 def test_deribit_is_a_listed_source(tmp_path: Path) -> None:
     assert isinstance(source("deribit", tmp_path / "known_gaps.toml"), DeribitSource)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("name", "kind", "symbol", "instrument_id"),
+    [
+        ("binance", BinanceSource, "BTCUSDT", "BTCUSDT-PERP.BINANCE"),
+        ("okx", OkxSource, "ETH-USDT-SWAP", "ETH-USDT-SWAP.OKX"),
+        ("coinbase_intx", CoinbaseIntxSource, "BTC-PERP", "BTC-PERP.COINBASE_INTX"),
+    ],
+)
+def test_the_new_sources_are_listed(
+    tmp_path: Path, name: str, kind: type[Source], symbol: str, instrument_id: str
+) -> None:
+    file = tmp_path / "known_gaps.toml"
+    file.write_text(
+        f'{name} = [{{ symbol = "{symbol}", data = "candles", day = 2023-09-01 }}]\n'
+    )
+
+    listed = source(name, file)
+
+    assert isinstance(listed, kind)
+    assert listed.known_gaps == {
+        Gap(InstrumentId.from_str(instrument_id), Bar, date(2023, 9, 1))
+    }
 
 
 @pytest.mark.unit

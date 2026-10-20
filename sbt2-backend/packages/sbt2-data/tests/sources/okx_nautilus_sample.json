@@ -1,0 +1,105 @@
+{
+ "instruments": [
+  {
+   "type": "CryptoPerpetual",
+   "id": "BTC-USDT-SWAP.OKX",
+   "raw_symbol": "BTC-USDT-SWAP",
+   "base_currency": "BTC",
+   "quote_currency": "USDT",
+   "settlement_currency": "USDT",
+   "is_inverse": false,
+   "price_precision": 1,
+   "size_precision": 2,
+   "price_increment": "0.1",
+   "size_increment": "0.01",
+   "margin_init": "0",
+   "margin_maint": "0",
+   "info": {
+    "okx_init_px_lmt_pct": "0.02",
+    "okx_float_px_lmt_pct": "0.005",
+    "okx_max_px_lmt_pct": "0.01",
+    "okx_rpi_min_level": 3,
+    "okx_rpi_min_px_band": "20"
+   },
+   "ts_event": 0,
+   "ts_init": 0,
+   "multiplier": "0.01",
+   "lot_size": "0.01",
+   "max_quantity": "35000",
+   "min_quantity": "0.01",
+   "max_notional": null,
+   "min_notional": null,
+   "max_price": null,
+   "min_price": null,
+   "tick_scheme": null
+  },
+  {
+   "type": "CryptoPerpetual",
+   "id": "ETH-USDT-SWAP.OKX",
+   "raw_symbol": "ETH-USDT-SWAP",
+   "base_currency": "ETH",
+   "quote_currency": "USDT",
+   "settlement_currency": "USDT",
+   "is_inverse": false,
+   "price_precision": 2,
+   "size_precision": 2,
+   "price_increment": "0.01",
+   "size_increment": "0.01",
+   "margin_init": "0",
+   "margin_maint": "0",
+   "info": {
+    "okx_init_px_lmt_pct": "0.02",
+    "okx_float_px_lmt_pct": "0.01",
+    "okx_max_px_lmt_pct": "0.02",
+    "okx_rpi_min_level": 3,
+    "okx_rpi_min_px_band": "20"
+   },
+   "ts_event": 0,
+   "ts_init": 0,
+   "multiplier": "0.1",
+   "lot_size": "0.01",
+   "max_quantity": "90000",
+   "min_quantity": "0.01",
+   "max_notional": null,
+   "min_notional": null,
+   "max_price": null,
+   "min_price": null,
+   "tick_scheme": null
+  }
+ ],
+ "bars": [
+  {
+   "type": "Bar",
+   "bar_type": "BTC-USDT-SWAP.OKX-1-MINUTE-LAST-EXTERNAL",
+   "open": "93579.1",
+   "high": "93630.0",
+   "low": "93552.1",
+   "close": "93630.0",
+   "volume": "3309.90",
+   "ts_event": 1735689600000000000,
+   "ts_init": 1735689600000000000
+  },
+  {
+   "type": "Bar",
+   "bar_type": "BTC-USDT-SWAP.OKX-1-MINUTE-LAST-EXTERNAL",
+   "open": "93630.0",
+   "high": "93668.0",
+   "low": "93609.8",
+   "close": "93668.0",
+   "volume": "1343.60",
+   "ts_event": 1735689660000000000,
+   "ts_init": 1735689660000000000
+  },
+  {
+   "type": "Bar",
+   "bar_type": "BTC-USDT-SWAP.OKX-1-MINUTE-LAST-EXTERNAL",
+   "open": "93668.0",
+   "high": "93722.0",
+   "low": "93650.3",
+   "close": "93717.7",
+   "volume": "6676.90",
+   "ts_event": 1735689720000000000,
+   "ts_init": 1735689720000000000
+  }
+ ]
+}

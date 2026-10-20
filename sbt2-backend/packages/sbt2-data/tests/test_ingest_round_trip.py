@@ -1,10 +1,13 @@
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, nullcontext
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 from typing import override
 
 import pytest
+from binance_server import binance_replay
+from coinbase_intx_replay import coinbase_intx_replay
 from deribit_replay import deribit_replay
 from local_source import (
     INSTRUMENT_ID,
@@ -24,7 +27,9 @@ from nautilus_trader.backtest import (
 from nautilus_trader.common import Cache, LoggerConfig, LogLevel
 from nautilus_trader.execution import FixedFeeModel
 from nautilus_trader.model import (
+    Bar,
     FundingRateUpdate,
+    InstrumentId,
     MarkPriceUpdate,
     Money,
     NautilusDataType,
@@ -35,8 +40,10 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.persistence import ParquetDataCatalog
 from nautilus_trader.trading import Strategy
+from okx_client import okx_stubbed
 
 from sbt2.data import (
+    Catalog,
     DayRange,
     DownloadOptions,
     DownloadRequest,
@@ -45,6 +52,7 @@ from sbt2.data import (
     IngestRequest,
     Outcome,
     Source,
+    Window,
     download,
     ingest,
 )
@@ -183,7 +191,7 @@ def test_deribit_option_trades_round_trip_through_the_catalog(
     deribit: Source, tmp_path: Path
 ) -> None:
     assert download_and_ingest(deribit, tmp_path) == [IngestOutcome.WRITTEN] * (
-        len(deribit.data_types) - 1  # the options have no funding
+        len(deribit.data_types) - 2  # the options have no funding or candles
     )
 
     stored = {each: stored_trades(tmp_path, each) for each in TRADED}
@@ -277,7 +285,7 @@ def test_a_rerun_skips_the_day_already_in_the_catalog(
     )
 
     assert [each.outcome for each in tally.results] == [IngestOutcome.SKIPPED] * (
-        len(deribit.data_types) - 1  # the options have no funding
+        len(deribit.data_types) - 2  # the options have no funding or candles
     )
     assert len(stored_trades(tmp_path, PUT_88K)) == TRADED[PUT_88K]
 
@@ -333,3 +341,50 @@ def test_deribit_delivery_prices_round_trip_through_the_catalog(
     (stored,) = catalog.query(NautilusDataType.IndexPriceUpdate, [BTC_DELIVERY])
     assert str(stored.value) == "93539.00"
     assert stored.ts_event == (1_735_689_600 + 8 * 3_600) * 1_000_000_000
+
+
+KLINE_DAY = date(2025, 1, 1)
+KLINE_SNAPSHOT_DAY = date(2026, 10, 19)
+KLINES = [
+    (binance_replay, "BTCUSDT", "BTCUSDT-PERP.BINANCE", 1440, 1.0),
+    (
+        lambda: nullcontext(okx_stubbed()),
+        "BTC-USDT-SWAP",
+        "BTC-USDT-SWAP.OKX",
+        1440,
+        1.0,
+    ),
+    (coinbase_intx_replay, "BTC-PERP", "BTC-PERP.COINBASE_INTX", 1440, 1.5),
+    (deribit_replay, "BTC-PERPETUAL", "BTC-PERPETUAL.DERIBIT", 1440, 1.0),
+]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("replayed", "symbol", "instrument_id", "count", "first_volume"), KLINES
+)
+def test_klines_of_every_new_source_round_trip_through_the_catalog(
+    tmp_path: Path,
+    replayed: Callable[[], AbstractContextManager[Source]],
+    symbol: str,
+    instrument_id: str,
+    count: int,
+    first_volume: float,
+) -> None:
+    days = DayRange((symbol,), KLINE_DAY, KLINE_DAY, ("Bar",))
+    raw, catalog = tmp_path / "raw", tmp_path / "catalog"
+    with replayed() as source:
+        download(
+            source,
+            DownloadRequest(days, KLINE_SNAPSHOT_DAY),
+            DownloadOptions(raw, retries=0, backoff=0.0),
+        )
+        tally = ingest(source, IngestRequest(days), IngestOptions(raw, catalog))
+
+    assert [each.outcome for each in tally.results] == [IngestOutcome.WRITTEN]
+    window = Window.of_days(KLINE_DAY, KLINE_DAY)
+    frame = Catalog(catalog).frame(InstrumentId.from_str(instrument_id), Bar, window)
+    assert len(frame) == count
+    assert frame["volume"].iloc[0] == pytest.approx(first_volume)
+    assert frame.index.is_monotonic_increasing
+    assert frame.index.is_unique

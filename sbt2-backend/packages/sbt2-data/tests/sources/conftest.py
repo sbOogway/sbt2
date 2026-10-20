@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from bybit_replay import bybit_replay
 from deribit_replay import RECORDED as DERIBIT_RECORDED
+from deribit_replay import deribit_stub
 from replay import Replay, replay
 
 from sbt2.data.sources import Source, source
@@ -37,7 +38,9 @@ def replayed_deribit() -> Iterator[tuple[Source, Replay]]:
     with replay(DERIBIT_RECORDED) as served:
         yield (
             DeribitSource(
-                frozenset(), DeribitEndpoints(api=served.url, live=served.url)
+                frozenset(),
+                DeribitEndpoints(api=served.url, live=served.url),
+                deribit_stub(),
             ),
             served,
         )

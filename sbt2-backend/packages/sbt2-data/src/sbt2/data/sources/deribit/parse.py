@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 from nautilus_trader.model import (
     AggressorSide,
+    Bar,
     CryptoOption,
     CryptoPerpetual,
     Currency,
@@ -30,6 +31,8 @@ from nautilus_trader.model import (
 
 from sbt2.data.sources.deribit import perpetual
 from sbt2.data.sources.deribit.series import Kind, Series, series_of
+from sbt2.data.sources.klines import bars
+from sbt2.data.sources.nautilus_bars import read_klines
 
 VENUE = "DERIBIT"
 
@@ -125,7 +128,7 @@ def day_records(
     """The day file's ``data_type`` records by instrument, each list in time order."""
     symbol = _snapshot_symbol(path)
     if perpetual.currency_of(symbol) is not None:
-        return _funding_updates(path, instruments)
+        return _PERPETUAL_PARSERS[data_type](path, instruments)
     series = series_of(symbol)
     if series is not None:
         return _series_updates(path, series, instruments)
@@ -190,6 +193,14 @@ def _funding_update(
         ts,
         interval=_FUNDING_MINUTES,
     )
+
+
+def _candles(
+    path: Path, instruments: Mapping[InstrumentId, CryptoPerpetual]
+) -> dict[InstrumentId, list[Bar]]:
+    """The volume is in contracts, USD for the inverse perpetual."""
+    ((instrument_id, perpetual_),) = instruments.items()
+    return {instrument_id: list(bars(read_klines(path), perpetual_))}
 
 
 def _dvol_update(row: Sequence[float], index: IndexInstrument) -> IndexPriceUpdate:
@@ -286,6 +297,11 @@ def _index_price(trade: Mapping[str, Any], index: IndexInstrument) -> IndexPrice
         index.id, Price(trade["index_price"], index.price_precision), ts, ts
     )
 
+
+_PERPETUAL_PARSERS: dict[type, _DayParser] = {
+    FundingRateUpdate: _funding_updates,
+    Bar: _candles,
+}
 
 _PARSERS: dict[type, _DayParser] = {
     TradeTick: partial(_by_contract, build=_tick),

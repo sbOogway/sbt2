@@ -1,0 +1,35 @@
+[
+ {
+  "type": "Bar",
+  "bar_type": "BTC-PERPETUAL.DERIBIT-1-MINUTE-LAST-EXTERNAL",
+  "open": "93445.5",
+  "high": "93451.0",
+  "low": "93398.0",
+  "close": "93451.0",
+  "volume": "129120",
+  "ts_event": 1735689600000000000,
+  "ts_init": 1735689600000000000
+ },
+ {
+  "type": "Bar",
+  "bar_type": "BTC-PERPETUAL.DERIBIT-1-MINUTE-LAST-EXTERNAL",
+  "open": "93457.5",
+  "high": "93487.5",
+  "low": "93450.5",
+  "close": "93487.5",
+  "volume": "75770",
+  "ts_event": 1735689660000000000,
+  "ts_init": 1735689660000000000
+ },
+ {
+  "type": "Bar",
+  "bar_type": "BTC-PERPETUAL.DERIBIT-1-MINUTE-LAST-EXTERNAL",
+  "open": "93496.5",
+  "high": "93545.0",
+  "low": "93496.5",
+  "close": "93539.0",
+  "volume": "718650",
+  "ts_event": 1735689720000000000,
+  "ts_init": 1735689720000000000
+ }
+]
