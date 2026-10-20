@@ -38,10 +38,12 @@ from sbt2.core.strategy.schema import (
     params_schema,
 )
 from sbt2.core.strategy.short_premium import ShortPremiumRules
+from sbt2.core.strategy.vwap import Anchor, MultiVenueVwap
 
 __all__ = [
     "IV_LOOKBACK",
     "SETTLEMENT_TAG",
+    "Anchor",
     "CachedChain",
     "Chain",
     "ChainFilter",
@@ -52,6 +54,7 @@ __all__ = [
     "Greeks",
     "InvalidParameterError",
     "Leg",
+    "MultiVenueVwap",
     "NoMarketError",
     "NoParams",
     "ParamSpec",
