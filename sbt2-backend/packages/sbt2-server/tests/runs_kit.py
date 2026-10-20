@@ -11,7 +11,7 @@ from google.protobuf.struct_pb2 import Struct
 from results_kit import KeptReplies
 from synthetic_catalog import build_catalog
 
-from sbt2.core.config import ConfigFolder, Root
+from sbt2.core.config import Root
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
 from sbt2.protocol.v1.runs_pb2 import (
     Job,
@@ -29,7 +29,6 @@ from sbt2.server.runs.workers import Worker, Workers
 _PLAIN = (
     "strategy",
     "instruments",
-    "venue",
     "seed",
     "equity_interval",
     "liquidation",
@@ -101,15 +100,13 @@ class Uploaded(Strategy[Params]):
                 self.order_factory.market(bar.bar_type.instrument_id, side, quantity)
             )
 """
-VENUES = """
-[linear]
-name = "BYBIT"
-source = "bybit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
-default_leverage = "10"
-fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
-"""
+EXECUTION = {
+    "default_leverage": "10",
+    "fee_model": {
+        "kind": "maker_taker",
+        "config": {"maker_rate": "0.0002", "taker_rate": "0.00055"},
+    },
+}
 OVER = (
     JobState.JOB_STATE_FINISHED,
     JobState.JOB_STATE_FAILED,
@@ -133,6 +130,7 @@ def spec_message(table: Mapping[str, Any]) -> SpecFile:
         params=struct(table.get("params", {})),
         risk=struct(table.get("risk", {})),
         chain=struct(table.get("chain", {})),
+        execution=struct(table.get("execution", {})),
     )
     if "period" in table:
         start, end = table["period"]
@@ -159,7 +157,7 @@ def run_table(**overrides: Any) -> dict[str, Any]:
             datetime(2024, 1, 1, 2, tzinfo=UTC),
             datetime(2024, 1, 5, tzinfo=UTC),
         ],
-        "venue": "linear",
+        "execution": EXECUTION,
         "capital": "10000 USDT",
         "part": ["train"],
         "split": {"validation_start": "2024-01-03", "test_start": "2024-01-04"},
@@ -175,13 +173,11 @@ def submit_run(table: Mapping[str, Any], source: str = STRATEGY) -> ClientMessag
     )
 
 
-def deployed(path: Path) -> tuple[Root, ConfigFolder]:
-    """A data root with two days of data, and a config folder with one venue."""
-    root, config = Root(path / "data"), ConfigFolder(path / "config")
+def deployed(path: Path) -> Root:
+    """A data root with two days of data, and nothing else."""
+    root = Root(path / "data")
     build_catalog(root.catalog)
-    config.path.mkdir()
-    config.venues.write_text(VENUES)
-    return root, config
+    return root
 
 
 class Session:

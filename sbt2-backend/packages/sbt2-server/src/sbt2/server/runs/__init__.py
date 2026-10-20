@@ -3,7 +3,7 @@ import itertools
 from dataclasses import dataclass, field
 from functools import wraps
 
-from sbt2.core.config import ConfigFolder, Root
+from sbt2.core.config import Root
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
 from sbt2.protocol.v1.runs_pb2 import (
     JobCancelled,
@@ -29,10 +29,10 @@ from sbt2.server.runs.pushes import recent_lines, update_messages
 PUSH_INTERVAL = 0.25
 
 
-def local_jobs(root: Root, config: ConfigFolder) -> Jobs:
+def local_jobs(root: Root) -> Jobs:
     """Jobs kept in memory, each run in a process of its own that reads and
-    writes the data under ``root`` and reads the venue profiles in ``config``."""
-    return InMemoryJobs(ProcessWorkers(root, config))
+    writes the data under ``root``."""
+    return InMemoryJobs(ProcessWorkers(root))
 
 
 def routes(jobs: Jobs, interval: float = PUSH_INTERVAL) -> dict[str, Handler]:

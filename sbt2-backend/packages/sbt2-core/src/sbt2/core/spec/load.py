@@ -13,35 +13,30 @@ class DuplicateRunError(SpecError):
 
 def load(
     path: Path,
-    venue_profiles: Path,
     overrides: Mapping[str, Any] | None = None,
 ) -> list[ResolvedRunSpec]:
     """Read a spec file, apply top-level ``overrides`` and resolve every run it
-    expands into against the venue profiles file ``venue_profiles``; one run
-    that fails to resolve fails them all."""
-    return _resolved_all(runs(path, overrides or {}), venue_profiles)
+    expands into; one run that fails to resolve fails them all."""
+    return _resolved_all(runs(path, overrides or {}))
 
 
 def load_table(
     table: Mapping[str, Any],
-    venue_profiles: Path,
     overrides: Mapping[str, Any] | None = None,
 ) -> list[ResolvedRunSpec]:
     """``load`` for a spec given as a table, such as a spec file parses into."""
-    return _resolved_all(table_runs(table, overrides or {}), venue_profiles)
+    return _resolved_all(table_runs(table, overrides or {}))
 
 
-def _resolved_all(
-    expanded: list[Expanded], venue_profiles: Path
-) -> list[ResolvedRunSpec]:
-    resolved = [_resolved(each, venue_profiles) for each in expanded]
+def _resolved_all(expanded: list[Expanded]) -> list[ResolvedRunSpec]:
+    resolved = [_resolved(each) for each in expanded]
     _check_unique(expanded, resolved)
     return resolved
 
 
-def _resolved(run: Expanded, venue_profiles: Path) -> ResolvedRunSpec:
+def _resolved(run: Expanded) -> ResolvedRunSpec:
     try:
-        return resolve(RunSpec(**run.table), venue_profiles)
+        return resolve(RunSpec(**run.table))
     except Exception as error:
         error.add_note(f"in {run.name}")
         raise

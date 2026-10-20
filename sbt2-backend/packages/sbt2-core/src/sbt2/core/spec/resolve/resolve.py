@@ -1,8 +1,7 @@
 import json
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict, fields
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 from nautilus_trader.model import BarSpecification, InstrumentId
@@ -14,15 +13,11 @@ from sbt2.core.spec.file import RunSpec
 from sbt2.core.spec.resolve.canonical import canonical_json
 from sbt2.core.spec.resolve.data import data_arguments, data_types
 from sbt2.core.spec.resolve.document import lookback
+from sbt2.core.spec.resolve.execution import execution
 from sbt2.core.spec.resolve.resolved import ResolvedRunSpec, Study
-from sbt2.core.spec.resolve.venues import venue_profile
 from sbt2.core.spec.risk import risk_limits
 from sbt2.core.spec.split import Splitter, from_table
 from sbt2.core.strategy import StrategyRun, import_strategy, resolve_params
-
-
-class InstrumentVenueError(SpecError):
-    pass
 
 
 class UnknownPartError(SpecError):
@@ -44,10 +39,10 @@ class InvalidCapitalError(SpecError):
 _UNFIXED = frozenset({"params", "part", "study"})
 
 
-def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
-    profile = venue_profile(venue_profiles, spec.venue)
-    asset, venue = profile.asset, profile.arguments
-    instruments = _instruments(spec.instruments, venue["name"])
+def resolve(spec: RunSpec) -> ResolvedRunSpec:
+    instruments = [InstrumentId.from_str(each) for each in spec.instruments]
+    traded = execution(instruments, spec.execution)
+    asset = traded.asset
     strategy = import_strategy(spec.strategy)
     params = resolve_params(strategy, spec.params)
     split, part = _splitter(spec.split), spec.part
@@ -66,10 +61,10 @@ def resolve(spec: RunSpec, venue_profiles: Path) -> ResolvedRunSpec:
             short_premium=risk.short_premium,
         ),
         asset=asset,
-        source=profile.source,
-        venue=_seeded(_venue_arguments(spec, venue), spec.seed),
+        source=traded.source,
+        venue=_seeded(_venue_arguments(spec, traded.arguments), spec.seed),
         data=data_arguments(
-            data_types(bars, strategy.inputs(params), profile),
+            data_types(bars, strategy.inputs(params), traded),
             instruments,
             (start - strategy.warmup(params), end),
         ),
@@ -135,16 +130,6 @@ def _part_dates(
     if part not in parts:
         raise UnknownPartError(f"part {part!r} is not one of {', '.join(parts)}")
     return parts[part]
-
-
-def _instruments(ids: Iterable[str], venue: str) -> list[InstrumentId]:
-    instruments = [InstrumentId.from_str(each) for each in ids]
-    foreign = [str(each) for each in instruments if each.venue.value != venue]
-    if foreign:
-        raise InstrumentVenueError(
-            f"instruments {', '.join(foreign)} are not on the venue profile's {venue}"
-        )
-    return instruments
 
 
 def _venue_arguments(spec: RunSpec, profile: Mapping[str, Any]) -> dict[str, Any]:

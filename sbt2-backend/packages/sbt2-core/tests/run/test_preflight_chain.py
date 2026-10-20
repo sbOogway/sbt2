@@ -34,21 +34,13 @@ instruments = ["BTC-OPTIONS.DERIBIT"]
 period = [2024-01-01, 2024-01-05]
 split = { validation_start = 2024-01-03, test_start = 2024-01-04 }
 part = "train"
-venue = "deribit_option"
+execution = { fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } } }
 capital = "1 BTC"
 
 [chain]
 min_dte = 0
 max_dte = 90
 strike_band = "0.5"
-"""
-VENUES = """
-[deribit_option]
-name = "DERIBIT"
-source = "deribit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "OPTION"
-fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } }
 """
 INDEX = InstrumentId.from_str("BTC_USD.DERIBIT")
 DVOL = InstrumentId.from_str("BTC_DVOL.DERIBIT")
@@ -59,10 +51,9 @@ IN_BAND = InstrumentId.from_str("BTC-2JAN24-45000-C.DERIBIT")
 def spec_of(
     tmp_path: Path, strategy: str = "run_strategies:ActOnSchedule"
 ) -> ResolvedRunSpec:
-    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+    spec = tmp_path / "spec.toml"
     spec.write_text(SPEC.replace("run_strategies:ActOnSchedule", strategy))
-    venues.write_text(VENUES)
-    [resolved] = load(spec, venues)
+    [resolved] = load(spec)
     return resolved
 
 

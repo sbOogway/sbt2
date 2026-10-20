@@ -71,8 +71,8 @@ response carrying the request's ID: `JobSubmitted`, `JobCancelled`, `Jobs`,
   identifier that no module of the server's image has; the source runs only in a
   job process, never in the server, and imports only what the image installs.
 - The server answers once the spec is checked. A spec that does not resolve, or
-  whose data is missing, answers `INVALID_ARGUMENT` with core's message; an
-  unknown venue profile answers `NOT_FOUND`. A rejected spec starts no job.
+  whose data is missing, answers `INVALID_ARGUMENT` with core's message; a
+  venue with no source answers `NOT_FOUND`. A rejected spec starts no job.
 - Jobs run one at a time, in the order they were submitted. A run is pending,
   running, finished, failed with its reason, or cancelled. The first failed run
   fails the job and cancels the runs after it.

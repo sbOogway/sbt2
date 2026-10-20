@@ -15,8 +15,8 @@ export SBT2_SERVER_URL=ws://127.0.0.1:8765  # the default; localhost can resolve
 make notebooks
 ```
 
-The server must have the data of the spec in its catalog and the spec's venue
-in its `venues.toml`.
+The server must have the data of the spec in its catalog. A spec names its fees
+in `execution`.
 
 ## Layout
 

@@ -29,10 +29,20 @@ def checked_table(
     """A spec's ``table`` with ``overrides`` applied, from ``origin``, which the
     errors name."""
     values = {**table, **overrides}
+    _reject_venue(origin, values)
     _reject_unknown(origin, values)
     if "split" not in values:
         raise MissingSplitError(f"{origin} needs a split of its period")
     return values
+
+
+def _reject_venue(origin: str, values: Mapping[str, Any]) -> None:
+    if "venue" in values:
+        raise UnknownSpecKeyError(
+            f"{origin} sets venue, which a spec no longer has: remove it, since the "
+            "venue is the one of the instruments, and set the fees and the other "
+            "venue settings in an [execution] table"
+        )
 
 
 def _reject_unknown(origin: str, values: Mapping[str, Any]) -> None:

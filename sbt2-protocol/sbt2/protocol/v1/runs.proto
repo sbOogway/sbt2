@@ -14,12 +14,12 @@ message SpecPeriod {
 
 // A spec file's table, key for key.
 message SpecFile {
+  reserved 4;
+  reserved "venue";
   // The strategy's class in the uploaded module, as "module:Class".
   string strategy = 1;
   repeated string instruments = 2;
   SpecPeriod period = 3;
-  // The name of a venue profile in the server's config.
-  string venue = 4;
   // A nautilus money string, such as "10000 USDT".
   string capital = 5;
   // The parts to run: train, validation or test. Empty runs train and validation.
@@ -44,6 +44,10 @@ message SpecFile {
   // "1 BTC" and "20 ETH"; the first reports the run. When set it wins over
   // capital.
   repeated string capitals = 16;
+  // The execution table: fee_model, which is required, and the other
+  // BacktestVenueConfig arguments, such as fill_model and margin settings. A model
+  // is a table of its kind and config. An integral number is read as an integer.
+  google.protobuf.Struct execution = 17;
 }
 
 // A single-module strategy, sent as source.

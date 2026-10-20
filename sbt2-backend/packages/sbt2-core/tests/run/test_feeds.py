@@ -30,15 +30,6 @@ from sbt2.core.spec import ResolvedRunSpec, load
 from sbt2.data import Gap
 from sbt2.data.testing import ServedSource
 
-VENUES = """
-[deribit_perpetual]
-name = "DERIBIT"
-source = "deribit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
-marks = "bars"
-fee_model = { kind = "maker_taker", config = { maker_rate = "0.00015", taker_rate = "0.00035" } }
-"""
 SPEC = """
 strategy = "feed_strategies:{strategy}"
 instruments = ["BTC-PERPETUAL.DERIBIT"]
@@ -46,7 +37,7 @@ period = [2024-01-01T00:00:00, 2024-01-05]
 split = {{ validation_start = 2024-01-03, test_start = 2024-01-04 }}
 part = "train"
 bars = "candles"
-venue = "deribit_perpetual"
+execution = {{ fee_model = {{ kind = "maker_taker", config = {{ maker_rate = "0.00015", taker_rate = "0.00035" }} }} }}
 capital = "1 BTC"
 {extra}
 """
@@ -79,10 +70,9 @@ def clear_heard() -> Iterator[None]:
 
 
 def resolved(tmp_path: Path, strategy: str, extra: str = "") -> ResolvedRunSpec:
-    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+    spec = tmp_path / "spec.toml"
     spec.write_text(SPEC.format(strategy=strategy, extra=extra))
-    venues.write_text(VENUES)
-    [only] = load(spec, venues)
+    [only] = load(spec)
     return only
 
 

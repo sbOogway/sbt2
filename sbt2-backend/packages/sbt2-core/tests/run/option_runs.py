@@ -11,21 +11,13 @@ instruments = ["BTC-OPTIONS.DERIBIT"]
 period = [2024-01-01T02:00:00, 2024-01-05]
 split = { validation_start = 2024-01-03, test_start = 2024-01-04 }
 part = "train"
-venue = "deribit_option"
+execution = { fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } } }
 capital = "1 BTC"
 
 [chain]
 min_dte = 0
 max_dte = 90
 strike_band = "0.5"
-"""
-VENUES = """
-[deribit_option]
-name = "DERIBIT"
-source = "deribit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "OPTION"
-fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } }
 """
 
 
@@ -44,12 +36,11 @@ def run_options(
     """Runs ``scenario`` (a combo strategy, alone or with spec tables) on the
     option ``catalog`` and returns the store of the run and its id."""
     chosen = Scenario(scenario) if isinstance(scenario, str) else scenario
-    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+    spec = tmp_path / "spec.toml"
     spec.write_text(
         SPEC.replace("combo_strategies:OpenStrangle", chosen.strategy) + chosen.tables
     )
-    venues.write_text(VENUES)
-    [resolved] = load(spec, venues)
+    [resolved] = load(spec)
     store = ParquetResultStore(tmp_path / "results")
     sink = store.new_run(resolved)
     execute(resolved, sink, RunSettings(catalog, max_chain_contracts=2_000))
@@ -62,15 +53,14 @@ def run_two_chains(
     """Like ``run_options`` with the BTC and the ETH chain of the catalog and a
     capital of 1 BTC and 20 ETH."""
     chosen = Scenario(scenario) if isinstance(scenario, str) else scenario
-    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+    spec = tmp_path / "spec.toml"
     text = SPEC.replace("combo_strategies:OpenStrangle", chosen.strategy)
     text = text.replace(
         '["BTC-OPTIONS.DERIBIT"]', '["BTC-OPTIONS.DERIBIT", "ETH-OPTIONS.DERIBIT"]'
     )
     text = text.replace('capital = "1 BTC"', 'capital = ["1 BTC", "20 ETH"]')
     spec.write_text(text + chosen.tables)
-    venues.write_text(VENUES)
-    [resolved] = load(spec, venues)
+    [resolved] = load(spec)
     store = ParquetResultStore(tmp_path / "results")
     sink = store.new_run(resolved)
     execute(resolved, sink, RunSettings(catalog, max_chain_contracts=2_000))

@@ -39,7 +39,7 @@ class DeliveryFee:
 
     @classmethod
     def from_table(cls, table: Mapping[str, Any]) -> Self:
-        """The fee a venue profile's ``delivery_fee`` table sets, with a default for
+        """The fee the ``delivery_fee`` table of a spec's ``[execution]`` sets, with a default for
         each rate it leaves out; ``ValueError`` when the table is invalid."""
         try:
             return cls(**{name: Decimal(str(rate)) for name, rate in table.items()})

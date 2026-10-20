@@ -7,7 +7,6 @@ import typer
 
 DAY = ["%Y-%m-%d"]
 DATA_ROOT_ENV = "SBT2_DATA"
-CONFIG_ENV = "SBT2_CONFIG"
 
 logger = logging.getLogger("sbt2")
 

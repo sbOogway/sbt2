@@ -6,7 +6,7 @@ import sys
 from collections.abc import AsyncIterator, Mapping
 from typing import Self, override
 
-from sbt2.core.config import ConfigFolder, Root
+from sbt2.core.config import Root
 from sbt2.server.modules import clean_environment
 from sbt2.server.runs.jobs import Submission
 from sbt2.server.runs.lines import Lines
@@ -32,15 +32,13 @@ class ProcessWorkers(Workers):
     of the server without its ``SBT2_SERVER_*`` variables, the API token among
     them."""
 
-    def __init__(self, root: Root, config: ConfigFolder) -> None:
+    def __init__(self, root: Root) -> None:
         self._root = root
-        self._config = config
 
     @override
     async def launch(self, submission: Submission) -> Worker:
         request = JobRequest(
             data_root=str(self._root.path),
-            venues=str(self._config.venues),
             module_name=submission.module.name,
             module_source=submission.module.source,
             spec=dict(submission.spec),

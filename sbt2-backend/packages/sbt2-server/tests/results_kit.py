@@ -88,7 +88,7 @@ def stored_studies(
     for name, runs in studies.items():
         context = {
             "strategy": BASE_STRATEGY,
-            "venue": "linear",
+            "instruments": ["BTCUSDT-LINEAR.BYBIT"],
             "capital": "10000 USDT",
         }
         store.new_study(StoredStudy(name, context, f"# pinned by {name}\n"))

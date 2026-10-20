@@ -3,8 +3,10 @@ instruments = ["BTC-OPTIONS.DERIBIT"]
 period = [2025-01-01, 2025-02-05]
 split = { validation_start = 2025-02-01, test_start = 2025-02-03 }
 part = "train"
-venue = "deribit_option"
 capital = "1 BTC"
+
+[execution]
+fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } }
 
 [chain]
 min_dte = 0

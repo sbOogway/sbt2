@@ -12,8 +12,8 @@ from nautilus_trader.execution import (
 from sbt2.core.spec import (
     FeeModelKind,
     FillModelKind,
+    InvalidExecutionError,
     InvalidModelConfigError,
-    InvalidVenueProfileError,
     ModelParameter,
     OutdatedRunError,
     ResolvedRunSpec,
@@ -28,16 +28,12 @@ instruments = ["BTCUSDT-LINEAR.BYBIT"]
 period = [2024-01-01, 2024-03-01]
 split = { validation_start = 2024-02-01, test_start = 2024-02-15 }
 part = "train"
-venue = "modelled"
 capital = "10000 USDT"
 """
-PROFILE = """
-[modelled]
-name = "BYBIT"
-source = "bybit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
-"""
+FEES = (
+    'fee_model = { kind = "maker_taker", '
+    'config = { maker_rate = "0.0002", taker_rate = "0.00055" } }'
+)
 CONFIGS = {
     "maker_taker": '{ maker_rate = "0.0002", taker_rate = "0.00055" }',
     "capped_option": (
@@ -49,21 +45,19 @@ CONFIGS = {
 
 
 @pytest.fixture
-def paths(tmp_path: Path) -> tuple[Path, Path]:
-    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
-    spec.write_text(SPEC)
-    venues.write_text(PROFILE)
-    return spec, venues
+def paths(tmp_path: Path) -> Path:
+    spec = tmp_path / "spec.toml"
+    spec.write_text(f"{SPEC}execution = {{ {FEES} }}\n")
+    return spec
 
 
-def loaded(paths: tuple[Path, Path]) -> list[ResolvedRunSpec]:
-    spec, venues = paths
-    return load(spec, venues)
+def loaded(paths: Path) -> list[ResolvedRunSpec]:
+    return load(paths)
 
 
-def with_model(paths: tuple[Path, Path], argument: str, model: str) -> None:
-    _, venues = paths
-    venues.write_text(f"{PROFILE}{argument} = {model}\n")
+def with_model(paths: Path, argument: str, model: str) -> None:
+    fees = "" if argument == "fee_model" else f"{FEES}, "
+    paths.write_text(f"{SPEC}execution = {{ {fees}{argument} = {model} }}\n")
 
 
 @pytest.mark.unit
@@ -77,7 +71,7 @@ def with_model(paths: tuple[Path, Path], argument: str, model: str) -> None:
     ],
 )
 def test_each_model_kind_builds_its_nautilus_model(
-    paths: tuple[Path, Path], argument: str, kind: str, model: type
+    paths: Path, argument: str, kind: str, model: type
 ) -> None:
     with_model(paths, argument, f'{{ kind = "{kind}", config = {CONFIGS[kind]} }}')
 
@@ -88,7 +82,7 @@ def test_each_model_kind_builds_its_nautilus_model(
 
 
 @pytest.mark.unit
-def test_an_unknown_model_kind_names_the_known_ones(paths: tuple[Path, Path]) -> None:
+def test_an_unknown_model_kind_names_the_known_ones(paths: Path) -> None:
     with_model(paths, "fee_model", '{ kind = "tiered", config = {} }')
 
     with pytest.raises(
@@ -99,7 +93,7 @@ def test_an_unknown_model_kind_names_the_known_ones(paths: tuple[Path, Path]) ->
 
 
 @pytest.mark.unit
-def test_a_model_argument_without_kinds_names_none(paths: tuple[Path, Path]) -> None:
+def test_a_model_argument_without_kinds_names_none(paths: Path) -> None:
     with_model(paths, "latency_model", '{ kind = "static", config = {} }')
 
     with pytest.raises(
@@ -109,7 +103,7 @@ def test_a_model_argument_without_kinds_names_none(paths: tuple[Path, Path]) -> 
 
 
 @pytest.mark.unit
-def test_a_model_named_by_import_path_is_refused(paths: tuple[Path, Path]) -> None:
+def test_a_model_named_by_import_path_is_refused(paths: Path) -> None:
     with_model(
         paths,
         "fee_model",
@@ -117,13 +111,13 @@ def test_a_model_named_by_import_path_is_refused(paths: tuple[Path, Path]) -> No
         f"config = {CONFIGS['maker_taker']} }}",
     )
 
-    with pytest.raises(InvalidVenueProfileError, match=r"fee_model.*name a kind"):
+    with pytest.raises(InvalidExecutionError, match=r"fee_model.*name a kind"):
         loaded(paths)
 
 
 @pytest.mark.unit
 def test_a_model_config_its_model_does_not_take_fails_on_load(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     config = '{ maker_rate = "0.0002", taker_rate = "0.00055", bogus = 1 }'
     with_model(paths, "fee_model", f'{{ kind = "maker_taker", config = {config} }}')
@@ -136,7 +130,7 @@ def test_a_model_config_its_model_does_not_take_fails_on_load(
 
 @pytest.mark.unit
 def test_a_stored_spec_naming_a_model_by_path_predates_model_kinds(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     with_model(paths, "fee_model", f'{{ kind = "fixed", config = {CONFIGS["fixed"]} }}')
     [spec] = loaded(paths)

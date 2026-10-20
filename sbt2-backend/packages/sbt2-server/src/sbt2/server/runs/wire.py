@@ -29,7 +29,6 @@ class JobRequest:
     datetimes as ISO strings."""
 
     data_root: str
-    venues: str
     module_name: str
     module_source: str
     spec: dict[str, Any]

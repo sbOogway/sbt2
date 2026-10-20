@@ -22,7 +22,7 @@ from option_catalog import (
     contract_id_of,
     listed_option,
 )
-from option_runs import SPEC, VENUES
+from option_runs import SPEC
 
 from sbt2.core.run.chain_history import read_histories
 from sbt2.core.spec import ResolvedRunSpec, load
@@ -68,11 +68,10 @@ def add_stale_contract(path: Path) -> None:
 
 
 def loaded_spec(tmp_path: Path, catalog: Path) -> ResolvedRunSpec:
-    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+    spec = tmp_path / "spec.toml"
     period = next(line for line in SPEC.splitlines() if line.startswith("period"))
     spec.write_text(SPEC.replace(period, PERIOD))
-    venues.write_text(VENUES)
-    [resolved] = load(spec, venues)
+    [resolved] = load(spec)
     return resolved.with_contracts(Catalog(catalog))
 
 

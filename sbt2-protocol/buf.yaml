@@ -11,3 +11,4 @@ breaking:
       - sbt2/protocol/v1/config.proto
     FIELD_NO_DELETE:
       - sbt2/protocol/v1/envelope.proto
+      - sbt2/protocol/v1/runs.proto

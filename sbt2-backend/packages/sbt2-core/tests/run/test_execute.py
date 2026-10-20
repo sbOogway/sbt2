@@ -18,17 +18,8 @@ instruments = ["BTCUSDT-LINEAR.BYBIT"]
 period = [2024-01-01T02:00:00, 2024-01-05]
 split = { validation_start = 2024-01-03, test_start = 2024-01-04 }
 part = "train"
-venue = "test_linear"
+execution = { default_leverage = "10", fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } } }
 capital = "10000 USDT"
-"""
-VENUES = """
-[test_linear]
-name = "BYBIT"
-source = "bybit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
-default_leverage = "10"
-fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
 """
 TAKER_FEE = 0.00055 * 50_000
 FUNDING = -5.0
@@ -42,10 +33,9 @@ def catalog(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def resolved(tmp_path: Path, **overrides: Any) -> ResolvedRunSpec:
-    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+    spec = tmp_path / "spec.toml"
     spec.write_text(SPEC)
-    venues.write_text(VENUES)
-    [resolved] = load(spec, venues, overrides)
+    [resolved] = load(spec, overrides)
     return resolved
 
 

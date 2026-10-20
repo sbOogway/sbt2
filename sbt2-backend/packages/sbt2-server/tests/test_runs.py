@@ -67,8 +67,8 @@ def in_one_loop(scenario: Awaitable[None]) -> None:
 
 
 def real_jobs(path: Path) -> tuple[Root, Jobs]:
-    root, config = deployed(path)
-    return root, area.local_jobs(root, config)
+    root = deployed(path)
+    return root, area.local_jobs(root)
 
 
 def planning(worker: FakeWorker) -> None:
@@ -132,6 +132,21 @@ def test_submit_run_answers_job_submitted_with_its_run_ids(tmp_path: Path) -> No
 
 
 @pytest.mark.integration
+def test_a_run_needs_no_venue_profiles_on_the_server(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        _, jobs = real_jobs(tmp_path)
+        session = Session(area.routes(jobs))
+
+        reply = await session.ask(submit_run(run_table()))
+
+        job = await finished(jobs, submitted_job(reply))
+        assert job.state == JobState.JOB_STATE_FINISHED
+        assert [each.name for each in tmp_path.iterdir()] == ["data"]
+
+    in_one_loop(scenario())
+
+
+@pytest.mark.integration
 def test_a_finished_job_stores_each_run_with_its_strategy_py(tmp_path: Path) -> None:
     async def scenario() -> None:
         root, jobs = real_jobs(tmp_path)
@@ -187,15 +202,17 @@ def test_an_invalid_spec_answers_invalid_argument_and_starts_no_job(
 
 
 @pytest.mark.integration
-def test_an_unknown_venue_profile_answers_not_found(tmp_path: Path) -> None:
+def test_a_venue_without_a_source_answers_not_found(tmp_path: Path) -> None:
     async def scenario() -> None:
         _, jobs = real_jobs(tmp_path)
         session = Session(area.routes(jobs))
 
-        reply = await session.ask(submit_run(run_table(venue="nowhere")))
+        reply = await session.ask(
+            submit_run(run_table(instruments=["BTCUSDT.NOWHERE"]))
+        )
 
         assert reply.error.code == ErrorCode.ERROR_CODE_NOT_FOUND
-        assert "nowhere" in reply.error.message
+        assert "NOWHERE" in reply.error.message
 
     in_one_loop(scenario())
 

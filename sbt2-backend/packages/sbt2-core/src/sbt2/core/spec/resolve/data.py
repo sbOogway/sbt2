@@ -5,18 +5,18 @@ from typing import Any
 from nautilus_trader.model import BarSpecification, InstrumentId, NautilusDataType
 
 from sbt2.core.spec.bars import BarSource
-from sbt2.core.spec.resolve.venues import VenueProfile
+from sbt2.core.spec.resolve.execution import Execution
 from sbt2.data import candle_type
 
 
 def data_types(
-    bars: BarSource, inputs: Sequence[BarSpecification], profile: VenueProfile
+    bars: BarSource, inputs: Sequence[BarSpecification], traded: Execution
 ) -> list[NautilusDataType]:
     """What the declared bars are built from, plus the asset class's own streams."""
-    asset = profile.asset
+    asset = traded.asset
     kinds = asset.quotes.source_types(
         bars.data_types(inputs) | {*asset.carry.data_types, *asset.reference_prices},
-        profile.arguments,
+        traded.arguments,
     )
     return [
         getattr(NautilusDataType, name) for name in sorted(k.__name__ for k in kinds)

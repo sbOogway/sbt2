@@ -10,7 +10,12 @@ from sbt2.lab import Lab, StrategyModuleError
 SPEC = {
     "instruments": ["BTCUSDT-PERP.BYBIT"],
     "period": [date(2024, 1, 1), datetime(2024, 7, 1, 12, tzinfo=UTC)],
-    "venue": "bybit",
+    "execution": {
+        "fee_model": {
+            "kind": "maker_taker",
+            "config": {"maker_rate": "0.0002", "taker_rate": "0.00055"},
+        }
+    },
     "capital": "10000 USDT",
     "part": ["train", "validation"],
     "split": {"validation": 0.2, "test": 0.2},
@@ -45,7 +50,13 @@ def test_run_submits_the_spec_and_the_strategy_module() -> None:
     assert list(spec.instruments) == ["BTCUSDT-PERP.BYBIT"]
     assert spec.period.start_at.ToDatetime(UTC) == datetime(2024, 1, 1, tzinfo=UTC)
     assert spec.period.end_at.ToDatetime(UTC) == datetime(2024, 7, 1, 12, tzinfo=UTC)
-    assert (spec.venue, spec.capital) == ("bybit", "10000 USDT")
+    assert spec.capital == "10000 USDT"
+    assert json_format.MessageToDict(spec.execution) == {
+        "fee_model": {
+            "kind": "maker_taker",
+            "config": {"maker_rate": "0.0002", "taker_rate": "0.00055"},
+        }
+    }
     assert list(spec.part) == ["train", "validation"]
     assert json_format.MessageToDict(spec.split) == {"validation": 0.2, "test": 0.2}
     assert json_format.MessageToDict(spec.params) == {

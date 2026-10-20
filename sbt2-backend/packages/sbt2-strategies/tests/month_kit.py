@@ -15,7 +15,6 @@ from sbt2.core.results import ParquetResultStore
 
 HERE = Path(__file__).parent / "realdata"
 REPO = HERE.parents[3]
-CONFIG = HERE.parents[2] / "sbt2-core" / "tests" / "config"
 COIN_PRECISION = 1e-6
 
 
@@ -33,10 +32,7 @@ def run_month(spec: str, root: Path) -> tuple[ParquetResultStore, str]:
     data = _data_folder(root)
     with pytest.MonkeyPatch.context() as patch:
         patch.chdir(REPO)
-        result = CliRunner().invoke(
-            app,
-            ["run", str(HERE / spec), "--data", str(data), "--config", str(CONFIG)],
-        )
+        result = CliRunner().invoke(app, ["run", str(HERE / spec), "--data", str(data)])
     assert result.exit_code == 0, result.output
     store = ParquetResultStore(data / "results")
     [run_id] = store.runs()["run_id"]

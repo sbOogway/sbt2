@@ -159,7 +159,7 @@ def _run(request: JobRequest, channel: _Channel) -> int:
 
 
 def _batch(request: JobRequest, progress: _Progress) -> None:
-    runs = spec.load_table(request.spec, Path(request.venues))
+    runs = spec.load_table(request.spec)
     setup = BatchSetup.at(
         Root(Path(request.data_root)), Launch(Uncapped()), LogLevel.INFO
     )
@@ -185,7 +185,7 @@ def _conflict(error: Exception) -> Conflict | None:
 
 
 def _rejection(error: Exception) -> Rejected:
-    if isinstance(error, spec.UnknownVenueProfileError):
+    if isinstance(error, spec.UnknownVenueError):
         return Rejected(Rejection.NOT_FOUND, _described(error))
     if isinstance(error, _INVALID):
         return Rejected(Rejection.INVALID, _described(error), _conflict(error))

@@ -32,18 +32,15 @@ from sbt2.data import (
 )
 from sbt2.data.testing import INSTRUMENT_ID, SYMBOL, ServedSource, spot_pair
 
-VENUES = """
-[test_linear]
-name = "BYBIT"
-source = "served"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
-"""
 DAY = date(2024, 1, 1)
 NEXT_DAY = date(2024, 1, 2)
 # 1,000,000 seconds after the test part's start, the most 1s snapshots
 # nautilus keeps.
 LAST_SNAPSHOT = "2024-01-12T13:46:40"
+FEES = (
+    '{ fee_model = { kind = "maker_taker", '
+    'config = { maker_rate = "0.0002", taker_rate = "0.00055" } } }'
+)
 TEST_FROM_DAY = "{ validation_start = 2023-12-31, test_start = 2024-01-01 }"
 
 
@@ -54,14 +51,13 @@ def spec(tmp_path: Path, **values: Any) -> ResolvedRunSpec:
         "period": "[2024-01-01T02:00:00, 2024-01-05]",
         "split": "{ validation_start = 2024-01-03, test_start = 2024-01-04 }",
         "part": '"train"',
-        "venue": '"test_linear"',
+        "execution": FEES,
         "capital": '"10000 USDT"',
         **values,
     }
-    path, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+    path = tmp_path / "spec.toml"
     path.write_text("".join(f"{key} = {value}\n" for key, value in lines.items()))
-    venues.write_text(VENUES)
-    [spec] = load(path, venues)
+    [spec] = load(path)
     return spec
 
 
