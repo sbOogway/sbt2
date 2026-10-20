@@ -5,6 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import override
 
+import pandas as pd
 import pytest
 from binance_server import binance_replay
 from coinbase_intx_replay import coinbase_intx_replay
@@ -341,6 +342,42 @@ def test_deribit_delivery_prices_round_trip_through_the_catalog(
     (stored,) = catalog.query(NautilusDataType.IndexPriceUpdate, [BTC_DELIVERY])
     assert str(stored.value) == "93539.00"
     assert stored.ts_event == (1_735_689_600 + 8 * 3_600) * 1_000_000_000
+
+
+DERIBIT_FUTURES = [
+    "BTC-3JAN25",
+    "BTC-10JAN25",
+    "BTC-31JAN25",
+    "BTC-28FEB25",
+    "BTC-28MAR25",
+    "BTC-27JUN25",
+    "BTC-26SEP25",
+    "BTC-26DEC25",
+]
+
+
+@pytest.mark.integration
+def test_deribit_futures_and_spot_round_trip_through_the_catalog(
+    deribit: Source, tmp_path: Path
+) -> None:
+    for symbol in ("BTC-FUTURES", "BTC_USDC"):
+        outcomes = download_and_ingest_symbol(deribit, symbol, tmp_path)
+        assert outcomes == [IngestOutcome.WRITTEN]
+
+    catalog = Catalog(tmp_path / "catalog")
+    window = Window.of_days(DERIBIT_DAY, DERIBIT_DAY)
+
+    def bars(name: str) -> pd.DataFrame:
+        return catalog.frame(InstrumentId.from_str(f"{name}.DERIBIT"), Bar, window)
+
+    assert {each: len(bars(each)) for each in DERIBIT_FUTURES} == dict.fromkeys(
+        DERIBIT_FUTURES, 1440
+    )
+    assert len(bars("BTC-17JAN25")) == 0
+    spot = bars("BTC_USDC")
+    assert len(spot) == 3
+    assert spot["volume"].iloc[0] == pytest.approx(0.7148)
+    assert spot["close"].iloc[0] == pytest.approx(93400.0)
 
 
 KLINE_DAY = date(2025, 1, 1)

@@ -33,8 +33,8 @@ from nautilus_trader.model import (
 
 from sbt2.data.sources.deribit import futures, perpetual, spot
 from sbt2.data.sources.deribit.series import Kind, Series, series_of
-from sbt2.data.sources.klines import bars
-from sbt2.data.sources.nautilus_bars import read_klines
+from sbt2.data.sources.klines import Kline, bars
+from sbt2.data.sources.nautilus_bars import klines_of, read_bars, read_klines
 
 VENUE = "DERIBIT"
 
@@ -125,6 +125,12 @@ def traded_ids(path: Path, data_type: type) -> tuple[InstrumentId, ...]:
     series = series_of(symbol)
     if series is not None:
         return (series_id(series.symbol),)
+    if futures.currency_of(symbol) is not None:
+        return tuple(
+            sorted({each.bar_type.instrument_id for each in read_bars(path)}, key=str)
+        )
+    if spot.currency_of(symbol) is not None:
+        return (contract_id(symbol),)
     names = {each["instrument_name"] for each in json.loads(path.read_text())}
     if data_type is IndexPriceUpdate:
         return tuple(index_id(each) for each in sorted({_currency(n) for n in names}))
@@ -141,6 +147,10 @@ def day_records(
     series = series_of(symbol)
     if series is not None:
         return _series_updates(path, series, instruments)
+    if futures.currency_of(symbol) is not None:
+        return _future_candles(path, instruments)
+    if spot.currency_of(symbol) is not None:
+        return _spot_candles(path, instruments)
     return _PARSERS[data_type](path, instruments)
 
 
@@ -210,6 +220,38 @@ def _candles(
     """The volume is in contracts, USD for the inverse perpetual."""
     ((instrument_id, perpetual_),) = instruments.items()
     return {instrument_id: list(bars(read_klines(path), perpetual_))}
+
+
+def _future_candles(
+    path: Path, instruments: Mapping[InstrumentId, CryptoFuture]
+) -> dict[InstrumentId, list[Bar]]:
+    """The volume is in contracts, USD for the inverse future."""
+    grouped: dict[InstrumentId, list[Bar]] = {each: [] for each in instruments}
+    for bar in read_bars(path):
+        grouped[bar.bar_type.instrument_id].append(bar)
+    return {
+        instrument_id: list(bars(klines_of(group), instruments[instrument_id]))
+        for instrument_id, group in grouped.items()
+    }
+
+
+def _spot_candles(
+    path: Path, instruments: Mapping[InstrumentId, CurrencyPair]
+) -> dict[InstrumentId, list[Bar]]:
+    """The volume is in the base coin."""
+    ((instrument_id, pair),) = instruments.items()
+    chart = json.loads(path.read_text())
+    rows = zip(
+        chart["ticks"],
+        chart["open"],
+        chart["high"],
+        chart["low"],
+        chart["close"],
+        chart["volume"],
+        strict=True,
+    )
+    klines = (Kline(int(tick), *map(repr, values)) for tick, *values in rows)
+    return {instrument_id: list(bars(klines, pair))}
 
 
 def _dvol_update(row: Sequence[float], index: IndexInstrument) -> IndexPriceUpdate:

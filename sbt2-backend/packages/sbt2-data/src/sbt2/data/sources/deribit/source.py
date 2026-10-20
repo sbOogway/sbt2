@@ -121,10 +121,13 @@ class DeribitSource(Source):
     @override
     def is_known_gap(self, symbol: str, data_type: type, day: date) -> bool:
         """A day without trades is a day without any of the data types. A series
-        has index prices only and a perpetual funding and candles only, so neither
-        is ever requested for another data type; options have neither."""
+        has index prices only, a perpetual funding and candles only, and dated
+        futures and spot candles only, so none is ever requested for another data
+        type; options have neither."""
         if symbol in perpetual.SYMBOLS:
             return data_type not in _PERPETUAL_DATA
+        if symbol in futures.SYMBOLS or symbol in spot.SYMBOLS:
+            return data_type is not Bar
         if series_of(symbol) is not None:
             return data_type is not IndexPriceUpdate
         if data_type in _PERPETUAL_DATA:

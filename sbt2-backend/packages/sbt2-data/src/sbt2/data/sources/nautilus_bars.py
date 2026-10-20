@@ -28,13 +28,20 @@ def dump_bars(bars: Iterable[Bar]) -> bytes:
     return json.dumps([each.to_dict() for each in bars]).encode()
 
 
+def read_bars(path: Path) -> list[Bar]:
+    """The bars of a raw file."""
+    return [Bar.from_dict(each) for each in json.loads(path.read_text())]
+
+
 def read_klines(path: Path) -> Iterator[Kline]:
     """The bars of a raw file as klines, which the nautilus clients stamp at the
     open, in time order."""
-    bars = sorted(
-        map(Bar.from_dict, json.loads(path.read_text())), key=lambda each: each.ts_event
-    )
-    for bar in bars:
+    return klines_of(read_bars(path))
+
+
+def klines_of(bars: Iterable[Bar]) -> Iterator[Kline]:
+    """The bars as klines, in time order."""
+    for bar in sorted(bars, key=lambda each: each.ts_event):
         yield Kline(
             bar.ts_event // _NANOS_PER_MILLI,
             str(bar.open),
