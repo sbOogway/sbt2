@@ -1,7 +1,15 @@
 import pytest
 from bar_engine import BTC, EQUITY
 from nautilus_trader.model import OrderSide
-from vwap_kit import DAY, day, orders_sent, run_candles, vwap_config
+from vwap_kit import (
+    DAY,
+    day,
+    inverse_config,
+    orders_sent,
+    run_candles,
+    run_inverse,
+    vwap_config,
+)
 
 from sbt2.strategies.vwap_trend import VwapTrend
 
@@ -40,3 +48,11 @@ def test_holds_the_whole_equity_without_leverage() -> None:
     assert float(position.quantity) * 110.0 == pytest.approx(
         EQUITY.as_double(), rel=1e-3
     )
+
+
+@pytest.mark.integration
+def test_inverse_perpetual_position_is_the_equity_in_usd_contracts() -> None:
+    engine = run_inverse(VwapTrend(inverse_config({})), session()[:120])
+
+    [position] = engine.cache.positions()
+    assert float(position.quantity) == pytest.approx(1.0 * 110.0, abs=10)
