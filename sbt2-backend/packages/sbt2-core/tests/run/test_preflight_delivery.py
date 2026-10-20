@@ -68,7 +68,7 @@ def test_preflight_fetches_the_delivery_price_of_an_expiry_in_the_run(
     build_expiring_catalog(folders.catalog, None)
     source = DeliverySource()
 
-    preflight(spec_of(tmp_path), source, folders)
+    preflight(spec_of(tmp_path), lambda _: source, folders)
 
     day = Window.of_days(EXPIRY_DAY, EXPIRY_DAY)
     prices = Catalog(folders.catalog).frame(DELIVERY_ID, IndexPriceUpdate, day)
@@ -84,7 +84,7 @@ def test_preflight_fails_naming_a_delivery_day_the_source_lacks(
     build_expiring_catalog(folders.catalog, None)
 
     with pytest.raises(MissingDataError, match=f"{DELIVERY_ID}.*2024-01-02"):
-        preflight(spec_of(tmp_path), DeribitSourceWithoutDelivery(), folders)
+        preflight(spec_of(tmp_path), lambda _: DeribitSourceWithoutDelivery(), folders)
 
 
 class DeribitSourceWithoutDelivery(DeliverySource):

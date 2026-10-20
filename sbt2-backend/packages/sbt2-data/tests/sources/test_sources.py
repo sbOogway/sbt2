@@ -15,6 +15,7 @@ from sbt2.data.sources import (
     listed_gaps,
     remove_known_gaps,
     source,
+    source_name,
 )
 from sbt2.data.sources.binance import BinanceSource
 from sbt2.data.sources.coinbase_intx import CoinbaseIntxSource
@@ -225,3 +226,26 @@ def test_a_gap_of_an_unknown_source_or_data_type_is_rejected_and_nothing_is_writ
         add_known_gaps(file, [CANDLES_GAP, gap])
 
     assert file.read_bytes() == before
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("instrument_id", "name"),
+    [
+        ("BTCUSDT-PERP.BINANCE", "binance"),
+        ("BTC-USDT-SWAP.OKX", "okx"),
+        ("BTC-USD-PERP.COINBASE_INTX", "coinbase_intx"),
+        ("BTCUSDT-LINEAR.BYBIT", "bybit"),
+        ("BTC-PERPETUAL.DERIBIT", "deribit"),
+    ],
+)
+def test_the_source_of_an_instrument_is_the_one_of_its_venue(
+    instrument_id: str, name: str
+) -> None:
+    assert source_name(InstrumentId.from_str(instrument_id)) == name
+
+
+@pytest.mark.unit
+def test_an_instrument_of_an_unknown_venue_has_no_source() -> None:
+    with pytest.raises(UnknownSourceError, match="no source for the venue KRAKEN"):
+        source_name(InstrumentId.from_str("BTC-PERP.KRAKEN"))

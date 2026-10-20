@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import timedelta
 
 from nautilus_trader.model import QuoteTick
@@ -8,7 +9,11 @@ from sbt2.core.run.preflighting.errors import (
     MissingDataError,
     SnapshotBufferError,
 )
-from sbt2.core.run.preflighting.fetch import DataFolders, check_coverage
+from sbt2.core.run.preflighting.fetch import (
+    DataFolders,
+    check_coverage,
+    check_feed_coverage,
+)
 from sbt2.core.spec import ResolvedRunSpec
 from sbt2.data import Catalog, Gap, Source
 
@@ -17,16 +22,26 @@ SNAPSHOT_BUFFER = 1_000_000
 
 
 def preflight(
-    spec: ResolvedRunSpec, source: Source, folders: DataFolders
+    spec: ResolvedRunSpec, sources: Callable[[str], Source], folders: DataFolders
 ) -> tuple[Gap, ...]:
-    """Check that ``spec`` can run, fetching the data it lacks from ``source``.
+    """Check that ``spec`` can run, fetching the data it lacks: the run's own from
+    the source its venue profile names, the feeds' candles from the source of each
+    feed's venue; ``sources`` finds a source by name.
 
     Returns the known-gap days the run will skip.
     """
     _check_snapshots(spec)
     _check_liquidation(spec)
-    covered = check_coverage(spec, source, folders)
+    covered = check_coverage(spec, sources(spec.source), folders)
     _check_instruments(spec, covered.catalog)
+    return (*covered.known_gaps, *_preflight_feeds(spec, sources, folders))
+
+
+def _preflight_feeds(
+    spec: ResolvedRunSpec, sources: Callable[[str], Source], folders: DataFolders
+) -> tuple[Gap, ...]:
+    covered = check_feed_coverage(spec, sources, folders)
+    _check_feed_instruments(spec, covered.catalog)
     return covered.known_gaps
 
 
@@ -63,6 +78,13 @@ def _check_instruments(spec: ResolvedRunSpec, catalog: Catalog) -> None:
                 f"not the run's {profile.asset_class.name}/"
                 f"{profile.instrument_class.name}"
             )
+
+
+def _check_feed_instruments(spec: ResolvedRunSpec, catalog: Catalog) -> None:
+    instruments = catalog.instruments(spec.feeds)
+    absent = [str(each) for each in spec.feeds if each not in instruments]
+    if absent:
+        raise MissingDataError(f"the catalog has no instrument {', '.join(absent)}")
 
 
 def _check_chains(spec: ResolvedRunSpec, catalog: Catalog) -> None:

@@ -64,7 +64,7 @@ def batch(
 
 
 def _preflight(spec: ResolvedRunSpec, setup: BatchSetup) -> tuple[Gap, ...]:
-    return preflight(spec, setup.sources(spec.source), setup.folders)
+    return preflight(spec, setup.sources, setup.folders)
 
 
 def _orders(
