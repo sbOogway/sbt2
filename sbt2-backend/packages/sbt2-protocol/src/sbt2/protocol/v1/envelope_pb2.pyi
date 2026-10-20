@@ -55,9 +55,6 @@ class ClientMessage(_message.Message):
     GET_METRICS_FIELD_NUMBER: _builtins.int
     GET_SERIES_FIELD_NUMBER: _builtins.int
     GET_TEARSHEET_FIELD_NUMBER: _builtins.int
-    LIST_VENUE_PROFILES_FIELD_NUMBER: _builtins.int
-    PUT_VENUE_PROFILE_FIELD_NUMBER: _builtins.int
-    DELETE_VENUE_PROFILE_FIELD_NUMBER: _builtins.int
     LIST_KNOWN_GAPS_FIELD_NUMBER: _builtins.int
     ADD_KNOWN_GAPS_FIELD_NUMBER: _builtins.int
     REMOVE_KNOWN_GAPS_FIELD_NUMBER: _builtins.int
@@ -85,12 +82,6 @@ class ClientMessage(_message.Message):
     def get_series(self) -> _results_pb2.GetSeries: ...
     @_builtins.property
     def get_tearsheet(self) -> _results_pb2.GetTearsheet: ...
-    @_builtins.property
-    def list_venue_profiles(self) -> _config_pb2.ListVenueProfiles: ...
-    @_builtins.property
-    def put_venue_profile(self) -> _config_pb2.PutVenueProfile: ...
-    @_builtins.property
-    def delete_venue_profile(self) -> _config_pb2.DeleteVenueProfile: ...
     @_builtins.property
     def list_known_gaps(self) -> _config_pb2.ListKnownGaps: ...
     @_builtins.property
@@ -127,9 +118,6 @@ class ClientMessage(_message.Message):
         get_metrics: _results_pb2.GetMetrics | None = ...,
         get_series: _results_pb2.GetSeries | None = ...,
         get_tearsheet: _results_pb2.GetTearsheet | None = ...,
-        list_venue_profiles: _config_pb2.ListVenueProfiles | None = ...,
-        put_venue_profile: _config_pb2.PutVenueProfile | None = ...,
-        delete_venue_profile: _config_pb2.DeleteVenueProfile | None = ...,
         list_known_gaps: _config_pb2.ListKnownGaps | None = ...,
         add_known_gaps: _config_pb2.AddKnownGaps | None = ...,
         remove_known_gaps: _config_pb2.RemoveKnownGaps | None = ...,
@@ -144,11 +132,11 @@ class ClientMessage(_message.Message):
         list_studies: _results_pb2.ListStudies | None = ...,
         get_study: _results_pb2.GetStudy | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["add_known_gaps", b"add_known_gaps", "body", b"body", "cancel_job", b"cancel_job", "delete_venue_profile", b"delete_venue_profile", "describe_strategy", b"describe_strategy", "get_metrics", b"get_metrics", "get_panel", b"get_panel", "get_run", b"get_run", "get_series", b"get_series", "get_study", b"get_study", "get_tearsheet", b"get_tearsheet", "hello", b"hello", "list_jobs", b"list_jobs", "list_known_gaps", b"list_known_gaps", "list_model_kinds", b"list_model_kinds", "list_runs", b"list_runs", "list_studies", b"list_studies", "list_venue_profiles", b"list_venue_profiles", "put_venue_profile", b"put_venue_profile", "remove_known_gaps", b"remove_known_gaps", "submit_run", b"submit_run", "subscribe_job", b"subscribe_job", "unsubscribe", b"unsubscribe"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["add_known_gaps", b"add_known_gaps", "body", b"body", "cancel_job", b"cancel_job", "describe_strategy", b"describe_strategy", "get_metrics", b"get_metrics", "get_panel", b"get_panel", "get_run", b"get_run", "get_series", b"get_series", "get_study", b"get_study", "get_tearsheet", b"get_tearsheet", "hello", b"hello", "list_jobs", b"list_jobs", "list_known_gaps", b"list_known_gaps", "list_model_kinds", b"list_model_kinds", "list_runs", b"list_runs", "list_studies", b"list_studies", "remove_known_gaps", b"remove_known_gaps", "submit_run", b"submit_run", "subscribe_job", b"subscribe_job", "unsubscribe", b"unsubscribe"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["add_known_gaps", b"add_known_gaps", "body", b"body", "cancel_job", b"cancel_job", "delete_venue_profile", b"delete_venue_profile", "describe_strategy", b"describe_strategy", "get_metrics", b"get_metrics", "get_panel", b"get_panel", "get_run", b"get_run", "get_series", b"get_series", "get_study", b"get_study", "get_tearsheet", b"get_tearsheet", "hello", b"hello", "list_jobs", b"list_jobs", "list_known_gaps", b"list_known_gaps", "list_model_kinds", b"list_model_kinds", "list_runs", b"list_runs", "list_studies", b"list_studies", "list_venue_profiles", b"list_venue_profiles", "put_venue_profile", b"put_venue_profile", "remove_known_gaps", b"remove_known_gaps", "request_id", b"request_id", "submit_run", b"submit_run", "subscribe_job", b"subscribe_job", "unsubscribe", b"unsubscribe"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["add_known_gaps", b"add_known_gaps", "body", b"body", "cancel_job", b"cancel_job", "describe_strategy", b"describe_strategy", "get_metrics", b"get_metrics", "get_panel", b"get_panel", "get_run", b"get_run", "get_series", b"get_series", "get_study", b"get_study", "get_tearsheet", b"get_tearsheet", "hello", b"hello", "list_jobs", b"list_jobs", "list_known_gaps", b"list_known_gaps", "list_model_kinds", b"list_model_kinds", "list_runs", b"list_runs", "list_studies", b"list_studies", "remove_known_gaps", b"remove_known_gaps", "request_id", b"request_id", "submit_run", b"submit_run", "subscribe_job", b"subscribe_job", "unsubscribe", b"unsubscribe"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_body: _TypeAlias = _typing.Literal["hello", "list_runs", "get_run", "get_metrics", "get_series", "get_tearsheet", "list_venue_profiles", "put_venue_profile", "delete_venue_profile", "list_known_gaps", "add_known_gaps", "remove_known_gaps", "list_model_kinds", "submit_run", "cancel_job", "list_jobs", "subscribe_job", "unsubscribe", "describe_strategy", "get_panel", "list_studies", "get_study"]  # noqa: Y015
+    _WhichOneofReturnType_body: _TypeAlias = _typing.Literal["hello", "list_runs", "get_run", "get_metrics", "get_series", "get_tearsheet", "list_known_gaps", "add_known_gaps", "remove_known_gaps", "list_model_kinds", "submit_run", "cancel_job", "list_jobs", "subscribe_job", "unsubscribe", "describe_strategy", "get_panel", "list_studies", "get_study"]  # noqa: Y015
     _WhichOneofArgType_body: _TypeAlias = _typing.Literal["body", b"body"]  # noqa: Y015
     def WhichOneof(self, oneof_group: _WhichOneofArgType_body) -> _WhichOneofReturnType_body | None: ...
 
@@ -169,7 +157,6 @@ class ServerMessage(_message.Message):
     METRICS_FIELD_NUMBER: _builtins.int
     SERIES_FIELD_NUMBER: _builtins.int
     TEARSHEET_FIELD_NUMBER: _builtins.int
-    VENUE_PROFILES_FIELD_NUMBER: _builtins.int
     CONFIG_WRITTEN_FIELD_NUMBER: _builtins.int
     KNOWN_GAPS_FIELD_NUMBER: _builtins.int
     MODEL_KINDS_FIELD_NUMBER: _builtins.int
@@ -201,8 +188,6 @@ class ServerMessage(_message.Message):
     def series(self) -> _results_pb2.Series: ...
     @_builtins.property
     def tearsheet(self) -> _results_pb2.Tearsheet: ...
-    @_builtins.property
-    def venue_profiles(self) -> _config_pb2.VenueProfiles: ...
     @_builtins.property
     def config_written(self) -> _config_pb2.ConfigWritten: ...
     @_builtins.property
@@ -241,7 +226,6 @@ class ServerMessage(_message.Message):
         metrics: _results_pb2.Metrics | None = ...,
         series: _results_pb2.Series | None = ...,
         tearsheet: _results_pb2.Tearsheet | None = ...,
-        venue_profiles: _config_pb2.VenueProfiles | None = ...,
         config_written: _config_pb2.ConfigWritten | None = ...,
         known_gaps: _config_pb2.KnownGaps | None = ...,
         model_kinds: _config_pb2.ModelKinds | None = ...,
@@ -256,11 +240,11 @@ class ServerMessage(_message.Message):
         study_list: _results_pb2.StudyList | None = ...,
         study_detail: _results_pb2.StudyDetail | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "config_written", b"config_written", "error", b"error", "job_cancelled", b"job_cancelled", "job_submitted", b"job_submitted", "job_subscribed", b"job_subscribed", "job_update", b"job_update", "jobs", b"jobs", "known_gaps", b"known_gaps", "metrics", b"metrics", "model_kinds", b"model_kinds", "panel", b"panel", "run_list", b"run_list", "run_summary", b"run_summary", "series", b"series", "strategy_schema", b"strategy_schema", "study_detail", b"study_detail", "study_list", b"study_list", "tearsheet", b"tearsheet", "unsubscribed", b"unsubscribed", "venue_profiles", b"venue_profiles", "welcome", b"welcome"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "config_written", b"config_written", "error", b"error", "job_cancelled", b"job_cancelled", "job_submitted", b"job_submitted", "job_subscribed", b"job_subscribed", "job_update", b"job_update", "jobs", b"jobs", "known_gaps", b"known_gaps", "metrics", b"metrics", "model_kinds", b"model_kinds", "panel", b"panel", "run_list", b"run_list", "run_summary", b"run_summary", "series", b"series", "strategy_schema", b"strategy_schema", "study_detail", b"study_detail", "study_list", b"study_list", "tearsheet", b"tearsheet", "unsubscribed", b"unsubscribed", "welcome", b"welcome"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "config_written", b"config_written", "error", b"error", "job_cancelled", b"job_cancelled", "job_submitted", b"job_submitted", "job_subscribed", b"job_subscribed", "job_update", b"job_update", "jobs", b"jobs", "known_gaps", b"known_gaps", "metrics", b"metrics", "model_kinds", b"model_kinds", "panel", b"panel", "request_id", b"request_id", "run_list", b"run_list", "run_summary", b"run_summary", "series", b"series", "strategy_schema", b"strategy_schema", "study_detail", b"study_detail", "study_list", b"study_list", "subscription_id", b"subscription_id", "tearsheet", b"tearsheet", "unsubscribed", b"unsubscribed", "venue_profiles", b"venue_profiles", "welcome", b"welcome"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["body", b"body", "config_written", b"config_written", "error", b"error", "job_cancelled", b"job_cancelled", "job_submitted", b"job_submitted", "job_subscribed", b"job_subscribed", "job_update", b"job_update", "jobs", b"jobs", "known_gaps", b"known_gaps", "metrics", b"metrics", "model_kinds", b"model_kinds", "panel", b"panel", "request_id", b"request_id", "run_list", b"run_list", "run_summary", b"run_summary", "series", b"series", "strategy_schema", b"strategy_schema", "study_detail", b"study_detail", "study_list", b"study_list", "subscription_id", b"subscription_id", "tearsheet", b"tearsheet", "unsubscribed", b"unsubscribed", "welcome", b"welcome"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_body: _TypeAlias = _typing.Literal["error", "welcome", "run_list", "run_summary", "metrics", "series", "tearsheet", "venue_profiles", "config_written", "known_gaps", "model_kinds", "job_submitted", "job_cancelled", "jobs", "job_subscribed", "job_update", "unsubscribed", "strategy_schema", "panel", "study_list", "study_detail"]  # noqa: Y015
+    _WhichOneofReturnType_body: _TypeAlias = _typing.Literal["error", "welcome", "run_list", "run_summary", "metrics", "series", "tearsheet", "config_written", "known_gaps", "model_kinds", "job_submitted", "job_cancelled", "jobs", "job_subscribed", "job_update", "unsubscribed", "strategy_schema", "panel", "study_list", "study_detail"]  # noqa: Y015
     _WhichOneofArgType_body: _TypeAlias = _typing.Literal["body", b"body"]  # noqa: Y015
     def WhichOneof(self, oneof_group: _WhichOneofArgType_body) -> _WhichOneofReturnType_body | None: ...
 

@@ -33,46 +33,6 @@ enum InstrumentClass {
   INSTRUMENT_CLASS_BINARY_OPTION = 12;
 }
 
-// A model argument of a venue; ListModelKinds gives the kinds of each.
-message VenueModel {
-  string kind = 1;
-  // Absent stores no config table; an integral number is stored as an integer.
-  google.protobuf.Struct config = 2;
-}
-
-message VenueProfile {
-  // The profile's name, which a spec's `venue` selects.
-  string name = 1;
-  // The nautilus venue's name, such as BYBIT.
-  string venue = 2;
-  // The data source the venue's data comes from, such as bybit.
-  string source = 3;
-  AssetClass asset_class = 4;
-  InstrumentClass instrument_class = 5;
-  VenueModel fee_model = 6;
-  VenueModel fill_model = 7;
-  VenueModel latency_model = 8;
-  VenueModel margin_model = 9;
-  repeated VenueModel modules = 10;
-  // The other BacktestVenueConfig arguments; an integral number is stored as an integer.
-  google.protobuf.Struct arguments = 11;
-}
-
-message ListVenueProfiles {}
-
-message VenueProfiles {
-  repeated VenueProfile profiles = 1;
-}
-
-// Creates the profile, or replaces the one of the same name.
-message PutVenueProfile {
-  VenueProfile profile = 1;
-}
-
-message DeleteVenueProfile {
-  string name = 1;
-}
-
 // The answer to a write that succeeded.
 message ConfigWritten {}
 

@@ -65,7 +65,7 @@ def _server(token: str, root: Root, folder: ConfigFolder) -> Server:
         Settings(token),
         {
             **results.routes(root),
-            **config.routes(folder, root),
+            **config.routes(root),
             **runs.routes(runs.local_jobs(root, folder)),
             **strategies.routes(),
         },

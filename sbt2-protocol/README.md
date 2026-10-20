@@ -45,21 +45,16 @@ an error, without silently changing the benchmark.
 ## Config
 
 `CAPABILITY_CONFIG` advertises the config requests in `config.proto`. Each has
-one response, carrying the request's ID: `VenueProfiles`, `KnownGaps` or
-`ModelKinds` for a read, `ConfigWritten` for a write, or a correlated `Error`.
+one response, carrying the request's ID: `KnownGaps` or `ModelKinds` for a read,
+`ConfigWritten` for a write, or a correlated `Error`.
 
 - Every read goes to the server's files, and every write is atomic, so the next
-  run sees it. The server holds no defaults: an empty config folder answers empty
-  lists, and the GUI installs its own defaults.
-- `sbt2-core` validates each write before the file changes. An invalid profile or
-  gap answers `INVALID_ARGUMENT`, and deleting an unknown profile `NOT_FOUND`,
-  with core's message.
-- A profile's `arguments` must not repeat a typed field, such as `source` or
-  `fee_model`. TOML holds no null, so a null value is invalid.
-- `google.protobuf.Struct` holds numbers as doubles; the server stores an
-  integral number as an integer. Decimal values, such as fee rates, stay strings.
-- Profiles are listed as stored, without the asset class's venue defaults.
-  Rewriting a file drops its comments and may reorder its keys.
+  run sees it. The server holds no defaults: an empty data root answers an empty
+  list of gaps.
+- `sbt2-core` validates each write before the file changes. An invalid gap
+  answers `INVALID_ARGUMENT`, with core's message.
+- The server holds no venue profiles. A spec names its fees and execution
+  settings itself, and its venue is the venue of its instruments.
 - `ListModelKinds` lists every model argument, and for each of its kinds the
   config parameters with their type, whether they are required, and their
   default. A parameter whose type the server cannot tell is a string.

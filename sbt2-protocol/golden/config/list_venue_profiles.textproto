@@ -1,3 +1,0 @@
-# proto-message: sbt2.protocol.v1.ClientMessage
-request_id: 20
-list_venue_profiles {}

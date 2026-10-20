@@ -9,6 +9,8 @@ import "sbt2/protocol/v1/types.proto";
 
 // Each binary WebSocket frame the client sends is one ClientMessage.
 message ClientMessage {
+  reserved 8, 9, 10;
+  reserved "list_venue_profiles", "put_venue_profile", "delete_venue_profile";
   // Chosen by the client and never 0; the server's answers carry it back.
   uint64 request_id = 1;
   oneof body {
@@ -18,9 +20,6 @@ message ClientMessage {
     GetMetrics get_metrics = 5;
     GetSeries get_series = 6;
     GetTearsheet get_tearsheet = 7;
-    ListVenueProfiles list_venue_profiles = 8;
-    PutVenueProfile put_venue_profile = 9;
-    DeleteVenueProfile delete_venue_profile = 10;
     ListKnownGaps list_known_gaps = 11;
     AddKnownGaps add_known_gaps = 12;
     RemoveKnownGaps remove_known_gaps = 13;
@@ -39,6 +38,8 @@ message ClientMessage {
 
 // Each binary WebSocket frame the server sends is one ServerMessage.
 message ServerMessage {
+  reserved 10;
+  reserved "venue_profiles";
   // 0 on a push, which carries the subscription it belongs to instead.
   uint64 request_id = 1;
   // 0 on an answer to a request.
@@ -51,7 +52,6 @@ message ServerMessage {
     Metrics metrics = 7;
     Series series = 8;
     Tearsheet tearsheet = 9;
-    VenueProfiles venue_profiles = 10;
     ConfigWritten config_written = 11;
     KnownGaps known_gaps = 12;
     ModelKinds model_kinds = 13;
