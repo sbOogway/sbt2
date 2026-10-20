@@ -9,7 +9,6 @@ Image=ghcr.io/sboogway/sbt2-server:latest
 AutoUpdate=registry
 EnvironmentFile=%h/.config/sbt2/server.env
 Volume=sbt2-data:/data
-Volume=sbt2-config:/config
 # keep 127.0.0.1: the server speaks plain ws://; reach it from afar through an SSH tunnel
 PublishPort=127.0.0.1:8765:8765
 HealthCmd=python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/health', timeout=4)"

@@ -39,7 +39,7 @@ present:
 ```sh
 podman pull ghcr.io/sboogway/sbt2-server:latest
 podman run -d -p 127.0.0.1:8765:8765 -e SBT2_SERVER_TOKEN=<token> \
-  -v sbt2-data:/data -v sbt2-config:/config ghcr.io/sboogway/sbt2-server:latest
+  -v sbt2-data:/data ghcr.io/sboogway/sbt2-server:latest
 ```
 
 Use `:X.Y.Z` instead of `:latest` to pin a version. With

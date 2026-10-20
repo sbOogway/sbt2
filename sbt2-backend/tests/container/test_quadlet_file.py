@@ -44,10 +44,8 @@ def test_quadlet_rolls_back_unless_healthy_and_binds_to_localhost() -> None:
 
 
 @pytest.mark.unit
-def test_quadlet_keeps_data_and_config_in_volumes_and_reads_the_token_from_a_file() -> (
-    None
-):
+def test_quadlet_keeps_data_in_a_volume_and_reads_the_token_from_a_file() -> None:
     unit = container()
 
-    assert unit["Volume"] == ["sbt2-data:/data", "sbt2-config:/config"]
+    assert unit["Volume"] == ["sbt2-data:/data"]
     assert unit["EnvironmentFile"] == ["%h/.config/sbt2/server.env"]

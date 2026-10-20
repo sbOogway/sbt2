@@ -12,10 +12,8 @@ services:
     environment:
       SBT2_SERVER_TOKEN: ${SBT2_SERVER_TOKEN:?set SBT2_SERVER_TOKEN to the API token clients must present}
       SBT2_DATA: /data
-      SBT2_CONFIG: /config
     volumes:
       - data:/data
-      - config:/config
     ports:
       - "127.0.0.1:8765:8765"
     # an image built in the OCI format drops the Containerfile's HEALTHCHECK
@@ -32,4 +30,3 @@ services:
 
 volumes:
   data:
-  config:
