@@ -13,6 +13,7 @@ from sbt2.core.run.preflighting.catalog import ReadOnceCatalog
 from sbt2.core.run.preflighting.errors import MissingDataError
 from sbt2.core.spec import ResolvedRunSpec
 from sbt2.data import (
+    INSTRUMENT,
     Catalog,
     Coverage,
     DayRange,
@@ -54,19 +55,29 @@ def check_coverage(
     """Fetch the days the catalog lacks, and return the known gaps with the
     catalog as it is after the fetch."""
     wanted = _Wanted(spec.asset.calendar, partial(_coverages, spec))
-    return _covered(wanted, source, folders)
+    fetched = _covered(wanted, source, folders)
+    _require(fetched.uncovered.missing)
+    return Covered(fetched.uncovered.known_gaps, fetched.catalog)
 
 
 def check_feed_coverage(
     spec: ResolvedRunSpec, sources: Callable[[str], Source], folders: DataFolders
 ) -> Covered:
     """The same for the feeds' candles, each fetched from the source of its
-    venue."""
+    venue. A day the source reports as missing is a known gap of the run; a day
+    that is still missing for another reason fails."""
     known_gaps: list[Gap] = []
     for name, feeds in _by_source(spec.feeds).items():
         selection = Selection(feeds, (Bar,), Window(*spec.data_window))
         wanted = _Wanted(spec.asset.calendar, partial(_feed_coverages, selection))
-        known_gaps.extend(_covered(wanted, sources(name), folders).known_gaps)
+        fetched = _covered(wanted, sources(name), folders)
+        _require(
+            tuple(
+                each for each in fetched.uncovered.missing if each not in fetched.absent
+            )
+        )
+        known_gaps.extend(fetched.uncovered.known_gaps)
+        known_gaps.extend(fetched.absent)
     return Covered(tuple(known_gaps), ReadOnceCatalog(folders.catalog))
 
 
@@ -77,25 +88,47 @@ def _by_source(feeds: Iterable[InstrumentId]) -> dict[str, tuple[InstrumentId, .
     return {name: tuple(ids) for name, ids in named.items()}
 
 
-def _covered(wanted: _Wanted, source: Source, folders: DataFolders) -> Covered:
+@dataclass(frozen=True)
+class _Fetched:
+    """The catalog after the fetch, the days still uncovered, and those of them
+    the source reported as missing."""
+
+    catalog: Catalog
+    uncovered: _Uncovered
+    absent: tuple[Gap, ...]
+
+
+def _covered(wanted: _Wanted, source: Source, folders: DataFolders) -> _Fetched:
     folders.catalog.mkdir(parents=True, exist_ok=True)
     catalog = ReadOnceCatalog(folders.catalog)
     uncovered = _uncovered(wanted, catalog, source.known_gaps)
+    reported: set[tuple[str, date]] = set()
     # The first fetch brings the contracts, which tell what delivery data is due.
     for _ in range(2):
         if not uncovered.missing:
             break
-        _fetch(source, uncovered.missing, folders)
+        reported |= _fetch(source, uncovered.missing, folders)
         catalog = ReadOnceCatalog(folders.catalog)
         uncovered = _uncovered(wanted, catalog, source.known_gaps)
-    if uncovered.missing:
-        described = ", ".join(map(str, uncovered.missing))
+    absent = tuple(
+        each
+        for each in uncovered.missing
+        if (source.symbol(each.instrument_id), each.day) in reported
+    )
+    return _Fetched(catalog, uncovered, absent)
+
+
+def _require(missing: tuple[Gap, ...]) -> None:
+    if missing:
+        described = ", ".join(map(str, missing))
         raise MissingDataError(f"the catalog lacks {described}")
-    return Covered(uncovered.known_gaps, catalog)
 
 
-def _fetch(source: Source, missing: tuple[Gap, ...], folders: DataFolders) -> None:
-    """Download and ingest the span of the missing days."""
+def _fetch(
+    source: Source, missing: tuple[Gap, ...], folders: DataFolders
+) -> set[tuple[str, date]]:
+    """Download and ingest the span of the missing days; return the symbol and
+    day of each day file the source has nothing for."""
     symbols = tuple(sorted({source.symbol(each.instrument_id) for each in missing}))
     types = tuple(sorted({each.data_type.__name__ for each in missing}))
     first, last = min(each.day for each in missing), max(each.day for each in missing)
@@ -110,6 +143,11 @@ def _fetch(source: Source, missing: tuple[Gap, ...], folders: DataFolders) -> No
     tally = download(source, DownloadRequest(days), DownloadOptions(folders.raw))
     for each in tally.having(Outcome.FAILED):
         logger.warning("failed to fetch %s: %s", each.item.raw.path, each.reason)
+    reported = {
+        (each.item.symbol, each.item.day)
+        for each in tally.having(Outcome.MISSING)
+        if each.item.data != INSTRUMENT
+    }
     try:
         ingest(
             source,
@@ -119,6 +157,7 @@ def _fetch(source: Source, missing: tuple[Gap, ...], folders: DataFolders) -> No
     except NoSnapshotError as error:
         ids = ", ".join(sorted({str(each.instrument_id) for each in missing}))
         raise MissingDataError(f"no instrument for {ids}: {error}") from error
+    return reported
 
 
 @dataclass(frozen=True)

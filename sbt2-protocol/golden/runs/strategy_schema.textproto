@@ -26,4 +26,14 @@ strategy_schema {
     choices { string_value: "ema" }
     choices { string_value: "sma" }
   }
+  parameters {
+    name: "feeds"
+    type: PARAMETER_TYPE_STRING_LIST
+    default {
+      list_value {
+        values { string_value: "BINANCE.BTCUSDT-PERP" }
+        values { string_value: "OKX.BTC-USDT-SWAP" }
+      }
+    }
+  }
 }

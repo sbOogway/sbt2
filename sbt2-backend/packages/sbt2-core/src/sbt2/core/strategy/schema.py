@@ -13,7 +13,8 @@ class ParamSpec:
     """One field of a strategy's ``Params``: what a form needs to ask for it.
 
     ``default`` is ``None`` for a required field. ``choices`` is empty unless
-    the field is a ``Literal``; then ``kind`` is the type of its members.
+    the field is a ``Literal``; then ``kind`` is the type of its members. A
+    ``tuple[str, ...]`` field has the ``kind`` ``tuple``.
     """
 
     name: str
@@ -40,6 +41,11 @@ def params_schema(strategy: type[Strategy[Any]]) -> tuple[ParamSpec, ...]:
     )
 
 
+def is_str_tuple(hint: Any) -> bool:
+    """Whether ``hint`` is ``tuple[str, ...]``."""
+    return get_origin(hint) is tuple and get_args(hint) == (str, Ellipsis)
+
+
 def _spec(name: str, hint: Any, default: Any) -> ParamSpec:
     kind, choices = _kind_and_choices(name, hint)
     required = default is MISSING
@@ -54,6 +60,8 @@ def _kind_and_choices(name: str, hint: Any) -> tuple[type, tuple[Any, ...]]:
             return kinds.pop(), choices
     elif hint in _KINDS:
         return hint, ()
+    elif is_str_tuple(hint):
+        return tuple, ()
     raise UnsupportedParameterTypeError(
         f"parameter {name} has the unsupported type {_describe(hint)}"
     )

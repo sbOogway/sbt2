@@ -1,7 +1,6 @@
 import json
-import re
 from collections.abc import Iterator
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -13,8 +12,10 @@ from feeds_catalog import (
     OKX_COIN_PER_CONTRACT,
     OKX_CONTRACTS,
     build_catalog,
+    feed_perpetual,
     price_of,
 )
+from nautilus_trader.model import Bar, InstrumentId
 from synthetic_catalog import START
 
 from sbt2.core.results import ParquetResultStore
@@ -26,6 +27,7 @@ from sbt2.core.run import (
     preflight,
 )
 from sbt2.core.spec import ResolvedRunSpec, load
+from sbt2.data import Gap
 from sbt2.data.testing import ServedSource
 
 VENUES = """
@@ -50,6 +52,16 @@ capital = "1 BTC"
 """
 MINUTES = 2 * 1440
 BASE_COIN_OF_OKX = float(OKX_CONTRACTS * OKX_COIN_PER_CONTRACT)
+
+
+class OkxSource(ServedSource):
+    """Serves OKX's perpetual under its own symbol and venue."""
+
+    def instrument_id(self, symbol: str) -> InstrumentId:
+        return InstrumentId.from_str(f"{symbol}.OKX")
+
+    def symbol(self, instrument_id: InstrumentId) -> str:
+        return instrument_id.symbol.value
 
 
 @pytest.fixture(scope="module")
@@ -128,13 +140,33 @@ def test_feeds_enter_the_hash_and_survive_the_document(tmp_path: Path) -> None:
 
 
 @pytest.mark.integration
-def test_missing_feed_data_fails_preflight(tmp_path: Path) -> None:
+def test_feed_days_the_source_lacks_are_skipped(tmp_path: Path) -> None:
     path = tmp_path / "catalog"
     build_catalog(path, okx_days=1)
     folders = DataFolders(raw=tmp_path / "raw", catalog=path)
+    spec = resolved(tmp_path, "VwapListener")
+
+    source = OkxSource()
+    source.serve_instrument(feed_perpetual(OKX, "0.01"))
+
+    gaps = preflight(spec, lambda _: source, folders)
+
+    assert gaps == (Gap(OKX, Bar, date(2024, 1, 2)),)
+    sink = ParquetResultStore(tmp_path / "results").new_run(spec, gaps)
+    execute(spec, sink, RunSettings(path))
+    second_day_end = int((START + timedelta(days=2)).timestamp() * 10**9) - 1
+    by_hand = sum(price_of(BINANCE, minute) for minute in range(1440, 2880)) / 1440
+    assert HEARD.vwaps[second_day_end] == pytest.approx(by_hand)
+
+
+@pytest.mark.integration
+def test_own_instrument_days_the_source_lacks_still_fail_preflight(
+    tmp_path: Path,
+) -> None:
+    folders = DataFolders(raw=tmp_path / "raw", catalog=tmp_path / "catalog")
     spec = resolved(tmp_path, "Listener")
 
-    with pytest.raises(MissingDataError, match=re.escape(str(OKX))):
+    with pytest.raises(MissingDataError, match=r"BTC-PERPETUAL\.DERIBIT"):
         preflight(spec, lambda _: ServedSource(), folders)
 
 

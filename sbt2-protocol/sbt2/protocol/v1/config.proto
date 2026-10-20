@@ -119,6 +119,8 @@ enum ParameterType {
   PARAMETER_TYPE_BOOLEAN = 4;
   // A decimal string, as everywhere in the protocol.
   PARAMETER_TYPE_DECIMAL = 5;
+  // A list of strings; its default is a list value.
+  PARAMETER_TYPE_STRING_LIST = 6;
 }
 
 message ModelParameter {

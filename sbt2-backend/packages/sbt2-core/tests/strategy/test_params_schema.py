@@ -34,6 +34,11 @@ class AllKinds:
 
 
 @dataclass(frozen=True)
+class Names:
+    feeds: tuple[str, ...] = ("A.X", "B.Y")
+
+
+@dataclass(frozen=True)
 class Required:
     window: int
     mode: Literal["fast", "slow"] = "fast"
@@ -47,6 +52,11 @@ class Spans:
 @dataclass(frozen=True)
 class Lists:
     sizes: list[int]
+
+
+@dataclass(frozen=True)
+class Ints:
+    sizes: tuple[int, ...]
 
 
 @dataclass(frozen=True)
@@ -104,6 +114,7 @@ def test_a_strategy_without_params_has_an_empty_schema() -> None:
     [
         (Spans, "span", "timedelta"),
         (Lists, "sizes", "list[int]"),
+        (Ints, "sizes", "tuple[int, ...]"),
         (Mixed, "pick", "Literal[1, 'a']"),
     ],
 )
@@ -115,3 +126,25 @@ def test_a_field_of_an_unsupported_type_raises_naming_it(
 
     assert field in str(raised.value)
     assert kind in str(raised.value)
+
+
+@pytest.mark.unit
+def test_tuple_of_str_param_resolves_from_a_list() -> None:
+    names = strategy_with(Names)
+
+    assert resolve_params(names, {"feeds": ["C.Z", "D.W"]}) == Names(("C.Z", "D.W"))
+    assert resolve_params(names, {}) == Names(("A.X", "B.Y"))
+
+
+@pytest.mark.unit
+def test_tuple_of_str_param_appears_in_the_schema() -> None:
+    (feeds,) = params_schema(strategy_with(Names))
+
+    assert (feeds.name, feeds.kind, feeds.default) == ("feeds", tuple, ("A.X", "B.Y"))
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("value", ["A.X", [1, 2], ["A.X", 2]])
+def test_tuple_param_with_a_non_str_item_is_invalid(value: object) -> None:
+    with pytest.raises(InvalidParameterError, match="feeds must be a list of str"):
+        resolve_params(strategy_with(Names), {"feeds": value})

@@ -31,6 +31,7 @@ START = datetime(2024, 1, 1, tzinfo=UTC)
 BTC = InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT")
 USDT = Currency.from_str("USDT")
 EQUITY = Money.from_str("10000 USDT")
+MINUTE_NS = 60_000_000_000
 
 
 def perpetual() -> CryptoPerpetual:
@@ -62,6 +63,13 @@ def run(
 ) -> BacktestEngine:
     """Runs ``strategy`` on one trade a minute, so the bar of minute ``k``
     closes at ``closes[k]``."""
+    return run_data(strategy, _trades(closes), balance)
+
+
+def run_data(
+    strategy: NautilusStrategy, data: list[Any], balance: Money = EQUITY
+) -> BacktestEngine:
+    """Runs ``strategy`` on ``data`` from ``START`` to the minute after the last."""
     engine = BacktestEngine(
         BacktestEngineConfig(logging=LoggerConfig(stdout_level=LogLevel.ERROR))
     )
@@ -74,9 +82,9 @@ def run(
         fee_model=FixedFeeModel(Money.from_str("0 USDT")),
     )
     engine.add_instrument(perpetual())
-    engine.add_data(_trades(closes))
+    engine.add_data(data)
     engine.add_strategy(strategy)
-    engine.run(end=_nanos(START + timedelta(minutes=len(closes))))
+    engine.run(end=(data[-1].ts_event // MINUTE_NS + 1) * MINUTE_NS)
     return engine
 
 
@@ -101,9 +109,9 @@ def _trades(closes: list[int]) -> list[TradeTick]:
             ts,
         )
         for minute, price in enumerate(closes)
-        for ts in [_nanos(START + timedelta(minutes=minute, seconds=30))]
+        for ts in [nanos(START + timedelta(minutes=minute, seconds=30))]
     ]
 
 
-def _nanos(moment: datetime) -> int:
+def nanos(moment: datetime) -> int:
     return int(moment.timestamp()) * 1_000_000_000

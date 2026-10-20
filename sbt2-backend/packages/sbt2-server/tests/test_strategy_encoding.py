@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Literal, override
 
 import pytest
-from google.protobuf.struct_pb2 import Value
+from google.protobuf.struct_pb2 import ListValue, Value
 from nautilus_trader.model import BarSpecification
 
 from sbt2.core.strategy import Strategy
@@ -22,6 +22,7 @@ class Knobs:
     scale: float = 0.5
     mode: Literal["ema", "sma"] = "ema"
     live: bool = False
+    feeds: tuple[str, ...] = ("A.X", "B.Y")
 
 
 class Knobbed(Strategy[Knobs]):
@@ -74,6 +75,11 @@ def test_parameter_defaults_and_choices_encode_with_decimals_as_strings() -> Non
             name="live",
             type=ParameterType.PARAMETER_TYPE_BOOLEAN,
             default=Value(bool_value=False),
+        ),
+        StrategyParameter(
+            name="feeds",
+            type=ParameterType.PARAMETER_TYPE_STRING_LIST,
+            default=Value(list_value=ListValue(values=[text("A.X"), text("B.Y")])),
         ),
     ]
     assert not schema.parameters[0].HasField("default")

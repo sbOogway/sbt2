@@ -40,7 +40,9 @@ def build_catalog(path: Path, okx_days: int = 2) -> None:
     days from Binance and, for ``okx_days`` of them, from OKX."""
     build_deribit_catalog(path)
     catalog = ParquetDataCatalog(str(path))
-    catalog.write_instruments([_perpetual(BINANCE, "1"), _perpetual(OKX, "0.01")])
+    catalog.write_instruments(
+        [feed_perpetual(BINANCE, "1"), feed_perpetual(OKX, "0.01")]
+    )
     for day in range(2):
         _write_day(catalog, BINANCE, day)
         if day < okx_days:
@@ -61,7 +63,7 @@ def _bar(feed: InstrumentId, minute: int) -> Bar:
     return Bar(candle_type(feed), price, price, price, price, volume, ts, ts)
 
 
-def _perpetual(feed: InstrumentId, multiplier: str) -> CryptoPerpetual:
+def feed_perpetual(feed: InstrumentId, multiplier: str) -> CryptoPerpetual:
     return CryptoPerpetual(
         feed,
         Symbol(feed.symbol.value),
