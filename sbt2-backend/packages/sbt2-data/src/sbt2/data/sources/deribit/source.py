@@ -23,7 +23,7 @@ from sbt2.data.sources.base import (
     Source,
     UnsupportedDataTypeError,
 )
-from sbt2.data.sources.deribit import parse, perpetual
+from sbt2.data.sources.deribit import futures, parse, perpetual, spot
 from sbt2.data.sources.deribit.api import DeribitApi, Endpoints
 from sbt2.data.sources.deribit.candles import DeribitCandles, DeribitClient
 from sbt2.data.sources.deribit.series import Kind, Series, series_of
@@ -33,6 +33,7 @@ _CURRENCIES = ("BTC", "ETH")
 _OPTIONS_SUFFIX = "-OPTIONS"
 _TRADES = "trades"
 _PERPETUAL_DATA = (FundingRateUpdate, Bar)
+_WHOLE_IDS = (*perpetual.SYMBOLS, *futures.SYMBOLS, *spot.SYMBOLS)
 
 
 class DeribitSource(Source):
@@ -63,9 +64,9 @@ class DeribitSource(Source):
         )
 
     def instrument_id(self, symbol: str) -> InstrumentId:
-        """The id of the currency's options as a whole, which known gaps name, or of
-        the index of a series."""
-        if series_of(symbol) is not None or symbol in perpetual.SYMBOLS:
+        """The id of the currency's options as a whole, which known gaps name, of its
+        dated futures as a whole, or of the index of a series."""
+        if series_of(symbol) is not None or symbol in _WHOLE_IDS:
             return parse.series_id(symbol)
         if symbol not in _CURRENCIES:
             raise ValueError(
@@ -74,11 +75,14 @@ class DeribitSource(Source):
         return InstrumentId.from_str(f"{symbol}{_OPTIONS_SUFFIX}.{parse.VENUE}")
 
     def symbol(self, instrument_id: InstrumentId) -> str:
+        name = instrument_id.symbol.value
         if instrument_id.venue.value == parse.VENUE and (
-            series_of(instrument_id.symbol.value)
-            or instrument_id.symbol.value in perpetual.SYMBOLS
+            series_of(name) or name in _WHOLE_IDS
         ):
-            return instrument_id.symbol.value
+            return name
+        dated = futures.symbol_of_contract(name)
+        if instrument_id.venue.value == parse.VENUE and dated is not None:
+            return dated
         currency = instrument_id.symbol.value.split("-")[0]
         if instrument_id.venue.value != parse.VENUE or currency not in _CURRENCIES:
             raise ValueError(f"{instrument_id} is not a deribit option instrument")

@@ -934,3 +934,23 @@ def test_a_day_without_candles_is_missing_at_source(
 
     with pytest.raises(MissingAtSourceError, match=r"BTC-PERPETUAL candles on 2016"):
         fetched(source.day_file("BTC-PERPETUAL", Bar, date(2016, 1, 1)))
+
+
+@pytest.mark.unit
+def test_futures_and_spot_symbols_map_to_their_instrument_ids_and_back(
+    deribit: Source,
+) -> None:
+    pairs = {
+        "BTC-FUTURES": "BTC-FUTURES.DERIBIT",
+        "ETH-FUTURES": "ETH-FUTURES.DERIBIT",
+        "BTC_USDC": "BTC_USDC.DERIBIT",
+        "ETH_USDC": "ETH_USDC.DERIBIT",
+    }
+    for symbol, instrument_id in pairs.items():
+        assert deribit.instrument_id(symbol) == InstrumentId.from_str(instrument_id)
+        assert deribit.symbol(InstrumentId.from_str(instrument_id)) == symbol
+    contract = InstrumentId.from_str("BTC-27JUN25.DERIBIT")
+    assert deribit.symbol(contract) == "BTC-FUTURES"
+    assert deribit.symbol(InstrumentId.from_str("BTC-10JAN25-88000-P.DERIBIT")) == "BTC"
+    with pytest.raises(ValueError, match="SOL_USDC"):
+        deribit.instrument_id("SOL_USDC")
