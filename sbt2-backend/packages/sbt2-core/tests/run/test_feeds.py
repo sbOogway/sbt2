@@ -1,4 +1,5 @@
 import json
+import re
 from collections.abc import Iterator
 from datetime import timedelta
 from pathlib import Path
@@ -17,8 +18,15 @@ from feeds_catalog import (
 from synthetic_catalog import START
 
 from sbt2.core.results import ParquetResultStore
-from sbt2.core.run import RunSettings, execute
+from sbt2.core.run import (
+    DataFolders,
+    MissingDataError,
+    RunSettings,
+    execute,
+    preflight_feeds,
+)
 from sbt2.core.spec import ResolvedRunSpec, load
+from sbt2.data.testing import ServedSource
 
 VENUES = """
 [deribit_perpetual]
@@ -117,3 +125,26 @@ def test_feeds_enter_the_hash_and_survive_the_document(tmp_path: Path) -> None:
     assert len({listening.hash, swapped.hash}) == 2
     document = json.loads(listening.to_json())
     assert ResolvedRunSpec.from_document(document).feeds == (BINANCE, OKX)
+
+
+@pytest.mark.integration
+def test_missing_feed_data_fails_preflight(tmp_path: Path) -> None:
+    path = tmp_path / "catalog"
+    build_catalog(path, okx_days=1)
+    folders = DataFolders(raw=tmp_path / "raw", catalog=path)
+    spec = resolved(tmp_path, "Listener")
+
+    with pytest.raises(MissingDataError, match=re.escape(str(OKX))):
+        preflight_feeds(spec, lambda _: ServedSource(), folders)
+
+
+@pytest.mark.integration
+def test_covered_feeds_pass_preflight_without_fetching(
+    tmp_path: Path, catalog: Path
+) -> None:
+    folders = DataFolders(raw=tmp_path / "raw", catalog=catalog)
+    source = ServedSource()
+    spec = resolved(tmp_path, "Listener")
+
+    assert preflight_feeds(spec, lambda _: source, folders) == ()
+    assert source.fetched == []

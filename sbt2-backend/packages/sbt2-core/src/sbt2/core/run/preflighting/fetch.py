@@ -2,11 +2,13 @@ import logging
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, replace
 from datetime import date
+from functools import partial
 from operator import attrgetter
 from pathlib import Path
 
-from nautilus_trader.model import IndexPriceUpdate, InstrumentId, TradeTick
+from nautilus_trader.model import Bar, IndexPriceUpdate, InstrumentId, TradeTick
 
+from sbt2.core.assets import Calendar
 from sbt2.core.run.preflighting.catalog import ReadOnceCatalog
 from sbt2.core.run.preflighting.errors import MissingDataError
 from sbt2.core.spec import ResolvedRunSpec
@@ -26,6 +28,7 @@ from sbt2.data import (
     Window,
     download,
     ingest,
+    source_name,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,16 +53,41 @@ def check_coverage(
 ) -> Covered:
     """Fetch the days the catalog lacks, and return the known gaps with the
     catalog as it is after the fetch."""
+    wanted = _Wanted(spec.asset.calendar, partial(_coverages, spec))
+    return _covered(wanted, source, folders)
+
+
+def check_feed_coverage(
+    spec: ResolvedRunSpec, sources: Callable[[str], Source], folders: DataFolders
+) -> Covered:
+    """The same for the feeds' candles, each fetched from the source of its
+    venue."""
+    known_gaps: list[Gap] = []
+    for name, feeds in _by_source(spec.feeds).items():
+        selection = Selection(feeds, (Bar,), Window(*spec.data_window))
+        wanted = _Wanted(spec.asset.calendar, partial(_feed_coverages, selection))
+        known_gaps.extend(_covered(wanted, sources(name), folders).known_gaps)
+    return Covered(tuple(known_gaps), ReadOnceCatalog(folders.catalog))
+
+
+def _by_source(feeds: Iterable[InstrumentId]) -> dict[str, tuple[InstrumentId, ...]]:
+    named: dict[str, list[InstrumentId]] = {}
+    for each in feeds:
+        named.setdefault(source_name(each), []).append(each)
+    return {name: tuple(ids) for name, ids in named.items()}
+
+
+def _covered(wanted: _Wanted, source: Source, folders: DataFolders) -> Covered:
     folders.catalog.mkdir(parents=True, exist_ok=True)
     catalog = ReadOnceCatalog(folders.catalog)
-    uncovered = _uncovered(spec, catalog, source.known_gaps)
+    uncovered = _uncovered(wanted, catalog, source.known_gaps)
     # The first fetch brings the contracts, which tell what delivery data is due.
     for _ in range(2):
         if not uncovered.missing:
             break
         _fetch(source, uncovered.missing, folders)
         catalog = ReadOnceCatalog(folders.catalog)
-        uncovered = _uncovered(spec, catalog, source.known_gaps)
+        uncovered = _uncovered(wanted, catalog, source.known_gaps)
     if uncovered.missing:
         described = ", ".join(map(str, uncovered.missing))
         raise MissingDataError(f"the catalog lacks {described}")
@@ -101,18 +129,37 @@ class _Uncovered:
     known_gaps: tuple[Gap, ...]
 
 
+type _Coverages = Callable[
+    [Catalog, frozenset[Gap]], Iterator[tuple[Window, tuple[Coverage, ...]]]
+]
+
+
+@dataclass(frozen=True)
+class _Wanted:
+    """The data a fetch is to cover: what it reads, and the days it is due on."""
+
+    calendar: Calendar
+    coverages: _Coverages
+
+
 def _uncovered(
-    spec: ResolvedRunSpec, catalog: Catalog, known_gaps: frozenset[Gap]
+    wanted: _Wanted, catalog: Catalog, known_gaps: frozenset[Gap]
 ) -> _Uncovered:
     trading: set[date] = set()
     coverage: list[Coverage] = []
-    for window, found in _coverages(spec, catalog, known_gaps):
-        trading.update(spec.asset.calendar.trading_days(window.start, window.end))
+    for window, found in wanted.coverages(catalog, known_gaps):
+        trading.update(wanted.calendar.trading_days(window.start, window.end))
         coverage.extend(found)
     return _Uncovered(
         missing=tuple(_gaps(coverage, frozenset(trading), attrgetter("missing"))),
         known_gaps=tuple(_gaps(coverage, frozenset(trading), attrgetter("known_gaps"))),
     )
+
+
+def _feed_coverages(
+    selection: Selection, catalog: Catalog, known_gaps: frozenset[Gap]
+) -> Iterator[tuple[Window, tuple[Coverage, ...]]]:
+    yield selection.window, catalog.coverage(selection, known_gaps)
 
 
 def _coverages(

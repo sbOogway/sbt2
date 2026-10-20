@@ -34,6 +34,7 @@ from sbt2.core.run.preflighting import (
     PreflightError,
     SnapshotBufferError,
     preflight,
+    preflight_feeds,
 )
 
 __all__ = [
@@ -66,4 +67,5 @@ __all__ = [
     "execute",
     "launcher_named",
     "preflight",
+    "preflight_feeds",
 ]
