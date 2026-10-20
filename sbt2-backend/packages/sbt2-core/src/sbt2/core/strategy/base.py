@@ -284,6 +284,13 @@ class Strategy[P](NautilusStrategy, ABC):
     def inputs(cls, params: P) -> Sequence[BarSpecification]: ...
 
     @classmethod
+    def feeds(cls, _params: P, /) -> Sequence[InstrumentId]:
+        """The instruments, on other venues, whose 1-minute candles the run
+        streams besides the traded ones; the strategy hears them in ``on_bar``
+        and the run never trades them."""
+        return ()
+
+    @classmethod
     def combo_exit(cls, _params: P, /) -> ComboExit | None:
         """When to close the open combos, checked at each ``schedule`` tick before
         ``on_schedule``; ``None`` closes none."""

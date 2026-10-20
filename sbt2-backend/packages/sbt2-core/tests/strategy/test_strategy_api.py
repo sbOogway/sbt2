@@ -62,6 +62,11 @@ def test_warmup_defaults_to_none() -> None:
 
 
 @pytest.mark.unit
+def test_feeds_default_to_none() -> None:
+    assert CountWarmupBars.feeds(NoParams()) == ()
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize("step", ["0.25", 0.25])
 def test_decimal_params_are_parsed_from_plain_values(step: str | float) -> None:
     assert resolve_params(BuyEveryBar, {"step": step}).step == Decimal("0.25")
