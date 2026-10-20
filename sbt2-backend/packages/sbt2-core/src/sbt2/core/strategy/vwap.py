@@ -2,8 +2,9 @@ from collections.abc import Iterable, Mapping
 from datetime import UTC, date, datetime, timedelta
 from enum import Enum
 from math import sqrt
+from typing import Any
 
-from nautilus_trader.model import Bar, CryptoPerpetual, InstrumentId
+from nautilus_trader.model import Bar, InstrumentId
 
 _MINUTE_NS = 60_000_000_000
 _MINUTE = timedelta(minutes=1)
@@ -45,7 +46,7 @@ class MultiVenueVwap:
     """
 
     def __init__(
-        self, instruments: Iterable[CryptoPerpetual], anchor: Anchor = Anchor.SESSION
+        self, instruments: Iterable[Any], anchor: Anchor = Anchor.SESSION
     ) -> None:
         self._instruments = {each.id: each for each in instruments}
         self._anchor = anchor
@@ -126,7 +127,7 @@ class MultiVenueVwap:
         self._by_feed[instrument.id] = self._by_feed.get(instrument.id, 0.0) + volume
 
 
-def _base_volume(volume: float, price: float, instrument: CryptoPerpetual) -> float:
+def _base_volume(volume: float, price: float, instrument: Any) -> float:
     if instrument.is_inverse:
         return volume / price
     return volume * instrument.multiplier.as_double()
