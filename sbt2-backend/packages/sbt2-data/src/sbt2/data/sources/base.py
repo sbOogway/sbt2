@@ -13,7 +13,13 @@ from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar, Self
 
 import nautilus_trader.model
-from nautilus_trader.model import BarType, InstrumentId
+from nautilus_trader.model import (
+    AssetClass,
+    BarType,
+    InstrumentClass,
+    InstrumentId,
+    MarkPriceUpdate,
+)
 
 type Fetch = Callable[[], Awaitable[bytes]]
 
@@ -108,6 +114,19 @@ class Source(ABC):
                 f"it serves {', '.join(served)}"
             )
         return tuple(served[each] for each in names) or self.data_types
+
+    def asset_classes(
+        self, instrument_id: InstrumentId
+    ) -> tuple[AssetClass, InstrumentClass]:
+        """The asset and instrument class of ``instrument_id``; by default a
+        cryptocurrency perpetual."""
+        del instrument_id
+        return AssetClass.CRYPTOCURRENCY, InstrumentClass.SWAP
+
+    def serves_marks(self, instrument_id: InstrumentId) -> bool:
+        """Whether the source serves mark prices for ``instrument_id``."""
+        del instrument_id
+        return MarkPriceUpdate in self.data_types
 
     def is_known_gap(self, symbol: str, data_type: type, day: date) -> bool:
         return Gap(self.instrument_id(symbol), data_type, day) in self.known_gaps
