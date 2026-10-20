@@ -1,4 +1,4 @@
-from sbt2.core.run.preflighting.checks import preflight, preflight_feeds
+from sbt2.core.run.preflighting.checks import preflight
 from sbt2.core.run.preflighting.errors import (
     InstrumentAssetClassError,
     LiquidationWithoutQuotesError,
@@ -16,5 +16,4 @@ __all__ = [
     "PreflightError",
     "SnapshotBufferError",
     "preflight",
-    "preflight_feeds",
 ]

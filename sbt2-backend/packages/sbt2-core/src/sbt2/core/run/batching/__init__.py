@@ -16,7 +16,7 @@ from sbt2.core.run.batching.memory import Memory
 from sbt2.core.run.batching.setup import BatchProgress, BatchSetup, Launch
 from sbt2.core.run.batching.studies import checked_studies
 from sbt2.core.run.child import Order
-from sbt2.core.run.preflighting import preflight, preflight_feeds
+from sbt2.core.run.preflighting import preflight
 from sbt2.core.spec import ResolvedRunSpec
 from sbt2.data import Gap
 
@@ -64,8 +64,7 @@ def batch(
 
 
 def _preflight(spec: ResolvedRunSpec, setup: BatchSetup) -> tuple[Gap, ...]:
-    own = preflight(spec, setup.sources(spec.source), setup.folders)
-    return (*own, *preflight_feeds(spec, setup.sources, setup.folders))
+    return preflight(spec, setup.sources, setup.folders)
 
 
 def _orders(

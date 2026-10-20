@@ -103,7 +103,7 @@ def test_a_covered_run_passes_without_fetching(
     source.serve(DAY, NEXT_DAY)
     stock(source, folders, DAY, NEXT_DAY)
 
-    assert preflight(spec(tmp_path), source, folders) == ()
+    assert preflight(spec(tmp_path), lambda _: source, folders) == ()
     assert source.fetched == []
 
 
@@ -115,7 +115,7 @@ def test_missing_days_are_fetched_and_ingested_before_the_check(
     source.serve(DAY, NEXT_DAY)
     stock(source, folders, DAY, DAY)
 
-    assert preflight(spec(tmp_path), source, folders) == ()
+    assert preflight(spec(tmp_path), lambda _: source, folders) == ()
     next_day = Window(midnight(NEXT_DAY), midnight(date(2024, 1, 3)))
     assert len(Catalog(folders.catalog).frame(INSTRUMENT_ID, TradeTick, next_day)) == 24
 
@@ -127,7 +127,7 @@ def test_an_empty_catalog_is_filled_from_the_source(
     source = ServedSource()
     source.serve(DAY, NEXT_DAY)
 
-    assert preflight(spec(tmp_path), source, folders) == ()
+    assert preflight(spec(tmp_path), lambda _: source, folders) == ()
 
 
 @pytest.mark.integration
@@ -137,7 +137,7 @@ def test_a_candle_run_fetches_its_missing_candle_days(
     source = ServedSource()
     source.serve(DAY, NEXT_DAY)
 
-    assert preflight(spec(tmp_path, bars='"candles"'), source, folders) == ()
+    assert preflight(spec(tmp_path, bars='"candles"'), lambda _: source, folders) == ()
     days = {each.parent.name for each in source.fetched if each.suffix == ".json"}
     assert days == {"Bar", "MarkPriceUpdate", "FundingRateUpdate"}
     window = Window(midnight(DAY), midnight(date(2024, 1, 3)))
@@ -156,7 +156,7 @@ def test_days_still_missing_after_the_fetch_fail_naming_each(
     with pytest.raises(
         MissingDataError, match=re.escape("BTCUSDT-LINEAR.BYBIT TradeTick 2024-01-02")
     ):
-        preflight(spec(tmp_path), source, folders)
+        preflight(spec(tmp_path), lambda _: source, folders)
     assert source.day_file(SYMBOL, TradeTick, NEXT_DAY).path in source.fetched
 
 
@@ -173,7 +173,7 @@ def test_the_warmup_days_are_checked_too(tmp_path: Path, folders: DataFolders) -
     )
 
     with pytest.raises(MissingDataError, match="TradeTick 2024-01-01"):
-        preflight(run, source, folders)
+        preflight(run, lambda _: source, folders)
 
 
 @pytest.mark.integration
@@ -186,7 +186,7 @@ def test_known_gap_days_pass_and_are_returned(
     source.withdraw(FundingRateUpdate, NEXT_DAY)
     stock(source, folders, DAY, NEXT_DAY)
 
-    assert preflight(spec(tmp_path), source, folders) == (gap,)
+    assert preflight(spec(tmp_path), lambda _: source, folders) == (gap,)
     assert source.fetched == []
 
 
@@ -205,7 +205,7 @@ def test_days_the_calendar_closes_are_not_required(
     )
     weekdays = replace(run.asset, calendar=Weekdays(run.asset.calendar))
 
-    assert preflight(replace(run, asset=weekdays), source, folders) == ()
+    assert preflight(replace(run, asset=weekdays), lambda _: source, folders) == ()
 
 
 @pytest.mark.integration
@@ -216,7 +216,7 @@ def test_an_instrument_the_source_lacks_fails_as_missing_data(
     source.serve_days(DAY, NEXT_DAY)
 
     with pytest.raises(MissingDataError, match=re.escape("BTCUSDT-LINEAR.BYBIT")):
-        preflight(spec(tmp_path), source, folders)
+        preflight(spec(tmp_path), lambda _: source, folders)
 
 
 @pytest.mark.integration
@@ -230,7 +230,7 @@ def test_an_instrument_of_another_asset_class_fails(
         InstrumentAssetClassError,
         match=r"BTCUSDT-LINEAR.BYBIT is CRYPTOCURRENCY/SPOT, not .* CRYPTOCURRENCY/SWAP",
     ):
-        preflight(spec(tmp_path), source, folders)
+        preflight(spec(tmp_path), lambda _: source, folders)
 
 
 @pytest.mark.integration
@@ -248,7 +248,7 @@ def test_a_segment_over_the_snapshot_buffer_fails_before_fetching(
     )
 
     with pytest.raises(SnapshotBufferError, match="1,000,001"):
-        preflight(run, source, folders)
+        preflight(run, lambda _: source, folders)
     assert source.fetched == []
 
 
@@ -267,7 +267,7 @@ def test_a_segment_filling_the_snapshot_buffer_exactly_passes(
         equity_interval='"1s"',
     )
 
-    assert preflight(run, source, folders) == ()
+    assert preflight(run, lambda _: source, folders) == ()
 
 
 @pytest.mark.integration
@@ -279,7 +279,7 @@ def test_liquidation_on_a_run_without_quotes_fails_before_fetching(
     run = spec(tmp_path, liquidation="true")
 
     with pytest.raises(LiquidationWithoutQuotesError, match="only on quotes"):
-        preflight(run, source, folders)
+        preflight(run, lambda _: source, folders)
     assert source.fetched == []
 
 
@@ -294,4 +294,4 @@ def test_liquidation_on_a_run_streaming_quotes_passes_the_guard(
     )
 
     with pytest.raises(UnsupportedDataTypeError, match="no QuoteTick"):
-        preflight(run, source, folders)
+        preflight(run, lambda _: source, folders)

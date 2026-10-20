@@ -22,28 +22,24 @@ SNAPSHOT_BUFFER = 1_000_000
 
 
 def preflight(
-    spec: ResolvedRunSpec, source: Source, folders: DataFolders
+    spec: ResolvedRunSpec, sources: Callable[[str], Source], folders: DataFolders
 ) -> tuple[Gap, ...]:
-    """Check that ``spec`` can run, fetching the data it lacks from ``source``.
+    """Check that ``spec`` can run, fetching the data it lacks: the run's own from
+    the source its venue profile names, the feeds' candles from the source of each
+    feed's venue; ``sources`` finds a source by name.
 
     Returns the known-gap days the run will skip.
     """
     _check_snapshots(spec)
     _check_liquidation(spec)
-    covered = check_coverage(spec, source, folders)
+    covered = check_coverage(spec, sources(spec.source), folders)
     _check_instruments(spec, covered.catalog)
-    return covered.known_gaps
+    return (*covered.known_gaps, *_preflight_feeds(spec, sources, folders))
 
 
-def preflight_feeds(
+def _preflight_feeds(
     spec: ResolvedRunSpec, sources: Callable[[str], Source], folders: DataFolders
 ) -> tuple[Gap, ...]:
-    """Check that the catalog holds the candles of the feeds of ``spec``,
-    fetching what it lacks from the source of each feed's venue, named by
-    ``sources``.
-
-    Returns the known-gap days the run will skip.
-    """
     covered = check_feed_coverage(spec, sources, folders)
     _check_feed_instruments(spec, covered.catalog)
     return covered.known_gaps

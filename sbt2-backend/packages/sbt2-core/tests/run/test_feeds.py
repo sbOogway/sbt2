@@ -23,7 +23,7 @@ from sbt2.core.run import (
     MissingDataError,
     RunSettings,
     execute,
-    preflight_feeds,
+    preflight,
 )
 from sbt2.core.spec import ResolvedRunSpec, load
 from sbt2.data.testing import ServedSource
@@ -135,7 +135,7 @@ def test_missing_feed_data_fails_preflight(tmp_path: Path) -> None:
     spec = resolved(tmp_path, "Listener")
 
     with pytest.raises(MissingDataError, match=re.escape(str(OKX))):
-        preflight_feeds(spec, lambda _: ServedSource(), folders)
+        preflight(spec, lambda _: ServedSource(), folders)
 
 
 @pytest.mark.integration
@@ -146,5 +146,5 @@ def test_covered_feeds_pass_preflight_without_fetching(
     source = ServedSource()
     spec = resolved(tmp_path, "Listener")
 
-    assert preflight_feeds(spec, lambda _: source, folders) == ()
+    assert preflight(spec, lambda _: source, folders) == ()
     assert source.fetched == []
