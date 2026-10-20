@@ -106,6 +106,8 @@ class DeribitSource(Source):
         currency = futures.currency_of(symbol)
         if currency is not None:
             return self._futures_day_file(currency, data_type, day)
+        if symbol in spot.SYMBOLS:
+            return self._spot_day_file(symbol, data_type, day)
         series = series_of(symbol)
         if series is not None:
             return self._series_day_file(series, data_type, day)
@@ -141,6 +143,12 @@ class DeribitSource(Source):
             return RawFile(
                 _futures_dir(currency) / "instrument" / _json_name(symbol, taken_on),
                 partial(self._api.future_snapshot, currency),
+            )
+        currency = spot.currency_of(symbol)
+        if currency is not None:
+            return RawFile(
+                _spot_dir(symbol) / "instrument" / _json_name(symbol, taken_on),
+                partial(self._api.spot_snapshot, currency, symbol),
             )
         series = series_of(symbol)
         if series is not None:
@@ -190,13 +198,17 @@ class DeribitSource(Source):
 
     def _futures_day_file(self, currency: str, data_type: type, day: date) -> RawFile:
         symbol = futures.symbol_of(currency)
-        if data_type is not Bar:
-            raise UnsupportedDataTypeError(
-                f"{symbol} serves Bar, not {data_type.__name__}"
-            )
+        _require_bars(symbol, data_type)
         return RawFile(
             _futures_dir(currency) / "candles" / _json_name(symbol, day),
             partial(self._candles.futures_day, currency, day),
+        )
+
+    def _spot_day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
+        _require_bars(symbol, data_type)
+        return RawFile(
+            _spot_dir(symbol) / "candles" / _json_name(symbol, day),
+            partial(self._api.spot_candles, symbol, day),
         )
 
     def _series_day_file(self, series: Series, data_type: type, day: date) -> RawFile:
@@ -229,8 +241,17 @@ def _perpetual_dir(symbol: str) -> PurePosixPath:
     return PurePosixPath("deribit", "perpetual", symbol)
 
 
+def _require_bars(symbol: str, data_type: type) -> None:
+    if data_type is not Bar:
+        raise UnsupportedDataTypeError(f"{symbol} serves Bar, not {data_type.__name__}")
+
+
 def _futures_dir(currency: str) -> PurePosixPath:
     return PurePosixPath("deribit", "future", currency)
+
+
+def _spot_dir(symbol: str) -> PurePosixPath:
+    return PurePosixPath("deribit", "spot", symbol)
 
 
 def _series_dir(series: Series) -> PurePosixPath:

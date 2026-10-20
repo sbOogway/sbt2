@@ -13,6 +13,7 @@ _INSTRUMENTS = "/api/v2/public/get_instruments"
 _DVOL = "/api/v2/public/get_volatility_index_data"
 _DELIVERY_PRICES = "/api/v2/public/get_delivery_prices"
 _FUNDING = "/api/v2/public/get_funding_rate_history"
+_CHART = "/api/v2/public/get_tradingview_chart_data"
 _HOURLY = "3600"
 _DELIVERY_PAGE = 100
 _PAGE_SIZE = 1000
@@ -79,6 +80,14 @@ class DeribitApi:
         """The dated futures of the currency, as ``future_specs`` gives them."""
         return _json(await self.future_specs(currency))
 
+    async def _live_spec(self, currency: str, kind: str, name: str) -> bytes:
+        async with self._http(self._endpoints.live) as http:
+            listed = await _get(
+                http, _INSTRUMENTS, _instrument_params(currency, "false", kind)
+            )
+        (spec,) = (each for each in listed if each["instrument_name"] == name)
+        return _json(spec)
+
     async def _listed(self, currency: str, kind: str) -> list[dict[str, Any]]:
         async with self._http(self._endpoints.api) as http:
             return [
@@ -91,13 +100,23 @@ class DeribitApi:
 
     async def perpetual_snapshot(self, currency: str) -> bytes:
         """The currency's inverse perpetual as Deribit sends it."""
-        name = _perpetual(currency)
-        async with self._http(self._endpoints.live) as http:
-            futures = await _get(
-                http, _INSTRUMENTS, _instrument_params(currency, "false", "future")
+        return await self._live_spec(currency, "future", _perpetual(currency))
+
+    async def spot_snapshot(self, currency: str, pair: str) -> bytes:
+        """The spot pair as Deribit sends it."""
+        return await self._live_spec(currency, "spot", pair)
+
+    async def spot_candles(self, pair: str, day: date) -> bytes:
+        """The 1-minute bars of the pair in the UTC day, as Deribit sends them:
+        the open times and the prices and volumes in lists."""
+        start, end = _day_window(day)
+        async with self._http(self._endpoints.api) as http:
+            result = await _get(http, _CHART, _chart_params(pair, start, end))
+        if not result["ticks"]:
+            raise MissingAtSourceError(
+                f"deribit has no {pair} candles on {day.isoformat()}"
             )
-        (spec,) = (each for each in futures if each["instrument_name"] == name)
-        return _json(spec)
+        return _json(result)
 
     async def volatility_index(self, currency: str, day: date) -> bytes:
         """The hourly DVOL rows ``[time, open, high, low, close]`` of the UTC day."""
@@ -219,6 +238,15 @@ def _dvol_params(currency: str, start: int, end: int) -> dict[str, str]:
         "start_timestamp": str(start),
         "end_timestamp": str(end),
         "resolution": _HOURLY,
+    }
+
+
+def _chart_params(pair: str, start: int, end: int) -> dict[str, str]:
+    return {
+        "instrument_name": pair,
+        "start_timestamp": str(start),
+        "end_timestamp": str(end),
+        "resolution": "1",
     }
 
 

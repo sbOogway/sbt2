@@ -14,6 +14,7 @@ from nautilus_trader.model import (
     CryptoOption,
     CryptoPerpetual,
     Currency,
+    CurrencyPair,
     FundingRateUpdate,
     GreeksConvention,
     IndexInstrument,
@@ -30,7 +31,7 @@ from nautilus_trader.model import (
     black_scholes_greeks,
 )
 
-from sbt2.data.sources.deribit import futures, perpetual
+from sbt2.data.sources.deribit import futures, perpetual, spot
 from sbt2.data.sources.deribit.series import Kind, Series, series_of
 from sbt2.data.sources.klines import bars
 from sbt2.data.sources.nautilus_bars import read_klines
@@ -102,6 +103,9 @@ def instruments(path: Path) -> Mapping[InstrumentId, Any]:
     if series_of(symbol) is not None:
         index = _index(symbol, _snapshot_day_nanos(path))
         return {index.id: index}
+    if spot.currency_of(symbol) is not None:
+        pair = _pair(json.loads(path.read_text()), _snapshot_day_nanos(path))
+        return {pair.id: pair}
     if futures.currency_of(symbol) is not None:
         ts_init = _snapshot_day_nanos(path)
         built = [_future(each, ts_init) for each in json.loads(path.read_text())]
@@ -391,6 +395,23 @@ def _future(spec: Mapping[str, Any], ts_init: int) -> CryptoFuture:
         ts_init,
         margin_init=initial,
         margin_maint=initial * 2 / 3,
+    )
+
+
+def _pair(spec: Mapping[str, Any], ts_init: int) -> CurrencyPair:
+    tick = _decimals(spec["tick_size"])
+    lot = _decimals(spec["min_trade_amount"])
+    return CurrencyPair(
+        contract_id(spec["instrument_name"]),
+        Symbol(spec["instrument_name"]),
+        Currency.from_str(spec["base_currency"]),
+        Currency.from_str(spec["quote_currency"]),
+        tick,
+        lot,
+        Price(spec["tick_size"], tick),
+        Quantity(spec["min_trade_amount"], lot),
+        int(spec["creation_timestamp"]) * _NANOS_PER_MILLI,
+        ts_init,
     )
 
 

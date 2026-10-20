@@ -3819,5 +3819,20 @@
     ]
    }
   }
+ },
+ {
+  "request": "/api/v2/public/get_tradingview_chart_data?instrument_name=BTC_USDC&start_timestamp=1451606400000&end_timestamp=1451692799999&resolution=1",
+  "response": {
+   "result": {
+    "volume": [],
+    "ticks": [],
+    "status": "no_data",
+    "open": [],
+    "low": [],
+    "high": [],
+    "cost": [],
+    "close": []
+   }
+  }
  }
 ]

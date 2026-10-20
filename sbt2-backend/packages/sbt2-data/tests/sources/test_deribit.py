@@ -15,6 +15,7 @@ from nautilus_trader.model import (
     CryptoFuture,
     CryptoOption,
     CryptoPerpetual,
+    CurrencyPair,
     FundingRateUpdate,
     GreeksConvention,
     IndexInstrument,
@@ -1056,3 +1057,54 @@ def test_day_without_any_future_bar_is_missing_at_source(
 
     with pytest.raises(MissingAtSourceError, match=r"BTC futures candles on"):
         fetched(source.day_file("BTC-FUTURES", Bar, day))
+
+
+BTC_USDC = InstrumentId.from_str("BTC_USDC.DERIBIT")
+SPOT_CANDLES_FILE = "deribit/spot/BTC_USDC/candles/BTC_USDC2025-01-01.json"
+
+
+@pytest.mark.unit
+def test_spot_snapshot_gives_a_linear_currency_pair(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+
+    raw = source.instrument_snapshot("BTC_USDC", SNAPSHOT_DAY)
+    instruments = source.parse_instruments(saved(raw, tmp_path))
+
+    assert raw.path == PurePosixPath(
+        "deribit/spot/BTC_USDC/instrument/BTC_USDC2026-10-07.json"
+    )
+    assert list(instruments) == [BTC_USDC]
+    pair = instruments[BTC_USDC]
+    assert isinstance(pair, CurrencyPair)
+    assert str(pair.base_currency) == "BTC"
+    assert str(pair.quote_currency) == "USDC"
+    assert str(pair.price_increment) == "0.01"
+    assert str(pair.size_increment) == "0.00000001"
+    assert pair.ts_init == 1_791_331_200_000_000_000
+
+
+@pytest.mark.integration
+def test_spot_day_file_holds_the_pair_bars(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, _ = replayed_deribit
+
+    raw = source.day_file("BTC_USDC", Bar, DAY)
+    candles = fetched(raw)
+
+    assert raw.path == PurePosixPath(SPOT_CANDLES_FILE)
+    assert candles["ticks"] == [DAY_START_MS + n * 60_000 for n in range(3)]
+    assert candles["open"][0] == 93370.0
+    assert candles["volume"][0] == 0.7148
+
+
+@pytest.mark.integration
+def test_a_day_without_spot_bars_is_missing_at_source(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, _ = replayed_deribit
+
+    with pytest.raises(MissingAtSourceError, match=r"BTC_USDC candles on 2016"):
+        fetched(source.day_file("BTC_USDC", Bar, date(2016, 1, 1)))
