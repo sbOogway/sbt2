@@ -4,6 +4,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from nautilus_trader.model import InstrumentId
+
 from sbt2.data.sources.base import (
     CANDLES,
     Fetch,
@@ -39,6 +41,7 @@ __all__ = [
     "listed_gaps",
     "remove_known_gaps",
     "source",
+    "source_name",
 ]
 
 _SOURCES: tuple[type[Source], ...] = (
@@ -69,6 +72,16 @@ def source(name: str, known_gaps_file: Path) -> Source:
     """The source adapter called ``name``, with the known gaps
     ``known_gaps_file`` lists for it."""
     return _source_class(name).listing(_lists(known_gaps_file).get(name, ()))
+
+
+def source_name(instrument_id: InstrumentId) -> str:
+    """The name of the source of the venue ``instrument_id`` trades on: the
+    venue's name in lower case."""
+    venue = instrument_id.venue.value
+    for each in _SOURCES:
+        if each.name.upper() == venue:
+            return each.name
+    raise UnknownSourceError(f"no source for the venue {venue}")
 
 
 def known_gaps(known_gaps_file: Path) -> frozenset[Gap]:
