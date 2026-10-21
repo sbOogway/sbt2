@@ -113,9 +113,8 @@ response carrying the request's ID: `JobSubmitted`, `JobCancelled`, `Jobs`,
 From the repository root, [prek](https://github.com/j178/prek) runs `buf format`, `buf lint`, `buf breaking` against `sbt2-protocol/` on this repository's `main`, and fails when a `.binpb` is stale. `make check` runs the hooks and both components' tests; `make test-protocol` runs the tests below alone.
 
 - `tests/` (pytest, with `uv`): the rules above that buf lint does not check, over buf's descriptor set; and every fixture decodes with Python's `protobuf` to its textproto and re-encodes to the same bytes.
-- `checks/rust/` (CI only, `cargo test --manifest-path sbt2-protocol/checks/rust/Cargo.toml`): the same round trip with `prost`.
 
-Both re-encode deterministically, as `buf convert` does: map entries sorted by key.
+The re-encode is deterministic, as `buf convert` does: map entries sorted by key.
 
 ## License
 

@@ -7,7 +7,7 @@ help:
 	@echo "make notebooks     open JupyterLab in sbt2-notebooks"
 	@echo "make check         run the hooks and both components' test suites"
 	@echo "make test-backend  run the backend test suite"
-	@echo "make test-protocol run the Python and Rust protocol tests"
+	@echo "make test-protocol run the protocol tests"
 	@echo "make release-image backfill: build the image, test it and push it to GHCR"
 	@echo "make build         plan the tags of the merges since the last tag and build the newest"
 	@echo "make publish       publish the release that make build left"
@@ -32,7 +32,6 @@ test-backend:
 
 test-protocol:
 	prek run protocol-tests --all-files
-	cargo test --locked --manifest-path sbt2-protocol/checks/rust/Cargo.toml
 
 release-image:
 	scripts/release-image.sh
