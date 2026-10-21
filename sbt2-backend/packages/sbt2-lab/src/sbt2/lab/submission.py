@@ -49,6 +49,8 @@ def _check_keys(spec: Mapping[str, Any]) -> None:
 def _class_path(strategy: type[Strategy[Any]]) -> str:
     if strategy.__module__ == "__main__":
         raise _refused(strategy, "it is defined in __main__")
+    if "<locals>" in strategy.__qualname__:
+        raise _refused(strategy, "it is defined in a local scope")
     return f"{strategy.__module__}:{strategy.__qualname__}"
 
 

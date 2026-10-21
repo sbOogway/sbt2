@@ -216,3 +216,11 @@ def test_a_main_module_class_is_refused_before_submission() -> None:
     strategy = strategy_in("__main__")
 
     assert refused(strategy, r"Cross.*__main__.*importable module") == []
+
+
+@pytest.mark.integration
+def test_a_local_strategy_class_is_refused_before_submission() -> None:
+    class Local(Strategy):
+        pass
+
+    assert refused(Local, r"Local.*local scope.*importable module") == []
