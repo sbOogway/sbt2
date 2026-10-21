@@ -29,8 +29,8 @@ def coin(amount: object) -> float:
 
 
 def fee(hour: int) -> float:
-    price = price_in_hour(hour - 1)
-    return CONTRACTS / price * TAKER_RATE
+    """The fee of an order that fills at the open of the hour's first bar."""
+    return CONTRACTS / price_in_hour(hour) * TAKER_RATE
 
 
 @pytest.mark.integration
@@ -42,10 +42,7 @@ def test_the_costs_of_an_inverse_perpetual_run_are_in_the_coin(
     activity = costs_and_exposure(priced).total
     costs = activity.costs
 
-    open_price, close_price = (
-        price_in_hour(OPEN_HOUR - 1),
-        price_in_hour(CLOSE_HOUR - 1),
-    )
+    open_price, close_price = price_in_hour(OPEN_HOUR), price_in_hour(CLOSE_HOUR)
     gross = CONTRACTS * (1 / open_price - 1 / close_price)
     funding = sum(coin(each) for each in tables.carry["pnl_change"])
     assert costs.fees == pytest.approx(
@@ -55,7 +52,8 @@ def test_the_costs_of_an_inverse_perpetual_run_are_in_the_coin(
     assert costs.gross == pytest.approx(gross, abs=TOLERANCE)
     assert costs.net == pytest.approx(priced.equity.iloc[-1] - priced.equity.iloc[0])
     leverage = activity.exposure.gross_leverage
-    assert leverage.max() == pytest.approx(CONTRACTS / open_price / 1.0, rel=1e-6)
+    mark_at_open = price_in_hour(OPEN_HOUR - 1)
+    assert leverage.max() == pytest.approx(CONTRACTS / mark_at_open / 1.0, rel=1e-6)
     [by_instrument] = costs_and_exposure(priced).by_instrument.values()
     assert by_instrument.costs.net == pytest.approx(costs.net, abs=TOLERANCE)
 

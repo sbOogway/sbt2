@@ -96,13 +96,16 @@ def execute(spec: ResolvedRunSpec, sink: OutputSink, settings: RunSettings) -> N
     sink.write_strategy_source(strategy_source(spec.strategy.strategy))
     loaded = spec.with_contracts(Catalog(settings.catalog))
     _check_chain_size(spec, loaded, settings.max_chain_contracts)
-    with TemporaryDirectory(prefix="sbt2-quotes-") as folder:
+    with TemporaryDirectory(prefix="sbt2-made-") as folder:
         job = loaded.quote_job(settings.catalog)
-        quotes = loaded.asset.quotes.write(job, Path(folder))
+        made = [
+            *loaded.asset.quotes.write(job, Path(folder)),
+            *loaded.bars.write_fills(job, Path(folder)),
+        ]
         margin = loaded.asset.margin.model(job)
         catalog = Catalog(settings.catalog)
         histories = read_histories(loaded, catalog)
-        config = _run_config(loaded, settings, quotes)
+        config = _run_config(loaded, settings, made)
         _execute(loaded, sink, _Plan(config, margin, histories, catalog))
     sink.finalize()
     logger.info("run %s finished", sink.run_id)
@@ -140,7 +143,7 @@ def _execute(spec: ResolvedRunSpec, sink: OutputSink, plan: _Plan) -> None:
 
 
 def _run_config(
-    spec: ResolvedRunSpec, settings: RunSettings, quotes: Sequence[BacktestDataConfig]
+    spec: ResolvedRunSpec, settings: RunSettings, made: Sequence[BacktestDataConfig]
 ) -> BacktestRunConfig:
     engine = {
         "logging": LoggerConfig(stdout_level=settings.log_level),
@@ -150,7 +153,7 @@ def _run_config(
     return spec.run_config(
         str(settings.catalog),
         engine,
-        quotes,
+        made,
         chunk_size=settings.chunk_size,
         raise_exception=True,
         dispose_on_completion=False,

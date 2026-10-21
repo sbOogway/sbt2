@@ -13,6 +13,7 @@ from nautilus_trader.model import (
 )
 
 from sbt2.core.assets import AssetProfile, asset_profile
+from sbt2.core.spec.bars import Fills
 from sbt2.core.spec.errors import SpecError
 from sbt2.core.spec.resolve.models import model_tables
 from sbt2.core.spec.risk import risk_limits
@@ -29,6 +30,8 @@ from sbt2.data import CANDLES
 
 type Document = Mapping[str, Any]
 
+_TICKS = frozenset({NautilusDataType.TradeTick, NautilusDataType.QuoteTick})
+
 
 class OutdatedRunError(SpecError):
     pass
@@ -41,16 +44,17 @@ def spec_fields(
     strategy's module is read from ``strategy_source`` when given."""
     asset = _asset(document)
     data = [_data_arguments(each) for each in document["data"]]
+    aggregated_from = _aggregated_from(data)
     risk = risk_limits(document.get("risk", {}))
     strategy = import_strategy(document["strategy"]["path"], strategy_source)
     return {
         "strategy": _strategy(
             document["strategy"],
             strategy,
-            _Streaming(_aggregated_from(data), risk.drawdown_limit, risk.short_premium),
+            _Streaming(aggregated_from, risk.drawdown_limit, risk.short_premium),
         ),
         "asset": asset,
-        "venue": _venue(document["venue"], asset),
+        "venue": _with_fills(_venue(document["venue"], asset), aggregated_from),
         "data": data,
         "equity_interval_ms": document["equity_interval_ms"],
         "split": _split(document["split"]),
@@ -108,9 +112,12 @@ def _strategy(
 
 
 def _aggregated_from(data: list[dict[str, Any]]) -> str | None:
-    """Only a run on candles streams bars; the others build theirs from ticks."""
+    """A run on candles streams bars and no ticks; the others build their bars
+    from ticks, and may stream bars to make marks from."""
     streamed = {each["data_type"] for each in data}
-    return CANDLES if NautilusDataType.Bar in streamed else None
+    if NautilusDataType.Bar not in streamed or streamed & _TICKS:
+        return None
+    return CANDLES
 
 
 def _venue(document: Document, asset: AssetProfile) -> dict[str, Any]:
@@ -121,6 +128,14 @@ def _venue(document: Document, asset: AssetProfile) -> dict[str, Any]:
         key: _default_or(value, asset.venue_defaults.get(key))
         for key, value in document.items()
     }
+
+
+def _with_fills(venue: dict[str, Any], aggregated_from: str | None) -> dict[str, Any]:
+    """The hashed document of a run on candles leaves fills at the close out, so
+    a run without the setting, such as one stored before it, fills at the close."""
+    if aggregated_from is None or "fills" in venue:
+        return venue
+    return {**venue, "fills": Fills.CLOSE.value}
 
 
 def _check_kinds(venue: Document) -> None:

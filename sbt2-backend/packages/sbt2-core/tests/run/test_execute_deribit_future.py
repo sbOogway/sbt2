@@ -61,13 +61,11 @@ class Trade:
     marked: tuple[str, float]
 
 
-# The equity is sampled every hour from the first fill on: the short opens at
-# the close of the first minute of hour 7. The times are in UTC.
+# The equity is sampled every hour from the first fill on: the short's limit
+# fills at the open of hour 7. The times are in UTC.
 TRADES = {
-    "BUY": Trade(1, (50_200, TAKER), (50_700, MAKER), ("2024-01-01 05:00", 50_400)),
-    "SELL": Trade(
-        -1, (50_700, MAKER), (52_200, TAKER), ("2024-01-01 10:00:59.999999999", 51_000)
-    ),
+    "BUY": Trade(1, (50_300, TAKER), (50_700, MAKER), ("2024-01-01 05:00", 50_400)),
+    "SELL": Trade(-1, (50_700, MAKER), (52_300, TAKER), ("2024-01-01 10:00", 50_900)),
 }
 
 
@@ -169,7 +167,7 @@ def test_future_margin_matches_perpetual(
     )
 
     assert margins(*dated) == margins(*perpetual)
-    assert ("0.00199203", "0.00264940") in margins(*dated)
+    assert ("0.00199203", "0.00264414") in margins(*dated)
     assert perpetual_refusals == OverReach.refused
     [refusal] = OverReach.refused
     assert refusal.startswith("INITIAL_MARGIN_EXCEEDS_FREE_BALANCE")

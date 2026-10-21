@@ -1,4 +1,4 @@
-from sbt2.core.spec.bars import CandleBarError, UnknownBarSourceError
+from sbt2.core.spec.bars import CandleBarError, Fills, UnknownBarSourceError
 from sbt2.core.spec.errors import SpecError
 from sbt2.core.spec.file import (
     EmptyListError,
@@ -50,6 +50,7 @@ __all__ = [
     "EmptyListError",
     "FeeModelKind",
     "FillModelKind",
+    "Fills",
     "FractionSplit",
     "InstrumentClassError",
     "InstrumentVenueError",
