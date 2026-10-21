@@ -1,11 +1,13 @@
 import importlib
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 from google.protobuf import json_format
 from lab_kit import CROSS, TOKEN, FakeServer, run, serve_job, summary
 
+from sbt2.core.strategy import Strategy
 from sbt2.lab import Lab, StrategyModuleError
 
 SPEC = {
@@ -28,7 +30,9 @@ SPEC = {
 }
 
 
-def submitted(server: FakeServer, strategy: str, spec: dict = SPEC) -> None:
+def submitted(
+    server: FakeServer, strategy: str | type[Strategy[Any]], spec: dict = SPEC
+) -> None:
     serve_job(server, [summary("run-1")])
 
     async def scenario(url: str) -> None:
@@ -170,3 +174,21 @@ def test_run_accepts_an_imported_strategy_class(strategies: Path) -> None:
     assert (
         by_class.submit_run.strategy.source == (strategies / "my_strats.py").read_text()
     )
+
+
+@pytest.mark.integration
+def test_a_strategy_class_uses_its_defining_module(strategies: Path) -> None:
+    (strategies / "pkg").mkdir()
+    (strategies / "pkg" / "__init__.py").write_text("")
+    (strategies / "pkg" / "sub.py").write_text(CROSS)
+    (strategies / "reexport.py").write_text("from pkg.sub import Cross\n")
+    strategy = importlib.import_module("reexport").Cross
+    server = FakeServer()
+    submitted(server, strategy)
+    submitted(server, "pkg.sub:Cross")
+
+    by_class, by_path = server.received("submit_run")
+
+    assert by_class.submit_run == by_path.submit_run
+    assert by_class.submit_run.spec.strategy == "sub:Cross"
+    assert by_class.submit_run.strategy.source == CROSS
