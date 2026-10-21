@@ -8,6 +8,7 @@ from sbt2.core.assets.conventions.carry import Carry
 from sbt2.core.assets.conventions.chain import ChainConvention, ChainJob
 from sbt2.core.assets.conventions.margin import MarginConvention, MarginModel
 from sbt2.core.assets.conventions.quotes import QuoteConvention, QuoteJob
+from sbt2.core.assets.delivery.prices import NoDeliveryPriceError
 from sbt2.core.assets.marks import NoMarksError
 from sbt2.core.assets.option.margin.market import NoMarkError
 from sbt2.core.assets.option.margin.rates import (
@@ -21,7 +22,6 @@ from sbt2.core.assets.option.quotes.quotes import (
     QuoteSettings,
     quote_ticks,
 )
-from sbt2.core.assets.option.settlement.delivery import NoDeliveryPriceError
 from sbt2.core.assets.option.settlement.settlement import DeliveryFee, settlement_price
 from sbt2.core.assets.profile import AssetProfile
 from sbt2.core.assets.profiles import UnknownAssetClassError, asset_profile

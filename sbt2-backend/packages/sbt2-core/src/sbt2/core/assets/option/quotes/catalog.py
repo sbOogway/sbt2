@@ -14,20 +14,18 @@ from nautilus_trader.model import (
 from nautilus_trader.persistence import ParquetDataCatalog
 
 from sbt2.core.assets.conventions.quotes import QuoteJob
+from sbt2.core.assets.delivery.prices import (
+    delivery_id,
+    delivery_price,
+    expires_within,
+)
+from sbt2.core.assets.delivery.quotes import settlement_quotes
 from sbt2.core.assets.option.quotes.quotes import (
     OptionHistory,
     QuoteSettings,
     quote_ticks,
 )
-from sbt2.core.assets.option.settlement.delivery import (
-    delivery_id,
-    delivery_price,
-    expires_within,
-)
-from sbt2.core.assets.option.settlement.settlement import (
-    settlement_price,
-    settlement_quotes,
-)
+from sbt2.core.assets.option.settlement.settlement import settlement_price
 from sbt2.core.market import index_id
 from sbt2.data import Catalog, Window
 
