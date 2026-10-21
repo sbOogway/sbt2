@@ -2,7 +2,7 @@ import pytest
 from nautilus_trader.model import OrderSide
 from vwap_kit import DAY, orders_sent, run_candles, vwap_config
 
-from sbt2.strategies.vwap_band_fade import VwapBandFade
+from sbt2.strategies.vwap.band_fade import VwapBandFade
 
 BUY, SELL = OrderSide.BUY, OrderSide.SELL
 NOISE = 148

@@ -1,3 +1,3 @@
-from sbt2.strategies.vwap_momentum import VwapMomentum
+from sbt2.strategies.vwap.momentum import VwapMomentum
 
 __all__ = ["VwapMomentum"]

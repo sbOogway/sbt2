@@ -7,7 +7,7 @@ from typing import override
 from nautilus_trader.model import Bar
 
 from sbt2.core.strategy import MultiVenueVwap, RunConfig
-from sbt2.strategies.vwap_session import VwapParams, VwapSession
+from sbt2.strategies.vwap.session import VwapParams, VwapSession
 
 _MIN_RETURNS = 2
 

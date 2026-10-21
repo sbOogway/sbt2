@@ -23,7 +23,7 @@ def legs_per_combo(store: ParquetResultStore, run_id: str) -> set[int]:
 @pytest.mark.realdata
 @pytest.mark.e2e
 def test_the_portfolio_runs_on_a_month_of_deribit_btc_options(tmp_path: Path) -> None:
-    store, run_id = run_month("premium_portfolio_month.toml", tmp_path)
+    store, run_id = run_month("options/premium_portfolio_month.toml", tmp_path)
 
     assert legs_per_combo(store, run_id) >= {STRANGLE_LEGS, CONDOR_LEGS}
     trades = store.load(run_id, "trades")

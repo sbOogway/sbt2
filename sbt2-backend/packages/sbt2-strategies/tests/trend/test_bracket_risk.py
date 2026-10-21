@@ -7,7 +7,7 @@ from nautilus_trader.backtest import BacktestEngine
 from nautilus_trader.model import Money, OrderSide, OrderType, Price, Quantity
 from nautilus_trader.risk import FixedRiskSizer
 
-from sbt2.strategies.bracket_risk import (
+from sbt2.strategies.trend.bracket_risk import (
     BracketParams,
     BracketRisk,
     Entry,

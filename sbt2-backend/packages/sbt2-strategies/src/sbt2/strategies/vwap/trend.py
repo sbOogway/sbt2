@@ -1,7 +1,7 @@
 from nautilus_trader.model import Bar
 
 from sbt2.core.strategy import MultiVenueVwap
-from sbt2.strategies.vwap_session import VwapParams, VwapSession
+from sbt2.strategies.vwap.session import VwapParams, VwapSession
 
 
 class VwapTrend(VwapSession[VwapParams]):

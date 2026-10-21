@@ -10,7 +10,7 @@ from premium_kit import HIGH_RANK, LOW_RANK, catalog_with_dvol, legs_of, run_str
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.strategy import Strategy, import_strategy, params_schema, resolve_params
 
-PATH = "sbt2.strategies.short_premium"
+PATH = "sbt2.strategies.options.short_premium"
 STRATEGIES = [
     "ShortStrangle",
     "ShortStraddle",

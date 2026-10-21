@@ -3,7 +3,7 @@ from bar_engine import BTC, EQUITY
 from nautilus_trader.model import OrderSide
 from vwap_kit import DAY, day, orders_sent, run_candles, vwap_config
 
-from sbt2.strategies.vwap_momentum import NoiseBand, VwapMomentum, volatility_weight
+from sbt2.strategies.vwap.momentum import NoiseBand, VwapMomentum, volatility_weight
 
 BUY, SELL = OrderSide.BUY, OrderSide.SELL
 OPEN = 100.0

@@ -11,7 +11,7 @@ from vwap_kit import (
     vwap_config,
 )
 
-from sbt2.strategies.vwap_trend import VwapTrend
+from sbt2.strategies.vwap.trend import VwapTrend
 
 LONG, SHORT = OrderSide.BUY, OrderSide.SELL
 

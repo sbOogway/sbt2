@@ -1,3 +1,3 @@
-from sbt2.strategies.short_premium import ShortStrangle
+from sbt2.strategies.options.short_premium import ShortStrangle
 
 __all__ = ["ShortStrangle"]

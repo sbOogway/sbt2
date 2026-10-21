@@ -16,17 +16,17 @@ from sbt2.core.strategy import (
     ShortPremiumRules,
     Strategy,
 )
-from sbt2.strategies.premium_sizing import (
-    contract_quantity,
-    kelly_fraction,
-    proportions,
-    shared_fractions,
-)
-from sbt2.strategies.short_premium import (
+from sbt2.strategies.options.short_premium import (
     CondorParams,
     StrangleParams,
     condor,
     strangle,
+)
+from sbt2.strategies.options.sizing import (
+    contract_quantity,
+    kelly_fraction,
+    proportions,
+    shared_fractions,
 )
 
 ONE = Decimal(1)

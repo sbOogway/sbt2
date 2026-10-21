@@ -11,7 +11,7 @@ from month_kit import COIN_PRECISION, equity_after_last_trade, run_month
 def test_a_short_strangle_runs_on_a_month_of_deribit_btc_options(
     tmp_path: Path,
 ) -> None:
-    store, run_id = run_month("short_strangle_month.toml", tmp_path)
+    store, run_id = run_month("options/short_strangle_month.toml", tmp_path)
 
     trades = store.load(run_id, "trades")
     assert len(trades) >= 1
