@@ -1,3 +1,4 @@
+import importlib
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -144,3 +145,28 @@ def test_a_spec_with_a_strategy_key_is_refused() -> None:
     run(scenario, server)
 
     assert server.received("submit_run") == []
+
+
+@pytest.mark.integration
+def test_run_accepts_an_imported_strategy_class(strategies: Path) -> None:
+    strategy = importlib.import_module("my_strats").Cross
+    server = FakeServer()
+    serve_job(server, [summary("run-1")])
+
+    async def scenario(url: str) -> None:
+        async with await Lab.connect(url, TOKEN) as lab:
+            by_class = await lab.run(SPEC, strategy)
+            by_path = await lab.run(SPEC, "my_strats:Cross")
+            assert (
+                [each.run_id for each in by_class]
+                == [each.run_id for each in by_path]
+                == ["run-1"]
+            )
+
+    run(scenario, server)
+
+    by_class, by_path = server.received("submit_run")
+    assert by_class.submit_run == by_path.submit_run
+    assert (
+        by_class.submit_run.strategy.source == (strategies / "my_strats.py").read_text()
+    )

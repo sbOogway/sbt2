@@ -3,12 +3,15 @@ from collections.abc import Mapping
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from google.protobuf.struct_pb2 import Struct
 
 from sbt2.lab.errors import StrategyModuleError
 from sbt2.protocol.v1.runs_pb2 import SpecFile, SpecPeriod, StrategyModule, SubmitRun
+
+if TYPE_CHECKING:
+    from sbt2.core.strategy import Strategy
 
 _PLAIN = ("instruments", "capital", "seed", "equity_interval")
 _OPTIONAL = ("liquidation", "bars", "study")
@@ -18,10 +21,14 @@ _KEYS = {*_PLAIN, *_OPTIONAL, *_TABLES, "period", "part"}
 type Moment = date | datetime | str
 
 
-def submit_run(spec: Mapping[str, Any], strategy: str) -> SubmitRun:
-    """The request that runs ``spec`` with the class ``strategy``, given as
-    ``"module:Class"``, whose module is sent as source."""
+def submit_run(
+    spec: Mapping[str, Any], strategy: str | type[Strategy[Any]]
+) -> SubmitRun:
+    """The request that runs ``spec`` with ``strategy``, whose module is sent
+    as source."""
     _check_keys(spec)
+    if not isinstance(strategy, str):
+        strategy = f"{strategy.__module__}:{strategy.__qualname__}"
     module_path, class_name = _parts(strategy)
     module = _module(module_path)
     wire = _spec_file(spec)
