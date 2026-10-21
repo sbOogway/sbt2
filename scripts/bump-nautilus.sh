@@ -41,10 +41,11 @@ fi
 
 sed -i -E "s/(\"nautilus-trader\[[a-z]+\]==)[^\"]+\"/\1$newest\"/" "$manifest"
 uv lock --project sbt2-backend --upgrade-package nautilus-trader
+uv lock --project sbt2-notebooks --upgrade-package nautilus-trader
 
 # `==` also matches today's tagged build of the nightly while it is still on the index
 if ! scripts/check-nautilus-lock.sh; then
-    git checkout -- "$manifest" sbt2-backend/uv.lock
+    git checkout -- "$manifest" sbt2-backend/uv.lock sbt2-notebooks/uv.lock
     exit 1
 fi
 
