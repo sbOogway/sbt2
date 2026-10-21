@@ -111,3 +111,44 @@ def test_older_docs_publish_does_not_replace_latest(tmp_path: Path) -> None:
     assert done.returncode == 0, done.stderr
     assert pages_file(remote, "v1.9.0/index.html") == "older"
     assert pages_file(remote, "latest/index.html") == "newer"
+
+
+@pytest.mark.integration
+def test_docs_publish_refuses_changed_content_for_an_existing_version(
+    tmp_path: Path,
+) -> None:
+    remote = make_remote(tmp_path)
+    publish_docs(tmp_path, remote, "v1.2.3", "docs")
+    first = git("--git-dir", remote, "rev-parse", "gh-pages")
+
+    done = publish_docs(tmp_path, remote, "v1.2.3", "changed")
+
+    assert done.returncode != 0
+    assert "v1.2.3" in done.stderr
+    assert git("--git-dir", remote, "rev-parse", "gh-pages") == first
+    assert pages_file(remote, "v1.2.3/index.html") == "docs"
+
+
+@pytest.mark.integration
+def test_docs_publish_stops_on_remote_read_failure(tmp_path: Path) -> None:
+    done = publish_docs(tmp_path, tmp_path / "missing.git", "v1.2.3", "docs")
+
+    assert done.returncode != 0
+    assert "cannot read" in done.stderr
+    assert not (tmp_path / "missing.git").exists()
+
+
+@pytest.mark.integration
+def test_docs_publish_stops_on_rejected_push(tmp_path: Path) -> None:
+    remote = make_remote(tmp_path)
+    publish_docs(tmp_path, remote, "v1.0.0", "old")
+    first = git("--git-dir", remote, "rev-parse", "gh-pages")
+    hook = remote / "hooks" / "pre-receive"
+    hook.write_text("#!/bin/sh\necho rejected >&2\nexit 1\n")
+    hook.chmod(0o755)
+
+    done = publish_docs(tmp_path, remote, "v1.1.0", "new")
+
+    assert done.returncode != 0
+    assert "cannot push" in done.stderr
+    assert git("--git-dir", remote, "rev-parse", "gh-pages") == first

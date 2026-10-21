@@ -296,11 +296,14 @@ is_latest_docs() {
 
 # Publishes the HTML file $2 as the protocol reference of tag $1 on the Pages branch, under
 # /$1/, and under /latest/ unless a higher version is there. A re-run with the same file adds
-# no commit.
+# no commit; another file for a published version is refused.
 publish_docs() {
     local tag=$1 html=$2 site
     site=$(mktemp -d)
     check_out_pages "$site"
+    if [ -f "$site/$tag/index.html" ] && ! cmp -s "$html" "$site/$tag/index.html"; then
+        die "$tag has other documentation on $PAGES_BRANCH; a published version never changes"
+    fi
     mkdir -p "$site/$tag"
     cp "$html" "$site/$tag/index.html"
     if is_latest_docs "$tag" "$site"; then
