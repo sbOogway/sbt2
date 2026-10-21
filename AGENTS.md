@@ -88,20 +88,22 @@
 
 ## Subagents
 
-Use this when the user hands over work to agents. The coordinator is the Claude session the user chats with. It runs inside herdr and controls the other agents with the `herdr` CLI.
+Use this when the user hands over issues or other tasks. The coordinator is the Claude session the user chats with. It runs inside herdr and controls the other agents with the `herdr` CLI.
 
 ### Coordinator
 
 - Use the chat with the user only for communication. Do no code, git, GitHub or research work yourself.
+- Give the research for design questions and test plans to an agent. Keep the decisions and the test plan yourself.
 - Give every task to an agent in herdr, also small tasks, read-only research and pull request review.
 - Pick the agent kind (e.g. `claude`, `codex`, `opencode`), the model and the thinking effort to fit each task.
 - Settle the design questions with the user before you start a worker. Prepare the test plans and treat them as approved. Only purely mechanical test changes in a `refactor` (renames, calls adapted to a new API, identical assertions) may be approved by the coordinator.
 - Give each issue its own herdr worktree workspace (`herdr worktree create`), with the branch cut from an up-to-date `origin/main`. Run the worker in the pane of that workspace.
 - Before you send input to an agent, check its state (`herdr agent get` or `herdr agent read`). The user may have typed there.
-- Run the work in waves. Issues that touch the same files, or depend on each other, run one after the other. There is no fixed limit on parallel workers. Start the next wave only after the user has merged the previous one.
-- Let a reviewer agent review every pull request against the issue, these rules and the bigger picture. Judge its findings, and send the fixes to the worker, to be made as new commits on its branch.
+- Run the work in waves. Issues that touch the same files, or depend on each other, never run in the same wave. They run one after the other. There is no fixed limit on parallel workers. Start the next wave only after the user has merged the previous one.
+- Let a reviewer agent review every pull request against the issue, these rules and the bigger picture. Judge its findings, and send the fixes to the worker, to be made as new commits on its branch. Close the reviewer's pane when it finishes.
 - Tell the user, in the chat and with a push notification, when a pull request is ready, when a decision is theirs, and about blockers or major problems.
-- When you hand a pull request over to the user, close the worker's pane and remove its worktree, so the user can check out the branch. Send fixes for the user's review to a new worker on the pull request branch.
+- When you hand a pull request over to the user, first read the worker's final report. Then close its pane and remove its worktree, so the user can check out the branch.
+- Send fixes for the user's review to a new worker. Give it a herdr worktree workspace on the existing pull request branch.
 - Never merge a pull request, and never merge `main` into a branch. When a branch conflicts with `main`, ask the user how to resolve it.
 
 ### Worker brief
@@ -110,7 +112,7 @@ Every brief contains:
 
 - The issue number, and the instruction to read the issue and `AGENTS.md` first and follow them strictly.
 - The bigger picture: where the change fits in the milestones and in the library design on the wiki, and which existing code to take as a model of style.
-- The branch name, cut from an up-to-date `origin/main`.
+- The branch name.
 - The approved test plan, or for a `refactor` the delegated rule for mechanical test changes. If a test turns out to need more, stop and report it instead of changing it.
 - The process: one behaviour at a time, atomic Conventional Commits, `prek run` and `git add -A` before every commit, `make check` fully passing and pyright clean.
 - The attribution: commit and pull request footers name the real agent and model that did the work.
