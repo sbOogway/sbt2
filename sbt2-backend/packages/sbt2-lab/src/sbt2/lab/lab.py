@@ -43,9 +43,11 @@ class Lab:
         """Run ``spec`` on the server and return its runs once the job finishes.
 
         ``spec`` holds the keys of a spec file but ``strategy``, which is an
-        imported class or ``"module:Class"``. The module is sent as source,
-        so it may import only
-        what the server has: sbt2, nautilus and the standard library.
+        imported class or ``"module:Class"``. The module that defines the
+        class is sent as source, so it may import only what the server has:
+        sbt2, nautilus and the standard library. A class defined in
+        ``__main__``, in a function, in another class, or in a module without
+        Python source raises ``StrategyModuleError``.
         """
         request = submit_run(spec, strategy)
         [reply] = await self._session.ask(ClientMessage(submit_run=request))
