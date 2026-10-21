@@ -13,10 +13,6 @@ __pycache__/
 coverage.xml
 htmlcov/
 
-# Rust build output
-/checks/rust/target/
-/target/
-
 # Editor and operating system temporary files
 *.swp
 *.swo

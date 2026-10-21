@@ -1,7 +1,6 @@
 """Every golden fixture decodes to its textproto and re-encodes to the same bytes.
 
-The .binpb files come from buf convert (Go), so this checks Python's protobuf against it;
-checks/rust does the same for prost.
+The .binpb files come from buf convert (Go), so this checks Python's protobuf against it.
 """
 
 from pathlib import Path

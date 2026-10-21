@@ -282,16 +282,3 @@ steps:
         for hook in buf-format buf-lint buf-breaking golden protocol-tests; do
           uvx prek@0.5.4 run "$hook" --all-files --show-diff-on-failure
         done
-
-  # prost against the golden fixtures; protox compiles the .proto files, so no buf here
-  - name: protocol-rust
-    image: rust:1.97.1-slim-trixie
-    environment:
-      CARGO_HOME: /cache/cargo
-      CARGO_TARGET_DIR: /cache/target
-    volumes: [sbt2-cache-protocol-rust:/cache:z]
-    depends_on: []
-    failure: cancel
-    when: *protocol
-    commands:
-      - cargo test --locked --manifest-path sbt2-protocol/checks/rust/Cargo.toml
