@@ -13,6 +13,8 @@ from sbt2.core.results import ParquetResultStore
 PUT = str(chain_contract_id("12JAN24", 40000, "P"))
 CALL = str(chain_contract_id("12JAN24", 50000, "C"))
 LIVE_PUT = str(chain_contract_id("12JAN24", 45000, "P"))
+EXPIRING_PUT = str(chain_contract_id("2JAN24", 45000, "P"))
+EXPIRING_CALL = str(chain_contract_id("2JAN24", 45000, "C"))
 
 
 @pytest.fixture(scope="module")
@@ -178,6 +180,49 @@ def test_a_combo_held_to_expiry_settles_all_its_legs(
     assert settled.id == "C1"
     assert OpenStrangle.closed == []
     assert OpenStrangle.seen[-1][1] == ()
+
+
+@pytest.mark.integration
+def test_opposite_combos_on_one_contract_both_settle_at_expiry(
+    tmp_path: Path, expiring: Path
+) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run_options(
+        tmp_path, expiring, "combo_strategies:HoldOppositeStraddles"
+    )
+
+    assert sorted(each.id for each in OpenStrangle.settled) == ["C1", "C2"]
+    assert OpenStrangle.seen[-1][1] == ()
+    settling = [
+        (each["instrument_id"], each["order_side"], Decimal(each["last_qty"]))
+        for each, tags in zip(
+            store.load(run_id, "fills").to_dict("records"),
+            tags_of_fills(store, run_id),
+            strict=True,
+        )
+        if "SETTLEMENT" in tags
+    ]
+    assert sorted(settling) == [
+        (EXPIRING_CALL, "SELL", Decimal(1)),
+        (EXPIRING_PUT, "SELL", Decimal(1)),
+    ]
+
+
+@pytest.mark.integration
+def test_combos_that_net_to_zero_settle_at_expiry(
+    tmp_path: Path, expiring: Path
+) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run_options(
+        tmp_path, expiring, "combo_strategies:HoldNettingStraddles"
+    )
+
+    assert sorted(each.id for each in OpenStrangle.settled) == ["C1", "C2"]
+    assert OpenStrangle.seen[-1][1] == ()
+    assert all("SETTLEMENT" not in tags for tags in tags_of_fills(store, run_id))
+    assert set(store.load(run_id, "positions")["side"]) == {"FLAT"}
 
 
 @pytest.mark.integration
