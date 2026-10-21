@@ -10,9 +10,11 @@ import pandas as pd
 from nautilus_trader.model import (
     AggressorSide,
     Bar,
+    CryptoFuture,
     CryptoOption,
     CryptoPerpetual,
     Currency,
+    CurrencyPair,
     FundingRateUpdate,
     GreeksConvention,
     IndexInstrument,
@@ -29,10 +31,10 @@ from nautilus_trader.model import (
     black_scholes_greeks,
 )
 
-from sbt2.data.sources.deribit import perpetual
+from sbt2.data.sources.deribit import futures, perpetual, spot
 from sbt2.data.sources.deribit.series import Kind, Series, series_of
-from sbt2.data.sources.klines import bars
-from sbt2.data.sources.nautilus_bars import read_klines
+from sbt2.data.sources.klines import Kline, bars
+from sbt2.data.sources.nautilus_bars import klines_of, read_bars, read_klines
 
 VENUE = "DERIBIT"
 
@@ -101,6 +103,13 @@ def instruments(path: Path) -> Mapping[InstrumentId, Any]:
     if series_of(symbol) is not None:
         index = _index(symbol, _snapshot_day_nanos(path))
         return {index.id: index}
+    if spot.currency_of(symbol) is not None:
+        pair = _pair(json.loads(path.read_text()), _snapshot_day_nanos(path))
+        return {pair.id: pair}
+    if futures.currency_of(symbol) is not None:
+        ts_init = _snapshot_day_nanos(path)
+        built = [_future(each, ts_init) for each in json.loads(path.read_text())]
+        return {each.id: each for each in built}
     return Contracts(json.loads(path.read_text()), symbol, _snapshot_day_nanos(path))
 
 
@@ -116,6 +125,12 @@ def traded_ids(path: Path, data_type: type) -> tuple[InstrumentId, ...]:
     series = series_of(symbol)
     if series is not None:
         return (series_id(series.symbol),)
+    if futures.currency_of(symbol) is not None:
+        return tuple(
+            sorted({each.bar_type.instrument_id for each in read_bars(path)}, key=str)
+        )
+    if spot.currency_of(symbol) is not None:
+        return (contract_id(symbol),)
     names = {each["instrument_name"] for each in json.loads(path.read_text())}
     if data_type is IndexPriceUpdate:
         return tuple(index_id(each) for each in sorted({_currency(n) for n in names}))
@@ -132,6 +147,10 @@ def day_records(
     series = series_of(symbol)
     if series is not None:
         return _series_updates(path, series, instruments)
+    if futures.currency_of(symbol) is not None:
+        return _future_candles(path, instruments)
+    if spot.currency_of(symbol) is not None:
+        return _spot_candles(path, instruments)
     return _PARSERS[data_type](path, instruments)
 
 
@@ -201,6 +220,38 @@ def _candles(
     """The volume is in contracts, USD for the inverse perpetual."""
     ((instrument_id, perpetual_),) = instruments.items()
     return {instrument_id: list(bars(read_klines(path), perpetual_))}
+
+
+def _future_candles(
+    path: Path, instruments: Mapping[InstrumentId, CryptoFuture]
+) -> dict[InstrumentId, list[Bar]]:
+    """The volume is in contracts, USD for the inverse future."""
+    grouped: dict[InstrumentId, list[Bar]] = {each: [] for each in instruments}
+    for bar in read_bars(path):
+        grouped[bar.bar_type.instrument_id].append(bar)
+    return {
+        instrument_id: list(bars(klines_of(group), instruments[instrument_id]))
+        for instrument_id, group in grouped.items()
+    }
+
+
+def _spot_candles(
+    path: Path, instruments: Mapping[InstrumentId, CurrencyPair]
+) -> dict[InstrumentId, list[Bar]]:
+    """The volume is in the base coin."""
+    ((instrument_id, pair),) = instruments.items()
+    chart = json.loads(path.read_text())
+    rows = zip(
+        chart["ticks"],
+        chart["open"],
+        chart["high"],
+        chart["low"],
+        chart["close"],
+        chart["volume"],
+        strict=True,
+    )
+    klines = (Kline(int(tick), *map(repr, values)) for tick, *values in rows)
+    return {instrument_id: list(bars(klines, pair))}
 
 
 def _dvol_update(row: Sequence[float], index: IndexInstrument) -> IndexPriceUpdate:
@@ -359,6 +410,50 @@ def _perpetual(spec: Mapping[str, Any], ts_init: int) -> CryptoPerpetual:
         ts_init,
         margin_init=initial,
         margin_maint=initial * 2 / 3,
+    )
+
+
+def _future(spec: Mapping[str, Any], ts_init: int) -> CryptoFuture:
+    """The dated future, in USD amounts settled in the coin, with the margin of the
+    perpetual."""
+    tick = _decimals(spec["tick_size"])
+    lot = _decimals(spec["min_trade_amount"])
+    initial = Decimal(1) / Decimal(spec["max_leverage"])
+    created = int(spec["creation_timestamp"]) * _NANOS_PER_MILLI
+    return CryptoFuture(
+        contract_id(spec["instrument_name"]),
+        Symbol(spec["instrument_name"]),
+        Currency.from_str(spec["base_currency"]),
+        Currency.from_str(spec["quote_currency"]),
+        Currency.from_str(spec["settlement_currency"]),
+        spec["future_type"] == "reversed",
+        created,
+        int(spec["expiration_timestamp"]) * _NANOS_PER_MILLI,
+        tick,
+        lot,
+        Price(spec["tick_size"], tick),
+        Quantity(spec["min_trade_amount"], lot),
+        created,
+        ts_init,
+        margin_init=initial,
+        margin_maint=initial * 2 / 3,
+    )
+
+
+def _pair(spec: Mapping[str, Any], ts_init: int) -> CurrencyPair:
+    tick = _decimals(spec["tick_size"])
+    lot = _decimals(spec["min_trade_amount"])
+    return CurrencyPair(
+        contract_id(spec["instrument_name"]),
+        Symbol(spec["instrument_name"]),
+        Currency.from_str(spec["base_currency"]),
+        Currency.from_str(spec["quote_currency"]),
+        tick,
+        lot,
+        Price(spec["tick_size"], tick),
+        Quantity(spec["min_trade_amount"], lot),
+        int(spec["creation_timestamp"]) * _NANOS_PER_MILLI,
+        ts_init,
     )
 
 

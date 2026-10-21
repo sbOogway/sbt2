@@ -1,0 +1,68 @@
+[
+ {
+  "type": "Bar",
+  "bar_type": "BTC-3JAN25.DERIBIT-1-MINUTE-LAST-EXTERNAL",
+  "open": "93512.5",
+  "high": "93557.5",
+  "low": "93512.5",
+  "close": "93557.5",
+  "volume": "1510",
+  "ts_event": 1735689600000000000,
+  "ts_init": 1792500890991244574
+ },
+ {
+  "type": "Bar",
+  "bar_type": "BTC-3JAN25.DERIBIT-1-MINUTE-LAST-EXTERNAL",
+  "open": "93575.0",
+  "high": "93575.0",
+  "low": "93570.0",
+  "close": "93570.0",
+  "volume": "10360",
+  "ts_event": 1735689660000000000,
+  "ts_init": 1792500890991244574
+ },
+ {
+  "type": "Bar",
+  "bar_type": "BTC-3JAN25.DERIBIT-1-MINUTE-LAST-EXTERNAL",
+  "open": "93605.0",
+  "high": "93635.0",
+  "low": "93585.0",
+  "close": "93635.0",
+  "volume": "1010",
+  "ts_event": 1735689720000000000,
+  "ts_init": 1792500890991244574
+ },
+ {
+  "type": "Bar",
+  "bar_type": "BTC-10JAN25.DERIBIT-1-MINUTE-LAST-EXTERNAL",
+  "open": "93742.5",
+  "high": "93765.0",
+  "low": "93742.5",
+  "close": "93765.0",
+  "volume": "1500",
+  "ts_event": 1735689600000000000,
+  "ts_init": 1792500891111106754
+ },
+ {
+  "type": "Bar",
+  "bar_type": "BTC-10JAN25.DERIBIT-1-MINUTE-LAST-EXTERNAL",
+  "open": "93782.5",
+  "high": "93792.5",
+  "low": "93760.0",
+  "close": "93792.5",
+  "volume": "850",
+  "ts_event": 1735689660000000000,
+  "ts_init": 1792500891111106754
+ },
+ {
+  "type": "Bar",
+  "bar_type": "BTC-10JAN25.DERIBIT-1-MINUTE-LAST-EXTERNAL",
+  "open": "93815.0",
+  "high": "93862.5",
+  "low": "93785.0",
+  "close": "93862.5",
+  "volume": "11030",
+  "ts_event": 1735689720000000000,
+  "ts_init": 1792500891111106754
+ }
+]

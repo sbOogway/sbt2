@@ -23,7 +23,7 @@ from sbt2.data.sources.base import (
     Source,
     UnsupportedDataTypeError,
 )
-from sbt2.data.sources.deribit import parse, perpetual
+from sbt2.data.sources.deribit import futures, parse, perpetual, spot
 from sbt2.data.sources.deribit.api import DeribitApi, Endpoints
 from sbt2.data.sources.deribit.candles import DeribitCandles, DeribitClient
 from sbt2.data.sources.deribit.series import Kind, Series, series_of
@@ -33,6 +33,7 @@ _CURRENCIES = ("BTC", "ETH")
 _OPTIONS_SUFFIX = "-OPTIONS"
 _TRADES = "trades"
 _PERPETUAL_DATA = (FundingRateUpdate, Bar)
+_WHOLE_IDS = (*perpetual.SYMBOLS, *futures.SYMBOLS, *spot.SYMBOLS)
 
 
 class DeribitSource(Source):
@@ -49,7 +50,7 @@ class DeribitSource(Source):
     ) -> None:
         super().__init__(known_gaps)
         self._api = DeribitApi(endpoints)
-        self._candles = DeribitCandles(client)
+        self._candles = DeribitCandles(self._api, client)
 
     @property
     def data_types(self) -> tuple[type, ...]:
@@ -63,9 +64,9 @@ class DeribitSource(Source):
         )
 
     def instrument_id(self, symbol: str) -> InstrumentId:
-        """The id of the currency's options as a whole, which known gaps name, or of
-        the index of a series."""
-        if series_of(symbol) is not None or symbol in perpetual.SYMBOLS:
+        """The id of the currency's options as a whole, which known gaps name, of its
+        dated futures as a whole, or of the index of a series."""
+        if series_of(symbol) is not None or symbol in _WHOLE_IDS:
             return parse.series_id(symbol)
         if symbol not in _CURRENCIES:
             raise ValueError(
@@ -74,11 +75,14 @@ class DeribitSource(Source):
         return InstrumentId.from_str(f"{symbol}{_OPTIONS_SUFFIX}.{parse.VENUE}")
 
     def symbol(self, instrument_id: InstrumentId) -> str:
+        name = instrument_id.symbol.value
         if instrument_id.venue.value == parse.VENUE and (
-            series_of(instrument_id.symbol.value)
-            or instrument_id.symbol.value in perpetual.SYMBOLS
+            series_of(name) or name in _WHOLE_IDS
         ):
-            return instrument_id.symbol.value
+            return name
+        dated = futures.symbol_of_contract(name)
+        if instrument_id.venue.value == parse.VENUE and dated is not None:
+            return dated
         currency = instrument_id.symbol.value.split("-")[0]
         if instrument_id.venue.value != parse.VENUE or currency not in _CURRENCIES:
             raise ValueError(f"{instrument_id} is not a deribit option instrument")
@@ -99,6 +103,11 @@ class DeribitSource(Source):
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         if symbol in perpetual.SYMBOLS:
             return self._perpetual_day_file(symbol, data_type, day)
+        currency = futures.currency_of(symbol)
+        if currency is not None:
+            return self._futures_day_file(currency, data_type, day)
+        if symbol in spot.SYMBOLS:
+            return self._spot_day_file(symbol, data_type, day)
         series = series_of(symbol)
         if series is not None:
             return self._series_day_file(series, data_type, day)
@@ -112,10 +121,13 @@ class DeribitSource(Source):
     @override
     def is_known_gap(self, symbol: str, data_type: type, day: date) -> bool:
         """A day without trades is a day without any of the data types. A series
-        has index prices only and a perpetual funding and candles only, so neither
-        is ever requested for another data type; options have neither."""
+        has index prices only, a perpetual funding and candles only, and dated
+        futures and spot candles only, so none is ever requested for another data
+        type; options have neither."""
         if symbol in perpetual.SYMBOLS:
             return data_type not in _PERPETUAL_DATA
+        if symbol in futures.SYMBOLS or symbol in spot.SYMBOLS:
+            return data_type is not Bar
         if series_of(symbol) is not None:
             return data_type is not IndexPriceUpdate
         if data_type in _PERPETUAL_DATA:
@@ -128,6 +140,18 @@ class DeribitSource(Source):
             return RawFile(
                 _perpetual_dir(symbol) / "instrument" / _json_name(symbol, taken_on),
                 partial(self._api.perpetual_snapshot, currency),
+            )
+        currency = futures.currency_of(symbol)
+        if currency is not None:
+            return RawFile(
+                _futures_dir(currency) / "instrument" / _json_name(symbol, taken_on),
+                partial(self._api.future_snapshot, currency),
+            )
+        currency = spot.currency_of(symbol)
+        if currency is not None:
+            return RawFile(
+                _spot_dir(symbol) / "instrument" / _json_name(symbol, taken_on),
+                partial(self._api.spot_snapshot, currency, symbol),
             )
         series = series_of(symbol)
         if series is not None:
@@ -175,6 +199,21 @@ class DeribitSource(Source):
             partial(fetch, symbol, day),
         )
 
+    def _futures_day_file(self, currency: str, data_type: type, day: date) -> RawFile:
+        symbol = futures.symbol_of(currency)
+        _require_bars(symbol, data_type)
+        return RawFile(
+            _futures_dir(currency) / "candles" / _json_name(symbol, day),
+            partial(self._candles.futures_day, currency, day),
+        )
+
+    def _spot_day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
+        _require_bars(symbol, data_type)
+        return RawFile(
+            _spot_dir(symbol) / "candles" / _json_name(symbol, day),
+            partial(self._api.spot_candles, symbol, day),
+        )
+
     def _series_day_file(self, series: Series, data_type: type, day: date) -> RawFile:
         if data_type is not IndexPriceUpdate:
             raise UnsupportedDataTypeError(
@@ -203,6 +242,19 @@ class DeribitSource(Source):
 
 def _perpetual_dir(symbol: str) -> PurePosixPath:
     return PurePosixPath("deribit", "perpetual", symbol)
+
+
+def _require_bars(symbol: str, data_type: type) -> None:
+    if data_type is not Bar:
+        raise UnsupportedDataTypeError(f"{symbol} serves Bar, not {data_type.__name__}")
+
+
+def _futures_dir(currency: str) -> PurePosixPath:
+    return PurePosixPath("deribit", "future", currency)
+
+
+def _spot_dir(symbol: str) -> PurePosixPath:
+    return PurePosixPath("deribit", "spot", symbol)
 
 
 def _series_dir(series: Series) -> PurePosixPath:

@@ -1,6 +1,7 @@
 import asyncio
 import json
 import re
+from collections import Counter
 from datetime import UTC, date, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, NamedTuple
@@ -11,8 +12,10 @@ from deribit_replay import deribit_replay, deribit_stub
 from nautilus_trader.model import (
     AggressorSide,
     Bar,
+    CryptoFuture,
     CryptoOption,
     CryptoPerpetual,
+    CurrencyPair,
     FundingRateUpdate,
     GreeksConvention,
     IndexInstrument,
@@ -934,3 +937,174 @@ def test_a_day_without_candles_is_missing_at_source(
 
     with pytest.raises(MissingAtSourceError, match=r"BTC-PERPETUAL candles on 2016"):
         fetched(source.day_file("BTC-PERPETUAL", Bar, date(2016, 1, 1)))
+
+
+@pytest.mark.unit
+def test_futures_and_spot_symbols_map_to_their_instrument_ids_and_back(
+    deribit: Source,
+) -> None:
+    pairs = {
+        "BTC-FUTURES": "BTC-FUTURES.DERIBIT",
+        "ETH-FUTURES": "ETH-FUTURES.DERIBIT",
+        "BTC_USDC": "BTC_USDC.DERIBIT",
+        "ETH_USDC": "ETH_USDC.DERIBIT",
+    }
+    for symbol, instrument_id in pairs.items():
+        assert deribit.instrument_id(symbol) == InstrumentId.from_str(instrument_id)
+        assert deribit.symbol(InstrumentId.from_str(instrument_id)) == symbol
+    contract = InstrumentId.from_str("BTC-27JUN25.DERIBIT")
+    assert deribit.symbol(contract) == "BTC-FUTURES"
+    assert deribit.symbol(InstrumentId.from_str("BTC-10JAN25-88000-P.DERIBIT")) == "BTC"
+    with pytest.raises(ValueError, match="SOL_USDC"):
+        deribit.instrument_id("SOL_USDC")
+
+
+FUTURES_DAY_NAMES = [
+    "BTC-3JAN25",
+    "BTC-10JAN25",
+    "BTC-31JAN25",
+    "BTC-28FEB25",
+    "BTC-28MAR25",
+    "BTC-27JUN25",
+    "BTC-26SEP25",
+    "BTC-26DEC25",
+]
+JUN25 = InstrumentId.from_str("BTC-27JUN25.DERIBIT")
+
+
+@pytest.mark.unit
+def test_futures_snapshot_gives_one_inverse_crypto_future_per_contract_with_its_expiry(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+
+    raw = source.instrument_snapshot("BTC-FUTURES", SNAPSHOT_DAY)
+    instruments = source.parse_instruments(saved(raw, tmp_path))
+
+    assert raw.path == PurePosixPath(
+        "deribit/future/BTC/instrument/BTC-FUTURES2026-10-07.json"
+    )
+    names = {each.symbol.value for each in instruments}
+    assert set(FUTURES_DAY_NAMES) <= names
+    assert {"BTC-27DEC24", "BTC-17JAN25", "BTC-20OCT26"} <= names
+    assert "BTC-PERPETUAL" not in names
+    future = instruments[JUN25]
+    assert isinstance(future, CryptoFuture)
+    assert future.is_inverse
+    assert str(future.underlying) == "BTC"
+    assert str(future.quote_currency) == "USD"
+    assert str(future.settlement_currency) == "BTC"
+    assert str(future.price_increment) == "2.5"
+    assert str(future.size_increment) == "10"
+    assert future.activation_ns == 1_719_561_614_000_000_000
+    assert future.expiration_ns == 1_751_011_200_000_000_000
+    assert future.ts_init == 1_791_331_200_000_000_000
+
+
+FUTURES_FILE = "deribit/future/BTC/candles/BTC-FUTURES2025-01-01.json"
+
+
+def futures_bars(source: Source, day: date = DAY) -> list[Bar]:
+    return [
+        Bar.from_dict(each)
+        for each in fetched(source.day_file("BTC-FUTURES", Bar, day))
+    ]
+
+
+@pytest.mark.integration
+def test_futures_day_file_holds_the_bars_of_every_future_alive_that_day(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, _ = replayed_deribit
+
+    raw = source.day_file("BTC-FUTURES", Bar, DAY)
+    bars = futures_bars(source)
+
+    assert raw.path == PurePosixPath(FUTURES_FILE)
+    by_future = Counter(each.bar_type.instrument_id.symbol.value for each in bars)
+    assert by_future == dict.fromkeys(FUTURES_DAY_NAMES, 1440)
+
+
+@pytest.mark.integration
+def test_futures_day_includes_expired_futures(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, served = replayed_deribit
+
+    names = {each.bar_type.instrument_id.symbol.value for each in futures_bars(source)}
+
+    assert "BTC-3JAN25" in names
+    assert any("expired=true" in each for each in served.requests)
+
+
+@pytest.mark.integration
+def test_futures_day_leaves_out_the_perpetual(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, _ = replayed_deribit
+
+    names = {each.bar_type.instrument_id.symbol.value for each in futures_bars(source)}
+
+    assert "BTC-PERPETUAL" not in names
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("day", [date(2016, 1, 1), date(2025, 1, 2)])
+def test_day_without_any_future_bar_is_missing_at_source(
+    replayed_deribit: tuple[Source, Replay], day: date
+) -> None:
+    source, _ = replayed_deribit
+
+    with pytest.raises(MissingAtSourceError, match=r"BTC futures candles on"):
+        fetched(source.day_file("BTC-FUTURES", Bar, day))
+
+
+BTC_USDC = InstrumentId.from_str("BTC_USDC.DERIBIT")
+SPOT_CANDLES_FILE = "deribit/spot/BTC_USDC/candles/BTC_USDC2025-01-01.json"
+
+
+@pytest.mark.unit
+def test_spot_snapshot_gives_a_linear_currency_pair(
+    replayed_deribit: tuple[Source, Replay], tmp_path: Path
+) -> None:
+    source, _ = replayed_deribit
+
+    raw = source.instrument_snapshot("BTC_USDC", SNAPSHOT_DAY)
+    instruments = source.parse_instruments(saved(raw, tmp_path))
+
+    assert raw.path == PurePosixPath(
+        "deribit/spot/BTC_USDC/instrument/BTC_USDC2026-10-07.json"
+    )
+    assert list(instruments) == [BTC_USDC]
+    pair = instruments[BTC_USDC]
+    assert isinstance(pair, CurrencyPair)
+    assert str(pair.base_currency) == "BTC"
+    assert str(pair.quote_currency) == "USDC"
+    assert str(pair.price_increment) == "0.01"
+    assert str(pair.size_increment) == "0.00000001"
+    assert pair.ts_init == 1_791_331_200_000_000_000
+
+
+@pytest.mark.integration
+def test_spot_day_file_holds_the_pair_bars(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, _ = replayed_deribit
+
+    raw = source.day_file("BTC_USDC", Bar, DAY)
+    candles = fetched(raw)
+
+    assert raw.path == PurePosixPath(SPOT_CANDLES_FILE)
+    assert candles["ticks"] == [DAY_START_MS + n * 60_000 for n in range(3)]
+    assert candles["open"][0] == 93370.0
+    assert candles["volume"][0] == 0.7148
+
+
+@pytest.mark.integration
+def test_a_day_without_spot_bars_is_missing_at_source(
+    replayed_deribit: tuple[Source, Replay],
+) -> None:
+    source, _ = replayed_deribit
+
+    with pytest.raises(MissingAtSourceError, match=r"BTC_USDC candles on 2016"):
+        fetched(source.day_file("BTC_USDC", Bar, date(2016, 1, 1)))

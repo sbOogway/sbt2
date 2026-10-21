@@ -48,3 +48,30 @@ def test_a_real_day_of_klines_is_downloaded_and_parsed(
     start = pd.Timestamp(day, tz="UTC").value
     assert start <= stamps[0]
     assert stamps[-1] < start + pd.Timedelta(days=1).value
+
+
+@pytest.mark.live
+@pytest.mark.e2e
+def test_download_a_real_day_of_deribit_futures_and_spot(tmp_path: Path) -> None:
+    deribit = source("deribit", tmp_path / "known_gaps.toml")
+    days = DayRange(("BTC-FUTURES", "BTC_USDC"), RECENT, RECENT, ("Bar",))
+
+    tally = download(deribit, DownloadRequest(days, RECENT), DownloadOptions(tmp_path))
+
+    assert {each.outcome for each in tally.results} == {Outcome.FETCHED}, tally
+    start = pd.Timestamp(RECENT, tz="UTC").value
+    end = start + pd.Timedelta(days=1).value
+    for symbol in ("BTC-FUTURES", "BTC_USDC"):
+        snapshot = tmp_path / deribit.instrument_snapshot(symbol, RECENT).path
+        instruments = deribit.parse_instruments(snapshot)
+        candles = tmp_path / deribit.day_file(symbol, Bar, RECENT).path
+        ids = deribit.day_instrument_ids(candles, Bar, instruments)
+        day = deribit.parse_day(candles, Bar, {each: instruments[each] for each in ids})
+        if symbol == "BTC-FUTURES":
+            assert len(day) >= 5
+        for bars in day.values():
+            stamps = [each.ts_event for each in bars]
+            assert stamps == sorted(set(stamps))
+            assert start < stamps[0]
+            assert stamps[-1] < end
+        assert max(len(each) for each in day.values()) >= 1000
