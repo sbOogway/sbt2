@@ -11,6 +11,7 @@ import pytest
 from deribit_replay import deribit_replay, deribit_stub
 from nautilus_trader.model import (
     AggressorSide,
+    AssetClass,
     Bar,
     CryptoFuture,
     CryptoOption,
@@ -20,6 +21,7 @@ from nautilus_trader.model import (
     GreeksConvention,
     IndexInstrument,
     IndexPriceUpdate,
+    InstrumentClass,
     InstrumentId,
     MarkPriceUpdate,
     OptionGreeks,
@@ -66,6 +68,23 @@ BTC_TRADE_IDS = [
 PUT_88K = InstrumentId.from_str("BTC-10JAN25-88000-P.DERIBIT")
 CALL_135K = InstrumentId.from_str("BTC-31JAN25-135000-C.DERIBIT")
 BTC_INDEX = InstrumentId.from_str("BTC_USD.DERIBIT")
+
+
+@pytest.mark.unit
+def test_deribit_future_and_spot_classes_and_marks(deribit: Source) -> None:
+    for coin in ("BTC", "ETH"):
+        for symbol, kind in (
+            (f"{coin}-30JAN26", InstrumentClass.FUTURE),
+            (f"{coin}_USDC", InstrumentClass.SPOT),
+            (f"{coin}-PERPETUAL", InstrumentClass.SWAP),
+            (f"{coin}-30JAN26-100000-C", InstrumentClass.OPTION),
+        ):
+            instrument = InstrumentId.from_str(f"{symbol}.DERIBIT")
+            assert deribit.asset_classes(instrument) == (
+                AssetClass.CRYPTOCURRENCY,
+                kind,
+            )
+            assert deribit.serves_marks(instrument) == (kind == InstrumentClass.OPTION)
 
 
 def fetched(raw: RawFile) -> Any:
