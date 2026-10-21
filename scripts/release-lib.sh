@@ -269,3 +269,36 @@ deploy() {
     fi
     podman auto-update >&2 || echo "${0##*/}: the deploy failed; run podman auto-update again" >&2
 }
+
+PAGES_BRANCH=gh-pages
+
+# Checks the Pages branch out into the directory $1: the remote's, or a new orphan branch when
+# the remote has none
+check_out_pages() {
+    local dir=$1 remote heads
+    remote=${SBT2_PAGES_REMOTE:-$(git remote get-url origin)}
+    heads=$(git ls-remote --heads "$remote" "$PAGES_BRANCH") || die "cannot read $remote"
+    if [ -n "$heads" ]; then
+        git clone --quiet --branch "$PAGES_BRANCH" "$remote" "$dir"
+    else
+        git init --quiet "$dir"
+        git -C "$dir" remote add origin "$remote"
+        git -C "$dir" checkout --quiet --orphan "$PAGES_BRANCH"
+    fi
+}
+
+# Publishes the HTML file $2 as the protocol reference of tag $1 on the Pages branch, under
+# /$1/ and /latest/. Pages is a branch of the repo, so the site is part of the release.
+publish_docs() {
+    local tag=$1 html=$2 site
+    site=$(mktemp -d)
+    check_out_pages "$site"
+    mkdir -p "$site/$tag" "$site/latest"
+    cp "$html" "$site/$tag/index.html"
+    cp "$html" "$site/latest/index.html"
+    touch "$site/.nojekyll"
+    git -C "$site" add -A
+    git -C "$site" commit --quiet -m "docs: publish the protocol reference of $tag"
+    git -C "$site" push --quiet origin "$PAGES_BRANCH" || die "cannot push $PAGES_BRANCH"
+    rm -rf "$site"
+}
