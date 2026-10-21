@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from sbt2.strategies.premium_sizing import (
+from sbt2.strategies.options.sizing import (
     contract_quantity,
     kelly_fraction,
     proportions,

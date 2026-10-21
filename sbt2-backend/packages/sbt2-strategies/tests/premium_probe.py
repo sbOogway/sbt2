@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import ClassVar, override
 
 from sbt2.core.strategy import Combo
-from sbt2.strategies.premium_portfolio import PremiumPortfolio
+from sbt2.strategies.options.premium_portfolio import PremiumPortfolio
 
 
 @dataclass(frozen=True)

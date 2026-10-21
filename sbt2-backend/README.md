@@ -65,7 +65,7 @@ sbt2 margins the options itself, as Deribit's standard margin does, in the coin 
 A spec describes the backtests to run:
 
 ```toml
-strategy = "sbt2.strategies.ma_cross:MovingAverageCross"
+strategy = "sbt2.strategies.trend.ma_cross:MovingAverageCross"
 instruments = ["BTCUSDT-LINEAR.BYBIT"]
 period = [2025-01-01, 2025-03-01]
 split = { validation_start = 2025-02-01, test_start = 2025-02-15 }

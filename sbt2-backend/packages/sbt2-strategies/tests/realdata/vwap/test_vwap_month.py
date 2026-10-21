@@ -7,9 +7,9 @@ import pytest
 from month_kit import run_month
 
 SPECS = [
-    "vwap_trend_month.toml",
-    "vwap_band_fade_month.toml",
-    "vwap_momentum_month.toml",
+    "vwap/vwap_trend_month.toml",
+    "vwap/vwap_band_fade_month.toml",
+    "vwap/vwap_momentum_month.toml",
 ]
 
 

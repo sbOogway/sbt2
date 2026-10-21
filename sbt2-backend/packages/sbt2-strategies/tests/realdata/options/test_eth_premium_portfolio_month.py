@@ -25,7 +25,7 @@ def books_by_underlying(store: ParquetResultStore, run_id: str) -> dict[str, set
 @pytest.mark.realdata
 @pytest.mark.e2e
 def test_the_portfolio_runs_on_a_month_of_btc_and_eth_options(tmp_path: Path) -> None:
-    store, run_id = run_month("eth_premium_portfolio_month.toml", tmp_path)
+    store, run_id = run_month("options/eth_premium_portfolio_month.toml", tmp_path)
 
     books = books_by_underlying(store, run_id)
     assert set(books) == {"BTC", "ETH"}

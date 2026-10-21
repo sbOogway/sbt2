@@ -38,7 +38,7 @@ HIGH_RANK = {-100: 30.0, -50: 100.0, **dict.fromkeys(range(48), 90.0)}
 def run_strategy(
     tmp_path: Path, catalog: Path, name: str, **params: Any
 ) -> tuple[ParquetResultStore, str]:
-    """Runs ``name``, a class of ``sbt2.strategies.short_premium`` or a
+    """Runs ``name``, a class of ``sbt2.strategies.options.short_premium`` or a
     ``module:Class`` path."""
     return run_scenario(tmp_path, catalog, Scenario(name), **params)
 
@@ -55,7 +55,7 @@ def run_scenario(
     tmp_path: Path, catalog: Path, scenario: Scenario, **params: Any
 ) -> tuple[ParquetResultStore, str]:
     name = scenario.name
-    path = name if ":" in name else f"sbt2.strategies.short_premium:{name}"
+    path = name if ":" in name else f"sbt2.strategies.options.short_premium:{name}"
     lines = "\n".join(f"{key} = {value!r}" for key, value in params.items())
     tmp_path.mkdir(parents=True, exist_ok=True)
     spec = tmp_path / "spec.toml"

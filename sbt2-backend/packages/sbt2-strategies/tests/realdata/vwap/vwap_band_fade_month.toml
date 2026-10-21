@@ -1,4 +1,4 @@
-strategy = "sbt2.strategies.vwap_momentum:VwapMomentum"
+strategy = "sbt2.strategies.vwap.band_fade:VwapBandFade"
 instruments = ["BTC-PERPETUAL.DERIBIT"]
 period = [2022-01-01, 2022-02-05]
 split = { validation_start = 2022-02-01, test_start = 2022-02-03 }

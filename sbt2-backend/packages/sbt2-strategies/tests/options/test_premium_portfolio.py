@@ -21,10 +21,10 @@ from premium_kit import LOW_RANK, Scenario, run_scenario
 from premium_probe import ProbePortfolio
 
 from sbt2.core.strategy import Combo, import_strategy, params_schema, resolve_params
-from sbt2.strategies import premium_portfolio as portfolio_module
-from sbt2.strategies.premium_sizing import kelly_fraction
+from sbt2.strategies.options import premium_portfolio as portfolio_module
+from sbt2.strategies.options.sizing import kelly_fraction
 
-PATH = "sbt2.strategies.premium_portfolio:PremiumPortfolio"
+PATH = "sbt2.strategies.options.premium_portfolio:PremiumPortfolio"
 PROBE = "premium_probe:ProbePortfolio"
 OVERSIZED = "premium_probe:OversizedPortfolio"
 DEFAULTS = "[risk.short_premium]\n"

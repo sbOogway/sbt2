@@ -6,9 +6,9 @@ from bar_engine import BTC, minute_bars, orders_of, run
 from nautilus_trader.model import BarSpecification, OrderSide, OrderType, Quantity
 
 from sbt2.core.strategy import import_strategy, resolve_params
-from sbt2.strategies.ma_cross import MovingAverageCross
+from sbt2.strategies.trend.ma_cross import MovingAverageCross
 
-PATH = "sbt2.strategies.ma_cross:MovingAverageCross"
+PATH = "sbt2.strategies.trend.ma_cross:MovingAverageCross"
 AVERAGES = {"fast": 2, "slow": 4}
 QUANTITY = Quantity.from_str("0.100")
 RISING = [10_000 + 10 * minute for minute in range(8)]

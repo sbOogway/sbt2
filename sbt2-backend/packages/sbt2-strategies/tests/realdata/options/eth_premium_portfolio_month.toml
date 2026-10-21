@@ -1,19 +1,21 @@
-strategy = "sbt2.strategies.short_premium:ShortStrangle"
-instruments = ["BTC-OPTIONS.DERIBIT"]
+strategy = "sbt2.strategies.options.premium_portfolio:PremiumPortfolio"
+instruments = ["BTC-OPTIONS.DERIBIT", "ETH-OPTIONS.DERIBIT"]
 period = [2025-01-01, 2025-02-05]
 split = { validation_start = 2025-02-01, test_start = 2025-02-03 }
 part = "train"
-capital = "1 BTC"
+capital = ["1 BTC", "20 ETH"]
 
 [execution]
 fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } }
 
 [chain]
-min_dte = 0
-max_dte = 30
-strike_band = "0.3"
+min_dte = 7
+max_dte = 21
+strike_band = "0.2"
 
 [params]
-dte = 14
+core_dte = 14
+supplemental_dte = 14
 close_dte = 3
-quantity = "0.1"
+
+[risk.short_premium]
