@@ -8,6 +8,7 @@ dependencies = [
     "ipywidgets>=8.1.9",
     "jupyterlab>=4.6.4",
     "sbt2-lab",
+    "sbt2-strategies",
 ]
 
 [build-system]
@@ -20,8 +21,17 @@ packages = ["trend", "options", "vwap"]
 [tool.uv]
 environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
 
+[[tool.uv.index]]
+name = "nautech"
+url = "https://packages.nautechsystems.io/simple"
+explicit = true
+
 [tool.uv.sources]
+nautilus-trader = { index = "nautech" }
 sbt2-lab = { path = "../sbt2-backend/packages/sbt2-lab", editable = true }
+sbt2-strategies = { path = "../sbt2-backend/packages/sbt2-strategies", editable = true }
+sbt2-core = { path = "../sbt2-backend/packages/sbt2-core", editable = true }
+sbt2-data = { path = "../sbt2-backend/packages/sbt2-data", editable = true }
 
 [tool.ruff]
 extend = "../sbt2-backend/pyproject.toml"

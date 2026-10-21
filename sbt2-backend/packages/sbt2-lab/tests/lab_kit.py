@@ -1,7 +1,10 @@
 import asyncio
+import importlib
 from collections.abc import AsyncGenerator, Awaitable, Callable, Iterable, Sequence
 from contextlib import asynccontextmanager
+from typing import Any
 
+from sbt2.core.strategy import Strategy
 from sbt2.protocol.v1.envelope_pb2 import (
     Capability,
     ClientMessage,
@@ -139,3 +142,8 @@ def finished(*run_ids: str) -> JobUpdate:
             for each in run_ids
         ],
     )
+
+
+def cross() -> type[Strategy[Any]]:
+    """``Cross`` of the module ``my_strats``; needs the ``strategies`` fixture."""
+    return importlib.import_module("my_strats").Cross

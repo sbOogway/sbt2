@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable
 import pandas as pd
 import pyarrow as pa
 import pytest
-from lab_kit import TOKEN, FakeServer, run, serve_job, summary
+from lab_kit import TOKEN, FakeServer, cross, run, serve_job, summary
 
 from sbt2.lab import Lab, Run
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
@@ -53,7 +53,7 @@ def fetched[T](server: FakeServer, fetch: Callable[[Run], Awaitable[T]]) -> T:
 
     async def scenario(url: str) -> None:
         async with await Lab.connect(url, TOKEN) as lab:
-            [ran] = await lab.run(SPEC, "my_strats:Cross")
+            [ran] = await lab.run(SPEC, cross())
             results.append(await fetch(ran))
 
     run(scenario, server)

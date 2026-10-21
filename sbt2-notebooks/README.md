@@ -2,8 +2,8 @@
 
 Jupyter notebooks that run strategies on an sbt2 server with
 [sbt2-lab](../sbt2-backend/packages/sbt2-lab). The server runs the backtests;
-this environment has only the lab client and JupyterLab, from the
-`sbt2-backend/` of the same checkout.
+this environment has the lab client, the shipped strategies and JupyterLab,
+from the `sbt2-backend/` of the same checkout.
 
 ## Run
 
@@ -25,7 +25,7 @@ Each topic is a Python package. A notebook sits next to its strategy module.
 ```
 sbt2-notebooks/
   trend/ema_cross.ipynb, ema_cross.py
-  options/premium/iv_ranges, management, portfolio, eth_portfolio  (.ipynb and .py)
+  options/premium/iv_ranges, management, portfolio, eth_portfolio  (.ipynb)
 ```
 
 The environment installs this folder as an editable package, so a package path
@@ -38,24 +38,28 @@ is its name on the server, so keep it unique among the modules of one run.
 
 ## Write a strategy
 
-Put each strategy in a module next to its notebook, as
+Put each strategy in a module of an importable package, as
 [trend/ema_cross.py](trend/ema_cross.py) is for
-[trend/ema_cross.ipynb](trend/ema_cross.ipynb), and give it to `lab.run` as
-`"package.module:Class"`, for example `"trend.ema_cross:EmaCross"`. The lab
-sends the module's source to the server and does not import it, so the module
+[trend/ema_cross.ipynb](trend/ema_cross.ipynb), import the class in the
+notebook and give it to `lab.run`: `await lab.run(spec, EmaCross)`. `lab.run`
+takes only a class; a string raises `TypeError`. The lab sends the source of the
+module that defines the class and does not run it on the client. The module
 can import only what the server has: sbt2, nautilus and the standard library.
 It cannot import a sibling module.
 
-A strategy that ships in `sbt2.strategies` needs only a module that imports it,
-as [options/premium/management.py](options/premium/management.py) does for
-[management.ipynb](options/premium/management.ipynb) (the management of a short
-strangle, ch. 6 of *The Unlucky Investor's Guide to Options Trading*) and
-[iv_ranges.py](options/premium/iv_ranges.py) for
-[iv_ranges.ipynb](options/premium/iv_ranges.ipynb) (its trades by IV rank,
-ch. 3). [portfolio.py](options/premium/portfolio.py) does so for
-[portfolio.ipynb](options/premium/portfolio.ipynb) (a portfolio of laddered
-strangles and iron condors against a single strangle, ch. 7-8). They need the
-Deribit option data of 2024 and a year of DVOL before it on the server.
+The lab refuses a class that is defined in the notebook (`__main__`), in a
+function, or inside another class, and a class whose module has no Python
+source. Move it to a module.
+
+A strategy that ships in `sbt2.strategies` needs no module of its own. Import
+it from there, as [management.ipynb](options/premium/management.ipynb) does
+for `ShortStrangle` (the management of a short strangle, ch. 6 of *The Unlucky
+Investor's Guide to Options Trading*), as
+[iv_ranges.ipynb](options/premium/iv_ranges.ipynb) does (its trades by IV
+rank, ch. 3) and as [portfolio.ipynb](options/premium/portfolio.ipynb) does
+for `PremiumPortfolio` (a portfolio of laddered strangles and iron condors
+against a single strangle, ch. 7-8). They need the Deribit option data of 2024
+and a year of DVOL before it on the server.
 
 The pre-commit hooks lint the modules with ruff and strip the outputs of the
 notebooks.

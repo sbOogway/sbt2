@@ -3,12 +3,15 @@ from collections.abc import Mapping
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from google.protobuf.struct_pb2 import Struct
 
 from sbt2.lab.errors import StrategyModuleError
 from sbt2.protocol.v1.runs_pb2 import SpecFile, SpecPeriod, StrategyModule, SubmitRun
+
+if TYPE_CHECKING:
+    from sbt2.core.strategy import Strategy
 
 _PLAIN = ("instruments", "capital", "seed", "equity_interval")
 _OPTIONAL = ("liquidation", "bars", "study")
@@ -18,11 +21,13 @@ _KEYS = {*_PLAIN, *_OPTIONAL, *_TABLES, "period", "part"}
 type Moment = date | datetime | str
 
 
-def submit_run(spec: Mapping[str, Any], strategy: str) -> SubmitRun:
-    """The request that runs ``spec`` with the class ``strategy``, given as
-    ``"module:Class"``, whose module is sent as source."""
+def submit_run(spec: Mapping[str, Any], strategy: type[Strategy[Any]]) -> SubmitRun:
+    """The request that runs ``spec`` with ``strategy``, whose defining module is
+    sent as source."""
     _check_keys(spec)
-    module_path, class_name = _parts(strategy)
+    if not isinstance(strategy, type):
+        raise TypeError(f"pass the imported class as the strategy, not {strategy!r}")
+    module_path, class_name = _class_path(strategy)
     module = _module(module_path)
     wire = _spec_file(spec)
     wire.strategy = f"{module.name}:{class_name}"
@@ -39,11 +44,21 @@ def _check_keys(spec: Mapping[str, Any]) -> None:
         )
 
 
-def _parts(strategy: str) -> tuple[str, str]:
-    module_path, _, class_name = strategy.partition(":")
-    if not module_path or not class_name:
-        raise ValueError(f"give the strategy as 'module:Class', not {strategy!r}")
-    return module_path, class_name
+def _class_path(strategy: type[Strategy[Any]]) -> tuple[str, str]:
+    if strategy.__module__ == "__main__":
+        raise _refused(strategy, "it is defined in __main__")
+    if "<locals>" in strategy.__qualname__:
+        raise _refused(strategy, "it is defined in a local scope")
+    if "." in strategy.__qualname__:
+        raise _refused(strategy, "it is nested in another class")
+    return strategy.__module__, strategy.__qualname__
+
+
+def _refused(strategy: type[Strategy[Any]], cause: str) -> StrategyModuleError:
+    return StrategyModuleError(
+        f"cannot send the class {strategy.__qualname__}: {cause}; "
+        "put it in an importable module"
+    )
 
 
 def _module(path: str) -> StrategyModule:
@@ -51,7 +66,7 @@ def _module(path: str) -> StrategyModule:
     module, only of the packages that hold it."""
     try:
         found = importlib.util.find_spec(path)
-    except ImportError as error:
+    except (ImportError, ValueError) as error:
         raise StrategyModuleError(f"cannot find the module {path}: {error}") from error
     if found is None or found.origin is None or not found.has_location:
         raise StrategyModuleError(f"cannot find the source of the module {path}")
