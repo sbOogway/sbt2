@@ -1,9 +1,13 @@
 from collections.abc import Sequence
 from datetime import timedelta
 from enum import StrEnum
+from pathlib import Path
 
+from nautilus_trader.backtest import BacktestDataConfig
 from nautilus_trader.model import Bar, BarSpecification, PriceType
 
+from sbt2.core.assets import QuoteJob
+from sbt2.core.spec.bars.opens import write_opens
 from sbt2.core.spec.bars.source import BarSource
 from sbt2.core.spec.errors import SpecError
 from sbt2.data import CANDLES
@@ -33,6 +37,12 @@ class CandleBars(BarSource):
         for spec in inputs:
             _check_candle_built(spec)
         return {Bar}
+
+    def write_fills(self, job: QuoteJob, folder: Path) -> list[BacktestDataConfig]:
+        """With fills at the next open, a trade at the open of each candle."""
+        if job.venue["fills"] != Fills.NEXT_OPEN:
+            return []
+        return write_opens(job, folder)
 
 
 def _check_candle_built(spec: BarSpecification) -> None:

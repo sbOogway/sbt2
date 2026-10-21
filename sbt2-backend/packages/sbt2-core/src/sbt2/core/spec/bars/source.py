@@ -1,8 +1,12 @@
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from pathlib import Path
 from typing import ClassVar
 
+from nautilus_trader.backtest import BacktestDataConfig
 from nautilus_trader.model import BarSpecification
+
+from sbt2.core.assets import QuoteJob
 
 
 class BarSource(ABC):
@@ -19,3 +23,9 @@ class BarSource(ABC):
     @abstractmethod
     def data_types(self, inputs: Sequence[BarSpecification]) -> set[type]:
         """The data the ``inputs`` bars are built from."""
+
+    @abstractmethod
+    def write_fills(self, job: QuoteJob, folder: Path) -> list[BacktestDataConfig]:
+        """Write the data the venue fills the run's orders on, beyond the data the
+        run reads from its catalog, to a catalog in ``folder``, and return the data
+        configs that stream it; none when it needs none."""
