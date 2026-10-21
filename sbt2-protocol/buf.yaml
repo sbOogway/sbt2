@@ -2,6 +2,11 @@ version: v2
 lint:
   use:
     - STANDARD
+    - COMMENT_MESSAGE
+    - COMMENT_FIELD
+    - COMMENT_ENUM
+    - COMMENT_ENUM_VALUE
+    - COMMENT_ONEOF
 breaking:
   use:
     - FILE

@@ -26,6 +26,7 @@ class _StudyConflictKind:
 class _StudyConflictKindEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_StudyConflictKind.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     STUDY_CONFLICT_KIND_UNSPECIFIED: _StudyConflictKind.ValueType  # 0
+    """No value selected; not a usable concrete choice."""
     STUDY_CONFLICT_KIND_CONTEXT: _StudyConflictKind.ValueType  # 1
     """The run's context differs from the study's."""
     STUDY_CONFLICT_KIND_CODE: _StudyConflictKind.ValueType  # 2
@@ -33,9 +34,11 @@ class _StudyConflictKindEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_Stu
     STUDY_CONFLICT_KIND_DUPLICATE_RUN: _StudyConflictKind.ValueType  # 3
     """The study already holds a run with the same parameters."""
 
-class StudyConflictKind(_StudyConflictKind, metaclass=_StudyConflictKindEnumTypeWrapper): ...
+class StudyConflictKind(_StudyConflictKind, metaclass=_StudyConflictKindEnumTypeWrapper):
+    """The rule a submitted run violates in a named study."""
 
 STUDY_CONFLICT_KIND_UNSPECIFIED: StudyConflictKind.ValueType  # 0
+"""No value selected; not a usable concrete choice."""
 STUDY_CONFLICT_KIND_CONTEXT: StudyConflictKind.ValueType  # 1
 """The run's context differs from the study's."""
 STUDY_CONFLICT_KIND_CODE: StudyConflictKind.ValueType  # 2
@@ -51,35 +54,51 @@ class _ErrorCode:
 class _ErrorCodeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_ErrorCode.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     ERROR_CODE_UNSPECIFIED: _ErrorCode.ValueType  # 0
+    """No value selected; not a usable concrete choice."""
     ERROR_CODE_INVALID_MESSAGE: _ErrorCode.ValueType  # 1
     """The frame is not a ClientMessage, or its body is unset."""
     ERROR_CODE_INVALID_ARGUMENT: _ErrorCode.ValueType  # 2
+    """A field or selection is invalid."""
     ERROR_CODE_NOT_FOUND: _ErrorCode.ValueType  # 3
+    """A requested object or its required data is missing."""
     ERROR_CODE_UNIMPLEMENTED: _ErrorCode.ValueType  # 4
     """The server does not handle this body."""
     ERROR_CODE_UNSUPPORTED_VERSION: _ErrorCode.ValueType  # 5
+    """Reserved for incompatible versions; the current Hello handler does not emit it."""
     ERROR_CODE_INTERNAL: _ErrorCode.ValueType  # 6
+    """An unexpected server failure; details are logged only on the server."""
     ERROR_CODE_RESOURCE_EXHAUSTED: _ErrorCode.ValueType  # 7
     """One indivisible response record exceeds the maximum envelope size."""
 
-class ErrorCode(_ErrorCode, metaclass=_ErrorCodeEnumTypeWrapper): ...
+class ErrorCode(_ErrorCode, metaclass=_ErrorCodeEnumTypeWrapper):
+    """A failed request or frame. Error.message gives the cause; clients should branch on
+    this code.
+    """
 
 ERROR_CODE_UNSPECIFIED: ErrorCode.ValueType  # 0
+"""No value selected; not a usable concrete choice."""
 ERROR_CODE_INVALID_MESSAGE: ErrorCode.ValueType  # 1
 """The frame is not a ClientMessage, or its body is unset."""
 ERROR_CODE_INVALID_ARGUMENT: ErrorCode.ValueType  # 2
+"""A field or selection is invalid."""
 ERROR_CODE_NOT_FOUND: ErrorCode.ValueType  # 3
+"""A requested object or its required data is missing."""
 ERROR_CODE_UNIMPLEMENTED: ErrorCode.ValueType  # 4
 """The server does not handle this body."""
 ERROR_CODE_UNSUPPORTED_VERSION: ErrorCode.ValueType  # 5
+"""Reserved for incompatible versions; the current Hello handler does not emit it."""
 ERROR_CODE_INTERNAL: ErrorCode.ValueType  # 6
+"""An unexpected server failure; details are logged only on the server."""
 ERROR_CODE_RESOURCE_EXHAUSTED: ErrorCode.ValueType  # 7
 """One indivisible response record exceeds the maximum envelope size."""
 Global___ErrorCode: _TypeAlias = ErrorCode  # noqa: Y015
 
 @_typing.final
 class Error(_message.Message):
-    """Lives here rather than in envelope.proto so that area files can embed it without an import cycle."""
+    """Terminates the reply for its ServerMessage.request_id and invalidates any partial
+    chunks. The connection stays open. A malformed frame has request_id 0. This message
+    lives outside envelope.proto to avoid an import cycle.
+    """
 
     DESCRIPTOR: _descriptor.Descriptor
 
@@ -108,11 +127,17 @@ class Error(_message.Message):
     DETAILS_FIELD_NUMBER: _builtins.int
     STUDY_CONFLICT_FIELD_NUMBER: _builtins.int
     code: Global___ErrorCode.ValueType
+    """The machine-readable reason for failure."""
     message: _builtins.str
+    """A human-readable explanation; unexpected failures omit internal details."""
     @_builtins.property
-    def details(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]: ...
+    def details(self) -> _containers.ScalarMap[_builtins.str, _builtins.str]:
+        """Additional string context; empty when the error has no extra context."""
+
     @_builtins.property
-    def study_conflict(self) -> Global___StudyConflict: ...
+    def study_conflict(self) -> Global___StudyConflict:
+        """Structured details when a submitted run conflicts with its study."""
+
     def __init__(
         self,
         *,
@@ -141,6 +166,7 @@ class StudyConflict(_message.Message):
     CONTEXT_KEYS_FIELD_NUMBER: _builtins.int
     RUN_ID_FIELD_NUMBER: _builtins.int
     kind: Global___StudyConflictKind.ValueType
+    """The study constraint that the submission violates."""
     run_id: _builtins.str
     """DUPLICATE_RUN only: the study's run with the same parameters."""
     @_builtins.property

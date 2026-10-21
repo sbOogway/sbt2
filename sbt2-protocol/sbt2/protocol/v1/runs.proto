@@ -8,7 +8,9 @@ import "sbt2/protocol/v1/config.proto";
 
 // The period a spec covers, before its split.
 message SpecPeriod {
+  // Start of the period, in UTC.
   google.protobuf.Timestamp start_at = 1;
+  // End of the period, in UTC.
   google.protobuf.Timestamp end_at = 2;
 }
 
@@ -18,7 +20,9 @@ message SpecFile {
   reserved "venue";
   // The strategy's class in the uploaded module, as "module:Class".
   string strategy = 1;
+  // Nautilus instrument identifiers in specification order.
   repeated string instruments = 2;
+  // The complete period to run, before applying the split.
   SpecPeriod period = 3;
   // A nautilus money string, such as "10000 USDT".
   string capital = 5;
@@ -27,15 +31,20 @@ message SpecFile {
   // The split's table: validation_start and test_start as ISO 8601 strings, or
   // validation and test as fractions.
   google.protobuf.Struct split = 7;
+  // Random seed; absent uses the core default.
   optional int64 seed = 8;
+  // Equity sampling interval; absent uses the core default.
   optional string equity_interval = 9;
+  // Whether to enable liquidation; absent uses the core default.
   optional bool liquidation = 10;
+  // Internal bar specification; absent uses the strategy default.
   optional string bars = 11;
   // The strategy's parameters; a list value is a sweep, one run for each of its
   // items. An integral number is read as an integer.
   google.protobuf.Struct params = 12;
   // The risk table: drawdown_limit and the risk engine's limits.
   google.protobuf.Struct risk = 13;
+  // The study to append to; absent runs outside a study.
   optional string study = 14;
   // The chain table: min_dte, max_dte and strike_band, which bound the contracts
   // of an option chain named in the instruments.
@@ -54,112 +63,169 @@ message SpecFile {
 message StrategyModule {
   // A Python identifier that no module of the server's image already has.
   string name = 1;
+  // Python source of the complete module, encoded as UTF-8 text.
   string source = 2;
 }
 
-// Starts a job whose runs are the spec's expansion. The server answers once the
-// spec is checked: JobSubmitted, or an Error and no job.
+// Starts a job after checking the spec; answers one JobSubmitted or Error and starts no
+// job on rejection. INVALID_ARGUMENT means an invalid spec, module, missing input data
+// or study conflict; NOT_FOUND means a venue has no source. Strategy source executes
+// only in a job process and can import only installed packages. Each run stores its
+// strategy source with its results.
 message SubmitRun {
+  // The spec file table to validate and expand into runs.
   SpecFile spec = 1;
+  // The uploaded module that defines the strategy named by spec.strategy.
   StrategyModule strategy = 2;
 }
 
+// Accepts a checked spec. Jobs run one at a time, in submission order.
 message JobSubmitted {
+  // The identifier of a job in this server process.
   string job_id = 1;
   // The runs the job makes, in the order the spec expands into them.
   repeated string run_ids = 2;
 }
 
+// The state of a job and its queue of runs.
 enum JobState {
+  // No value selected; not a usable concrete choice.
   JOB_STATE_UNSPECIFIED = 0;
   // Checked, and waiting for the jobs before it.
   JOB_STATE_QUEUED = 1;
+  // Validating the submitted spec.
   JOB_STATE_CHECKING = 2;
+  // Execution is in progress.
   JOB_STATE_RUNNING = 3;
+  // All work completed successfully; final state.
   JOB_STATE_FINISHED = 4;
+  // Execution failed; reason explains the cause. Final state.
   JOB_STATE_FAILED = 5;
+  // Execution was stopped or skipped after cancellation; final state.
   JOB_STATE_CANCELLED = 6;
 }
 
+// The state of one run within a job.
 enum RunStatus {
+  // No value selected; not a usable concrete choice.
   RUN_STATUS_UNSPECIFIED = 0;
+  // Waiting for earlier runs in the job.
   RUN_STATUS_PENDING = 1;
+  // Execution is in progress.
   RUN_STATUS_RUNNING = 2;
+  // All work completed successfully; final state.
   RUN_STATUS_FINISHED = 3;
+  // Execution failed; reason explains the cause. Final state.
   RUN_STATUS_FAILED = 4;
+  // Execution was stopped or skipped after cancellation; final state.
   RUN_STATUS_CANCELLED = 5;
 }
 
+// The current state of one run inside a job.
 message RunState {
+  // The stored run identifier.
   string run_id = 1;
+  // Current state; a final state ends further updates.
   RunStatus state = 2;
   // Why the run failed; empty otherwise.
   string reason = 3;
 }
 
+// A job held for the lifetime of the server process. The first failed run fails the job
+// and cancels later runs.
 message Job {
+  // The identifier of a job in this server process.
   string job_id = 1;
+  // Current state; a final state ends further updates.
   JobState state = 2;
+  // Every run in spec expansion order, including unfinished runs.
   repeated RunState runs = 3;
   // Why a failed job failed when no run is to blame; empty otherwise.
   string reason = 4;
 }
 
-// Stops the job; its runs not finished become cancelled. Cancelling a finished
-// job does nothing.
+// Stops a job and cancels unfinished runs; answers one JobCancelled. A finished job is
+// unchanged. NOT_FOUND means the job is unknown.
 message CancelJob {
+  // The identifier of a job in this server process.
   string job_id = 1;
 }
 
+// Acknowledges a cancellation, including a job that was already finished.
 message JobCancelled {}
 
+// Lists jobs held by this server process as one Jobs reply. Only the common
+// ClientMessage errors apply.
 message ListJobs {}
 
+// Jobs held by the current server process, including finished jobs.
 message Jobs {
+  // Jobs known to this server process.
   repeated Job jobs = 1;
 }
 
-// Follows a job: JobSubscribed first, then a JobUpdate push for each change,
-// at most a few a second, the last one when the job is over.
+// Follows a job: one JobSubscribed reply, then JobUpdate pushes with request_id 0 and
+// the assigned subscription_id. Updates are sent at most four times a second; a large
+// update can use several messages. The final state ends the subscription. NOT_FOUND
+// means the job is unknown.
 message SubscribeJob {
+  // The identifier of a job in this server process.
   string job_id = 1;
 }
 
+// The initial subscription reply: current job state and recent log lines. On reconnect,
+// subscribe again to obtain a new subscription and current state.
 message JobSubscribed {
   // Names the subscription in the pushes that follow, and in Unsubscribe.
   uint64 subscription_id = 1;
+  // The complete current job state at subscription time.
   Job job = 2;
   // The latest lines the job printed, oldest first.
   repeated string log_lines = 3;
 }
 
-// A push of a subscription, with the run states that changed.
+// A push with changed run states and stdout/stderr lines in print order, without
+// the run that printed them. A large update sends log lines first, then runs,
+// and the job state in its last message. Unset state in earlier messages does
+// not end the subscription.
 message JobUpdate {
+  // Only runs whose states changed since the preceding update.
   repeated RunState runs = 1;
   // Lines of the job's stdout and stderr, in the order they were printed.
   repeated string log_lines = 2;
+  // Current state; a final state ends further updates.
   JobState state = 3;
+  // Failure reason; empty when no failure applies.
   string reason = 4;
 }
 
+// Stops a subscription on this connection and answers one Unsubscribed. An unknown ID,
+// or an ID from another connection, is ignored. Only the common ClientMessage errors
+// apply.
 message Unsubscribe {
+  // The subscription identifier assigned on this connection.
   uint64 subscription_id = 1;
 }
 
+// Acknowledges an unsubscribe request, including an unknown subscription.
 message Unsubscribed {}
 
-// Asks for the parameter schema of a strategy module. The server imports the
-// module in a process of its own, never in its own. A module with no strategy
-// or more than one, one that fails to import or takes too long to, one with a
-// parameter of an unsupported type, or a name the image already has, answers
-// INVALID_ARGUMENT.
+// Returns one StrategySchema for the uploaded module. It imports in a separate process,
+// outside the job queue. INVALID_ARGUMENT means no concrete strategy or more than one,
+// an import failure or timeout after 30 seconds, an unsupported parameter type, or an
+// invalid or installed module name.
 message DescribeStrategy {
+  // The complete uploaded Python module to inspect.
   StrategyModule strategy = 1;
 }
 
+// One parameter of the strategy Params type.
 message StrategyParameter {
+  // The name used to identify this record.
   string name = 1;
+  // The representation used for this parameter.
   ParameterType type = 2;
+  // True when the caller must supply this parameter.
   bool required = 3;
   // Absent when the parameter is required. A decimal is a string.
   google.protobuf.Value default = 4;
@@ -176,5 +242,6 @@ message StrategySchema {
   string description = 2;
   // The docstring of its Params; empty when it has none.
   string params_description = 3;
+  // The parameters of the strategy Params type, including Literal choices.
   repeated StrategyParameter parameters = 4;
 }

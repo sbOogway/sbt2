@@ -3,7 +3,7 @@
 # HEAD is origin/main with a clean tree and make check passes. Each merge on main since the newest
 # tag gets a planned tag with the version git-cliff picks for it; a merge that git-cliff gives no
 # new version gets none. The newest of these merges is the release; $VERSION makes HEAD the
-# release with that version. Builds its wheels and image, and writes its notes. No tag
+# release with that version. Builds its wheels, image and protocol reference, and writes its notes. No tag
 # leaves this machine.
 # Needs GH_TOKEN or a gh login, to find the last release for the notes.
 # SBT2_RELEASE_CHECK replaces the make check command; only the tests of this script use it.
@@ -117,11 +117,28 @@ build_all() {
     mv "$WORK/SHA256SUMS" "$files/"
 }
 
+# The Go version of the protocol reference hook, so the release build uses the same toolchain
+docs_go_version() {
+    awk '/id: generate-protocol-docs/ { found = 1 } found && /language_version:/ { print $2; exit }' \
+        "$WORK/src/.pre-commit-config.yaml"
+}
+
+# Builds the HTML protocol reference of the release source into $WORK/docs. It is not a release
+# file: make publish sends it to Pages.
+build_docs() {
+    local toolchain
+    toolchain="go$(docs_go_version)"
+    run_build env GOBIN="$WORK/gobin" GOTOOLCHAIN="$toolchain" \
+        go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v1.5.1
+    (cd "$WORK/src" && run_build env PATH="$WORK/gobin:$PATH" SBT2_PROTOCOL_DOCS_FORMAT=html \
+        SBT2_PROTOCOL_DOCS_DIR="$WORK/docs" scripts/generate-protocol-docs.sh)
+}
+
 # Replaces the build in $RELEASE_DIR with the one in $WORK
 save_build() {
     rm -rf "$RELEASE_DIR"
     mkdir -p "$RELEASE_DIR"
-    mv "$WORK/files" "$WORK/notes.md" "$WORK/tags" "$RELEASE_DIR/"
+    mv "$WORK/files" "$WORK/docs" "$WORK/notes.md" "$WORK/tags" "$RELEASE_DIR/"
     git rev-parse HEAD >"$RELEASE_DIR/head"
 }
 
@@ -137,5 +154,6 @@ version=${tag#v}
 write_notes "$commit"
 check_out_source "$commit"
 build_all "$version"
+build_docs
 save_build
 echo "release-build: built $tag into $RELEASE_DIR; run make publish to publish it"

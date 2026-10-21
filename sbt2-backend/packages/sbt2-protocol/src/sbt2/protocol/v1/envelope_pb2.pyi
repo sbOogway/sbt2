@@ -30,21 +30,35 @@ class _Capability:
 class _CapabilityEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_Capability.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     CAPABILITY_UNSPECIFIED: _Capability.ValueType  # 0
+    """No value selected; not a usable concrete choice."""
     CAPABILITY_RESULTS: _Capability.ValueType  # 1
+    """Reads stored runs, studies, metrics, tables and tearsheets."""
     CAPABILITY_CONFIG: _Capability.ValueType  # 2
+    """Reads and edits known gaps; lists execution model kinds."""
     CAPABILITY_RUNS: _Capability.ValueType  # 3
+    """Submits, cancels and follows jobs; inspects strategy modules."""
 
-class Capability(_Capability, metaclass=_CapabilityEnumTypeWrapper): ...
+class Capability(_Capability, metaclass=_CapabilityEnumTypeWrapper):
+    """An area of the protocol available on this server."""
 
 CAPABILITY_UNSPECIFIED: Capability.ValueType  # 0
+"""No value selected; not a usable concrete choice."""
 CAPABILITY_RESULTS: Capability.ValueType  # 1
+"""Reads stored runs, studies, metrics, tables and tearsheets."""
 CAPABILITY_CONFIG: Capability.ValueType  # 2
+"""Reads and edits known gaps; lists execution model kinds."""
 CAPABILITY_RUNS: Capability.ValueType  # 3
+"""Submits, cancels and follows jobs; inspects strategy modules."""
 Global___Capability: _TypeAlias = Capability  # noqa: Y015
 
 @_typing.final
 class ClientMessage(_message.Message):
-    """Each binary WebSocket frame the client sends is one ClientMessage."""
+    """One request per binary WebSocket frame. Send Hello first, using the sbt2.v1 WebSocket
+    subprotocol and bearer authentication. A request before Hello returns
+    INVALID_MESSAGE. Common errors: INVALID_ARGUMENT for request_id 0; INVALID_MESSAGE
+    for an unset body; UNIMPLEMENTED for an unhandled body; INTERNAL for an unexpected
+    server failure.
+    """
 
     DESCRIPTOR: _descriptor.Descriptor
 
@@ -69,45 +83,83 @@ class ClientMessage(_message.Message):
     LIST_STUDIES_FIELD_NUMBER: _builtins.int
     GET_STUDY_FIELD_NUMBER: _builtins.int
     request_id: _builtins.int
-    """Chosen by the client and never 0; the server's answers carry it back."""
+    """Chosen by the client, never 0 and distinct among outstanding requests."""
     @_builtins.property
-    def hello(self) -> Global___Hello: ...
+    def hello(self) -> Global___Hello:
+        """Starts or repeats the Hello handshake."""
+
     @_builtins.property
-    def list_runs(self) -> _results_pb2.ListRuns: ...
+    def list_runs(self) -> _results_pb2.ListRuns:
+        """Selects finished runs from the results store."""
+
     @_builtins.property
-    def get_run(self) -> _results_pb2.GetRun: ...
+    def get_run(self) -> _results_pb2.GetRun:
+        """Reads one stored run summary."""
+
     @_builtins.property
-    def get_metrics(self) -> _results_pb2.GetMetrics: ...
+    def get_metrics(self) -> _results_pb2.GetMetrics:
+        """Calculates the full metrics for a run."""
+
     @_builtins.property
-    def get_series(self) -> _results_pb2.GetSeries: ...
+    def get_series(self) -> _results_pb2.GetSeries:
+        """Reads an Arrow table from a run."""
+
     @_builtins.property
-    def get_tearsheet(self) -> _results_pb2.GetTearsheet: ...
+    def get_tearsheet(self) -> _results_pb2.GetTearsheet:
+        """Renders the run as HTML."""
+
     @_builtins.property
-    def list_known_gaps(self) -> _config_pb2.ListKnownGaps: ...
+    def list_known_gaps(self) -> _config_pb2.ListKnownGaps:
+        """Reads the data root gap file."""
+
     @_builtins.property
-    def add_known_gaps(self) -> _config_pb2.AddKnownGaps: ...
+    def add_known_gaps(self) -> _config_pb2.AddKnownGaps:
+        """Adds gaps in one atomic write."""
+
     @_builtins.property
-    def remove_known_gaps(self) -> _config_pb2.RemoveKnownGaps: ...
+    def remove_known_gaps(self) -> _config_pb2.RemoveKnownGaps:
+        """Removes gaps in one atomic write."""
+
     @_builtins.property
-    def list_model_kinds(self) -> _config_pb2.ListModelKinds: ...
+    def list_model_kinds(self) -> _config_pb2.ListModelKinds:
+        """Lists execution model implementations and their parameters."""
+
     @_builtins.property
-    def submit_run(self) -> _runs_pb2.SubmitRun: ...
+    def submit_run(self) -> _runs_pb2.SubmitRun:
+        """Checks a spec and queues its runs."""
+
     @_builtins.property
-    def cancel_job(self) -> _runs_pb2.CancelJob: ...
+    def cancel_job(self) -> _runs_pb2.CancelJob:
+        """Stops a job and its unfinished runs."""
+
     @_builtins.property
-    def list_jobs(self) -> _runs_pb2.ListJobs: ...
+    def list_jobs(self) -> _runs_pb2.ListJobs:
+        """Lists the jobs held by this server process."""
+
     @_builtins.property
-    def subscribe_job(self) -> _runs_pb2.SubscribeJob: ...
+    def subscribe_job(self) -> _runs_pb2.SubscribeJob:
+        """Starts state and log pushes for a job."""
+
     @_builtins.property
-    def unsubscribe(self) -> _runs_pb2.Unsubscribe: ...
+    def unsubscribe(self) -> _runs_pb2.Unsubscribe:
+        """Stops a subscription on this connection."""
+
     @_builtins.property
-    def describe_strategy(self) -> _runs_pb2.DescribeStrategy: ...
+    def describe_strategy(self) -> _runs_pb2.DescribeStrategy:
+        """Inspects an uploaded strategy module in a separate process."""
+
     @_builtins.property
-    def get_panel(self) -> _results_pb2.GetPanel: ...
+    def get_panel(self) -> _results_pb2.GetPanel:
+        """Reads one tearsheet panel as Arrow."""
+
     @_builtins.property
-    def list_studies(self) -> _results_pb2.ListStudies: ...
+    def list_studies(self) -> _results_pb2.ListStudies:
+        """Lists named studies."""
+
     @_builtins.property
-    def get_study(self) -> _results_pb2.GetStudy: ...
+    def get_study(self) -> _results_pb2.GetStudy:
+        """Reads a study with its context, source and runs."""
+
     def __init__(
         self,
         *,
@@ -144,7 +196,12 @@ Global___ClientMessage: _TypeAlias = ClientMessage  # noqa: Y015
 
 @_typing.final
 class ServerMessage(_message.Message):
-    """Each binary WebSocket frame the server sends is one ServerMessage."""
+    """One binary WebSocket frame. Replies echo request_id and have subscription_id 0;
+    pushes use request_id 0. Chunked replies start at index 0, in order, with exactly one
+    last=true chunk, even for empty results. Requests can interleave; use distinct IDs
+    for outstanding requests. Each result envelope is at most 1,048,576 bytes. A
+    correlated Error ends the reply and invalidates earlier chunks.
+    """
 
     DESCRIPTOR: _descriptor.Descriptor
 
@@ -175,45 +232,85 @@ class ServerMessage(_message.Message):
     subscription_id: _builtins.int
     """0 on an answer to a request."""
     @_builtins.property
-    def error(self) -> _types_pb2.Error: ...
+    def error(self) -> _types_pb2.Error:
+        """Terminates a failed request, including any partial reply."""
+
     @_builtins.property
-    def welcome(self) -> Global___Welcome: ...
+    def welcome(self) -> Global___Welcome:
+        """Answers Hello with the server version and capabilities."""
+
     @_builtins.property
-    def run_list(self) -> _results_pb2.RunList: ...
+    def run_list(self) -> _results_pb2.RunList:
+        """Chunk of finished run summaries."""
+
     @_builtins.property
-    def run_summary(self) -> _results_pb2.RunSummary: ...
+    def run_summary(self) -> _results_pb2.RunSummary:
+        """The single reply to GetRun."""
+
     @_builtins.property
-    def metrics(self) -> _results_pb2.Metrics: ...
+    def metrics(self) -> _results_pb2.Metrics:
+        """Chunk of named metrics."""
+
     @_builtins.property
-    def series(self) -> _results_pb2.Series: ...
+    def series(self) -> _results_pb2.Series:
+        """Byte chunk of an Arrow table."""
+
     @_builtins.property
-    def tearsheet(self) -> _results_pb2.Tearsheet: ...
+    def tearsheet(self) -> _results_pb2.Tearsheet:
+        """Byte chunk of a UTF-8 HTML document."""
+
     @_builtins.property
-    def config_written(self) -> _config_pb2.ConfigWritten: ...
+    def config_written(self) -> _config_pb2.ConfigWritten:
+        """Acknowledges an atomic gap-file write."""
+
     @_builtins.property
-    def known_gaps(self) -> _config_pb2.KnownGaps: ...
+    def known_gaps(self) -> _config_pb2.KnownGaps:
+        """The gaps currently stored on disk."""
+
     @_builtins.property
-    def model_kinds(self) -> _config_pb2.ModelKinds: ...
+    def model_kinds(self) -> _config_pb2.ModelKinds:
+        """Execution model implementations and their configuration parameters."""
+
     @_builtins.property
-    def job_submitted(self) -> _runs_pb2.JobSubmitted: ...
+    def job_submitted(self) -> _runs_pb2.JobSubmitted:
+        """Accepts a checked spec and identifies its job and runs."""
+
     @_builtins.property
-    def job_cancelled(self) -> _runs_pb2.JobCancelled: ...
+    def job_cancelled(self) -> _runs_pb2.JobCancelled:
+        """Acknowledges a cancellation."""
+
     @_builtins.property
-    def jobs(self) -> _runs_pb2.Jobs: ...
+    def jobs(self) -> _runs_pb2.Jobs:
+        """The jobs held by this server process."""
+
     @_builtins.property
-    def job_subscribed(self) -> _runs_pb2.JobSubscribed: ...
+    def job_subscribed(self) -> _runs_pb2.JobSubscribed:
+        """Starts a subscription with current job state and recent logs."""
+
     @_builtins.property
-    def job_update(self) -> _runs_pb2.JobUpdate: ...
+    def job_update(self) -> _runs_pb2.JobUpdate:
+        """A subscription push; request_id is zero."""
+
     @_builtins.property
-    def unsubscribed(self) -> _runs_pb2.Unsubscribed: ...
+    def unsubscribed(self) -> _runs_pb2.Unsubscribed:
+        """Acknowledges an unsubscribe request."""
+
     @_builtins.property
-    def strategy_schema(self) -> _runs_pb2.StrategySchema: ...
+    def strategy_schema(self) -> _runs_pb2.StrategySchema:
+        """The strategy metadata and parameter schema."""
+
     @_builtins.property
-    def panel(self) -> _results_pb2.Panel: ...
+    def panel(self) -> _results_pb2.Panel:
+        """Byte chunk of a panel Arrow table."""
+
     @_builtins.property
-    def study_list(self) -> _results_pb2.StudyList: ...
+    def study_list(self) -> _results_pb2.StudyList:
+        """Chunk of study summaries."""
+
     @_builtins.property
-    def study_detail(self) -> _results_pb2.StudyDetail: ...
+    def study_detail(self) -> _results_pb2.StudyDetail:
+        """Chunk of study metadata and runs."""
+
     def __init__(
         self,
         *,
@@ -252,12 +349,16 @@ Global___ServerMessage: _TypeAlias = ServerMessage  # noqa: Y015
 
 @_typing.final
 class Hello(_message.Message):
-    """The client's first message on a connection."""
+    """Starts a connection and answers one Welcome. Repeated Hello requests also get
+    Welcome. client_version is informational; the current server does not reject
+    versions. Common ClientMessage errors apply.
+    """
 
     DESCRIPTOR: _descriptor.Descriptor
 
     CLIENT_VERSION_FIELD_NUMBER: _builtins.int
     client_version: _builtins.str
+    """The client application version; not the protocol package version."""
     def __init__(
         self,
         *,
@@ -280,8 +381,11 @@ class Welcome(_message.Message):
     SERVER_VERSION_FIELD_NUMBER: _builtins.int
     CAPABILITIES_FIELD_NUMBER: _builtins.int
     server_version: _builtins.str
+    """The installed sbt2-server package version."""
     @_builtins.property
-    def capabilities(self) -> _containers.RepeatedScalarFieldContainer[Global___Capability.ValueType]: ...
+    def capabilities(self) -> _containers.RepeatedScalarFieldContainer[Global___Capability.ValueType]:
+        """The protocol areas this server handles."""
+
     def __init__(
         self,
         *,

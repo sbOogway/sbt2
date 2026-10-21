@@ -27,20 +27,33 @@ class _MetricGroup:
 class _MetricGroupEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_MetricGroup.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     METRIC_GROUP_UNSPECIFIED: _MetricGroup.ValueType  # 0
+    """No value selected; not a usable concrete choice."""
     METRIC_GROUP_PNLS: _MetricGroup.ValueType  # 1
+    """Profit and loss metrics."""
     METRIC_GROUP_RETURNS: _MetricGroup.ValueType  # 2
+    """Statistics calculated from the run returns."""
     METRIC_GROUP_GENERAL: _MetricGroup.ValueType  # 3
+    """General run and trade statistics."""
     METRIC_GROUP_INSTRUMENT_PNLS: _MetricGroup.ValueType  # 4
+    """Profit and loss metrics per instrument."""
     METRIC_GROUP_PROBABILISTIC_SHARPE: _MetricGroup.ValueType  # 5
+    """Probability that the Sharpe ratio exceeds the reference ratio."""
 
-class MetricGroup(_MetricGroup, metaclass=_MetricGroupEnumTypeWrapper): ...
+class MetricGroup(_MetricGroup, metaclass=_MetricGroupEnumTypeWrapper):
+    """The group that owns a metric in the full metrics report."""
 
 METRIC_GROUP_UNSPECIFIED: MetricGroup.ValueType  # 0
+"""No value selected; not a usable concrete choice."""
 METRIC_GROUP_PNLS: MetricGroup.ValueType  # 1
+"""Profit and loss metrics."""
 METRIC_GROUP_RETURNS: MetricGroup.ValueType  # 2
+"""Statistics calculated from the run returns."""
 METRIC_GROUP_GENERAL: MetricGroup.ValueType  # 3
+"""General run and trade statistics."""
 METRIC_GROUP_INSTRUMENT_PNLS: MetricGroup.ValueType  # 4
+"""Profit and loss metrics per instrument."""
 METRIC_GROUP_PROBABILISTIC_SHARPE: MetricGroup.ValueType  # 5
+"""Probability that the Sharpe ratio exceeds the reference ratio."""
 Global___MetricGroup: _TypeAlias = MetricGroup  # noqa: Y015
 
 class _SeriesKind:
@@ -50,8 +63,15 @@ class _SeriesKind:
 class _SeriesKindEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_SeriesKind.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     SERIES_KIND_UNSPECIFIED: _SeriesKind.ValueType  # 0
+    """No value selected; not a usable concrete choice."""
     SERIES_KIND_EQUITY: _SeriesKind.ValueType  # 1
+    """Settlement-currency equity on the run grid, including endpoints. Columns:
+    ts_event (UTC nanoseconds), currency (string), total_equity (float64).
+    """
     SERIES_KIND_FILLS: _SeriesKind.ValueType  # 2
+    """Stored fills with their rows, columns, types and index unchanged; Arrow pandas
+    metadata describes the index.
+    """
     SERIES_KIND_TRADES: _SeriesKind.ValueType  # 3
     """One row per closed trade: a combo, or a position when a run has no combos."""
     SERIES_KIND_TRADE_STATISTICS: _SeriesKind.ValueType  # 4
@@ -65,11 +85,19 @@ class _SeriesKindEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_SeriesKind
     float64 after the time.
     """
 
-class SeriesKind(_SeriesKind, metaclass=_SeriesKindEnumTypeWrapper): ...
+class SeriesKind(_SeriesKind, metaclass=_SeriesKindEnumTypeWrapper):
+    """The Arrow table to read from a run."""
 
 SERIES_KIND_UNSPECIFIED: SeriesKind.ValueType  # 0
+"""No value selected; not a usable concrete choice."""
 SERIES_KIND_EQUITY: SeriesKind.ValueType  # 1
+"""Settlement-currency equity on the run grid, including endpoints. Columns:
+ts_event (UTC nanoseconds), currency (string), total_equity (float64).
+"""
 SERIES_KIND_FILLS: SeriesKind.ValueType  # 2
+"""Stored fills with their rows, columns, types and index unchanged; Arrow pandas
+metadata describes the index.
+"""
 SERIES_KIND_TRADES: SeriesKind.ValueType  # 3
 """One row per closed trade: a combo, or a position when a run has no combos."""
 SERIES_KIND_TRADE_STATISTICS: SeriesKind.ValueType  # 4
@@ -91,18 +119,29 @@ class _BenchmarkKind:
 class _BenchmarkKindEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_BenchmarkKind.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     BENCHMARK_KIND_UNSPECIFIED: _BenchmarkKind.ValueType  # 0
+    """Use the default declared by the strategy, as for DEFAULT."""
     BENCHMARK_KIND_DEFAULT: _BenchmarkKind.ValueType  # 1
+    """Use the default declared by the strategy."""
     BENCHMARK_KIND_NONE: _BenchmarkKind.ValueType  # 2
+    """Do not compare against a benchmark."""
     BENCHMARK_KIND_BUY_AND_HOLD: _BenchmarkKind.ValueType  # 3
+    """Buy and hold the selected instrument."""
     BENCHMARK_KIND_EQUAL_WEIGHT: _BenchmarkKind.ValueType  # 4
+    """Hold equal weights in the run instruments."""
 
-class BenchmarkKind(_BenchmarkKind, metaclass=_BenchmarkKindEnumTypeWrapper): ...
+class BenchmarkKind(_BenchmarkKind, metaclass=_BenchmarkKindEnumTypeWrapper):
+    """The benchmark for a tearsheet or benchmark-return panel."""
 
 BENCHMARK_KIND_UNSPECIFIED: BenchmarkKind.ValueType  # 0
+"""Use the default declared by the strategy, as for DEFAULT."""
 BENCHMARK_KIND_DEFAULT: BenchmarkKind.ValueType  # 1
+"""Use the default declared by the strategy."""
 BENCHMARK_KIND_NONE: BenchmarkKind.ValueType  # 2
+"""Do not compare against a benchmark."""
 BENCHMARK_KIND_BUY_AND_HOLD: BenchmarkKind.ValueType  # 3
+"""Buy and hold the selected instrument."""
 BENCHMARK_KIND_EQUAL_WEIGHT: BenchmarkKind.ValueType  # 4
+"""Hold equal weights in the run instruments."""
 Global___BenchmarkKind: _TypeAlias = BenchmarkKind  # noqa: Y015
 
 class _PanelKind:
@@ -112,31 +151,50 @@ class _PanelKind:
 class _PanelKindEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_PanelKind.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     PANEL_KIND_UNSPECIFIED: _PanelKind.ValueType  # 0
+    """No value selected; not a usable concrete choice."""
     PANEL_KIND_RETURNS: _PanelKind.ValueType  # 1
+    """Statistics calculated from the run returns."""
     PANEL_KIND_BENCHMARK_RETURNS: _PanelKind.ValueType  # 2
+    """Returns of the selected benchmark."""
     PANEL_KIND_DRAWDOWN: _PanelKind.ValueType  # 3
+    """Equity decline from the preceding peak."""
     PANEL_KIND_MONTHLY_RETURNS: _PanelKind.ValueType  # 4
+    """Returns aggregated by calendar month."""
     PANEL_KIND_YEARLY_RETURNS: _PanelKind.ValueType  # 5
+    """Returns aggregated by calendar year."""
     PANEL_KIND_ROLLING_SHARPE: _PanelKind.ValueType  # 6
+    """Sharpe ratio calculated over a rolling return window."""
 
-class PanelKind(_PanelKind, metaclass=_PanelKindEnumTypeWrapper): ...
+class PanelKind(_PanelKind, metaclass=_PanelKindEnumTypeWrapper):
+    """The tearsheet panel returned as an Arrow table."""
 
 PANEL_KIND_UNSPECIFIED: PanelKind.ValueType  # 0
+"""No value selected; not a usable concrete choice."""
 PANEL_KIND_RETURNS: PanelKind.ValueType  # 1
+"""Statistics calculated from the run returns."""
 PANEL_KIND_BENCHMARK_RETURNS: PanelKind.ValueType  # 2
+"""Returns of the selected benchmark."""
 PANEL_KIND_DRAWDOWN: PanelKind.ValueType  # 3
+"""Equity decline from the preceding peak."""
 PANEL_KIND_MONTHLY_RETURNS: PanelKind.ValueType  # 4
+"""Returns aggregated by calendar month."""
 PANEL_KIND_YEARLY_RETURNS: PanelKind.ValueType  # 5
+"""Returns aggregated by calendar year."""
 PANEL_KIND_ROLLING_SHARPE: PanelKind.ValueType  # 6
+"""Sharpe ratio calculated over a rolling return window."""
 Global___PanelKind: _TypeAlias = PanelKind  # noqa: Y015
 
 @_typing.final
 class RunIds(_message.Message):
+    """A present ID selection; an empty values list selects no runs."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     VALUES_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def values(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]: ...
+    def values(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+        """The run identifiers to select."""
+
     def __init__(
         self,
         *,
@@ -152,6 +210,8 @@ Global___RunIds: _TypeAlias = RunIds  # noqa: Y015
 
 @_typing.final
 class RunFilter(_message.Message):
+    """Selects finished runs. Unset fields impose no restriction; set fields are combined."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     STRATEGY_FIELD_NUMBER: _builtins.int
@@ -160,9 +220,13 @@ class RunFilter(_message.Message):
     STUDY_FIELD_NUMBER: _builtins.int
     RUN_IDS_FIELD_NUMBER: _builtins.int
     strategy: _builtins.str
+    """Selects this strategy class as module:Class."""
     part: _builtins.str
+    """Selects train, validation or test."""
     batch: _builtins.str
+    """Selects runs from this batch identifier."""
     study: _builtins.str
+    """Selects runs in this named study."""
     @_builtins.property
     def run_ids(self) -> Global___RunIds:
         """Absent selects all IDs; present and empty selects none."""
@@ -201,11 +265,17 @@ Global___RunFilter: _TypeAlias = RunFilter  # noqa: Y015
 
 @_typing.final
 class ListRuns(_message.Message):
+    """Lists matching runs, oldest first, as RunList chunks. RESOURCE_EXHAUSTED means
+    a record cannot fit. Common ClientMessage errors also apply.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     FILTER_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def filter(self) -> Global___RunFilter: ...
+    def filter(self) -> Global___RunFilter:
+        """Selection criteria; absent selects every finished run."""
+
     def __init__(
         self,
         *,
@@ -221,10 +291,16 @@ Global___ListRuns: _TypeAlias = ListRuns  # noqa: Y015
 
 @_typing.final
 class GetRun(_message.Message):
+    """Common ClientMessage errors apply to every results request.
+    Reads one stored RunSummary. Errors: NOT_FOUND for an unknown run or missing summary;
+    RESOURCE_EXHAUSTED if the summary cannot fit.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     RUN_ID_FIELD_NUMBER: _builtins.int
     run_id: _builtins.str
+    """The stored run identifier."""
     def __init__(
         self,
         *,
@@ -240,6 +316,10 @@ Global___GetRun: _TypeAlias = GetRun  # noqa: Y015
 
 @_typing.final
 class HeadlineMetrics(_message.Message):
+    """Summary metrics in the settlement currency. Undefined optional values are absent, not
+    zero.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     NET_RETURN_FIELD_NUMBER: _builtins.int
@@ -250,12 +330,19 @@ class HeadlineMetrics(_message.Message):
     TOTAL_FEES_FIELD_NUMBER: _builtins.int
     TOTAL_CARRY_FIELD_NUMBER: _builtins.int
     net_return: _builtins.str
+    """Net return as a decimal fraction."""
     annualized_return: _builtins.str
+    """Annualized return as a decimal fraction."""
     sharpe: _builtins.str
+    """Annualized Sharpe ratio as a decimal string."""
     max_drawdown: _builtins.str
+    """Maximum drawdown as a decimal fraction."""
     trade_count: _builtins.int
+    """Number of trades in the run."""
     total_fees: _builtins.str
+    """Total fees as a decimal string in the settlement currency."""
     total_carry: _builtins.str
+    """Total carry as a decimal string in the settlement currency."""
     def __init__(
         self,
         *,
@@ -292,6 +379,8 @@ Global___HeadlineMetrics: _TypeAlias = HeadlineMetrics  # noqa: Y015
 
 @_typing.final
 class RunSummary(_message.Message):
+    """One stored run. GetRun returns one message; RunList embeds whole summaries."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     RUN_ID_FIELD_NUMBER: _builtins.int
@@ -310,27 +399,47 @@ class RunSummary(_message.Message):
     HEADLINE_FIELD_NUMBER: _builtins.int
     DRAWDOWN_TRIPPED_AT_FIELD_NUMBER: _builtins.int
     run_id: _builtins.str
+    """The stored run identifier."""
     batch_id: _builtins.str
+    """The batch that created this run; absent for a run outside a batch."""
     study: _builtins.str
+    """The study this run belongs to; absent outside a study."""
     spec_hash: _builtins.str
+    """The hash of the resolved run specification."""
     strategy: _builtins.str
+    """The strategy class as module:Class."""
     params_json: _builtins.str
     """JSON retains the parameter and split documents' heterogeneous value types."""
     split_json: _builtins.str
+    """The stored split document as JSON, with its original value types."""
     part: _builtins.str
+    """The run part: train, validation or test."""
     currency: _builtins.str
+    """The settlement currency used to report these values."""
     @_builtins.property
-    def instruments(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]: ...
+    def instruments(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+        """Nautilus instrument identifiers in specification order."""
+
     @_builtins.property
-    def start_at(self) -> _timestamp_pb2.Timestamp: ...
+    def start_at(self) -> _timestamp_pb2.Timestamp:
+        """Start of the period, in UTC."""
+
     @_builtins.property
-    def end_at(self) -> _timestamp_pb2.Timestamp: ...
+    def end_at(self) -> _timestamp_pb2.Timestamp:
+        """End of the period, in UTC."""
+
     @_builtins.property
-    def known_gaps(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]: ...
+    def known_gaps(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+        """Known gaps that overlap this run."""
+
     @_builtins.property
-    def headline(self) -> Global___HeadlineMetrics: ...
+    def headline(self) -> Global___HeadlineMetrics:
+        """Summary metrics; optional undefined values remain absent."""
+
     @_builtins.property
-    def drawdown_tripped_at(self) -> _timestamp_pb2.Timestamp: ...
+    def drawdown_tripped_at(self) -> _timestamp_pb2.Timestamp:
+        """Time the drawdown guard tripped; absent if it did not trip."""
+
     def __init__(
         self,
         *,
@@ -367,15 +476,23 @@ Global___RunSummary: _TypeAlias = RunSummary  # noqa: Y015
 
 @_typing.final
 class RunList(_message.Message):
+    """Run summaries, oldest first. Uses the ServerMessage chunk rules; records are never
+    split.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     INDEX_FIELD_NUMBER: _builtins.int
     LAST_FIELD_NUMBER: _builtins.int
     RUNS_FIELD_NUMBER: _builtins.int
     index: _builtins.int
+    """Chunk number, starting at zero for each request."""
     last: _builtins.bool
+    """True only on the final chunk, including an empty result."""
     @_builtins.property
-    def runs(self) -> _containers.RepeatedCompositeFieldContainer[Global___RunSummary]: ...
+    def runs(self) -> _containers.RepeatedCompositeFieldContainer[Global___RunSummary]:
+        """Whole run records in this reply."""
+
     def __init__(
         self,
         *,
@@ -393,6 +510,8 @@ Global___RunList: _TypeAlias = RunList  # noqa: Y015
 
 @_typing.final
 class ListStudies(_message.Message):
+    """Lists studies as StudyList chunks. RESOURCE_EXHAUSTED means one record cannot fit."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     def __init__(
@@ -408,14 +527,19 @@ Global___ListStudies: _TypeAlias = ListStudies  # noqa: Y015
 
 @_typing.final
 class StudySummary(_message.Message):
+    """A named collection of runs with fixed strategy source and context."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     NAME_FIELD_NUMBER: _builtins.int
     STRATEGY_FIELD_NUMBER: _builtins.int
     RUN_COUNT_FIELD_NUMBER: _builtins.int
     name: _builtins.str
+    """The name used to identify this record."""
     strategy: _builtins.str
+    """The strategy class as module:Class."""
     run_count: _builtins.int
+    """Number of stored runs in the study."""
     def __init__(
         self,
         *,
@@ -433,15 +557,21 @@ Global___StudySummary: _TypeAlias = StudySummary  # noqa: Y015
 
 @_typing.final
 class StudyList(_message.Message):
+    """Study summaries. Uses the ServerMessage chunk rules; records are never split."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     INDEX_FIELD_NUMBER: _builtins.int
     LAST_FIELD_NUMBER: _builtins.int
     STUDIES_FIELD_NUMBER: _builtins.int
     index: _builtins.int
+    """Chunk number, starting at zero for each request."""
     last: _builtins.bool
+    """True only on the final chunk, including an empty result."""
     @_builtins.property
-    def studies(self) -> _containers.RepeatedCompositeFieldContainer[Global___StudySummary]: ...
+    def studies(self) -> _containers.RepeatedCompositeFieldContainer[Global___StudySummary]:
+        """Whole study records in this chunk."""
+
     def __init__(
         self,
         *,
@@ -459,10 +589,15 @@ Global___StudyList: _TypeAlias = StudyList  # noqa: Y015
 
 @_typing.final
 class GetStudy(_message.Message):
+    """Reads a study as StudyDetail chunks. Errors: NOT_FOUND for an unknown study;
+    RESOURCE_EXHAUSTED if metadata or a run cannot fit.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     NAME_FIELD_NUMBER: _builtins.int
     name: _builtins.str
+    """The name used to identify this record."""
     def __init__(
         self,
         *,
@@ -478,6 +613,8 @@ Global___GetStudy: _TypeAlias = GetStudy  # noqa: Y015
 
 @_typing.final
 class StudyRun(_message.Message):
+    """One run of a study, with its varying parameters and headline metrics."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     RUN_ID_FIELD_NUMBER: _builtins.int
@@ -485,11 +622,15 @@ class StudyRun(_message.Message):
     VARYING_PARAMS_JSON_FIELD_NUMBER: _builtins.int
     HEADLINE_FIELD_NUMBER: _builtins.int
     run_id: _builtins.str
+    """The stored run identifier."""
     part: _builtins.str
+    """The run part: train, validation or test."""
     varying_params_json: _builtins.str
     """A JSON object of the parameters that vary across the study's runs."""
     @_builtins.property
-    def headline(self) -> Global___HeadlineMetrics: ...
+    def headline(self) -> Global___HeadlineMetrics:
+        """Summary metrics; optional undefined values remain absent."""
+
     def __init__(
         self,
         *,
@@ -508,6 +649,10 @@ Global___StudyRun: _TypeAlias = StudyRun  # noqa: Y015
 
 @_typing.final
 class StudyDetail(_message.Message):
+    """One study. Uses the ServerMessage chunk rules; runs are whole records. Metadata is
+    present only in chunk 0.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     INDEX_FIELD_NUMBER: _builtins.int
@@ -518,16 +663,21 @@ class StudyDetail(_message.Message):
     SOURCE_FIELD_NUMBER: _builtins.int
     RUNS_FIELD_NUMBER: _builtins.int
     index: _builtins.int
+    """Chunk number, starting at zero for each request."""
     last: _builtins.bool
+    """True only on the final chunk, including an empty result."""
     name: _builtins.str
     """name, strategy, context_json and source are set only in the chunk with index 0."""
     strategy: _builtins.str
+    """The strategy class as module:Class."""
     context_json: _builtins.str
     """A JSON object: the context every run of the study shares."""
     source: _builtins.str
     """The module source the study pinned."""
     @_builtins.property
-    def runs(self) -> _containers.RepeatedCompositeFieldContainer[Global___StudyRun]: ...
+    def runs(self) -> _containers.RepeatedCompositeFieldContainer[Global___StudyRun]:
+        """Whole run records in this reply."""
+
     def __init__(
         self,
         *,
@@ -549,10 +699,15 @@ Global___StudyDetail: _TypeAlias = StudyDetail  # noqa: Y015
 
 @_typing.final
 class GetMetrics(_message.Message):
+    """Calculates full metrics as Metrics chunks. Errors: NOT_FOUND for missing run data;
+    RESOURCE_EXHAUSTED if one metric cannot fit.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     RUN_ID_FIELD_NUMBER: _builtins.int
     run_id: _builtins.str
+    """The stored run identifier."""
     def __init__(
         self,
         *,
@@ -568,6 +723,8 @@ Global___GetMetrics: _TypeAlias = GetMetrics  # noqa: Y015
 
 @_typing.final
 class Metric(_message.Message):
+    """One named metric. Undefined values are absent, including NaN and infinity."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     GROUP_FIELD_NUMBER: _builtins.int
@@ -575,10 +732,13 @@ class Metric(_message.Message):
     VALUE_FIELD_NUMBER: _builtins.int
     INSTRUMENT_ID_FIELD_NUMBER: _builtins.int
     group: Global___MetricGroup.ValueType
+    """The report group this metric belongs to."""
     name: _builtins.str
+    """The name used to identify this record."""
     value: _builtins.str
     """Absent means undefined, not zero. Finite values are decimal strings."""
     instrument_id: _builtins.str
+    """Set only for a per-instrument metric."""
     def __init__(
         self,
         *,
@@ -604,6 +764,8 @@ Global___Metric: _TypeAlias = Metric  # noqa: Y015
 
 @_typing.final
 class Metrics(_message.Message):
+    """Full metrics. Uses the ServerMessage chunk rules; metrics are never split."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     INDEX_FIELD_NUMBER: _builtins.int
@@ -611,10 +773,15 @@ class Metrics(_message.Message):
     CURRENCY_FIELD_NUMBER: _builtins.int
     ENTRIES_FIELD_NUMBER: _builtins.int
     index: _builtins.int
+    """Chunk number, starting at zero for each request."""
     last: _builtins.bool
+    """True only on the final chunk, including an empty result."""
     currency: _builtins.str
+    """The settlement currency used to report these values."""
     @_builtins.property
-    def entries(self) -> _containers.RepeatedCompositeFieldContainer[Global___Metric]: ...
+    def entries(self) -> _containers.RepeatedCompositeFieldContainer[Global___Metric]:
+        """Whole metrics in this chunk."""
+
     def __init__(
         self,
         *,
@@ -633,12 +800,18 @@ Global___Metrics: _TypeAlias = Metrics  # noqa: Y015
 
 @_typing.final
 class GetSeries(_message.Message):
+    """Reads a table as Series byte chunks. Errors: INVALID_ARGUMENT for an unknown or unset
+    kind; NOT_FOUND for a missing run or table.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     RUN_ID_FIELD_NUMBER: _builtins.int
     KIND_FIELD_NUMBER: _builtins.int
     run_id: _builtins.str
+    """The stored run identifier."""
     kind: Global___SeriesKind.ValueType
+    """The requested table or selection kind; see the enum for valid values."""
     def __init__(
         self,
         *,
@@ -655,13 +828,20 @@ Global___GetSeries: _TypeAlias = GetSeries  # noqa: Y015
 
 @_typing.final
 class Series(_message.Message):
+    """One Arrow IPC stream in byte chunks. Uses the ServerMessage chunk rules. Join every
+    chunk before decoding; boundaries need not align with Arrow records. Arrow numbers
+    are not protobuf decimal strings.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     INDEX_FIELD_NUMBER: _builtins.int
     LAST_FIELD_NUMBER: _builtins.int
     DATA_FIELD_NUMBER: _builtins.int
     index: _builtins.int
+    """Chunk number, starting at zero for each request."""
     last: _builtins.bool
+    """True only on the final chunk, including an empty result."""
     data: _builtins.bytes
     """Concatenate all chunks before decoding the Arrow IPC stream."""
     def __init__(
@@ -681,6 +861,11 @@ Global___Series: _TypeAlias = Series  # noqa: Y015
 
 @_typing.final
 class BenchmarkSelection(_message.Message):
+    """Chooses a benchmark. An absent selection, UNSPECIFIED or DEFAULT uses the strategy
+    default. Missing default dependencies return an error; there is no fallback. External
+    benchmark uploads are not supported.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     KIND_FIELD_NUMBER: _builtins.int
@@ -707,13 +892,20 @@ Global___BenchmarkSelection: _TypeAlias = BenchmarkSelection  # noqa: Y015
 
 @_typing.final
 class GetTearsheet(_message.Message):
+    """Renders a run as Tearsheet byte chunks. Errors: INVALID_ARGUMENT for an invalid
+    benchmark selection; NOT_FOUND for missing run data, benchmark strategy or prices.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     RUN_ID_FIELD_NUMBER: _builtins.int
     BENCHMARK_FIELD_NUMBER: _builtins.int
     run_id: _builtins.str
+    """The stored run identifier."""
     @_builtins.property
-    def benchmark(self) -> Global___BenchmarkSelection: ...
+    def benchmark(self) -> Global___BenchmarkSelection:
+        """Benchmark choice; absent uses the strategy default."""
+
     def __init__(
         self,
         *,
@@ -730,13 +922,19 @@ Global___GetTearsheet: _TypeAlias = GetTearsheet  # noqa: Y015
 
 @_typing.final
 class Tearsheet(_message.Message):
+    """A UTF-8 HTML document in byte chunks. Uses the ServerMessage chunk rules. Join every
+    chunk before decoding; a boundary can split a UTF-8 character.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     INDEX_FIELD_NUMBER: _builtins.int
     LAST_FIELD_NUMBER: _builtins.int
     DATA_FIELD_NUMBER: _builtins.int
     index: _builtins.int
+    """Chunk number, starting at zero for each request."""
     last: _builtins.bool
+    """True only on the final chunk, including an empty result."""
     data: _builtins.bytes
     """Concatenate all chunks to recover the UTF-8 HTML document."""
     def __init__(
@@ -756,13 +954,20 @@ Global___Tearsheet: _TypeAlias = Tearsheet  # noqa: Y015
 
 @_typing.final
 class GetPanel(_message.Message):
+    """Reads one panel as Panel byte chunks. Errors: INVALID_ARGUMENT for an unknown or
+    unset kind or invalid benchmark; NOT_FOUND for missing run data or benchmark
+    dependencies.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     RUN_ID_FIELD_NUMBER: _builtins.int
     KIND_FIELD_NUMBER: _builtins.int
     BENCHMARK_FIELD_NUMBER: _builtins.int
     run_id: _builtins.str
+    """The stored run identifier."""
     kind: Global___PanelKind.ValueType
+    """The requested table or selection kind; see the enum for valid values."""
     @_builtins.property
     def benchmark(self) -> Global___BenchmarkSelection:
         """Only BENCHMARK_RETURNS uses it; the rules are GetTearsheet's."""
@@ -784,13 +989,19 @@ Global___GetPanel: _TypeAlias = GetPanel  # noqa: Y015
 
 @_typing.final
 class Panel(_message.Message):
+    """One Arrow IPC stream in byte chunks. Uses the ServerMessage chunk rules; join all
+    bytes before decoding.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     INDEX_FIELD_NUMBER: _builtins.int
     LAST_FIELD_NUMBER: _builtins.int
     DATA_FIELD_NUMBER: _builtins.int
     index: _builtins.int
+    """Chunk number, starting at zero for each request."""
     last: _builtins.bool
+    """True only on the final chunk, including an empty result."""
     data: _builtins.bytes
     """Concatenate all chunks before decoding the Arrow IPC stream. It has the
     columns ts (UTC timestamp) and value (float64, a fraction, not percent).
