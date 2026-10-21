@@ -4,7 +4,7 @@ from typing import Any, override
 from nautilus_trader.execution import FeeModel
 from nautilus_trader.model import Money, Price, Quantity
 
-from sbt2.core.assets.option_settlement import DeliveryFee
+from sbt2.core.assets.option.settlement.settlement import DeliveryFee
 
 
 class DeliveryFeeModel(FeeModel):

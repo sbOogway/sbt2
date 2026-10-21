@@ -5,7 +5,7 @@ from typing import Any, Self
 
 from nautilus_trader.model import CryptoOption, OptionKind, Price, Quantity, QuoteTick
 
-from sbt2.core.assets.option_quotes import QUOTE_SIZE
+from sbt2.core.assets.option.quotes.quotes import QUOTE_SIZE
 
 # The strategy settles its position one nanosecond before the expiry, as nautilus
 # rejects the orders of an expired contract; the quote of the settlement price comes

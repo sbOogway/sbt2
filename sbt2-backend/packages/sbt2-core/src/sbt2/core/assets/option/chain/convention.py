@@ -4,15 +4,16 @@ from typing import Any, override
 
 from nautilus_trader.model import IndexPriceUpdate, InstrumentId
 
-from sbt2.core.assets.base import ChainConvention, ChainFeeds, ChainJob
-from sbt2.core.assets.option_chain import (
+from sbt2.core.assets.conventions.chain import ChainConvention, ChainJob
+from sbt2.core.assets.option.chain.chain import (
     ChainBand,
     dvol_of,
     index_of,
     is_chain,
     underlying_of,
 )
-from sbt2.core.assets.option_chain_selection import select_contracts
+from sbt2.core.assets.option.chain.selection import select_contracts
+from sbt2.core.market import ChainFeeds
 from sbt2.data import Selection, Window
 
 

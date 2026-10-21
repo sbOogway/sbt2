@@ -7,7 +7,7 @@ from nautilus_trader.analysis import ReportProvider
 from nautilus_trader.common import Cache
 from nautilus_trader.model import InstrumentId
 
-from sbt2.core.assets.base import CORRECTION_COLUMNS, EquityConvention
+from sbt2.core.assets.conventions.equity import CORRECTION_COLUMNS, EquityConvention
 
 
 @dataclass

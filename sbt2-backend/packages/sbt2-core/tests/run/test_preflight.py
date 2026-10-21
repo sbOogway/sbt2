@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 import pytest
 from nautilus_trader.model import Bar, FundingRateUpdate, TradeTick
@@ -62,9 +62,10 @@ def spec(tmp_path: Path, **values: Any) -> ResolvedRunSpec:
 
 
 @dataclass(frozen=True)
-class Weekdays:
+class Weekdays(Calendar):
     every_day: Calendar
 
+    @override
     def trading_days(self, start: datetime, end: datetime) -> list[date]:
         days = self.every_day.trading_days(start, end)
         return [each for each in days if each.weekday() < 5]

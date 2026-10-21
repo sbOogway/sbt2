@@ -4,10 +4,14 @@ from typing import Any, override
 
 from nautilus_trader.model import IndexPriceUpdate, InstrumentId
 
-from sbt2.core.assets.base import SettlementConvention
-from sbt2.core.assets.delivery_fee_model import DeliveryFeeModel
-from sbt2.core.assets.option_delivery import delivery_id, expires_within, expiry_day
-from sbt2.core.assets.option_settlement import DeliveryFee
+from sbt2.core.assets.conventions.settlement import SettlementConvention
+from sbt2.core.assets.option.settlement.delivery import (
+    delivery_id,
+    expires_within,
+    expiry_day,
+)
+from sbt2.core.assets.option.settlement.delivery_fee_model import DeliveryFeeModel
+from sbt2.core.assets.option.settlement.settlement import DeliveryFee
 from sbt2.data import Selection, Window
 
 
