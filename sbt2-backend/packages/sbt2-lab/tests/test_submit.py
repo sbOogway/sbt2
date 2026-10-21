@@ -1,6 +1,9 @@
 import importlib
+import re
+import sys
 from datetime import UTC, date, datetime
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
@@ -235,3 +238,16 @@ def test_a_nested_strategy_class_is_refused_before_submission(strategies: Path) 
     strategy = importlib.import_module("nested").Family.Cross
 
     assert refused(strategy, r"Family\.Cross.*nested in another class") == []
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "module", ["no_such_module", "<ipython-input-3-9f2c>", "sys", "specless"]
+)
+def test_a_class_without_importable_source_is_refused_before_submission(
+    monkeypatch: pytest.MonkeyPatch, module: str
+) -> None:
+    monkeypatch.setitem(sys.modules, "specless", ModuleType("specless"))
+    strategy = strategy_in(module)
+
+    assert refused(strategy, re.escape(module)) == []

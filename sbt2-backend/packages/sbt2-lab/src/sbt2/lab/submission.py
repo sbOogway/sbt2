@@ -75,7 +75,7 @@ def _module(path: str) -> StrategyModule:
     module, only of the packages that hold it."""
     try:
         found = importlib.util.find_spec(path)
-    except ImportError as error:
+    except (ImportError, ValueError) as error:
         raise StrategyModuleError(f"cannot find the module {path}: {error}") from error
     if found is None or found.origin is None or not found.has_location:
         raise StrategyModuleError(f"cannot find the source of the module {path}")
