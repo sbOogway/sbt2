@@ -6,38 +6,62 @@ import "google/protobuf/struct.proto";
 
 // Nautilus's asset classes.
 enum AssetClass {
+  // No value selected; not a usable concrete choice.
   ASSET_CLASS_UNSPECIFIED = 0;
+  // Foreign exchange.
   ASSET_CLASS_FX = 1;
+  // Ownership shares in a company.
   ASSET_CLASS_EQUITY = 2;
+  // Physical goods such as metals or energy.
   ASSET_CLASS_COMMODITY = 3;
+  // Debt instruments such as bonds.
   ASSET_CLASS_DEBT = 4;
+  // A basket used to track a market.
   ASSET_CLASS_INDEX = 5;
+  // Digital assets traded on a cryptocurrency venue.
   ASSET_CLASS_CRYPTOCURRENCY = 6;
+  // Assets outside the other listed classes.
   ASSET_CLASS_ALTERNATIVE = 7;
 }
 
 // Nautilus's instrument classes.
 enum InstrumentClass {
+  // No value selected; not a usable concrete choice.
   INSTRUMENT_CLASS_UNSPECIFIED = 0;
+  // Immediate exchange of the underlying asset.
   INSTRUMENT_CLASS_SPOT = 1;
+  // An exchange of cash flows, including perpetual contracts.
   INSTRUMENT_CLASS_SWAP = 2;
+  // A standardized contract with a future expiry.
   INSTRUMENT_CLASS_FUTURE = 3;
+  // A combination of futures contracts.
   INSTRUMENT_CLASS_FUTURES_SPREAD = 4;
+  // A negotiated contract for delivery at a future date.
   INSTRUMENT_CLASS_FORWARD = 5;
+  // Contract for difference.
   INSTRUMENT_CLASS_CFD = 6;
+  // A debt security with repayment terms.
   INSTRUMENT_CLASS_BOND = 7;
+  // The right to buy or sell an underlying asset.
   INSTRUMENT_CLASS_OPTION = 8;
+  // A combination of option contracts.
   INSTRUMENT_CLASS_OPTION_SPREAD = 9;
+  // An issuer-backed right to buy or sell an asset.
   INSTRUMENT_CLASS_WARRANT = 10;
+  // A contract settled by a sports result.
   INSTRUMENT_CLASS_SPORTS_BETTING = 11;
+  // An option with a fixed payout if its condition holds.
   INSTRUMENT_CLASS_BINARY_OPTION = 12;
 }
 
 // The answer to a write that succeeded.
 message ConfigWritten {}
 
+// A source-confirmed day without data, stored under the data root.
 message KnownGap {
+  // The source adapter registered with sbt2.
   string source = 1;
+  // The symbol in the source adapter format.
   string symbol = 2;
   // The data type as the source's list names it, such as trades.
   string data_type = 3;
@@ -45,37 +69,59 @@ message KnownGap {
   string day = 4;
 }
 
+// Reads the current gap file as one KnownGaps reply. An absent file returns an empty
+// list. Only the common ClientMessage errors apply.
 message ListKnownGaps {}
 
+// The current gaps, read from disk for each request.
 message KnownGaps {
+  // The gaps to read or change, as specified by the containing message.
   repeated KnownGap gaps = 1;
 }
 
-// Adds the gaps not listed yet; all of them or none.
+// Adds gaps not already listed, all or none, then answers one ConfigWritten.
+// INVALID_ARGUMENT means a source, data type, symbol or date is invalid.
+// No file changes on failure; writes are atomic and apply to the next run.
 message AddKnownGaps {
+  // The gaps to read or change, as specified by the containing message.
   repeated KnownGap gaps = 1;
 }
 
-// Removes the gaps listed; gaps not listed are skipped.
+// Removes gaps, all or none, then answers one ConfigWritten. Gaps not listed are
+// skipped. INVALID_ARGUMENT means a gap is invalid. No file changes on failure;
+// writes are atomic and apply to the next run.
 message RemoveKnownGaps {
+  // The gaps to read or change, as specified by the containing message.
   repeated KnownGap gaps = 1;
 }
 
+// An execution setting whose available implementations the server can list.
 enum ModelArgument {
+  // No value selected; not a usable concrete choice.
   MODEL_ARGUMENT_UNSPECIFIED = 0;
+  // Calculates transaction fees.
   MODEL_ARGUMENT_FEE_MODEL = 1;
+  // Determines simulated order fills.
   MODEL_ARGUMENT_FILL_MODEL = 2;
+  // Determines simulated order delays.
   MODEL_ARGUMENT_LATENCY_MODEL = 3;
+  // Calculates margin requirements.
   MODEL_ARGUMENT_MARGIN_MODEL = 4;
+  // Simulation modules that extend venue behaviour.
   MODEL_ARGUMENT_MODULES = 5;
 }
 
+// The wire representation of a model or strategy parameter.
 enum ParameterType {
+  // No value selected; not a usable concrete choice.
   PARAMETER_TYPE_UNSPECIFIED = 0;
   // Also a parameter whose type the server cannot tell.
   PARAMETER_TYPE_STRING = 1;
+  // An integral numeric value.
   PARAMETER_TYPE_INTEGER = 2;
+  // A numeric value stored as a protobuf double.
   PARAMETER_TYPE_NUMBER = 3;
+  // A true or false value.
   PARAMETER_TYPE_BOOLEAN = 4;
   // A decimal string, as everywhere in the protocol.
   PARAMETER_TYPE_DECIMAL = 5;
@@ -83,27 +129,40 @@ enum ParameterType {
   PARAMETER_TYPE_STRING_LIST = 6;
 }
 
+// One configuration parameter of a model implementation.
 message ModelParameter {
+  // The name used to identify this record.
   string name = 1;
+  // The representation used for this parameter.
   ParameterType type = 2;
+  // True when the caller must supply this parameter.
   bool required = 3;
   // Absent when the parameter has no default.
   google.protobuf.Value default = 4;
 }
 
+// One supported implementation of an execution model.
 message ModelKind {
+  // The name used to identify this record.
   string name = 1;
+  // The configuration parameters accepted by this implementation.
   repeated ModelParameter parameters = 2;
 }
 
+// The supported implementations for one execution setting.
 message ModelArgumentKinds {
+  // The execution setting these implementations configure.
   ModelArgument argument = 1;
   // Empty when the argument has no kind yet.
   repeated ModelKind kinds = 2;
 }
 
+// Lists all model arguments as one ModelKinds reply. Only the common ClientMessage
+// errors apply. The server holds no venue profiles.
 message ListModelKinds {}
 
+// Available model implementations and their configuration parameters.
 message ModelKinds {
+  // Every model argument, including those with no implementations.
   repeated ModelArgumentKinds arguments = 1;
 }

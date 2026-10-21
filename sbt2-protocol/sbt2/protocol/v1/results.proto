@@ -4,132 +4,222 @@ package sbt2.protocol.v1;
 
 import "google/protobuf/timestamp.proto";
 
+// A present ID selection; an empty values list selects no runs.
 message RunIds {
+  // The run identifiers to select.
   repeated string values = 1;
 }
 
+// Selects finished runs. Unset fields impose no restriction; set fields are combined.
 message RunFilter {
+  // Selects this strategy class as module:Class.
   optional string strategy = 1;
+  // Selects train, validation or test.
   optional string part = 2;
+  // Selects runs from this batch identifier.
   optional string batch = 3;
+  // Selects runs in this named study.
   optional string study = 4;
   // Absent selects all IDs; present and empty selects none.
   RunIds run_ids = 5;
 }
 
+// Lists matching runs, oldest first, as RunList chunks. RESOURCE_EXHAUSTED means
+// a record cannot fit. Common ClientMessage errors also apply.
 message ListRuns {
+  // Selection criteria; absent selects every finished run.
   RunFilter filter = 1;
 }
 
+// Common ClientMessage errors apply to every results request.
+// Reads one stored RunSummary. Errors: NOT_FOUND for an unknown run or missing summary;
+// RESOURCE_EXHAUSTED if the summary cannot fit.
 message GetRun {
+  // The stored run identifier.
   string run_id = 1;
 }
 
+// Summary metrics in the settlement currency. Undefined optional values are absent, not
+// zero.
 message HeadlineMetrics {
+  // Net return as a decimal fraction.
   optional string net_return = 1;
+  // Annualized return as a decimal fraction.
   optional string annualized_return = 2;
+  // Annualized Sharpe ratio as a decimal string.
   optional string sharpe = 3;
+  // Maximum drawdown as a decimal fraction.
   optional string max_drawdown = 4;
+  // Number of trades in the run.
   uint64 trade_count = 5;
+  // Total fees as a decimal string in the settlement currency.
   string total_fees = 6;
+  // Total carry as a decimal string in the settlement currency.
   string total_carry = 7;
 }
 
+// One stored run. GetRun returns one message; RunList embeds whole summaries.
 message RunSummary {
+  // The stored run identifier.
   string run_id = 1;
+  // The batch that created this run; absent for a run outside a batch.
   optional string batch_id = 2;
+  // The study this run belongs to; absent outside a study.
   optional string study = 3;
+  // The hash of the resolved run specification.
   string spec_hash = 4;
+  // The strategy class as module:Class.
   string strategy = 5;
   // JSON retains the parameter and split documents' heterogeneous value types.
   string params_json = 6;
+  // Nautilus instrument identifiers in specification order.
   repeated string instruments = 7;
+  // Start of the period, in UTC.
   google.protobuf.Timestamp start_at = 8;
+  // End of the period, in UTC.
   google.protobuf.Timestamp end_at = 9;
+  // The stored split document as JSON, with its original value types.
   string split_json = 10;
+  // The run part: train, validation or test.
   string part = 11;
+  // Known gaps that overlap this run.
   repeated string known_gaps = 12;
+  // The settlement currency used to report these values.
   string currency = 13;
+  // Summary metrics; optional undefined values remain absent.
   HeadlineMetrics headline = 14;
+  // Time the drawdown guard tripped; absent if it did not trip.
   google.protobuf.Timestamp drawdown_tripped_at = 15;
 }
 
+// Run summaries, oldest first. Uses the ServerMessage chunk rules; records are never
+// split.
 message RunList {
+  // Chunk number, starting at zero for each request.
   uint64 index = 1;
+  // True only on the final chunk, including an empty result.
   bool last = 2;
+  // Whole run records in this reply.
   repeated RunSummary runs = 3;
 }
 
+// Lists studies as StudyList chunks. RESOURCE_EXHAUSTED means one record cannot fit.
 message ListStudies {}
 
+// A named collection of runs with fixed strategy source and context.
 message StudySummary {
+  // The name used to identify this record.
   string name = 1;
+  // The strategy class as module:Class.
   string strategy = 2;
+  // Number of stored runs in the study.
   uint64 run_count = 3;
 }
 
+// Study summaries. Uses the ServerMessage chunk rules; records are never split.
 message StudyList {
+  // Chunk number, starting at zero for each request.
   uint64 index = 1;
+  // True only on the final chunk, including an empty result.
   bool last = 2;
+  // Whole study records in this chunk.
   repeated StudySummary studies = 3;
 }
 
+// Reads a study as StudyDetail chunks. Errors: NOT_FOUND for an unknown study;
+// RESOURCE_EXHAUSTED if metadata or a run cannot fit.
 message GetStudy {
+  // The name used to identify this record.
   string name = 1;
 }
 
+// One run of a study, with its varying parameters and headline metrics.
 message StudyRun {
+  // The stored run identifier.
   string run_id = 1;
+  // The run part: train, validation or test.
   string part = 2;
   // A JSON object of the parameters that vary across the study's runs.
   string varying_params_json = 3;
+  // Summary metrics; optional undefined values remain absent.
   HeadlineMetrics headline = 4;
 }
 
+// One study. Uses the ServerMessage chunk rules; runs are whole records. Metadata is
+// present only in chunk 0.
 message StudyDetail {
+  // Chunk number, starting at zero for each request.
   uint64 index = 1;
+  // True only on the final chunk, including an empty result.
   bool last = 2;
   // name, strategy, context_json and source are set only in the chunk with index 0.
   string name = 3;
+  // The strategy class as module:Class.
   string strategy = 4;
   // A JSON object: the context every run of the study shares.
   string context_json = 5;
   // The module source the study pinned.
   string source = 6;
+  // Whole run records in this reply.
   repeated StudyRun runs = 7;
 }
 
+// Calculates full metrics as Metrics chunks. Errors: NOT_FOUND for missing run data;
+// RESOURCE_EXHAUSTED if one metric cannot fit.
 message GetMetrics {
+  // The stored run identifier.
   string run_id = 1;
 }
 
+// The group that owns a metric in the full metrics report.
 enum MetricGroup {
+  // No value selected; not a usable concrete choice.
   METRIC_GROUP_UNSPECIFIED = 0;
+  // Profit and loss metrics.
   METRIC_GROUP_PNLS = 1;
+  // Statistics calculated from the run returns.
   METRIC_GROUP_RETURNS = 2;
+  // General run and trade statistics.
   METRIC_GROUP_GENERAL = 3;
+  // Profit and loss metrics per instrument.
   METRIC_GROUP_INSTRUMENT_PNLS = 4;
+  // Probability that the Sharpe ratio exceeds the reference ratio.
   METRIC_GROUP_PROBABILISTIC_SHARPE = 5;
 }
 
+// One named metric. Undefined values are absent, including NaN and infinity.
 message Metric {
+  // The report group this metric belongs to.
   MetricGroup group = 1;
+  // The name used to identify this record.
   string name = 2;
   // Absent means undefined, not zero. Finite values are decimal strings.
   optional string value = 3;
+  // Set only for a per-instrument metric.
   optional string instrument_id = 4;
 }
 
+// Full metrics. Uses the ServerMessage chunk rules; metrics are never split.
 message Metrics {
+  // Chunk number, starting at zero for each request.
   uint64 index = 1;
+  // True only on the final chunk, including an empty result.
   bool last = 2;
+  // The settlement currency used to report these values.
   string currency = 3;
+  // Whole metrics in this chunk.
   repeated Metric entries = 4;
 }
 
+// The Arrow table to read from a run.
 enum SeriesKind {
+  // No value selected; not a usable concrete choice.
   SERIES_KIND_UNSPECIFIED = 0;
+  // Settlement-currency equity on the run grid, including endpoints. Columns:
+  // ts_event (UTC nanoseconds), currency (string), total_equity (float64).
   SERIES_KIND_EQUITY = 1;
+  // Stored fills with their rows, columns, types and index unchanged; Arrow pandas
+  // metadata describes the index.
   SERIES_KIND_FILLS = 2;
   // One row per closed trade: a combo, or a position when a run has no combos.
   SERIES_KIND_TRADES = 3;
@@ -143,26 +233,44 @@ enum SeriesKind {
   SERIES_KIND_PORTFOLIO_GREEKS = 5;
 }
 
+// Reads a table as Series byte chunks. Errors: INVALID_ARGUMENT for an unknown or unset
+// kind; NOT_FOUND for a missing run or table.
 message GetSeries {
+  // The stored run identifier.
   string run_id = 1;
+  // The requested table or selection kind; see the enum for valid values.
   SeriesKind kind = 2;
 }
 
+// One Arrow IPC stream in byte chunks. Uses the ServerMessage chunk rules. Join every
+// chunk before decoding; boundaries need not align with Arrow records. Arrow numbers
+// are not protobuf decimal strings.
 message Series {
+  // Chunk number, starting at zero for each request.
   uint64 index = 1;
+  // True only on the final chunk, including an empty result.
   bool last = 2;
   // Concatenate all chunks before decoding the Arrow IPC stream.
   bytes data = 3;
 }
 
+// The benchmark for a tearsheet or benchmark-return panel.
 enum BenchmarkKind {
+  // Use the default declared by the strategy, as for DEFAULT.
   BENCHMARK_KIND_UNSPECIFIED = 0;
+  // Use the default declared by the strategy.
   BENCHMARK_KIND_DEFAULT = 1;
+  // Do not compare against a benchmark.
   BENCHMARK_KIND_NONE = 2;
+  // Buy and hold the selected instrument.
   BENCHMARK_KIND_BUY_AND_HOLD = 3;
+  // Hold equal weights in the run instruments.
   BENCHMARK_KIND_EQUAL_WEIGHT = 4;
 }
 
+// Chooses a benchmark. An absent selection, UNSPECIFIED or DEFAULT uses the strategy
+// default. Missing default dependencies return an error; there is no fallback. External
+// benchmark uploads are not supported.
 message BenchmarkSelection {
   // UNSPECIFIED and an absent selection both mean the strategy's default.
   BenchmarkKind kind = 1;
@@ -170,37 +278,62 @@ message BenchmarkSelection {
   optional string instrument_id = 2;
 }
 
+// Renders a run as Tearsheet byte chunks. Errors: INVALID_ARGUMENT for an invalid
+// benchmark selection; NOT_FOUND for missing run data, benchmark strategy or prices.
 message GetTearsheet {
+  // The stored run identifier.
   string run_id = 1;
+  // Benchmark choice; absent uses the strategy default.
   BenchmarkSelection benchmark = 2;
 }
 
+// A UTF-8 HTML document in byte chunks. Uses the ServerMessage chunk rules. Join every
+// chunk before decoding; a boundary can split a UTF-8 character.
 message Tearsheet {
+  // Chunk number, starting at zero for each request.
   uint64 index = 1;
+  // True only on the final chunk, including an empty result.
   bool last = 2;
   // Concatenate all chunks to recover the UTF-8 HTML document.
   bytes data = 3;
 }
 
+// The tearsheet panel returned as an Arrow table.
 enum PanelKind {
+  // No value selected; not a usable concrete choice.
   PANEL_KIND_UNSPECIFIED = 0;
+  // Statistics calculated from the run returns.
   PANEL_KIND_RETURNS = 1;
+  // Returns of the selected benchmark.
   PANEL_KIND_BENCHMARK_RETURNS = 2;
+  // Equity decline from the preceding peak.
   PANEL_KIND_DRAWDOWN = 3;
+  // Returns aggregated by calendar month.
   PANEL_KIND_MONTHLY_RETURNS = 4;
+  // Returns aggregated by calendar year.
   PANEL_KIND_YEARLY_RETURNS = 5;
+  // Sharpe ratio calculated over a rolling return window.
   PANEL_KIND_ROLLING_SHARPE = 6;
 }
 
+// Reads one panel as Panel byte chunks. Errors: INVALID_ARGUMENT for an unknown or
+// unset kind or invalid benchmark; NOT_FOUND for missing run data or benchmark
+// dependencies.
 message GetPanel {
+  // The stored run identifier.
   string run_id = 1;
+  // The requested table or selection kind; see the enum for valid values.
   PanelKind kind = 2;
   // Only BENCHMARK_RETURNS uses it; the rules are GetTearsheet's.
   BenchmarkSelection benchmark = 3;
 }
 
+// One Arrow IPC stream in byte chunks. Uses the ServerMessage chunk rules; join all
+// bytes before decoding.
 message Panel {
+  // Chunk number, starting at zero for each request.
   uint64 index = 1;
+  // True only on the final chunk, including an empty result.
   bool last = 2;
   // Concatenate all chunks before decoding the Arrow IPC stream. It has the
   // columns ts (UTC timestamp) and value (float64, a fraction, not percent).

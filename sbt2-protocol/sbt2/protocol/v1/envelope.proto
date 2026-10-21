@@ -7,36 +7,64 @@ import "sbt2/protocol/v1/results.proto";
 import "sbt2/protocol/v1/runs.proto";
 import "sbt2/protocol/v1/types.proto";
 
-// Each binary WebSocket frame the client sends is one ClientMessage.
+// One request per binary WebSocket frame. Send Hello first, using the sbt2.v1 WebSocket
+// subprotocol and bearer authentication. A request before Hello returns
+// INVALID_MESSAGE. Common errors: INVALID_ARGUMENT for request_id 0; INVALID_MESSAGE
+// for an unset body; UNIMPLEMENTED for an unhandled body; INTERNAL for an unexpected
+// server failure.
 message ClientMessage {
   reserved 8, 9, 10;
   reserved "list_venue_profiles", "put_venue_profile", "delete_venue_profile";
-  // Chosen by the client and never 0; the server's answers carry it back.
+  // Chosen by the client, never 0 and distinct among outstanding requests.
   uint64 request_id = 1;
+  // Exactly one payload must be set; an unset request body is INVALID_MESSAGE.
   oneof body {
+    // Starts or repeats the Hello handshake.
     Hello hello = 2;
+    // Selects finished runs from the results store.
     ListRuns list_runs = 3;
+    // Reads one stored run summary.
     GetRun get_run = 4;
+    // Calculates the full metrics for a run.
     GetMetrics get_metrics = 5;
+    // Reads an Arrow table from a run.
     GetSeries get_series = 6;
+    // Renders the run as HTML.
     GetTearsheet get_tearsheet = 7;
+    // Reads the data root gap file.
     ListKnownGaps list_known_gaps = 11;
+    // Adds gaps in one atomic write.
     AddKnownGaps add_known_gaps = 12;
+    // Removes gaps in one atomic write.
     RemoveKnownGaps remove_known_gaps = 13;
+    // Lists execution model implementations and their parameters.
     ListModelKinds list_model_kinds = 14;
+    // Checks a spec and queues its runs.
     SubmitRun submit_run = 15;
+    // Stops a job and its unfinished runs.
     CancelJob cancel_job = 16;
+    // Lists the jobs held by this server process.
     ListJobs list_jobs = 17;
+    // Starts state and log pushes for a job.
     SubscribeJob subscribe_job = 18;
+    // Stops a subscription on this connection.
     Unsubscribe unsubscribe = 19;
+    // Inspects an uploaded strategy module in a separate process.
     DescribeStrategy describe_strategy = 20;
+    // Reads one tearsheet panel as Arrow.
     GetPanel get_panel = 21;
+    // Lists named studies.
     ListStudies list_studies = 22;
+    // Reads a study with its context, source and runs.
     GetStudy get_study = 23;
   }
 }
 
-// Each binary WebSocket frame the server sends is one ServerMessage.
+// One binary WebSocket frame. Replies echo request_id and have subscription_id 0;
+// pushes use request_id 0. Chunked replies start at index 0, in order, with exactly one
+// last=true chunk, even for empty results. Requests can interleave; use distinct IDs
+// for outstanding requests. Each result envelope is at most 1,048,576 bytes. A
+// correlated Error ends the reply and invalidates earlier chunks.
 message ServerMessage {
   reserved 10;
   reserved "venue_profiles";
@@ -44,44 +72,75 @@ message ServerMessage {
   uint64 request_id = 1;
   // 0 on an answer to a request.
   uint64 subscription_id = 2;
+  // Exactly one payload must be set; an unset request body is INVALID_MESSAGE.
   oneof body {
+    // Terminates a failed request, including any partial reply.
     Error error = 3;
+    // Answers Hello with the server version and capabilities.
     Welcome welcome = 4;
+    // Chunk of finished run summaries.
     RunList run_list = 5;
+    // The single reply to GetRun.
     RunSummary run_summary = 6;
+    // Chunk of named metrics.
     Metrics metrics = 7;
+    // Byte chunk of an Arrow table.
     Series series = 8;
+    // Byte chunk of a UTF-8 HTML document.
     Tearsheet tearsheet = 9;
+    // Acknowledges an atomic gap-file write.
     ConfigWritten config_written = 11;
+    // The gaps currently stored on disk.
     KnownGaps known_gaps = 12;
+    // Execution model implementations and their configuration parameters.
     ModelKinds model_kinds = 13;
+    // Accepts a checked spec and identifies its job and runs.
     JobSubmitted job_submitted = 14;
+    // Acknowledges a cancellation.
     JobCancelled job_cancelled = 15;
+    // The jobs held by this server process.
     Jobs jobs = 16;
+    // Starts a subscription with current job state and recent logs.
     JobSubscribed job_subscribed = 17;
+    // A subscription push; request_id is zero.
     JobUpdate job_update = 18;
+    // Acknowledges an unsubscribe request.
     Unsubscribed unsubscribed = 19;
+    // The strategy metadata and parameter schema.
     StrategySchema strategy_schema = 20;
+    // Byte chunk of a panel Arrow table.
     Panel panel = 21;
+    // Chunk of study summaries.
     StudyList study_list = 22;
+    // Chunk of study metadata and runs.
     StudyDetail study_detail = 23;
   }
 }
 
-// The client's first message on a connection.
+// Starts a connection and answers one Welcome. Repeated Hello requests also get
+// Welcome. client_version is informational; the current server does not reject
+// versions. Common ClientMessage errors apply.
 message Hello {
+  // The client application version; not the protocol package version.
   string client_version = 1;
 }
 
 // The answer to Hello.
 message Welcome {
+  // The installed sbt2-server package version.
   string server_version = 1;
+  // The protocol areas this server handles.
   repeated Capability capabilities = 2;
 }
 
+// An area of the protocol available on this server.
 enum Capability {
+  // No value selected; not a usable concrete choice.
   CAPABILITY_UNSPECIFIED = 0;
+  // Reads stored runs, studies, metrics, tables and tearsheets.
   CAPABILITY_RESULTS = 1;
+  // Reads and edits known gaps; lists execution model kinds.
   CAPABILITY_CONFIG = 2;
+  // Submits, cancels and follows jobs; inspects strategy modules.
   CAPABILITY_RUNS = 3;
 }

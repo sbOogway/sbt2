@@ -27,25 +27,41 @@ class _AssetClass:
 class _AssetClassEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_AssetClass.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     ASSET_CLASS_UNSPECIFIED: _AssetClass.ValueType  # 0
+    """No value selected; not a usable concrete choice."""
     ASSET_CLASS_FX: _AssetClass.ValueType  # 1
+    """Foreign exchange."""
     ASSET_CLASS_EQUITY: _AssetClass.ValueType  # 2
+    """Ownership shares in a company."""
     ASSET_CLASS_COMMODITY: _AssetClass.ValueType  # 3
+    """Physical goods such as metals or energy."""
     ASSET_CLASS_DEBT: _AssetClass.ValueType  # 4
+    """Debt instruments such as bonds."""
     ASSET_CLASS_INDEX: _AssetClass.ValueType  # 5
+    """A basket used to track a market."""
     ASSET_CLASS_CRYPTOCURRENCY: _AssetClass.ValueType  # 6
+    """Digital assets traded on a cryptocurrency venue."""
     ASSET_CLASS_ALTERNATIVE: _AssetClass.ValueType  # 7
+    """Assets outside the other listed classes."""
 
 class AssetClass(_AssetClass, metaclass=_AssetClassEnumTypeWrapper):
     """Nautilus's asset classes."""
 
 ASSET_CLASS_UNSPECIFIED: AssetClass.ValueType  # 0
+"""No value selected; not a usable concrete choice."""
 ASSET_CLASS_FX: AssetClass.ValueType  # 1
+"""Foreign exchange."""
 ASSET_CLASS_EQUITY: AssetClass.ValueType  # 2
+"""Ownership shares in a company."""
 ASSET_CLASS_COMMODITY: AssetClass.ValueType  # 3
+"""Physical goods such as metals or energy."""
 ASSET_CLASS_DEBT: AssetClass.ValueType  # 4
+"""Debt instruments such as bonds."""
 ASSET_CLASS_INDEX: AssetClass.ValueType  # 5
+"""A basket used to track a market."""
 ASSET_CLASS_CRYPTOCURRENCY: AssetClass.ValueType  # 6
+"""Digital assets traded on a cryptocurrency venue."""
 ASSET_CLASS_ALTERNATIVE: AssetClass.ValueType  # 7
+"""Assets outside the other listed classes."""
 Global___AssetClass: _TypeAlias = AssetClass  # noqa: Y015
 
 class _InstrumentClass:
@@ -55,35 +71,61 @@ class _InstrumentClass:
 class _InstrumentClassEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_InstrumentClass.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     INSTRUMENT_CLASS_UNSPECIFIED: _InstrumentClass.ValueType  # 0
+    """No value selected; not a usable concrete choice."""
     INSTRUMENT_CLASS_SPOT: _InstrumentClass.ValueType  # 1
+    """Immediate exchange of the underlying asset."""
     INSTRUMENT_CLASS_SWAP: _InstrumentClass.ValueType  # 2
+    """An exchange of cash flows, including perpetual contracts."""
     INSTRUMENT_CLASS_FUTURE: _InstrumentClass.ValueType  # 3
+    """A standardized contract with a future expiry."""
     INSTRUMENT_CLASS_FUTURES_SPREAD: _InstrumentClass.ValueType  # 4
+    """A combination of futures contracts."""
     INSTRUMENT_CLASS_FORWARD: _InstrumentClass.ValueType  # 5
+    """A negotiated contract for delivery at a future date."""
     INSTRUMENT_CLASS_CFD: _InstrumentClass.ValueType  # 6
+    """Contract for difference."""
     INSTRUMENT_CLASS_BOND: _InstrumentClass.ValueType  # 7
+    """A debt security with repayment terms."""
     INSTRUMENT_CLASS_OPTION: _InstrumentClass.ValueType  # 8
+    """The right to buy or sell an underlying asset."""
     INSTRUMENT_CLASS_OPTION_SPREAD: _InstrumentClass.ValueType  # 9
+    """A combination of option contracts."""
     INSTRUMENT_CLASS_WARRANT: _InstrumentClass.ValueType  # 10
+    """An issuer-backed right to buy or sell an asset."""
     INSTRUMENT_CLASS_SPORTS_BETTING: _InstrumentClass.ValueType  # 11
+    """A contract settled by a sports result."""
     INSTRUMENT_CLASS_BINARY_OPTION: _InstrumentClass.ValueType  # 12
+    """An option with a fixed payout if its condition holds."""
 
 class InstrumentClass(_InstrumentClass, metaclass=_InstrumentClassEnumTypeWrapper):
     """Nautilus's instrument classes."""
 
 INSTRUMENT_CLASS_UNSPECIFIED: InstrumentClass.ValueType  # 0
+"""No value selected; not a usable concrete choice."""
 INSTRUMENT_CLASS_SPOT: InstrumentClass.ValueType  # 1
+"""Immediate exchange of the underlying asset."""
 INSTRUMENT_CLASS_SWAP: InstrumentClass.ValueType  # 2
+"""An exchange of cash flows, including perpetual contracts."""
 INSTRUMENT_CLASS_FUTURE: InstrumentClass.ValueType  # 3
+"""A standardized contract with a future expiry."""
 INSTRUMENT_CLASS_FUTURES_SPREAD: InstrumentClass.ValueType  # 4
+"""A combination of futures contracts."""
 INSTRUMENT_CLASS_FORWARD: InstrumentClass.ValueType  # 5
+"""A negotiated contract for delivery at a future date."""
 INSTRUMENT_CLASS_CFD: InstrumentClass.ValueType  # 6
+"""Contract for difference."""
 INSTRUMENT_CLASS_BOND: InstrumentClass.ValueType  # 7
+"""A debt security with repayment terms."""
 INSTRUMENT_CLASS_OPTION: InstrumentClass.ValueType  # 8
+"""The right to buy or sell an underlying asset."""
 INSTRUMENT_CLASS_OPTION_SPREAD: InstrumentClass.ValueType  # 9
+"""A combination of option contracts."""
 INSTRUMENT_CLASS_WARRANT: InstrumentClass.ValueType  # 10
+"""An issuer-backed right to buy or sell an asset."""
 INSTRUMENT_CLASS_SPORTS_BETTING: InstrumentClass.ValueType  # 11
+"""A contract settled by a sports result."""
 INSTRUMENT_CLASS_BINARY_OPTION: InstrumentClass.ValueType  # 12
+"""An option with a fixed payout if its condition holds."""
 Global___InstrumentClass: _TypeAlias = InstrumentClass  # noqa: Y015
 
 class _ModelArgument:
@@ -93,20 +135,33 @@ class _ModelArgument:
 class _ModelArgumentEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_ModelArgument.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     MODEL_ARGUMENT_UNSPECIFIED: _ModelArgument.ValueType  # 0
+    """No value selected; not a usable concrete choice."""
     MODEL_ARGUMENT_FEE_MODEL: _ModelArgument.ValueType  # 1
+    """Calculates transaction fees."""
     MODEL_ARGUMENT_FILL_MODEL: _ModelArgument.ValueType  # 2
+    """Determines simulated order fills."""
     MODEL_ARGUMENT_LATENCY_MODEL: _ModelArgument.ValueType  # 3
+    """Determines simulated order delays."""
     MODEL_ARGUMENT_MARGIN_MODEL: _ModelArgument.ValueType  # 4
+    """Calculates margin requirements."""
     MODEL_ARGUMENT_MODULES: _ModelArgument.ValueType  # 5
+    """Simulation modules that extend venue behaviour."""
 
-class ModelArgument(_ModelArgument, metaclass=_ModelArgumentEnumTypeWrapper): ...
+class ModelArgument(_ModelArgument, metaclass=_ModelArgumentEnumTypeWrapper):
+    """An execution setting whose available implementations the server can list."""
 
 MODEL_ARGUMENT_UNSPECIFIED: ModelArgument.ValueType  # 0
+"""No value selected; not a usable concrete choice."""
 MODEL_ARGUMENT_FEE_MODEL: ModelArgument.ValueType  # 1
+"""Calculates transaction fees."""
 MODEL_ARGUMENT_FILL_MODEL: ModelArgument.ValueType  # 2
+"""Determines simulated order fills."""
 MODEL_ARGUMENT_LATENCY_MODEL: ModelArgument.ValueType  # 3
+"""Determines simulated order delays."""
 MODEL_ARGUMENT_MARGIN_MODEL: ModelArgument.ValueType  # 4
+"""Calculates margin requirements."""
 MODEL_ARGUMENT_MODULES: ModelArgument.ValueType  # 5
+"""Simulation modules that extend venue behaviour."""
 Global___ModelArgument: _TypeAlias = ModelArgument  # noqa: Y015
 
 class _ParameterType:
@@ -116,24 +171,33 @@ class _ParameterType:
 class _ParameterTypeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_ParameterType.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     PARAMETER_TYPE_UNSPECIFIED: _ParameterType.ValueType  # 0
+    """No value selected; not a usable concrete choice."""
     PARAMETER_TYPE_STRING: _ParameterType.ValueType  # 1
     """Also a parameter whose type the server cannot tell."""
     PARAMETER_TYPE_INTEGER: _ParameterType.ValueType  # 2
+    """An integral numeric value."""
     PARAMETER_TYPE_NUMBER: _ParameterType.ValueType  # 3
+    """A numeric value stored as a protobuf double."""
     PARAMETER_TYPE_BOOLEAN: _ParameterType.ValueType  # 4
+    """A true or false value."""
     PARAMETER_TYPE_DECIMAL: _ParameterType.ValueType  # 5
     """A decimal string, as everywhere in the protocol."""
     PARAMETER_TYPE_STRING_LIST: _ParameterType.ValueType  # 6
     """A list of strings; its default is a list value."""
 
-class ParameterType(_ParameterType, metaclass=_ParameterTypeEnumTypeWrapper): ...
+class ParameterType(_ParameterType, metaclass=_ParameterTypeEnumTypeWrapper):
+    """The wire representation of a model or strategy parameter."""
 
 PARAMETER_TYPE_UNSPECIFIED: ParameterType.ValueType  # 0
+"""No value selected; not a usable concrete choice."""
 PARAMETER_TYPE_STRING: ParameterType.ValueType  # 1
 """Also a parameter whose type the server cannot tell."""
 PARAMETER_TYPE_INTEGER: ParameterType.ValueType  # 2
+"""An integral numeric value."""
 PARAMETER_TYPE_NUMBER: ParameterType.ValueType  # 3
+"""A numeric value stored as a protobuf double."""
 PARAMETER_TYPE_BOOLEAN: ParameterType.ValueType  # 4
+"""A true or false value."""
 PARAMETER_TYPE_DECIMAL: ParameterType.ValueType  # 5
 """A decimal string, as everywhere in the protocol."""
 PARAMETER_TYPE_STRING_LIST: ParameterType.ValueType  # 6
@@ -159,6 +223,8 @@ Global___ConfigWritten: _TypeAlias = ConfigWritten  # noqa: Y015
 
 @_typing.final
 class KnownGap(_message.Message):
+    """A source-confirmed day without data, stored under the data root."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     SOURCE_FIELD_NUMBER: _builtins.int
@@ -166,7 +232,9 @@ class KnownGap(_message.Message):
     DATA_TYPE_FIELD_NUMBER: _builtins.int
     DAY_FIELD_NUMBER: _builtins.int
     source: _builtins.str
+    """The source adapter registered with sbt2."""
     symbol: _builtins.str
+    """The symbol in the source adapter format."""
     data_type: _builtins.str
     """The data type as the source's list names it, such as trades."""
     day: _builtins.str
@@ -189,6 +257,10 @@ Global___KnownGap: _TypeAlias = KnownGap  # noqa: Y015
 
 @_typing.final
 class ListKnownGaps(_message.Message):
+    """Reads the current gap file as one KnownGaps reply. An absent file returns an empty
+    list. Only the common ClientMessage errors apply.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     def __init__(
@@ -204,11 +276,15 @@ Global___ListKnownGaps: _TypeAlias = ListKnownGaps  # noqa: Y015
 
 @_typing.final
 class KnownGaps(_message.Message):
+    """The current gaps, read from disk for each request."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     GAPS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def gaps(self) -> _containers.RepeatedCompositeFieldContainer[Global___KnownGap]: ...
+    def gaps(self) -> _containers.RepeatedCompositeFieldContainer[Global___KnownGap]:
+        """The gaps to read or change, as specified by the containing message."""
+
     def __init__(
         self,
         *,
@@ -224,13 +300,18 @@ Global___KnownGaps: _TypeAlias = KnownGaps  # noqa: Y015
 
 @_typing.final
 class AddKnownGaps(_message.Message):
-    """Adds the gaps not listed yet; all of them or none."""
+    """Adds gaps not already listed, all or none, then answers one ConfigWritten.
+    INVALID_ARGUMENT means a source, data type, symbol or date is invalid.
+    No file changes on failure; writes are atomic and apply to the next run.
+    """
 
     DESCRIPTOR: _descriptor.Descriptor
 
     GAPS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def gaps(self) -> _containers.RepeatedCompositeFieldContainer[Global___KnownGap]: ...
+    def gaps(self) -> _containers.RepeatedCompositeFieldContainer[Global___KnownGap]:
+        """The gaps to read or change, as specified by the containing message."""
+
     def __init__(
         self,
         *,
@@ -246,13 +327,18 @@ Global___AddKnownGaps: _TypeAlias = AddKnownGaps  # noqa: Y015
 
 @_typing.final
 class RemoveKnownGaps(_message.Message):
-    """Removes the gaps listed; gaps not listed are skipped."""
+    """Removes gaps, all or none, then answers one ConfigWritten. Gaps not listed are
+    skipped. INVALID_ARGUMENT means a gap is invalid. No file changes on failure;
+    writes are atomic and apply to the next run.
+    """
 
     DESCRIPTOR: _descriptor.Descriptor
 
     GAPS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def gaps(self) -> _containers.RepeatedCompositeFieldContainer[Global___KnownGap]: ...
+    def gaps(self) -> _containers.RepeatedCompositeFieldContainer[Global___KnownGap]:
+        """The gaps to read or change, as specified by the containing message."""
+
     def __init__(
         self,
         *,
@@ -268,6 +354,8 @@ Global___RemoveKnownGaps: _TypeAlias = RemoveKnownGaps  # noqa: Y015
 
 @_typing.final
 class ModelParameter(_message.Message):
+    """One configuration parameter of a model implementation."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     NAME_FIELD_NUMBER: _builtins.int
@@ -275,8 +363,11 @@ class ModelParameter(_message.Message):
     REQUIRED_FIELD_NUMBER: _builtins.int
     DEFAULT_FIELD_NUMBER: _builtins.int
     name: _builtins.str
+    """The name used to identify this record."""
     type: Global___ParameterType.ValueType
+    """The representation used for this parameter."""
     required: _builtins.bool
+    """True when the caller must supply this parameter."""
     @_builtins.property
     def default(self) -> _struct_pb2.Value:
         """Absent when the parameter has no default."""
@@ -299,13 +390,18 @@ Global___ModelParameter: _TypeAlias = ModelParameter  # noqa: Y015
 
 @_typing.final
 class ModelKind(_message.Message):
+    """One supported implementation of an execution model."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     NAME_FIELD_NUMBER: _builtins.int
     PARAMETERS_FIELD_NUMBER: _builtins.int
     name: _builtins.str
+    """The name used to identify this record."""
     @_builtins.property
-    def parameters(self) -> _containers.RepeatedCompositeFieldContainer[Global___ModelParameter]: ...
+    def parameters(self) -> _containers.RepeatedCompositeFieldContainer[Global___ModelParameter]:
+        """The configuration parameters accepted by this implementation."""
+
     def __init__(
         self,
         *,
@@ -322,11 +418,14 @@ Global___ModelKind: _TypeAlias = ModelKind  # noqa: Y015
 
 @_typing.final
 class ModelArgumentKinds(_message.Message):
+    """The supported implementations for one execution setting."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     ARGUMENT_FIELD_NUMBER: _builtins.int
     KINDS_FIELD_NUMBER: _builtins.int
     argument: Global___ModelArgument.ValueType
+    """The execution setting these implementations configure."""
     @_builtins.property
     def kinds(self) -> _containers.RepeatedCompositeFieldContainer[Global___ModelKind]:
         """Empty when the argument has no kind yet."""
@@ -347,6 +446,10 @@ Global___ModelArgumentKinds: _TypeAlias = ModelArgumentKinds  # noqa: Y015
 
 @_typing.final
 class ListModelKinds(_message.Message):
+    """Lists all model arguments as one ModelKinds reply. Only the common ClientMessage
+    errors apply. The server holds no venue profiles.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     def __init__(
@@ -362,11 +465,15 @@ Global___ListModelKinds: _TypeAlias = ListModelKinds  # noqa: Y015
 
 @_typing.final
 class ModelKinds(_message.Message):
+    """Available model implementations and their configuration parameters."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     ARGUMENTS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def arguments(self) -> _containers.RepeatedCompositeFieldContainer[Global___ModelArgumentKinds]: ...
+    def arguments(self) -> _containers.RepeatedCompositeFieldContainer[Global___ModelArgumentKinds]:
+        """Every model argument, including those with no implementations."""
+
     def __init__(
         self,
         *,

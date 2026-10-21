@@ -29,24 +29,37 @@ class _JobState:
 class _JobStateEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_JobState.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     JOB_STATE_UNSPECIFIED: _JobState.ValueType  # 0
+    """No value selected; not a usable concrete choice."""
     JOB_STATE_QUEUED: _JobState.ValueType  # 1
     """Checked, and waiting for the jobs before it."""
     JOB_STATE_CHECKING: _JobState.ValueType  # 2
+    """Validating the submitted spec."""
     JOB_STATE_RUNNING: _JobState.ValueType  # 3
+    """Execution is in progress."""
     JOB_STATE_FINISHED: _JobState.ValueType  # 4
+    """All work completed successfully; final state."""
     JOB_STATE_FAILED: _JobState.ValueType  # 5
+    """Execution failed; reason explains the cause. Final state."""
     JOB_STATE_CANCELLED: _JobState.ValueType  # 6
+    """Execution was stopped or skipped after cancellation; final state."""
 
-class JobState(_JobState, metaclass=_JobStateEnumTypeWrapper): ...
+class JobState(_JobState, metaclass=_JobStateEnumTypeWrapper):
+    """The state of a job and its queue of runs."""
 
 JOB_STATE_UNSPECIFIED: JobState.ValueType  # 0
+"""No value selected; not a usable concrete choice."""
 JOB_STATE_QUEUED: JobState.ValueType  # 1
 """Checked, and waiting for the jobs before it."""
 JOB_STATE_CHECKING: JobState.ValueType  # 2
+"""Validating the submitted spec."""
 JOB_STATE_RUNNING: JobState.ValueType  # 3
+"""Execution is in progress."""
 JOB_STATE_FINISHED: JobState.ValueType  # 4
+"""All work completed successfully; final state."""
 JOB_STATE_FAILED: JobState.ValueType  # 5
+"""Execution failed; reason explains the cause. Final state."""
 JOB_STATE_CANCELLED: JobState.ValueType  # 6
+"""Execution was stopped or skipped after cancellation; final state."""
 Global___JobState: _TypeAlias = JobState  # noqa: Y015
 
 class _RunStatus:
@@ -56,20 +69,33 @@ class _RunStatus:
 class _RunStatusEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[_RunStatus.ValueType], _builtins.type):
     DESCRIPTOR: _descriptor.EnumDescriptor
     RUN_STATUS_UNSPECIFIED: _RunStatus.ValueType  # 0
+    """No value selected; not a usable concrete choice."""
     RUN_STATUS_PENDING: _RunStatus.ValueType  # 1
+    """Waiting for earlier runs in the job."""
     RUN_STATUS_RUNNING: _RunStatus.ValueType  # 2
+    """Execution is in progress."""
     RUN_STATUS_FINISHED: _RunStatus.ValueType  # 3
+    """All work completed successfully; final state."""
     RUN_STATUS_FAILED: _RunStatus.ValueType  # 4
+    """Execution failed; reason explains the cause. Final state."""
     RUN_STATUS_CANCELLED: _RunStatus.ValueType  # 5
+    """Execution was stopped or skipped after cancellation; final state."""
 
-class RunStatus(_RunStatus, metaclass=_RunStatusEnumTypeWrapper): ...
+class RunStatus(_RunStatus, metaclass=_RunStatusEnumTypeWrapper):
+    """The state of one run within a job."""
 
 RUN_STATUS_UNSPECIFIED: RunStatus.ValueType  # 0
+"""No value selected; not a usable concrete choice."""
 RUN_STATUS_PENDING: RunStatus.ValueType  # 1
+"""Waiting for earlier runs in the job."""
 RUN_STATUS_RUNNING: RunStatus.ValueType  # 2
+"""Execution is in progress."""
 RUN_STATUS_FINISHED: RunStatus.ValueType  # 3
+"""All work completed successfully; final state."""
 RUN_STATUS_FAILED: RunStatus.ValueType  # 4
+"""Execution failed; reason explains the cause. Final state."""
 RUN_STATUS_CANCELLED: RunStatus.ValueType  # 5
+"""Execution was stopped or skipped after cancellation; final state."""
 Global___RunStatus: _TypeAlias = RunStatus  # noqa: Y015
 
 @_typing.final
@@ -81,9 +107,13 @@ class SpecPeriod(_message.Message):
     START_AT_FIELD_NUMBER: _builtins.int
     END_AT_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def start_at(self) -> _timestamp_pb2.Timestamp: ...
+    def start_at(self) -> _timestamp_pb2.Timestamp:
+        """Start of the period, in UTC."""
+
     @_builtins.property
-    def end_at(self) -> _timestamp_pb2.Timestamp: ...
+    def end_at(self) -> _timestamp_pb2.Timestamp:
+        """End of the period, in UTC."""
+
     def __init__(
         self,
         *,
@@ -125,14 +155,23 @@ class SpecFile(_message.Message):
     capital: _builtins.str
     """A nautilus money string, such as "10000 USDT"."""
     seed: _builtins.int
+    """Random seed; absent uses the core default."""
     equity_interval: _builtins.str
+    """Equity sampling interval; absent uses the core default."""
     liquidation: _builtins.bool
+    """Whether to enable liquidation; absent uses the core default."""
     bars: _builtins.str
+    """Internal bar specification; absent uses the strategy default."""
     study: _builtins.str
+    """The study to append to; absent runs outside a study."""
     @_builtins.property
-    def instruments(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]: ...
+    def instruments(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
+        """Nautilus instrument identifiers in specification order."""
+
     @_builtins.property
-    def period(self) -> Global___SpecPeriod: ...
+    def period(self) -> Global___SpecPeriod:
+        """The complete period to run, before applying the split."""
+
     @_builtins.property
     def part(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
         """The parts to run: train, validation or test. Empty runs train and validation."""
@@ -231,6 +270,7 @@ class StrategyModule(_message.Message):
     name: _builtins.str
     """A Python identifier that no module of the server's image already has."""
     source: _builtins.str
+    """Python source of the complete module, encoded as UTF-8 text."""
     def __init__(
         self,
         *,
@@ -247,8 +287,11 @@ Global___StrategyModule: _TypeAlias = StrategyModule  # noqa: Y015
 
 @_typing.final
 class SubmitRun(_message.Message):
-    """Starts a job whose runs are the spec's expansion. The server answers once the
-    spec is checked: JobSubmitted, or an Error and no job.
+    """Starts a job after checking the spec; answers one JobSubmitted or Error and starts no
+    job on rejection. INVALID_ARGUMENT means an invalid spec, module, missing input data
+    or study conflict; NOT_FOUND means a venue has no source. Strategy source executes
+    only in a job process and can import only installed packages. Each run stores its
+    strategy source with its results.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
@@ -256,9 +299,13 @@ class SubmitRun(_message.Message):
     SPEC_FIELD_NUMBER: _builtins.int
     STRATEGY_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def spec(self) -> Global___SpecFile: ...
+    def spec(self) -> Global___SpecFile:
+        """The spec file table to validate and expand into runs."""
+
     @_builtins.property
-    def strategy(self) -> Global___StrategyModule: ...
+    def strategy(self) -> Global___StrategyModule:
+        """The uploaded module that defines the strategy named by spec.strategy."""
+
     def __init__(
         self,
         *,
@@ -275,11 +322,14 @@ Global___SubmitRun: _TypeAlias = SubmitRun  # noqa: Y015
 
 @_typing.final
 class JobSubmitted(_message.Message):
+    """Accepts a checked spec. Jobs run one at a time, in submission order."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     JOB_ID_FIELD_NUMBER: _builtins.int
     RUN_IDS_FIELD_NUMBER: _builtins.int
     job_id: _builtins.str
+    """The identifier of a job in this server process."""
     @_builtins.property
     def run_ids(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
         """The runs the job makes, in the order the spec expands into them."""
@@ -300,13 +350,17 @@ Global___JobSubmitted: _TypeAlias = JobSubmitted  # noqa: Y015
 
 @_typing.final
 class RunState(_message.Message):
+    """The current state of one run inside a job."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     RUN_ID_FIELD_NUMBER: _builtins.int
     STATE_FIELD_NUMBER: _builtins.int
     REASON_FIELD_NUMBER: _builtins.int
     run_id: _builtins.str
+    """The stored run identifier."""
     state: Global___RunStatus.ValueType
+    """Current state; a final state ends further updates."""
     reason: _builtins.str
     """Why the run failed; empty otherwise."""
     def __init__(
@@ -326,6 +380,10 @@ Global___RunState: _TypeAlias = RunState  # noqa: Y015
 
 @_typing.final
 class Job(_message.Message):
+    """A job held for the lifetime of the server process. The first failed run fails the job
+    and cancels later runs.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     JOB_ID_FIELD_NUMBER: _builtins.int
@@ -333,11 +391,15 @@ class Job(_message.Message):
     RUNS_FIELD_NUMBER: _builtins.int
     REASON_FIELD_NUMBER: _builtins.int
     job_id: _builtins.str
+    """The identifier of a job in this server process."""
     state: Global___JobState.ValueType
+    """Current state; a final state ends further updates."""
     reason: _builtins.str
     """Why a failed job failed when no run is to blame; empty otherwise."""
     @_builtins.property
-    def runs(self) -> _containers.RepeatedCompositeFieldContainer[Global___RunState]: ...
+    def runs(self) -> _containers.RepeatedCompositeFieldContainer[Global___RunState]:
+        """Every run in spec expansion order, including unfinished runs."""
+
     def __init__(
         self,
         *,
@@ -356,14 +418,15 @@ Global___Job: _TypeAlias = Job  # noqa: Y015
 
 @_typing.final
 class CancelJob(_message.Message):
-    """Stops the job; its runs not finished become cancelled. Cancelling a finished
-    job does nothing.
+    """Stops a job and cancels unfinished runs; answers one JobCancelled. A finished job is
+    unchanged. NOT_FOUND means the job is unknown.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
 
     JOB_ID_FIELD_NUMBER: _builtins.int
     job_id: _builtins.str
+    """The identifier of a job in this server process."""
     def __init__(
         self,
         *,
@@ -379,6 +442,8 @@ Global___CancelJob: _TypeAlias = CancelJob  # noqa: Y015
 
 @_typing.final
 class JobCancelled(_message.Message):
+    """Acknowledges a cancellation, including a job that was already finished."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     def __init__(
@@ -394,6 +459,10 @@ Global___JobCancelled: _TypeAlias = JobCancelled  # noqa: Y015
 
 @_typing.final
 class ListJobs(_message.Message):
+    """Lists jobs held by this server process as one Jobs reply. Only the common
+    ClientMessage errors apply.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     def __init__(
@@ -409,11 +478,15 @@ Global___ListJobs: _TypeAlias = ListJobs  # noqa: Y015
 
 @_typing.final
 class Jobs(_message.Message):
+    """Jobs held by the current server process, including finished jobs."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     JOBS_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def jobs(self) -> _containers.RepeatedCompositeFieldContainer[Global___Job]: ...
+    def jobs(self) -> _containers.RepeatedCompositeFieldContainer[Global___Job]:
+        """Jobs known to this server process."""
+
     def __init__(
         self,
         *,
@@ -429,14 +502,17 @@ Global___Jobs: _TypeAlias = Jobs  # noqa: Y015
 
 @_typing.final
 class SubscribeJob(_message.Message):
-    """Follows a job: JobSubscribed first, then a JobUpdate push for each change,
-    at most a few a second, the last one when the job is over.
+    """Follows a job: one JobSubscribed reply, then JobUpdate pushes with request_id 0 and
+    the assigned subscription_id. Updates are sent at most four times a second; a large
+    update can use several messages. The final state ends the subscription. NOT_FOUND
+    means the job is unknown.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
 
     JOB_ID_FIELD_NUMBER: _builtins.int
     job_id: _builtins.str
+    """The identifier of a job in this server process."""
     def __init__(
         self,
         *,
@@ -452,6 +528,10 @@ Global___SubscribeJob: _TypeAlias = SubscribeJob  # noqa: Y015
 
 @_typing.final
 class JobSubscribed(_message.Message):
+    """The initial subscription reply: current job state and recent log lines. On reconnect,
+    subscribe again to obtain a new subscription and current state.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     SUBSCRIPTION_ID_FIELD_NUMBER: _builtins.int
@@ -460,7 +540,9 @@ class JobSubscribed(_message.Message):
     subscription_id: _builtins.int
     """Names the subscription in the pushes that follow, and in Unsubscribe."""
     @_builtins.property
-    def job(self) -> Global___Job: ...
+    def job(self) -> Global___Job:
+        """The complete current job state at subscription time."""
+
     @_builtins.property
     def log_lines(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
         """The latest lines the job printed, oldest first."""
@@ -482,7 +564,11 @@ Global___JobSubscribed: _TypeAlias = JobSubscribed  # noqa: Y015
 
 @_typing.final
 class JobUpdate(_message.Message):
-    """A push of a subscription, with the run states that changed."""
+    """A push with changed run states and stdout/stderr lines in print order, without
+    the run that printed them. A large update sends log lines first, then runs,
+    and the job state in its last message. Unset state in earlier messages does
+    not end the subscription.
+    """
 
     DESCRIPTOR: _descriptor.Descriptor
 
@@ -491,9 +577,13 @@ class JobUpdate(_message.Message):
     STATE_FIELD_NUMBER: _builtins.int
     REASON_FIELD_NUMBER: _builtins.int
     state: Global___JobState.ValueType
+    """Current state; a final state ends further updates."""
     reason: _builtins.str
+    """Failure reason; empty when no failure applies."""
     @_builtins.property
-    def runs(self) -> _containers.RepeatedCompositeFieldContainer[Global___RunState]: ...
+    def runs(self) -> _containers.RepeatedCompositeFieldContainer[Global___RunState]:
+        """Only runs whose states changed since the preceding update."""
+
     @_builtins.property
     def log_lines(self) -> _containers.RepeatedScalarFieldContainer[_builtins.str]:
         """Lines of the job's stdout and stderr, in the order they were printed."""
@@ -516,10 +606,16 @@ Global___JobUpdate: _TypeAlias = JobUpdate  # noqa: Y015
 
 @_typing.final
 class Unsubscribe(_message.Message):
+    """Stops a subscription on this connection and answers one Unsubscribed. An unknown ID,
+    or an ID from another connection, is ignored. Only the common ClientMessage errors
+    apply.
+    """
+
     DESCRIPTOR: _descriptor.Descriptor
 
     SUBSCRIPTION_ID_FIELD_NUMBER: _builtins.int
     subscription_id: _builtins.int
+    """The subscription identifier assigned on this connection."""
     def __init__(
         self,
         *,
@@ -535,6 +631,8 @@ Global___Unsubscribe: _TypeAlias = Unsubscribe  # noqa: Y015
 
 @_typing.final
 class Unsubscribed(_message.Message):
+    """Acknowledges an unsubscribe request, including an unknown subscription."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     def __init__(
@@ -550,18 +648,19 @@ Global___Unsubscribed: _TypeAlias = Unsubscribed  # noqa: Y015
 
 @_typing.final
 class DescribeStrategy(_message.Message):
-    """Asks for the parameter schema of a strategy module. The server imports the
-    module in a process of its own, never in its own. A module with no strategy
-    or more than one, one that fails to import or takes too long to, one with a
-    parameter of an unsupported type, or a name the image already has, answers
-    INVALID_ARGUMENT.
+    """Returns one StrategySchema for the uploaded module. It imports in a separate process,
+    outside the job queue. INVALID_ARGUMENT means no concrete strategy or more than one,
+    an import failure or timeout after 30 seconds, an unsupported parameter type, or an
+    invalid or installed module name.
     """
 
     DESCRIPTOR: _descriptor.Descriptor
 
     STRATEGY_FIELD_NUMBER: _builtins.int
     @_builtins.property
-    def strategy(self) -> Global___StrategyModule: ...
+    def strategy(self) -> Global___StrategyModule:
+        """The complete uploaded Python module to inspect."""
+
     def __init__(
         self,
         *,
@@ -577,6 +676,8 @@ Global___DescribeStrategy: _TypeAlias = DescribeStrategy  # noqa: Y015
 
 @_typing.final
 class StrategyParameter(_message.Message):
+    """One parameter of the strategy Params type."""
+
     DESCRIPTOR: _descriptor.Descriptor
 
     NAME_FIELD_NUMBER: _builtins.int
@@ -585,8 +686,11 @@ class StrategyParameter(_message.Message):
     DEFAULT_FIELD_NUMBER: _builtins.int
     CHOICES_FIELD_NUMBER: _builtins.int
     name: _builtins.str
+    """The name used to identify this record."""
     type: _config_pb2.ParameterType.ValueType
+    """The representation used for this parameter."""
     required: _builtins.bool
+    """True when the caller must supply this parameter."""
     @_builtins.property
     def default(self) -> _struct_pb2.Value:
         """Absent when the parameter is required. A decimal is a string."""
@@ -631,7 +735,9 @@ class StrategySchema(_message.Message):
     params_description: _builtins.str
     """The docstring of its Params; empty when it has none."""
     @_builtins.property
-    def parameters(self) -> _containers.RepeatedCompositeFieldContainer[Global___StrategyParameter]: ...
+    def parameters(self) -> _containers.RepeatedCompositeFieldContainer[Global___StrategyParameter]:
+        """The parameters of the strategy Params type, including Literal choices."""
+
     def __init__(
         self,
         *,
