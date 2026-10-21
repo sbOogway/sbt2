@@ -46,6 +46,12 @@ def last_price_before(hour: int) -> float:
     return float(price_in_hour(hour - 1))
 
 
+def open_of(hour: int) -> float:
+    """The open of the hour's first bar, where an order sent as the hour starts
+    fills."""
+    return float(price_in_hour(hour))
+
+
 def fee(price: float) -> float:
     return CONTRACTS / price * TAKER_RATE
 
@@ -65,7 +71,7 @@ def test_a_run_on_the_deribit_perpetual_values_its_position_at_the_bar_close(
         )
         if ts < at_hour(10)
     )
-    open_price, mark = last_price_before(OPEN_HOUR), last_price_before(10)
+    open_price, mark = open_of(OPEN_HOUR), last_price_before(10)
     open_gain = CONTRACTS * (1 / open_price - 1 / mark)
     assert equity[at_hour(10)] == pytest.approx(
         1 - fee(open_price) + paid + open_gain, abs=TOLERANCE
@@ -96,10 +102,7 @@ def test_the_pl_of_an_inverse_perpetual_is_in_the_coin(
 ) -> None:
     store, run_id = run(tmp_path, catalog)
 
-    open_price, close_price = (
-        last_price_before(OPEN_HOUR),
-        last_price_before(CLOSE_HOUR),
-    )
+    open_price, close_price = open_of(OPEN_HOUR), open_of(CLOSE_HOUR)
     gain = CONTRACTS * (1 / open_price - 1 / close_price)
     fees = fee(open_price) + fee(close_price)
     positions = store.load(run_id, "positions")

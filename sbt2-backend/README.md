@@ -83,6 +83,8 @@ bar = "1-HOUR-LAST"
 quantity = "0.100"
 ```
 
+With `bars = "candles"`, an order sent on a bar's close fills at the open of the next candle, or at that close when the next candle is missing or after the run. Set `fills = "close"` in `[execution]` to fill at the close.
+
 `sbt2 run` ends with the headline metrics of each part. Results are stored under `$SBT2_DATA/results`; list them with `uv run sbt2 runs list`, and write a run's tearsheet with `uv run sbt2 report tearsheet <run_id>`.
 
 ## Notebook lab

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from nautilus_trader.core import dt_to_unix_nanos
-from nautilus_trader.model import Bar, Price, Quantity
+from nautilus_trader.model import Bar, MarkPriceUpdate, Price, Quantity
 from nautilus_trader.persistence import ParquetDataCatalog
 from synthetic_catalog import START
 
@@ -43,3 +43,15 @@ def write_candles(path: Path, instrument: Any, candles: Sequence[Candle]) -> Non
     catalog = ParquetDataCatalog(str(path))
     catalog.write_instruments([instrument])
     catalog.write_bars([each.bar(instrument) for each in candles])
+
+
+def write_marks(path: Path, instrument: Any, candles: Sequence[Candle]) -> None:
+    """A mark at each candle's close price, at the time the catalog holds it."""
+    bars = [each.bar(instrument) for each in candles]
+    marks = [
+        MarkPriceUpdate(instrument.id, bar.close, bar.ts_event, bar.ts_event)
+        for bar in bars
+    ]
+    ParquetDataCatalog(str(path)).write_mark_price_updates(
+        marks, marks[0].ts_event, marks[-1].ts_event
+    )

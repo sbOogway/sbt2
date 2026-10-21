@@ -15,7 +15,7 @@ from nautilus_trader.model import InstrumentId, Money, NautilusDataType
 from nautilus_trader.risk import RiskEngineConfig
 
 from sbt2.core.assets import AssetProfile, ChainFeeds, ChainJob, QuoteJob
-from sbt2.core.spec.bars import Fills
+from sbt2.core.spec.bars import BarSource, Fills, aggregating
 from sbt2.core.spec.resolve.canonical import canonical_hash, canonical_json
 from sbt2.core.spec.resolve.data import data_arguments
 from sbt2.core.spec.resolve.document import spec_fields
@@ -106,6 +106,11 @@ class ResolvedRunSpec:
     def currency(self) -> str:
         """The reporting currency: the one of the first starting balance."""
         return self.currencies[0]
+
+    @property
+    def bars(self) -> BarSource:
+        """What the declared bars are built from."""
+        return aggregating(self.strategy.aggregated_from)
 
     @property
     def liquidation_enabled(self) -> bool:
@@ -201,7 +206,7 @@ class ResolvedRunSpec:
         self,
         catalog_path: str,
         engine: Mapping[str, Any] | None = None,
-        quotes: Sequence[BacktestDataConfig] = (),
+        made: Sequence[BacktestDataConfig] = (),
         **machine: Any,
     ) -> BacktestRunConfig:
         """The nautilus run config, reading data from ``catalog_path``.
@@ -209,7 +214,8 @@ class ResolvedRunSpec:
         ``engine`` and ``machine`` hold ``BacktestEngineConfig`` and
         ``BacktestRunConfig`` arguments that never change the results, such as
         ``logging`` or ``chunk_size``; like the catalog path, they are not hashed.
-        ``quotes`` stream the quotes made at run time.
+        ``made`` stream the data made at run time: the quotes, and the data the
+        orders fill on.
         """
         return BacktestRunConfig(
             [self._venue_config(), *feed_venues(self.feeds, self.venue_name)],
@@ -219,7 +225,7 @@ class ResolvedRunSpec:
                     for arguments in self.data
                 ),
                 *feed_data(self.feeds, catalog_path, self.data_window),
-                *quotes,
+                *made,
             ],
             engine=BacktestEngineConfig(
                 portfolio=self.asset.portfolio_config(self.equity_interval_ms),

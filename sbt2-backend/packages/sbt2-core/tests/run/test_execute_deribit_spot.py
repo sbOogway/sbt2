@@ -14,8 +14,9 @@ from sbt2.data import Catalog
 CAPITAL = 100_000.0
 TAKER = 0.0005
 COINS = 0.5
-ENTRY = 50_200.0
-EXIT = 52_200.0
+# Each order fills at the open of the hour after the bar that sent it.
+ENTRY = 50_300.0
+EXIT = 52_300.0
 TOLERANCE = 1e-6
 # The equity is sampled every hour from the first fill on; the close before
 # 10:00 is the one of hour 9.

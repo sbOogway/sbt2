@@ -19,10 +19,17 @@ def bar_source(name: str) -> BarSource:
     raise UnknownBarSourceError(f"bars {name!r} is not one of {known}")
 
 
+def aggregating(aggregated_from: str | None) -> BarSource:
+    """The bar source whose bars are aggregated from ``aggregated_from``."""
+    [found] = [each for each in _BAR_SOURCES if each.aggregated_from == aggregated_from]
+    return found
+
+
 __all__ = [
     "BarSource",
     "CandleBarError",
     "Fills",
     "UnknownBarSourceError",
+    "aggregating",
     "bar_source",
 ]
