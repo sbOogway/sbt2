@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Publishes the release that make build left in $RELEASE_DIR. Refuses unless that build is of
 # the current origin/main. Drafts the release, uploads the files, pushes the image and sends the
-# protocol reference to the Pages branch. Last, it pushes the tags of the older merges and publishes, which creates the release's tag on GitHub.
-# A re-run finishes the draft. Then it updates the sbt2-server service on this machine, if there
-# is one, and removes the build.
+# protocol reference to the Pages branch. Last, it pushes the tags of the older merges and
+# publishes, which creates the release's tag on GitHub. A re-run finishes the draft. Then it
+# updates the sbt2-server service on this machine, if there is one, and removes the build.
 # Needs GH_TOKEN or a gh login, GHCR_TOKEN (classic, write:packages), and the signing key in
 # SBT2_SIGNING_KEY with its passphrase in SBT2_SIGNING_PASSPHRASE_FILE.
 set -euo pipefail
