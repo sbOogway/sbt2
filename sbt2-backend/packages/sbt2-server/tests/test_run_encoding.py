@@ -5,8 +5,8 @@ import pytest
 from runs_kit import spec_message
 
 from sbt2.protocol.v1.runs_pb2 import SpecFile
-from sbt2.server.runs.encoding import InvalidArgumentError, spec_table
-from sbt2.server.runs.wire import (
+from sbt2.server.handlers.runs.encoding import InvalidArgumentError, spec_table
+from sbt2.server.handlers.runs.wire import (
     Conflict,
     ConflictKind,
     Rejected,

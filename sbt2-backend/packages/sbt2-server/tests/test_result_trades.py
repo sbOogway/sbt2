@@ -9,7 +9,7 @@ from sbt2.core import results as core
 from sbt2.core.config import Root
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
 from sbt2.protocol.v1.results_pb2 import GetSeries, SeriesKind
-from sbt2.server.results import routes
+from sbt2.server.handlers.results import routes
 
 
 def series(path: Path, run_id: str, kind: SeriesKind.ValueType) -> list[ServerMessage]:

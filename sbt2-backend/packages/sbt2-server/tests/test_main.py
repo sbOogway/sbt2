@@ -9,8 +9,8 @@ from typer.testing import CliRunner
 from sbt2.protocol.v1.envelope_pb2 import Capability, ClientMessage, Welcome
 from sbt2.protocol.v1.results_pb2 import ListRuns
 from sbt2.protocol.v1.runs_pb2 import DescribeStrategy, StrategyModule
-from sbt2.server import Address, Server, strategies
-from sbt2.server.cli import app
+from sbt2.server import Address, Server
+from sbt2.server.main import app
 
 runner = CliRunner()
 

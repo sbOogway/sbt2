@@ -13,7 +13,7 @@ from sbt2.protocol.v1.config_pb2 import ParameterType
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
 from sbt2.protocol.v1.runs_pb2 import DescribeStrategy, StrategyModule
 from sbt2.protocol.v1.types_pb2 import ErrorCode
-from sbt2.server import strategies
+from sbt2.server.handlers import strategies
 
 
 def in_one_loop(scenario: Awaitable[None]) -> None:

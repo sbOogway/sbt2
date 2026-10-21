@@ -37,14 +37,13 @@ from sbt2.protocol.v1.runs_pb2 import (
     Unsubscribe,
 )
 from sbt2.protocol.v1.types_pb2 import ErrorCode, StudyConflictKind
-from sbt2.server import results
-from sbt2.server import runs as area
-from sbt2.server.limits import MAX_ENVELOPE
-from sbt2.server.runs.jobs import Jobs, Submission, Subscription
-from sbt2.server.runs.lines import LINE_LIMIT, Lines
-from sbt2.server.runs.memory import InMemoryJobs
-from sbt2.server.runs.pushes import update_messages
-from sbt2.server.runs.wire import (
+from sbt2.server.handlers import results
+from sbt2.server.handlers import runs as area
+from sbt2.server.handlers.runs.jobs import Jobs, Submission, Subscription
+from sbt2.server.handlers.runs.lines import LINE_LIMIT, Lines
+from sbt2.server.handlers.runs.memory import InMemoryJobs
+from sbt2.server.handlers.runs.pushes import update_messages
+from sbt2.server.handlers.runs.wire import (
     Done,
     Exited,
     Failed,
@@ -53,6 +52,7 @@ from sbt2.server.runs.wire import (
     Planned,
     Started,
 )
+from sbt2.server.limits import MAX_ENVELOPE
 
 type Scenario = Callable[[Session, Jobs], Awaitable[None]]
 

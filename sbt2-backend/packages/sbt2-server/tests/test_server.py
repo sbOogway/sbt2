@@ -21,7 +21,7 @@ from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage, Welcome
 from sbt2.protocol.v1.results_pb2 import GetSeries, GetTearsheet, ListRuns, SeriesKind
 from sbt2.protocol.v1.types_pb2 import ErrorCode
 from sbt2.server import Outbox, Server, Settings, offloaded
-from sbt2.server.results import routes
+from sbt2.server.handlers.results import routes
 
 
 async def refusal(

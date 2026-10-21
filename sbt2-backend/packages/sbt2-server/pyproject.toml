@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-sbt2-server = "sbt2.server.cli:app"
+sbt2-server = "sbt2.server.main:app"
 
 [build-system]
 requires = ["hatchling>=1.27", "uv-dynamic-versioning>=0.8"]

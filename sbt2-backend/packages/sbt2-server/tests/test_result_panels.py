@@ -18,7 +18,7 @@ from sbt2.protocol.v1.results_pb2 import (
     PanelKind,
 )
 from sbt2.protocol.v1.types_pb2 import ErrorCode
-from sbt2.server.results import routes
+from sbt2.server.handlers.results import routes
 
 FIELDS = {
     PanelKind.PANEL_KIND_RETURNS: "returns",

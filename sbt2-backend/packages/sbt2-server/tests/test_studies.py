@@ -12,8 +12,8 @@ from sbt2.core.config import Root
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage
 from sbt2.protocol.v1.results_pb2 import GetStudy, ListStudies
 from sbt2.protocol.v1.types_pb2 import ErrorCode
+from sbt2.server.handlers.results import routes
 from sbt2.server.limits import MAX_ENVELOPE
-from sbt2.server.results import routes
 
 STUDIES = {
     "sweep": [{"hold_bars": 2}, {"hold_bars": 3}],

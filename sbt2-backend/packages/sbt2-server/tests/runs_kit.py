@@ -22,9 +22,9 @@ from sbt2.protocol.v1.runs_pb2 import (
     SubmitRun,
 )
 from sbt2.server import Handler, Router
-from sbt2.server.runs.jobs import Jobs, Submission, Subscription
-from sbt2.server.runs.wire import Event, Exited
-from sbt2.server.runs.workers import Worker, Workers
+from sbt2.server.handlers.runs.jobs import Jobs, Submission, Subscription
+from sbt2.server.handlers.runs.wire import Event, Exited
+from sbt2.server.handlers.runs.workers import Worker, Workers
 
 _PLAIN = (
     "strategy",

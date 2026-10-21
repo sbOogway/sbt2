@@ -10,7 +10,7 @@ from nautilus_trader.model import BarSpecification
 from sbt2.core.strategy import Strategy
 from sbt2.protocol.v1.config_pb2 import ParameterType
 from sbt2.protocol.v1.runs_pb2 import StrategyParameter
-from sbt2.server.strategies.encoding import describe
+from sbt2.server.handlers.strategies.encoding import describe
 
 
 @dataclass(frozen=True)

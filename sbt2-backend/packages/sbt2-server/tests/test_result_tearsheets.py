@@ -18,7 +18,7 @@ from sbt2.protocol.v1.results_pb2 import (
     GetTearsheet,
 )
 from sbt2.protocol.v1.types_pb2 import ErrorCode
-from sbt2.server.results import routes
+from sbt2.server.handlers.results import routes
 
 ETH = "ETHUSDT-LINEAR.BYBIT"
 BENCHMARKED = """

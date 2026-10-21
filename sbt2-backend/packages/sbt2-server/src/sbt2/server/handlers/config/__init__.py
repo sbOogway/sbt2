@@ -10,7 +10,7 @@ from sbt2.protocol.v1.config_pb2 import ConfigWritten, KnownGaps
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
 from sbt2.protocol.v1.types_pb2 import Error, ErrorCode
 from sbt2.server import Handler, Outbox, offloaded
-from sbt2.server.config.encoding import (
+from sbt2.server.handlers.config.encoding import (
     InvalidArgumentError,
     gap_message,
     listed_gap,

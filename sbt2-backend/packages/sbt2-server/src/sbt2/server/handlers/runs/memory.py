@@ -14,14 +14,14 @@ from sbt2.protocol.v1.runs_pb2 import (
     RunStatus,
 )
 from sbt2.protocol.v1.types_pb2 import StudyConflict, StudyConflictKind
-from sbt2.server.runs.jobs import (
+from sbt2.server.handlers.runs.jobs import (
     InvalidSubmissionError,
     Jobs,
     NotFoundError,
     Submission,
     Subscription,
 )
-from sbt2.server.runs.wire import (
+from sbt2.server.handlers.runs.wire import (
     Conflict,
     ConflictKind,
     Crashed,
@@ -36,7 +36,7 @@ from sbt2.server.runs.wire import (
     Rejection,
     Started,
 )
-from sbt2.server.runs.workers import Worker, Workers
+from sbt2.server.handlers.runs.workers import Worker, Workers
 
 LOG_LINES = 200
 

@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 
-from sbt2.server.runs.jobs import Submission
-from sbt2.server.runs.wire import Event
+from sbt2.server.handlers.runs.jobs import Submission
+from sbt2.server.handlers.runs.wire import Event
 
 
 class Worker(ABC):
