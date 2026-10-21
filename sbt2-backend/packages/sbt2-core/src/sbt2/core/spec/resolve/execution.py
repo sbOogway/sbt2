@@ -54,7 +54,7 @@ def execution(
     source = _source(instruments[0])
     asset = _asset(source, instruments)
     _check(table)
-    arguments = {"name": venue, **_served(source, asset, instruments[0]), **table}
+    arguments = {"name": venue, **_served(source, instruments[0]), **table}
     return Execution(asset, source.name, _completed(asset, arguments))
 
 
@@ -97,14 +97,10 @@ def _profile(
         raise InvalidExecutionError(str(error)) from error
 
 
-def _served(
-    source: Source, asset: AssetProfile, instrument: InstrumentId
-) -> dict[str, Any]:
-    """The settings the source's data decides: a perpetual whose source serves no
-    marks takes them from the bars."""
-    if asset.instrument_class == InstrumentClass.SWAP and not source.serves_marks(
-        instrument
-    ):
+def _served(source: Source, instrument: InstrumentId) -> dict[str, Any]:
+    """The settings the source's data decides: an instrument whose source serves
+    no marks takes them from the bars."""
+    if not source.serves_marks(instrument):
         return {"marks": "bars"}
     return {}
 

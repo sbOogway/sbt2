@@ -26,8 +26,8 @@ class NoMarksError(LookupError):
     pass
 
 
-class PerpMarks(QuoteConvention):
-    """The mark prices of a perpetual: the ones the catalog holds, or, when the
+class Marks(QuoteConvention):
+    """The mark prices of an instrument: the ones the catalog holds, or, when the
     venue's ``marks`` setting is ``"bars"``, the close of each 1-minute bar, for
     a venue that serves no mark history."""
 

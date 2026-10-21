@@ -92,13 +92,18 @@ class DeribitSource(Source):
     def asset_classes(
         self, instrument_id: InstrumentId
     ) -> tuple[AssetClass, InstrumentClass]:
-        if instrument_id.symbol.value in perpetual.SYMBOLS:
+        name = instrument_id.symbol.value
+        if name in perpetual.SYMBOLS:
             return AssetClass.CRYPTOCURRENCY, InstrumentClass.SWAP
+        if name in futures.SYMBOLS or futures.symbol_of_contract(name) is not None:
+            return AssetClass.CRYPTOCURRENCY, InstrumentClass.FUTURE
+        if name in spot.SYMBOLS:
+            return AssetClass.CRYPTOCURRENCY, InstrumentClass.SPOT
         return AssetClass.CRYPTOCURRENCY, InstrumentClass.OPTION
 
     @override
     def serves_marks(self, instrument_id: InstrumentId) -> bool:
-        return instrument_id.symbol.value not in perpetual.SYMBOLS
+        return self.asset_classes(instrument_id)[1] == InstrumentClass.OPTION
 
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         if symbol in perpetual.SYMBOLS:

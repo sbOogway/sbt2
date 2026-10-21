@@ -180,7 +180,7 @@ def _write_output(finished: _Finished, sink: OutputSink) -> None:
     cache = backtest.node.get_engine_cache(backtest.config_id)
     account = _account(cache, backtest.venue)
     portfolio = backtest.node.get_engine_portfolio(backtest.config_id)
-    if len(spec.currencies) > 1:
+    if finished.rates.prices:
         sink.use_rates(finished.rates)
     sink.write_equity(
         portfolio.snapshots(account.id), spec.asset.equity.corrections(cache)

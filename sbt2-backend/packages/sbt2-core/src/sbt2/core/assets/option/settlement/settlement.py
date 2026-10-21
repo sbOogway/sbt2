@@ -1,17 +1,9 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import Decimal
 from typing import Any, Self
 
-from nautilus_trader.model import CryptoOption, OptionKind, Price, Quantity, QuoteTick
-
-from sbt2.core.assets.option.quotes.quotes import QUOTE_SIZE
-
-# The strategy settles its position one nanosecond before the expiry, as nautilus
-# rejects the orders of an expired contract; the quote of the settlement price comes
-# before that. Nautilus fires a timer only when the next data arrives, so a second
-# quote at the expiry itself makes sure it fires.
-_SETTLEMENT_NS_BEFORE_EXPIRY = 2
+from nautilus_trader.model import CryptoOption, OptionKind
 
 
 def settlement_price(contract: CryptoOption, delivery: Decimal) -> Decimal:
@@ -48,18 +40,3 @@ class DeliveryFee:
 
     def amount(self, underlying: Decimal, value: Decimal) -> Decimal:
         return min(self.rate * underlying, self.cap_rate * value)
-
-
-def settlement_quotes(contract: CryptoOption, price: Decimal) -> list[QuoteTick]:
-    """The last quotes of the contract: ``price`` to the tick as bid and ask just
-    before the expiry, and again at the expiry. A market order then fills at the
-    settlement price."""
-    tick = Decimal(str(contract.price_increment))
-    ticks = (price / tick).quantize(Decimal(1), rounding=ROUND_HALF_EVEN)
-    settled = Price(float(ticks * tick), contract.price_precision)
-    size = Quantity(QUOTE_SIZE, contract.size_precision)
-    expiry = contract.expiration_ns
-    return [
-        QuoteTick(contract.id, settled, settled, size, size, ts, ts)
-        for ts in (expiry - _SETTLEMENT_NS_BEFORE_EXPIRY, expiry)
-    ]
