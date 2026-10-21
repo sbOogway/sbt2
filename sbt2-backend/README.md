@@ -87,9 +87,10 @@ quantity = "0.100"
 
 ## Notebook lab
 
-`sbt2-lab` runs strategies on a server from a Jupyter notebook. Install it with the `lab` extra: `uv pip install 'sbt2[lab] @ git+https://github.com/sbOogway/sbt2.git#subdirectory=sbt2-backend'`. In this repository, [sbt2-notebooks/](../sbt2-notebooks) has an environment and an example ready to use. Put the strategy in a module of its own, for example `my_strats.py` next to the notebook:
+`sbt2-lab` runs strategies on a server from a Jupyter notebook. Install it with the `lab` extra: `uv pip install 'sbt2[lab] @ git+https://github.com/sbOogway/sbt2.git#subdirectory=sbt2-backend'`. In this repository, [sbt2-notebooks/](../sbt2-notebooks) has an environment and an example ready to use. Put the strategy in a module of its own, for example `my_strats.py` next to the notebook, and import the class:
 
 ```python
+from my_strats import Cross
 from sbt2.lab import Lab
 
 lab = await Lab.connect("ws://localhost:8765", token)
@@ -107,13 +108,13 @@ runs = await lab.run(
         "split": {"validation": 0.2, "test": 0.2},
         "params": {"fast": [5, 10]},
     },
-    "my_strats:Cross",
+    Cross,
 )
 runs  # the headline metrics, one row per run
 await runs[0].tearsheet()
 ```
 
-The lab sends the module as source and does not run it. The module can import only what the server has: sbt2, nautilus and the standard library. A run also gives `metrics()`, `equity()`, `fills()` and `panel(kind)`.
+The lab sends the module that defines the class as source and does not run it. `lab.run` takes the class, not a string. The module can import only what the server has: sbt2, nautilus and the standard library. A run also gives `metrics()`, `equity()`, `fills()` and `panel(kind)`.
 
 ## Deployment
 

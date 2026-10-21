@@ -1,7 +1,7 @@
 import asyncio
 
 import pytest
-from lab_kit import TOKEN, FakeServer, run, serve_job, summary
+from lab_kit import TOKEN, FakeServer, cross, run, serve_job, summary
 
 from sbt2.lab import Lab
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
@@ -42,7 +42,7 @@ def test_concurrent_requests_get_their_own_replies() -> None:
 
     async def scenario(url: str) -> None:
         async with await Lab.connect(url, TOKEN) as lab:
-            first, second = await lab.run(SPEC, "my_strats:Cross")
+            first, second = await lab.run(SPEC, cross())
             metrics = await asyncio.gather(first.metrics(), second.metrics())
             names.extend(each.iloc[0]["name"] for each in metrics)
 

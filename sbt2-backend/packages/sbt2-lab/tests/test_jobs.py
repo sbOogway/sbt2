@@ -2,7 +2,16 @@ import logging
 
 import pandas as pd
 import pytest
-from lab_kit import TOKEN, FakeServer, finished, replying, run, serve_job, summary
+from lab_kit import (
+    TOKEN,
+    FakeServer,
+    cross,
+    finished,
+    replying,
+    run,
+    serve_job,
+    summary,
+)
 
 from sbt2.lab import JobFailedError, Lab, Runs, ServerError
 from sbt2.protocol.v1.envelope_pb2 import ServerMessage
@@ -21,7 +30,6 @@ SPEC = {
     "capital": "10000 USDT",
     "split": {"validation": 0.2, "test": 0.2},
 }
-STRATEGY = "my_strats:Cross"
 
 
 def ran(server: FakeServer) -> Runs:
@@ -29,7 +37,7 @@ def ran(server: FakeServer) -> Runs:
 
     async def scenario(url: str) -> None:
         async with await Lab.connect(url, TOKEN) as lab:
-            runs.append(await lab.run(SPEC, STRATEGY))
+            runs.append(await lab.run(SPEC, cross()))
 
     run(scenario, server)
     return runs[0]
@@ -86,7 +94,7 @@ def test_a_failed_job_raises_with_the_reason_of_its_failed_run() -> None:
     async def scenario(url: str) -> None:
         async with await Lab.connect(url, TOKEN) as lab:
             with pytest.raises(JobFailedError, match="run-2: no data"):
-                await lab.run(SPEC, STRATEGY)
+                await lab.run(SPEC, cross())
 
     run(scenario, server)
 
@@ -103,7 +111,7 @@ def test_a_server_error_raises_with_its_code_and_message() -> None:
     async def scenario(url: str) -> None:
         async with await Lab.connect(url, TOKEN) as lab:
             with pytest.raises(ServerError) as raised:
-                await lab.run(SPEC, STRATEGY)
+                await lab.run(SPEC, cross())
             assert (raised.value.code, raised.value.message) == (
                 "ERROR_CODE_INVALID_ARGUMENT",
                 "bad venue",

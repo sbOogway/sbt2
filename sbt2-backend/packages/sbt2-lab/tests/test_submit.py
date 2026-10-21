@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 from google.protobuf import json_format
-from lab_kit import CROSS, TOKEN, FakeServer, run, serve_job, summary
+from lab_kit import CROSS, TOKEN, FakeServer, cross, run, serve_job, summary
 
 from sbt2.core.strategy import Strategy
 from sbt2.lab import Lab, StrategyModuleError
@@ -35,7 +35,7 @@ SPEC = {
 
 
 def submitted(
-    server: FakeServer, strategy: str | type[Strategy[Any]], spec: dict = SPEC
+    server: FakeServer, strategy: type[Strategy[Any]], spec: dict = SPEC
 ) -> None:
     serve_job(server, [summary("run-1")])
 
@@ -51,7 +51,7 @@ def submitted(
 def test_run_submits_the_spec_and_the_strategy_module() -> None:
     server = FakeServer()
 
-    submitted(server, "my_strats:Cross")
+    submitted(server, cross())
 
     [request] = server.received("submit_run")
     spec = request.submit_run.spec
@@ -89,7 +89,7 @@ def test_run_submits_the_spec_and_the_strategy_module() -> None:
 def test_the_lab_sends_a_capital_list() -> None:
     server = FakeServer()
 
-    submitted(server, "my_strats:Cross", {**SPEC, "capital": ["1 BTC", "20 ETH"]})
+    submitted(server, cross(), {**SPEC, "capital": ["1 BTC", "20 ETH"]})
 
     [request] = server.received("submit_run")
     spec = request.submit_run.spec
@@ -106,7 +106,7 @@ def test_a_strategy_in_a_package_is_sent_under_its_module_name(
     (strategies / "pkg" / "sub.py").write_text(CROSS)
     server = FakeServer()
 
-    submitted(server, "pkg.sub:Cross")
+    submitted(server, importlib.import_module("pkg.sub").Cross)
 
     [request] = server.received("submit_run")
     assert request.submit_run.spec.strategy == "sub:Cross"
@@ -119,25 +119,10 @@ def test_the_strategy_module_is_sent_without_running_it(strategies: Path) -> Non
     (strategies / "explosive.py").write_text(source)
     server = FakeServer()
 
-    submitted(server, "explosive:Cross")
+    submitted(server, strategy_in("explosive"))
 
     [request] = server.received("submit_run")
     assert request.submit_run.strategy.source == source
-
-
-@pytest.mark.integration
-@pytest.mark.usefixtures("strategies")
-def test_an_unknown_strategy_module_raises_before_anything_is_sent() -> None:
-    server = FakeServer()
-
-    async def scenario(url: str) -> None:
-        async with await Lab.connect(url, TOKEN) as lab:
-            with pytest.raises(StrategyModuleError, match="no_such_module"):
-                await lab.run(SPEC, "no_such_module:Cross")
-
-    run(scenario, server)
-
-    assert server.received("submit_run") == []
 
 
 @pytest.mark.integration
@@ -148,7 +133,7 @@ def test_a_spec_with_a_strategy_key_is_refused() -> None:
     async def scenario(url: str) -> None:
         async with await Lab.connect(url, TOKEN) as lab:
             with pytest.raises(ValueError, match="argument"):
-                await lab.run({**SPEC, "strategy": "x:Y"}, "my_strats:Cross")
+                await lab.run({**SPEC, "strategy": "x:Y"}, cross())
 
     run(scenario, server)
 
@@ -157,26 +142,21 @@ def test_a_spec_with_a_strategy_key_is_refused() -> None:
 
 @pytest.mark.integration
 def test_run_accepts_an_imported_strategy_class(strategies: Path) -> None:
-    strategy = importlib.import_module("my_strats").Cross
     server = FakeServer()
     serve_job(server, [summary("run-1")])
+    ids: list[str] = []
 
     async def scenario(url: str) -> None:
         async with await Lab.connect(url, TOKEN) as lab:
-            by_class = await lab.run(SPEC, strategy)
-            by_path = await lab.run(SPEC, "my_strats:Cross")
-            assert (
-                [each.run_id for each in by_class]
-                == [each.run_id for each in by_path]
-                == ["run-1"]
-            )
+            ids.extend(each.run_id for each in await lab.run(SPEC, cross()))
 
     run(scenario, server)
 
-    by_class, by_path = server.received("submit_run")
-    assert by_class.submit_run == by_path.submit_run
+    [request] = server.received("submit_run")
+    assert ids == ["run-1"]
+    assert request.submit_run.spec.strategy == "my_strats:Cross"
     assert (
-        by_class.submit_run.strategy.source == (strategies / "my_strats.py").read_text()
+        request.submit_run.strategy.source == (strategies / "my_strats.py").read_text()
     )
 
 
@@ -186,16 +166,13 @@ def test_a_strategy_class_uses_its_defining_module(strategies: Path) -> None:
     (strategies / "pkg" / "__init__.py").write_text("")
     (strategies / "pkg" / "sub.py").write_text(CROSS)
     (strategies / "reexport.py").write_text("from pkg.sub import Cross\n")
-    strategy = importlib.import_module("reexport").Cross
     server = FakeServer()
-    submitted(server, strategy)
-    submitted(server, "pkg.sub:Cross")
 
-    by_class, by_path = server.received("submit_run")
+    submitted(server, importlib.import_module("reexport").Cross)
 
-    assert by_class.submit_run == by_path.submit_run
-    assert by_class.submit_run.spec.strategy == "sub:Cross"
-    assert by_class.submit_run.strategy.source == CROSS
+    [request] = server.received("submit_run")
+    assert request.submit_run.spec.strategy == "sub:Cross"
+    assert request.submit_run.strategy.source == CROSS
 
 
 def strategy_in(module: str) -> type[Strategy[Any]]:
@@ -251,3 +228,18 @@ def test_a_class_without_importable_source_is_refused_before_submission(
     strategy = strategy_in(module)
 
     assert refused(strategy, re.escape(module)) == []
+
+
+@pytest.mark.integration
+@pytest.mark.usefixtures("strategies")
+def test_a_string_strategy_is_refused_before_submission() -> None:
+    server = FakeServer()
+
+    async def scenario(url: str) -> None:
+        async with await Lab.connect(url, TOKEN) as lab:
+            with pytest.raises(TypeError, match="pass the imported class"):
+                await lab.run(SPEC, "my_strats:Cross")  # type: ignore[arg-type]
+
+    run(scenario, server)
+
+    assert server.received("submit_run") == []

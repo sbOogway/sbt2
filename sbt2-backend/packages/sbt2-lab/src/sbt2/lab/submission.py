@@ -21,15 +21,13 @@ _KEYS = {*_PLAIN, *_OPTIONAL, *_TABLES, "period", "part"}
 type Moment = date | datetime | str
 
 
-def submit_run(
-    spec: Mapping[str, Any], strategy: str | type[Strategy[Any]]
-) -> SubmitRun:
-    """The request that runs ``spec`` with ``strategy``, whose module is sent
-    as source."""
+def submit_run(spec: Mapping[str, Any], strategy: type[Strategy[Any]]) -> SubmitRun:
+    """The request that runs ``spec`` with ``strategy``, whose defining module is
+    sent as source."""
     _check_keys(spec)
-    if not isinstance(strategy, str):
-        strategy = _class_path(strategy)
-    module_path, class_name = _parts(strategy)
+    if not isinstance(strategy, type):
+        raise TypeError(f"pass the imported class as the strategy, not {strategy!r}")
+    module_path, class_name = _class_path(strategy)
     module = _module(module_path)
     wire = _spec_file(spec)
     wire.strategy = f"{module.name}:{class_name}"
@@ -46,14 +44,14 @@ def _check_keys(spec: Mapping[str, Any]) -> None:
         )
 
 
-def _class_path(strategy: type[Strategy[Any]]) -> str:
+def _class_path(strategy: type[Strategy[Any]]) -> tuple[str, str]:
     if strategy.__module__ == "__main__":
         raise _refused(strategy, "it is defined in __main__")
     if "<locals>" in strategy.__qualname__:
         raise _refused(strategy, "it is defined in a local scope")
     if "." in strategy.__qualname__:
         raise _refused(strategy, "it is nested in another class")
-    return f"{strategy.__module__}:{strategy.__qualname__}"
+    return strategy.__module__, strategy.__qualname__
 
 
 def _refused(strategy: type[Strategy[Any]], cause: str) -> StrategyModuleError:
@@ -61,13 +59,6 @@ def _refused(strategy: type[Strategy[Any]], cause: str) -> StrategyModuleError:
         f"cannot send the class {strategy.__qualname__}: {cause}; "
         "put it in an importable module"
     )
-
-
-def _parts(strategy: str) -> tuple[str, str]:
-    module_path, _, class_name = strategy.partition(":")
-    if not module_path or not class_name:
-        raise ValueError(f"give the strategy as 'module:Class', not {strategy!r}")
-    return module_path, class_name
 
 
 def _module(path: str) -> StrategyModule:
