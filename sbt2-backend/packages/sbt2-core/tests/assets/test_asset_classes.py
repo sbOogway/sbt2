@@ -2,6 +2,7 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
+from dated_catalog import future
 from nautilus_trader.backtest import BacktestVenueConfig
 from nautilus_trader.model import (
     AccountType,
@@ -93,7 +94,7 @@ def test_lookup_by_nautilus_classes_returns_the_profile() -> None:
 def test_unknown_classes_list_the_known_profiles() -> None:
     with pytest.raises(
         UnknownAssetClassError,
-        match="no asset profile for EQUITY/SPOT; known: CRYPTOCURRENCY/OPTION, CRYPTOCURRENCY/SWAP",
+        match="no asset profile for EQUITY/SPOT; known: CRYPTOCURRENCY/FUTURE, CRYPTOCURRENCY/OPTION, CRYPTOCURRENCY/SWAP",
     ):
         asset_profile(AssetClass.EQUITY, InstrumentClass.SPOT)
 
@@ -228,3 +229,28 @@ def test_a_buy_and_hold_benchmark_of_an_option_is_refused() -> None:
 
     with pytest.raises(NoBuyAndHoldError, match="an option expires"):
         crypto_option().buy_and_hold.entry_fee({"fee_model": fee_model})
+
+
+@pytest.mark.unit
+def test_crypto_future_profile() -> None:
+    profile = asset_profile(AssetClass.CRYPTOCURRENCY, InstrumentClass.FUTURE)
+    assert profile.covers(future())
+    assert not profile.covers(btc_perpetual())
+    assert profile.days_per_year == 365
+    assert profile.carry.data_types == ()
+    assert profile.reference_prices == (MarkPriceUpdate,)
+    assert profile.valuation_price is MarkPriceUpdate
+    assert profile.portfolio_config(HOURLY).use_mark_prices
+    venue = BacktestVenueConfig(
+        name="DERIBIT", starting_balances=["1 BTC"], **profile.venue_defaults
+    )
+    assert venue.account_type == AccountType.MARGIN
+    assert venue.oms_type == OmsType.NETTING
+    assert venue.liquidation_enabled is False
+
+
+@pytest.mark.unit
+def test_dated_futures_refuse_buy_and_hold() -> None:
+    profile = asset_profile(AssetClass.CRYPTOCURRENCY, InstrumentClass.FUTURE)
+    with pytest.raises(NoBuyAndHoldError, match="expires"):
+        profile.buy_and_hold.entry_fee({})

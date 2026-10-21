@@ -1,12 +1,13 @@
 from nautilus_trader.model import AssetClass, InstrumentClass
 
+from sbt2.core.assets.future.profile import CRYPTO_FUTURE
 from sbt2.core.assets.option.profile import CRYPTO_OPTION
 from sbt2.core.assets.perp.profile import CRYPTO_PERP
 from sbt2.core.assets.profile import AssetProfile
 
 _PROFILES = {
     (each.asset_class, each.instrument_class): each
-    for each in (CRYPTO_PERP, CRYPTO_OPTION)
+    for each in (CRYPTO_PERP, CRYPTO_OPTION, CRYPTO_FUTURE)
 }
 
 
