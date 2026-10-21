@@ -25,7 +25,7 @@ Each topic is a Python package. A notebook sits next to its strategy module.
 ```
 sbt2-notebooks/
   trend/ema_cross.ipynb, ema_cross.py
-  options/premium/iv_ranges, management, portfolio, eth_portfolio  (.ipynb and .py)
+  options/premium/iv_ranges, management, portfolio, eth_portfolio  (.ipynb)
 ```
 
 The environment installs this folder as an editable package, so a package path
@@ -41,8 +41,8 @@ is its name on the server, so keep it unique among the modules of one run.
 Put each strategy in a module of an importable package, as
 [trend/ema_cross.py](trend/ema_cross.py) is for
 [trend/ema_cross.ipynb](trend/ema_cross.ipynb), import the class in the
-notebook and give it to `lab.run`: `await lab.run(spec, EmaCross)`. The string
-`"trend.ema_cross:EmaCross"` does the same. The lab sends the source of the
+notebook and give it to `lab.run`: `await lab.run(spec, EmaCross)`. `lab.run`
+takes only a class; a string raises `TypeError`. The lab sends the source of the
 module that defines the class and does not run it on the client. The module
 can import only what the server has: sbt2, nautilus and the standard library.
 It cannot import a sibling module.
@@ -59,8 +59,7 @@ Investor's Guide to Options Trading*), as
 rank, ch. 3) and as [portfolio.ipynb](options/premium/portfolio.ipynb) does
 for `PremiumPortfolio` (a portfolio of laddered strangles and iron condors
 against a single strangle, ch. 7-8). They need the Deribit option data of 2024
-and a year of DVOL before it on the server. The modules of `options/premium` and
-`vwap` only re-export these classes; they stay for the string form.
+and a year of DVOL before it on the server.
 
 The pre-commit hooks lint the modules with ruff and strip the outputs of the
 notebooks.
