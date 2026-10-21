@@ -6,6 +6,7 @@ from nautilus_trader.core import dt_to_unix_nanos
 from nautilus_trader.model import (
     Bar,
     CryptoFuture,
+    CryptoPerpetual,
     Currency,
     CurrencyPair,
     IndexPriceUpdate,
@@ -45,6 +46,27 @@ def future(coin: str = "BTC", expiry: datetime = EXPIRY) -> CryptoFuture:
     )
 
 
+def perpetual(coin: str = "BTC") -> CryptoPerpetual:
+    """The coin's perpetual, with the margin rates of ``future``."""
+    currency = Currency.from_str(coin)
+    return CryptoPerpetual(
+        InstrumentId.from_str(f"{coin}-PERPETUAL.DERIBIT"),
+        Symbol(f"{coin}-PERPETUAL"),
+        currency,
+        Currency.from_str("USD"),
+        currency,
+        True,
+        1,
+        0,
+        Price.from_str("0.5"),
+        Quantity.from_str("10"),
+        0,
+        0,
+        margin_init=Decimal("0.02"),
+        margin_maint=Decimal("0.0133"),
+    )
+
+
 def spot() -> CurrencyPair:
     return CurrencyPair(
         InstrumentId.from_str("BTC_USDC.DERIBIT"),
@@ -60,7 +82,9 @@ def spot() -> CurrencyPair:
     )
 
 
-def build_bars(path: Path, instrument: CryptoFuture | CurrencyPair) -> None:
+def build_bars(
+    path: Path, instrument: CryptoFuture | CryptoPerpetual | CurrencyPair
+) -> None:
     path.mkdir(parents=True, exist_ok=True)
     catalog = ParquetDataCatalog(str(path))
     catalog.write_instruments([instrument])
@@ -77,7 +101,7 @@ def build_bars(path: Path, instrument: CryptoFuture | CurrencyPair) -> None:
                 price,
                 price,
                 price,
-                Quantity.from_int(1_000_000),
+                Quantity.from_int(1_000_000_000),
                 ts,
                 ts,
             )
