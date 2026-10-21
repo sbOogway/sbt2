@@ -5,6 +5,7 @@ from typing import Any
 from nautilus_trader.model import AssetClass, InstrumentClass, InstrumentId
 
 from sbt2.core.assets import AssetProfile, UnknownAssetClassError, asset_profile
+from sbt2.core.spec.bars import BarSource, Fills
 from sbt2.core.spec.errors import SpecError
 from sbt2.core.spec.resolve.models import built_model, model_tables
 from sbt2.data import Source, UnknownSourceError, source_for
@@ -41,9 +42,10 @@ class Execution:
 
 
 def execution(
-    instruments: Sequence[InstrumentId], table: Mapping[str, Any]
+    instruments: Sequence[InstrumentId], table: Mapping[str, Any], bars: BarSource
 ) -> Execution:
-    """The execution of a run on ``instruments`` with the settings ``table``.
+    """The execution of a run on ``instruments`` with the settings ``table``, its
+    declared bars built from ``bars``.
 
     The venue is the one of the instruments and the asset profile follows from
     their class. The arguments start from the asset profile's venue defaults and
@@ -55,7 +57,10 @@ def execution(
     asset = _asset(source, instruments)
     _check(table)
     arguments = {"name": venue, **_served(source, instruments[0]), **table}
-    return Execution(asset, source.name, _completed(asset, arguments))
+    completed = _completed(asset, arguments)
+    return Execution(
+        asset, source.name, _setting("fills", lambda: _filled(bars, completed))
+    )
 
 
 def _venue(instruments: Sequence[InstrumentId]) -> str:
@@ -135,6 +140,20 @@ def _completed(asset: AssetProfile, arguments: Mapping[str, Any]) -> dict[str, A
     )
     settled = _setting("delivery_fee", lambda: asset.settlement.complete(quoted))
     return _setting("margin", lambda: asset.margin.complete(settled))
+
+
+def _filled(bars: BarSource, venue: Mapping[str, Any]) -> dict[str, Any]:
+    """The venue arguments with the fills setting of a run on candles; a run on
+    ticks fills on them and takes none."""
+    if bars.aggregated_from is None:
+        if "fills" in venue:
+            raise ValueError("a run on trades fills on them and takes no fills setting")
+        return dict(venue)
+    fills = venue.get("fills", Fills.NEXT_OPEN)
+    if fills not in tuple(Fills):
+        known = ", ".join(Fills)
+        raise ValueError(f"the fills setting is {fills!r}, not one of {known}")
+    return {**venue, "fills": Fills(fills).value}
 
 
 def _setting(setting: str, complete: Callable[[], dict[str, Any]]) -> dict[str, Any]:

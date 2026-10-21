@@ -14,6 +14,7 @@ from nautilus_trader.model import (
 )
 
 from sbt2.core.spec import (
+    Fills,
     InstrumentClassError,
     InstrumentVenueError,
     InvalidExecutionError,
@@ -47,6 +48,7 @@ OPTION_FEES = {
 LINEAR_HASH = "00421b5d17bcdd4210488ed4921ea33f0a142a28c2efee6e59995b09c59c9df1"
 PERPETUAL_HASH = "35a20aaad04d2be2d3616d0fc59034824a37ce2964c5e7ed8e9166282aa5036c"
 OPTION_HASH = "b1449df8407ca21719d84c2b6616a3782669b6547f5e062052518af2eb422be6"
+CANDLE_HASH = "c30be81f6f23b67cd3f9eb96c112da9f355793d6a276ae4fcbfccd98b0465a84"
 
 
 def linear(**changes: Any) -> dict[str, Any]:
@@ -488,3 +490,52 @@ def test_a_trades_run_with_marks_from_bars_is_rebuilt_as_a_trades_run(
 
     assert rebuilt.strategy.aggregated_from is None
     assert rebuilt == spec
+
+
+def candles(**settings: Any) -> dict[str, Any]:
+    return with_execution(linear(bars="candles"), **settings)
+
+
+@pytest.mark.unit
+def test_a_candle_run_fills_at_the_next_open_by_default() -> None:
+    assert resolved(candles()).venue["fills"] == "next_open"
+
+
+@pytest.mark.unit
+def test_a_candle_run_can_keep_close_fills() -> None:
+    assert resolved(candles(fills="close")).venue["fills"] == Fills.CLOSE
+
+
+@pytest.mark.unit
+def test_an_unknown_fills_value_lists_the_known_ones() -> None:
+    with pytest.raises(InvalidExecutionError, match=r"fills.*next_open, close"):
+        resolved(candles(fills="open"))
+
+
+@pytest.mark.unit
+def test_a_fills_table_is_refused() -> None:
+    with pytest.raises(InvalidExecutionError, match="fills"):
+        resolved(candles(fills={"at": "open"}))
+
+
+@pytest.mark.unit
+def test_a_trades_run_refuses_the_fills_setting() -> None:
+    with pytest.raises(InvalidExecutionError, match="fills"):
+        resolved(with_execution(linear(), fills="close"))
+
+
+@pytest.mark.unit
+def test_the_fills_setting_changes_the_hash() -> None:
+    assert resolved(candles()).hash != resolved(candles(fills="close")).hash
+
+
+@pytest.mark.unit
+@pytest.mark.golden
+def test_a_stored_candle_run_without_fills_keeps_its_hash() -> None:
+    document = json.loads(resolved(candles()).to_json())
+    del document["venue"]["fills"]
+
+    rebuilt = ResolvedRunSpec.from_document(document)
+
+    assert rebuilt.hash == CANDLE_HASH
+    assert rebuilt.venue["fills"] == "close"

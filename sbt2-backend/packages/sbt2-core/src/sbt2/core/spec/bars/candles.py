@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from datetime import timedelta
+from enum import StrEnum
 
 from nautilus_trader.model import Bar, BarSpecification, PriceType
 
@@ -12,6 +13,14 @@ _MINUTE = timedelta(minutes=1)
 
 class CandleBarError(SpecError):
     """A declared bar that 1-minute candles cannot build."""
+
+
+class Fills(StrEnum):
+    """Where a candle run fills an order sent on a bar's close: at the next
+    candle's open, or at that close."""
+
+    NEXT_OPEN = "next_open"
+    CLOSE = "close"
 
 
 class CandleBars(BarSource):

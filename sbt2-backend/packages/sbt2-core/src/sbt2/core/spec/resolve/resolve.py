@@ -41,12 +41,12 @@ _UNFIXED = frozenset({"params", "part", "study"})
 
 def resolve(spec: RunSpec) -> ResolvedRunSpec:
     instruments = [InstrumentId.from_str(each) for each in spec.instruments]
-    traded = execution(instruments, spec.execution)
+    bars = bar_source(spec.bars)
+    traded = execution(instruments, spec.execution, bars)
     asset = traded.asset
     strategy = import_strategy(spec.strategy)
     params = resolve_params(strategy, spec.params)
     split, part = _splitter(spec.split), spec.part
-    bars = bar_source(spec.bars)
     _check_bars(asset, strategy.inputs(params))
     start, end = _part_dates(split.parts(spec.period), part)
     risk = risk_limits(spec.risk)

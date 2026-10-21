@@ -1,4 +1,4 @@
-from sbt2.core.spec.bars.candles import CandleBarError, CandleBars
+from sbt2.core.spec.bars.candles import CandleBarError, CandleBars, Fills
 from sbt2.core.spec.bars.source import BarSource
 from sbt2.core.spec.bars.trades import TradeBars
 from sbt2.core.spec.errors import SpecError
@@ -22,6 +22,7 @@ def bar_source(name: str) -> BarSource:
 __all__ = [
     "BarSource",
     "CandleBarError",
+    "Fills",
     "UnknownBarSourceError",
     "bar_source",
 ]

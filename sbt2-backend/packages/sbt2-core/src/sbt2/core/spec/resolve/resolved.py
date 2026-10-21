@@ -15,6 +15,7 @@ from nautilus_trader.model import InstrumentId, Money, NautilusDataType
 from nautilus_trader.risk import RiskEngineConfig
 
 from sbt2.core.assets import AssetProfile, ChainFeeds, ChainJob, QuoteJob
+from sbt2.core.spec.bars import Fills
 from sbt2.core.spec.resolve.canonical import canonical_hash, canonical_json
 from sbt2.core.spec.resolve.data import data_arguments
 from sbt2.core.spec.resolve.document import spec_fields
@@ -263,6 +264,15 @@ class ResolvedRunSpec:
         premium = {} if rules is None else {"short_premium": rules.as_primitives()}
         return {**self.risk, **drawdown, **premium}
 
+    def _venue_document(self) -> dict[str, Any]:
+        """The venue arguments; fills at the close are left out, so a run on
+        candles stored before the fills setting keeps its hash."""
+        return {
+            key: value
+            for key, value in self.venue.items()
+            if (key, value) != ("fills", Fills.CLOSE)
+        }
+
     def _core_document(self) -> dict[str, Any]:
         return {
             "strategy": {
@@ -273,7 +283,7 @@ class ResolvedRunSpec:
             },
             "asset_class": self.asset.asset_class,
             "instrument_class": self.asset.instrument_class,
-            "venue": dict(self.venue),
+            "venue": self._venue_document(),
             "data": [dict(arguments) for arguments in self.data],
             "equity_interval_ms": self.equity_interval_ms,
             "split": self.split.document(),
