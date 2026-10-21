@@ -12,6 +12,7 @@ from sbt2.core.assets.calendars import AlwaysOpen
 from sbt2.core.assets.conventions.buy_and_hold import NoBuyAndHold
 from sbt2.core.assets.conventions.carry import Carry
 from sbt2.core.assets.future.quotes import FutureQuotes
+from sbt2.core.assets.future.settlement import FutureSettlement
 from sbt2.core.assets.profile import AssetProfile
 
 CRYPTO_FUTURE = AssetProfile(
@@ -21,6 +22,7 @@ CRYPTO_FUTURE = AssetProfile(
     days_per_year=365,
     carry=Carry(data_types=()),
     quotes=FutureQuotes(),
+    settlement=FutureSettlement(),
     venue_defaults=MappingProxyType(
         {
             "oms_type": OmsType.NETTING,
