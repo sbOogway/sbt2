@@ -28,7 +28,7 @@ def submit_run(
     as source."""
     _check_keys(spec)
     if not isinstance(strategy, str):
-        strategy = f"{strategy.__module__}:{strategy.__qualname__}"
+        strategy = _class_path(strategy)
     module_path, class_name = _parts(strategy)
     module = _module(module_path)
     wire = _spec_file(spec)
@@ -44,6 +44,19 @@ def _check_keys(spec: Mapping[str, Any]) -> None:
         raise ValueError(
             f"unknown spec keys {', '.join(unknown)}; valid: {', '.join(sorted(_KEYS))}"
         )
+
+
+def _class_path(strategy: type[Strategy[Any]]) -> str:
+    if strategy.__module__ == "__main__":
+        raise _refused(strategy, "it is defined in __main__")
+    return f"{strategy.__module__}:{strategy.__qualname__}"
+
+
+def _refused(strategy: type[Strategy[Any]], cause: str) -> StrategyModuleError:
+    return StrategyModuleError(
+        f"cannot send the class {strategy.__qualname__}: {cause}; "
+        "put it in an importable module"
+    )
 
 
 def _parts(strategy: str) -> tuple[str, str]:

@@ -9,6 +9,7 @@ from lab_kit import CROSS, TOKEN, FakeServer, run, serve_job, summary
 
 from sbt2.core.strategy import Strategy
 from sbt2.lab import Lab, StrategyModuleError
+from sbt2.protocol.v1.envelope_pb2 import ClientMessage
 
 SPEC = {
     "instruments": ["BTCUSDT-PERP.BYBIT"],
@@ -192,3 +193,26 @@ def test_a_strategy_class_uses_its_defining_module(strategies: Path) -> None:
     assert by_class.submit_run == by_path.submit_run
     assert by_class.submit_run.spec.strategy == "sub:Cross"
     assert by_class.submit_run.strategy.source == CROSS
+
+
+def strategy_in(module: str) -> type[Strategy[Any]]:
+    return type("Cross", (Strategy,), {"__module__": module})
+
+
+def refused(strategy: type[Strategy[Any]], match: str) -> list[ClientMessage]:
+    server = FakeServer()
+
+    async def scenario(url: str) -> None:
+        async with await Lab.connect(url, TOKEN) as lab:
+            with pytest.raises(StrategyModuleError, match=match):
+                await lab.run(SPEC, strategy)
+
+    run(scenario, server)
+    return server.received("submit_run")
+
+
+@pytest.mark.integration
+def test_a_main_module_class_is_refused_before_submission() -> None:
+    strategy = strategy_in("__main__")
+
+    assert refused(strategy, r"Cross.*__main__.*importable module") == []
