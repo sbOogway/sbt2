@@ -27,6 +27,11 @@ BYBIT = "BTCUSDT-LINEAR.BYBIT"
 PERPETUAL = "BTC-PERPETUAL.DERIBIT"
 OPTION = "BTC-30JAN26-100000-C.DERIBIT"
 FUTURE = "BTC-29MAR24.DERIBIT"
+SPOT = "BTC_USDC.DERIBIT"
+SPOT_FEES = {
+    "kind": "maker_taker",
+    "config": {"maker_rate": "0.0002", "taker_rate": "0.0005"},
+}
 MAKER_TAKER = {
     "kind": "maker_taker",
     "config": {"maker_rate": "0.0002", "taker_rate": "0.00055"},
@@ -91,8 +96,18 @@ def future(coin: str = "BTC", **changes: Any) -> dict[str, Any]:
     )
 
 
+def spot(**changes: Any) -> dict[str, Any]:
+    return linear(
+        instruments=[SPOT],
+        strategy="run_strategies:BuyThenSell",
+        capital="100000 USDC",
+        execution={"fee_model": SPOT_FEES},
+        **changes,
+    )
+
+
 def spec_of(instrument: str) -> dict[str, Any]:
-    return {FUTURE: future()}[instrument]
+    return {FUTURE: future(), SPOT: spot()}[instrument]
 
 
 def resolved(table: dict[str, Any]) -> ResolvedRunSpec:
@@ -378,7 +393,7 @@ def test_deribit_future_execution(coin: str) -> None:
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("instrument", [FUTURE])
+@pytest.mark.parametrize("instrument", [FUTURE, SPOT])
 def test_future_and_spot_specs_round_trip(instrument: str) -> None:
     spec = resolved(spec_of(instrument))
 
@@ -421,7 +436,7 @@ def test_invalid_future_delivery_settings_are_rejected(
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("instrument", [FUTURE])
+@pytest.mark.parametrize("instrument", [FUTURE, SPOT])
 def test_new_classes_still_require_explicit_fees(instrument: str) -> None:
     table = spec_of(instrument)
     del table["execution"]
@@ -431,7 +446,30 @@ def test_new_classes_still_require_explicit_fees(instrument: str) -> None:
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize("other", [PERPETUAL])
+@pytest.mark.parametrize("other", [PERPETUAL, SPOT])
 def test_mixed_instrument_classes_remain_rejected(other: str) -> None:
     with pytest.raises(InstrumentClassError, match="FUTURE"):
         resolved({**future(), "instruments": [FUTURE, other]})
+
+
+@pytest.mark.unit
+def test_deribit_spot_execution() -> None:
+    run = resolved(spot())
+    [venue] = run.run_config("/catalog").venues
+
+    assert run.asset.instrument_class == InstrumentClass.SPOT
+    assert run.venue["account_type"] == AccountType.CASH
+    assert run.venue["marks"] == "bars"
+    assert "delivery_fee" not in run.venue
+    assert "margin" not in run.venue
+    assert Bar in run.data_types
+    assert MarkPriceUpdate not in run.data_types
+    assert FundingRateUpdate not in run.data_types
+    assert venue.account_type == AccountType.CASH
+    assert isinstance(venue.fee_model, MakerTakerFeeModel)
+
+
+@pytest.mark.unit
+def test_a_spot_run_takes_no_delivery_fee() -> None:
+    with pytest.raises(InvalidExecutionError, match="delivery_fee"):
+        resolved(with_execution(spot(), delivery_fee={"rate": "0"}))
