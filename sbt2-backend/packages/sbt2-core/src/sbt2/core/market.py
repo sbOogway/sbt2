@@ -46,9 +46,9 @@ def _no_rates(columns: list[str]) -> pd.DataFrame:
 
 @dataclass(frozen=True)
 class Rates:
-    """What converts an amount into the ``reporting`` currency of a run: the USD
-    index ``prices`` of each currency by time, so a coin is worth its price over
-    the reporting currency's."""
+    """What converts an amount into the ``reporting`` currency of a run: the
+    ``prices`` of each currency by time in one common unit, such as USD, so a coin
+    is worth its price over the reporting currency's."""
 
     reporting: str
     prices: Mapping[str, pd.Series]

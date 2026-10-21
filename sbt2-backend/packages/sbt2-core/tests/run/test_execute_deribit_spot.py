@@ -9,6 +9,7 @@ from spot_strategies import BuyThenSellCoins
 from sbt2.core.results import ParquetResultStore
 from sbt2.core.run import RunSettings, execute
 from sbt2.core.spec import load
+from sbt2.data import Catalog
 
 CAPITAL = 100_000.0
 TAKER = 0.0005
@@ -16,6 +17,10 @@ COINS = 0.5
 ENTRY = 50_200.0
 EXIT = 52_200.0
 TOLERANCE = 1e-6
+# The equity is sampled every hour from the first fill on; the close before
+# 10:00 is the one of hour 9.
+HELD_AT = "2024-01-01 10:00"
+CLOSE_BEFORE = 50_900.0
 
 
 def spec(buy: str, sell: str) -> str:
@@ -97,3 +102,31 @@ def test_spot_cannot_borrow_cash_or_base(tmp_path: Path, catalog: Path) -> None:
     assert store.load(run_id, "fills").empty
     assert set(balances(store, run_id, "USDC")) == {CAPITAL}
     assert balances(store, run_id, "BTC").empty
+
+
+def held_value() -> float:
+    return CAPITAL - COINS * ENTRY - fee(ENTRY) + COINS * CLOSE_BEFORE
+
+
+@pytest.mark.integration
+def test_spot_trade_values_cash_and_inventory(tmp_path: Path, catalog: Path) -> None:
+    store, run_id = run(tmp_path, catalog, ("0.500", "0.500"))
+
+    equity = store.load(run_id, "equity")
+    assert set(equity["currency"]) == {"USDC"}
+    total = equity.set_index("ts_event")["total_equity"]
+    assert total[HELD_AT] == pytest.approx(held_value(), abs=TOLERANCE)
+    assert total.iloc[-1] == pytest.approx(
+        CAPITAL + COINS * (EXIT - ENTRY) - fee(ENTRY) - fee(EXIT), abs=TOLERANCE
+    )
+
+
+@pytest.mark.integration
+def test_the_equity_curve_of_a_spot_run_values_the_held_coin(
+    tmp_path: Path, catalog: Path
+) -> None:
+    store, run_id = run(tmp_path, catalog, ("0.500", "0.500"))
+
+    curve = store.stored_run(run_id).priced(Catalog(catalog)).equity
+
+    assert curve[HELD_AT] == pytest.approx(held_value(), abs=TOLERANCE)
