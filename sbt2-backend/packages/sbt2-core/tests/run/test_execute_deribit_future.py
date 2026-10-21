@@ -209,3 +209,18 @@ def test_future_expiry_closes_at_delivery(
         abs=TOLERANCE,
     )
     assert HoldUsdToExpiry.settled == [(instrument, DELIVERY, float(USD))]
+
+
+@pytest.mark.integration
+def test_a_large_future_position_settles_whole_at_delivery(
+    tmp_path: Path, catalog: Path
+) -> None:
+    large = 5_000_000
+    case = Case("BTC-2JAN24.DERIBIT", "HoldUsdToExpiry", usd=large)
+
+    store, run_id = run(tmp_path, catalog, case)
+
+    fills = store.load(run_id, "fills")
+    settlement = fills.loc[fills["order_side"] == "SELL"]
+    assert [float(each) for each in settlement["last_px"]] == [DELIVERY]
+    assert [float(each) for each in settlement["last_qty"]] == [large]
