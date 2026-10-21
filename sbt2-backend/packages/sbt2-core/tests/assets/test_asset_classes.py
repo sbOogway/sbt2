@@ -1,8 +1,9 @@
+from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
-from dated_catalog import future
+from dated_catalog import future, spot
 from nautilus_trader.backtest import BacktestVenueConfig
 from nautilus_trader.model import (
     AccountType,
@@ -30,6 +31,8 @@ from sbt2.core.assets import (
 )
 
 HOURLY = 3_600_000
+START = datetime(2024, 1, 1, tzinfo=UTC)
+END = datetime(2025, 1, 1, tzinfo=UTC)
 
 
 def crypto_perp() -> AssetProfile:
@@ -94,7 +97,7 @@ def test_lookup_by_nautilus_classes_returns_the_profile() -> None:
 def test_unknown_classes_list_the_known_profiles() -> None:
     with pytest.raises(
         UnknownAssetClassError,
-        match="no asset profile for EQUITY/SPOT; known: CRYPTOCURRENCY/FUTURE, CRYPTOCURRENCY/OPTION, CRYPTOCURRENCY/SWAP",
+        match="no asset profile for EQUITY/SPOT; known: CRYPTOCURRENCY/FUTURE, CRYPTOCURRENCY/OPTION, CRYPTOCURRENCY/SPOT, CRYPTOCURRENCY/SWAP",
     ):
         asset_profile(AssetClass.EQUITY, InstrumentClass.SPOT)
 
@@ -254,3 +257,36 @@ def test_dated_futures_refuse_buy_and_hold() -> None:
     profile = asset_profile(AssetClass.CRYPTOCURRENCY, InstrumentClass.FUTURE)
     with pytest.raises(NoBuyAndHoldError, match="expires"):
         profile.buy_and_hold.entry_fee({})
+
+
+@pytest.mark.unit
+def test_crypto_spot_profile() -> None:
+    profile = asset_profile(AssetClass.CRYPTOCURRENCY, InstrumentClass.SPOT)
+    assert profile.covers(spot())
+    assert not profile.covers(future())
+    assert profile.days_per_year == 365
+    assert profile.carry.data_types == ()
+    assert profile.reference_prices == (MarkPriceUpdate,)
+    assert profile.valuation_price is MarkPriceUpdate
+    assert profile.portfolio_config(HOURLY).use_mark_prices
+    assert profile.settlement.delivery_selections([spot()], (START, END)) == []
+    venue = BacktestVenueConfig(
+        name="DERIBIT", starting_balances=["10000 USDC"], **profile.venue_defaults
+    )
+    assert venue.account_type == AccountType.CASH
+    assert venue.oms_type == OmsType.NETTING
+
+
+@pytest.mark.unit
+def test_spot_buy_and_hold_uses_marks_and_entry_fee() -> None:
+    profile = asset_profile(AssetClass.CRYPTOCURRENCY, InstrumentClass.SPOT)
+    fee_model = {
+        "kind": "maker_taker",
+        "config": {"maker_rate": "0.0002", "taker_rate": "0.0005"},
+    }
+
+    convention = profile.buy_and_hold
+
+    assert convention.price is MarkPriceUpdate
+    assert convention.carry.data_types == ()
+    assert convention.entry_fee({"fee_model": fee_model}) == Decimal("0.0005")

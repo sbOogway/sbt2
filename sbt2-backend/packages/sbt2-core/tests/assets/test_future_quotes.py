@@ -3,11 +3,12 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-from dated_catalog import EXPIRY, START, build_bars, future, write_delivery
+from dated_catalog import EXPIRY, START, build_bars, future, spot, write_delivery
 from nautilus_trader.backtest import BacktestDataConfig
 from nautilus_trader.core import dt_to_unix_nanos
 from nautilus_trader.model import (
     AssetClass,
+    Bar,
     InstrumentClass,
     MarkPriceUpdate,
     NautilusDataType,
@@ -58,6 +59,24 @@ def test_future_marks_equal_bar_closes(tmp_path: Path, coin: str) -> None:
         1, "ns"
     )
     assert marks.index[-1] < span[1]
+
+
+@pytest.mark.integration
+def test_spot_marks_equal_bar_closes(tmp_path: Path) -> None:
+    instrument = spot()
+    source, target = tmp_path / "source", tmp_path / "target"
+    build_bars(source, instrument)
+    target.mkdir()
+    profile = asset_profile(AssetClass.CRYPTOCURRENCY, InstrumentClass.SPOT)
+    job = QuoteJob(source, [instrument.id], TWO_DAYS, {"marks": "bars"})
+
+    configs = profile.quotes.write(job, target)
+
+    assert [each.data_type for each in configs] == [NautilusDataType.MarkPriceUpdate]
+    marks = Catalog(target).frame(instrument.id, MarkPriceUpdate, Window(*TWO_DAYS))
+    bars = Catalog(source).frame(instrument.id, Bar, Window(*TWO_DAYS))
+    assert marks["price"].tolist() == bars["close"].tolist()
+    assert marks.index.equals(bars.index)
 
 
 @pytest.mark.integration
