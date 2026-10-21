@@ -13,9 +13,9 @@ from nautilus_trader.model import (
     TradeTick,
 )
 
-from sbt2.core.assets.base import QuoteConvention, QuoteJob
-from sbt2.core.assets.option_quote_catalog import write_quotes
-from sbt2.core.assets.option_quotes import QuoteSettings
+from sbt2.core.assets.conventions.quotes import QuoteConvention, QuoteJob
+from sbt2.core.assets.option.quotes.catalog import write_quotes
+from sbt2.core.assets.option.quotes.quotes import QuoteSettings
 
 
 class OptionQuotes(QuoteConvention):

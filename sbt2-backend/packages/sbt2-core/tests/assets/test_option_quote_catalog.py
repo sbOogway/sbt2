@@ -28,7 +28,7 @@ from option_catalog import (
 )
 
 from sbt2.core.assets import OptionHistory, QuoteJob, QuoteSettings, quote_ticks
-from sbt2.core.assets.option_quote_catalog import write_quotes
+from sbt2.core.assets.option.quotes.catalog import write_quotes
 from sbt2.data import Catalog, Window
 
 DAY = datetime(2024, 1, 1, tzinfo=UTC)

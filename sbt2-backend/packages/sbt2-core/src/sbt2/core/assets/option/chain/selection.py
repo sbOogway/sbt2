@@ -5,8 +5,8 @@ import numpy as np
 import pandas as pd
 from nautilus_trader.model import CryptoOption, IndexPriceUpdate, InstrumentId
 
-from sbt2.core.assets.base import ChainJob
-from sbt2.core.assets.option_chain import ChainBand, index_of, underlying_of
+from sbt2.core.assets.conventions.chain import ChainJob
+from sbt2.core.assets.option.chain.chain import ChainBand, index_of, underlying_of
 from sbt2.data import Window
 
 _DAY_NS = 86_400 * 10**9

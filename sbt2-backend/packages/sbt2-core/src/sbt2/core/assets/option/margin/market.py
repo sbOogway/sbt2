@@ -10,7 +10,7 @@ from nautilus_trader.model import (
     MarkPriceUpdate,
 )
 
-from sbt2.core.assets.option_margin import OptionQuote
+from sbt2.core.assets.option.margin.rates import OptionQuote
 from sbt2.core.market import index_id
 from sbt2.data import Catalog, Window
 

@@ -9,9 +9,11 @@ from nautilus_trader.model import (
     OmsType,
 )
 
-from sbt2.core.assets.base import AssetProfile, BuyAndHoldConvention, Carry
 from sbt2.core.assets.calendars import AlwaysOpen
-from sbt2.core.assets.perp_marks import PerpMarks
+from sbt2.core.assets.conventions.buy_and_hold import BuyAndHoldConvention
+from sbt2.core.assets.conventions.carry import Carry
+from sbt2.core.assets.perp.marks import PerpMarks
+from sbt2.core.assets.profile import AssetProfile
 
 CRYPTO_PERP = AssetProfile(
     asset_class=AssetClass.CRYPTOCURRENCY,

@@ -15,7 +15,7 @@ from nautilus_trader.model import (
 )
 from nautilus_trader.persistence import ParquetDataCatalog
 
-from sbt2.core.assets.base import QuoteConvention, QuoteJob
+from sbt2.core.assets.conventions.quotes import QuoteConvention, QuoteJob
 from sbt2.data import Catalog, Window
 
 _CATALOG = "catalog"

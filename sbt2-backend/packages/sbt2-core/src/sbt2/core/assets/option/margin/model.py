@@ -8,9 +8,9 @@ from nautilus_trader.analysis import ReportProvider
 from nautilus_trader.common import Cache
 from nautilus_trader.model import InstrumentId
 
-from sbt2.core.assets.base import MARGIN_COLUMNS, MarginModel
-from sbt2.core.assets.option_margin import ContractHolding, MarginRates
-from sbt2.core.assets.option_margin_market import OptionMarket
+from sbt2.core.assets.conventions.margin import MARGIN_COLUMNS, MarginModel
+from sbt2.core.assets.option.margin.market import OptionMarket
+from sbt2.core.assets.option.margin.rates import ContractHolding, MarginRates
 from sbt2.core.market import Rates
 
 type Timeline = tuple[np.ndarray, np.ndarray]

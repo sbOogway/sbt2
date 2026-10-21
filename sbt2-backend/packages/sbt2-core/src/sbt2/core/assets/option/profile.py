@@ -8,13 +8,15 @@ from nautilus_trader.model import (
     OmsType,
 )
 
-from sbt2.core.assets.base import AssetProfile, Carry, NoBuyAndHold
 from sbt2.core.assets.calendars import AlwaysOpen
-from sbt2.core.assets.option_chain_convention import OptionChain
-from sbt2.core.assets.option_margin_convention import OptionMargin
-from sbt2.core.assets.option_quote_convention import OptionQuotes
-from sbt2.core.assets.option_settlement_convention import OptionSettlement
-from sbt2.core.assets.premium_equity import PremiumEquity
+from sbt2.core.assets.conventions.buy_and_hold import NoBuyAndHold
+from sbt2.core.assets.conventions.carry import Carry
+from sbt2.core.assets.option.chain.convention import OptionChain
+from sbt2.core.assets.option.equity import PremiumEquity
+from sbt2.core.assets.option.margin.convention import OptionMargin
+from sbt2.core.assets.option.quotes.convention import OptionQuotes
+from sbt2.core.assets.option.settlement.convention import OptionSettlement
+from sbt2.core.assets.profile import AssetProfile
 
 CRYPTO_OPTION = AssetProfile(
     asset_class=AssetClass.CRYPTOCURRENCY,

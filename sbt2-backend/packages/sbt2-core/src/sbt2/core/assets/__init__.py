@@ -1,30 +1,31 @@
-from nautilus_trader.model import AssetClass, InstrumentClass
-
-from sbt2.core.assets.base import (
-    AssetProfile,
+from sbt2.core.assets.calendars import Calendar
+from sbt2.core.assets.conventions.buy_and_hold import (
     BuyAndHoldConvention,
-    Calendar,
-    Carry,
-    ChainConvention,
-    ChainFeeds,
-    ChainJob,
-    MarginConvention,
-    MarginModel,
     NoBuyAndHoldError,
     NoTakerRateError,
-    QuoteConvention,
-    QuoteJob,
 )
-from sbt2.core.assets.crypto_option import CRYPTO_OPTION
-from sbt2.core.assets.crypto_perp import CRYPTO_PERP
-from sbt2.core.assets.option_delivery import NoDeliveryPriceError
-from sbt2.core.assets.option_margin import ContractHolding, MarginRates, OptionQuote
-from sbt2.core.assets.option_margin_market import NoMarkError
-from sbt2.core.assets.option_quote_catalog import NoQuotesError
-from sbt2.core.assets.option_quotes import OptionHistory, QuoteSettings, quote_ticks
-from sbt2.core.assets.option_settlement import DeliveryFee, settlement_price
-from sbt2.core.assets.perp_marks import NoMarksError
-from sbt2.core.market import index_id
+from sbt2.core.assets.conventions.carry import Carry
+from sbt2.core.assets.conventions.chain import ChainConvention, ChainJob
+from sbt2.core.assets.conventions.margin import MarginConvention, MarginModel
+from sbt2.core.assets.conventions.quotes import QuoteConvention, QuoteJob
+from sbt2.core.assets.option.margin.market import NoMarkError
+from sbt2.core.assets.option.margin.rates import (
+    ContractHolding,
+    MarginRates,
+    OptionQuote,
+)
+from sbt2.core.assets.option.quotes.catalog import NoQuotesError
+from sbt2.core.assets.option.quotes.quotes import (
+    OptionHistory,
+    QuoteSettings,
+    quote_ticks,
+)
+from sbt2.core.assets.option.settlement.delivery import NoDeliveryPriceError
+from sbt2.core.assets.option.settlement.settlement import DeliveryFee, settlement_price
+from sbt2.core.assets.perp.marks import NoMarksError
+from sbt2.core.assets.profile import AssetProfile
+from sbt2.core.assets.profiles import UnknownAssetClassError, asset_profile
+from sbt2.core.market import ChainFeeds, index_id
 
 __all__ = [
     "AssetProfile",
@@ -56,25 +57,3 @@ __all__ = [
     "quote_ticks",
     "settlement_price",
 ]
-
-_PROFILES = {
-    (each.asset_class, each.instrument_class): each
-    for each in (CRYPTO_PERP, CRYPTO_OPTION)
-}
-
-
-class UnknownAssetClassError(LookupError):
-    pass
-
-
-def asset_profile(
-    asset_class: AssetClass, instrument_class: InstrumentClass
-) -> AssetProfile:
-    try:
-        return _PROFILES[(asset_class, instrument_class)]
-    except KeyError:
-        known = ", ".join(sorted(f"{a.name}/{i.name}" for a, i in _PROFILES))
-        raise UnknownAssetClassError(
-            f"no asset profile for {asset_class.name}/{instrument_class.name}; "
-            f"known: {known}"
-        ) from None

@@ -1,10 +1,11 @@
 from collections.abc import Mapping
 from typing import Any, override
 
-from sbt2.core.assets.base import MarginConvention, MarginModel, QuoteJob
-from sbt2.core.assets.option_margin import MarginRates
-from sbt2.core.assets.option_margin_market import OptionMarket
-from sbt2.core.assets.option_margin_model import OptionMarginModel
+from sbt2.core.assets.conventions.margin import MarginConvention, MarginModel
+from sbt2.core.assets.conventions.quotes import QuoteJob
+from sbt2.core.assets.option.margin.market import OptionMarket
+from sbt2.core.assets.option.margin.model import OptionMarginModel
+from sbt2.core.assets.option.margin.rates import MarginRates
 from sbt2.data import Catalog
 
 
