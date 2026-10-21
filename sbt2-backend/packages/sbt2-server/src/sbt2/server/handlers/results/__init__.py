@@ -22,7 +22,7 @@ from sbt2.protocol.v1.results_pb2 import (
 )
 from sbt2.protocol.v1.types_pb2 import Error, ErrorCode
 from sbt2.server import Handler, Outbox, offloaded
-from sbt2.server.results.encoding import (
+from sbt2.server.handlers.results.encoding import (
     InvalidArgumentError,
     benchmark_choice,
     equity,
@@ -32,16 +32,16 @@ from sbt2.server.results.encoding import (
     trade_statistics,
     write_arrow,
 )
-from sbt2.server.results.panels import Panels
-from sbt2.server.results.streaming import (
+from sbt2.server.handlers.results.panels import Panels
+from sbt2.server.handlers.results.streaming import (
     TooLargeError,
     checked,
     deliver,
     pieces,
     records,
 )
-from sbt2.server.results.studies import study_chunks, study_summaries
-from sbt2.server.results.tearsheets import Tearsheets
+from sbt2.server.handlers.results.studies import study_chunks, study_summaries
+from sbt2.server.handlers.results.tearsheets import Tearsheets
 
 
 def routes(root: Root) -> dict[str, Handler]:

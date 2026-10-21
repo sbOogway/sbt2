@@ -15,16 +15,16 @@ from sbt2.protocol.v1.runs_pb2 import (
 from sbt2.protocol.v1.runs_pb2 import Jobs as JobList
 from sbt2.protocol.v1.types_pb2 import Error, ErrorCode, StudyConflict
 from sbt2.server import Handler, Outbox
-from sbt2.server.runs.encoding import InvalidArgumentError, submission
-from sbt2.server.runs.jobs import (
+from sbt2.server.handlers.runs.encoding import InvalidArgumentError, submission
+from sbt2.server.handlers.runs.jobs import (
     InvalidSubmissionError,
     Jobs,
     NotFoundError,
     Subscription,
 )
-from sbt2.server.runs.memory import InMemoryJobs
-from sbt2.server.runs.process import ProcessWorkers
-from sbt2.server.runs.pushes import recent_lines, update_messages
+from sbt2.server.handlers.runs.memory import InMemoryJobs
+from sbt2.server.handlers.runs.process import ProcessWorkers
+from sbt2.server.handlers.runs.pushes import recent_lines, update_messages
 
 PUSH_INTERVAL = 0.25
 

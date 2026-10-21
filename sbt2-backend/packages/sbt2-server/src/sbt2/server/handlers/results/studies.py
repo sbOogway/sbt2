@@ -8,8 +8,8 @@ import pandas as pd
 from sbt2.core import results as core
 from sbt2.protocol.v1 import results_pb2 as wire
 from sbt2.protocol.v1.envelope_pb2 import ServerMessage
-from sbt2.server.results.encoding import headline
-from sbt2.server.results.streaming import checked, records
+from sbt2.server.handlers.results.encoding import headline
+from sbt2.server.handlers.results.streaming import checked, records
 
 _HEADLINE = {each.name for each in fields(core.HeadlineMetrics)}
 _HEADER = ("name", "strategy", "context_json", "source")

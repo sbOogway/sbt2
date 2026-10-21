@@ -7,10 +7,10 @@ from collections.abc import AsyncIterator, Mapping
 from typing import Self, override
 
 from sbt2.core.config import Root
-from sbt2.server.modules import clean_environment
-from sbt2.server.runs.jobs import Submission
-from sbt2.server.runs.lines import Lines
-from sbt2.server.runs.wire import (
+from sbt2.server.handlers.modules import clean_environment
+from sbt2.server.handlers.runs.jobs import Submission
+from sbt2.server.handlers.runs.lines import Lines
+from sbt2.server.handlers.runs.wire import (
     GO,
     Event,
     Exited,
@@ -18,9 +18,9 @@ from sbt2.server.runs.wire import (
     LogLines,
     decode,
 )
-from sbt2.server.runs.workers import Worker, Workers
+from sbt2.server.handlers.runs.workers import Worker, Workers
 
-WORKER_MODULE = "sbt2.server.runs.worker"
+WORKER_MODULE = "sbt2.server.handlers.runs.worker"
 STOP_SECONDS = 15
 STREAM_GRACE_SECONDS = 2
 _CHUNK = 65_536

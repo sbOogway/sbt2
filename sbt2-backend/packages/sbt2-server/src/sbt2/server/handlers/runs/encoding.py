@@ -5,8 +5,8 @@ from google.protobuf import json_format
 from google.protobuf.struct_pb2 import Struct
 
 from sbt2.protocol.v1.runs_pb2 import SpecFile, SubmitRun
-from sbt2.server.modules import module_name_problem
-from sbt2.server.runs.jobs import Module, Submission
+from sbt2.server.handlers.modules import module_name_problem
+from sbt2.server.handlers.runs.jobs import Module, Submission
 
 _REQUIRED = ("strategy", "instruments", "period", "capital")
 _OPTIONAL = ("seed", "equity_interval", "liquidation", "bars", "study")

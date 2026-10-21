@@ -1,9 +1,9 @@
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage, ServerMessage
 from sbt2.protocol.v1.types_pb2 import Error, ErrorCode
 from sbt2.server import Handler, Outbox
-from sbt2.server.modules import module_name_problem
-from sbt2.server.strategies.encoding import InvalidArgumentError
-from sbt2.server.strategies.process import describe_in_process
+from sbt2.server.handlers.modules import module_name_problem
+from sbt2.server.handlers.strategies.encoding import InvalidArgumentError
+from sbt2.server.handlers.strategies.process import describe_in_process
 
 IMPORT_SECONDS = 30.0
 

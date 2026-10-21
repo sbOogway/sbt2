@@ -9,10 +9,10 @@ from google.protobuf.message import DecodeError
 
 from sbt2.protocol.v1.envelope_pb2 import ServerMessage
 from sbt2.protocol.v1.runs_pb2 import StrategyModule
-from sbt2.server.modules import clean_environment
-from sbt2.server.strategies.encoding import InvalidArgumentError
+from sbt2.server.handlers.modules import clean_environment
+from sbt2.server.handlers.strategies.encoding import InvalidArgumentError
 
-DESCRIBER_MODULE = "sbt2.server.strategies.describer"
+DESCRIBER_MODULE = "sbt2.server.handlers.strategies.describer"
 
 
 async def describe_in_process(module: StrategyModule, timeout: float) -> ServerMessage:

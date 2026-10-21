@@ -6,7 +6,7 @@ from results_kit import ask, stored
 from sbt2.core import results as core
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage
 from sbt2.protocol.v1.results_pb2 import GetMetrics, MetricGroup
-from sbt2.server.results import routes
+from sbt2.server.handlers.results import routes
 
 
 @pytest.mark.integration

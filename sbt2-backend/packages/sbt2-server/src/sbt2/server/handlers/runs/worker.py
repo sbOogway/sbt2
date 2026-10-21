@@ -1,6 +1,6 @@
 """A job's own process, which alone imports the strategy a client uploaded.
 
-``python -m sbt2.server.runs.worker FD`` reads its job request from the channel
+``python -m sbt2.server.handlers.runs.worker FD`` reads its job request from the channel
 on file descriptor ``FD``, checks the job's specs, reports the runs it planned
 and waits for ``go``; then it runs them as a batch, reporting each run's
 progress. SIGTERM stops it, and the batch's children with it; so does the
@@ -35,7 +35,7 @@ from sbt2.core.run import (
     Uncapped,
     batch,
 )
-from sbt2.server.runs.wire import (
+from sbt2.server.handlers.runs.wire import (
     GO,
     Conflict,
     ConflictKind,

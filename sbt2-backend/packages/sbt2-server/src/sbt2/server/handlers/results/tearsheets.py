@@ -10,7 +10,7 @@ from sbt2.core import results as core
 from sbt2.core.config import Root
 from sbt2.data import Catalog
 from sbt2.server import offloaded
-from sbt2.server.results.encoding import Choice, resolved_benchmark
+from sbt2.server.handlers.results.encoding import Choice, resolved_benchmark
 
 
 class Tearsheets:

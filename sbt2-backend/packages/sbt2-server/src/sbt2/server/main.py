@@ -9,7 +9,8 @@ import typer
 
 from sbt2.core.config import Root
 from sbt2.protocol.v1.envelope_pb2 import Capability
-from sbt2.server import Address, Server, Settings, config, results, runs, strategies
+from sbt2.server import Address, Server, Settings
+from sbt2.server.handlers import config, results, runs, strategies
 
 HOST_ENV = "SBT2_SERVER_HOST"
 PORT_ENV = "SBT2_SERVER_PORT"

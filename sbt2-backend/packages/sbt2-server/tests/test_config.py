@@ -19,7 +19,7 @@ from sbt2.protocol.v1.config_pb2 import (
 from sbt2.protocol.v1.envelope_pb2 import ClientMessage
 from sbt2.protocol.v1.types_pb2 import ErrorCode
 from sbt2.server import Handler
-from sbt2.server.config import routes
+from sbt2.server.handlers.config import routes
 
 
 def config_routes(path: Path) -> dict[str, Handler]:

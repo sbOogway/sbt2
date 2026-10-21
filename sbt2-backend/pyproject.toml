@@ -275,22 +275,22 @@ protected_modules = ["sbt2.server.transport.*"]
 allowed_importers = ["sbt2.server.transport"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.server.results imports its own internals"
+name = "Only sbt2.server.handlers.results imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.server.results.*"]
-allowed_importers = ["sbt2.server.results"]
+protected_modules = ["sbt2.server.handlers.results.*"]
+allowed_importers = ["sbt2.server.handlers.results"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.server.config imports its own internals"
+name = "Only sbt2.server.handlers.config imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.server.config.*"]
-allowed_importers = ["sbt2.server.config"]
+protected_modules = ["sbt2.server.handlers.config.*"]
+allowed_importers = ["sbt2.server.handlers.config"]
 
 [[tool.importlinter.contracts]]
-name = "Only sbt2.server.strategies imports its own internals"
+name = "Only sbt2.server.handlers.strategies imports its own internals"
 type = "protected"
-protected_modules = ["sbt2.server.strategies.*"]
-allowed_importers = ["sbt2.server.strategies"]
+protected_modules = ["sbt2.server.handlers.strategies.*"]
+allowed_importers = ["sbt2.server.handlers.strategies"]
 
 [[tool.importlinter.contracts]]
 name = "sbt2 never imports the server or its protocol"

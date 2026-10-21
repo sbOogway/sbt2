@@ -1,6 +1,6 @@
 """A process of its own that imports an uploaded module and describes its strategy.
 
-``python -m sbt2.server.strategies.describer`` reads the module's name and source
+``python -m sbt2.server.handlers.strategies.describer`` reads the module's name and source
 as JSON from stdin and writes one serialized ``ServerMessage`` to stdout: the
 ``StrategySchema``, or an ``Error``. What the module prints goes to stderr.
 """
@@ -18,7 +18,7 @@ from typing import Any
 from sbt2.core.strategy import Strategy
 from sbt2.protocol.v1.envelope_pb2 import ServerMessage
 from sbt2.protocol.v1.types_pb2 import Error, ErrorCode
-from sbt2.server.strategies.encoding import describe
+from sbt2.server.handlers.strategies.encoding import describe
 
 
 class _Invalid(Exception):
