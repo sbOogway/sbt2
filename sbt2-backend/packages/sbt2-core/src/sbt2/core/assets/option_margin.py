@@ -42,7 +42,7 @@ class MarginRates:
 
     @classmethod
     def from_table(cls, table: Mapping[str, Any]) -> Self:
-        """The rates a venue profile's ``margin`` table sets, with a default for
+        """The rates the ``margin`` table of a spec's ``[execution]`` sets, with a default for
         each rate it leaves out; ``ValueError`` when the table is invalid."""
         try:
             return cls(**{name: Decimal(str(rate)) for name, rate in table.items()})

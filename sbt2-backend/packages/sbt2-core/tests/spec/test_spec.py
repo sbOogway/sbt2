@@ -36,11 +36,9 @@ from sbt2.core.spec import (
     DuplicateRunError,
     EmptyListError,
     FractionSplit,
-    InstrumentVenueError,
     InvalidCapitalError,
     InvalidChainError,
     InvalidStudyNameError,
-    InvalidVenueProfileError,
     MissingSplitError,
     ResolvedRunSpec,
     ShortPremiumRuleError,
@@ -50,7 +48,6 @@ from sbt2.core.spec import (
     UnknownRiskKeyError,
     UnknownSpecKeyError,
     UnknownSplitError,
-    UnknownVenueProfileError,
     UnsupportedBarsError,
     load,
     load_table,
@@ -67,56 +64,32 @@ instruments = ["{BTC}"]
 period = [2024-01-01, 2024-03-01]
 split = {{ validation_start = 2024-02-01, test_start = 2024-02-15 }}
 part = "train"
-venue = "test_linear"
+execution = {{ default_leverage = "10", fee_model = {{ kind = "maker_taker", config = {{ maker_rate = "0.0002", taker_rate = "0.00055" }} }} }}
 capital = "10000 USDT"
 
 [params]
 lookback = 30
 """
-VENUES = """
-[test_linear]
-name = "BYBIT"
-source = "bybit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
-default_leverage = "10"
-fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
-
-[seeded_linear]
-name = "BYBIT"
-source = "bybit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
-fill_model = { kind = "default", config = { prob_fill_on_limit = 0.5, prob_slippage = 0.1 } }
-
-[unliquidated_linear]
-name = "BYBIT"
-source = "bybit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
-liquidation_enabled = false
-fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
-
-[test_option]
-name = "DERIBIT"
-source = "deribit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "OPTION"
-
-[other_source]
-name = "BYBIT"
-source = "mirror"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
-default_leverage = "10"
-fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
-"""
-SOURCELESS = """
-[sourceless]
-name = "BYBIT"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
-"""
+SEEDED = {
+    "fee_model": {
+        "kind": "maker_taker",
+        "config": {"maker_rate": "0.0002", "taker_rate": "0.00055"},
+    },
+    "fill_model": {
+        "kind": "default",
+        "config": {"prob_fill_on_limit": 0.5, "prob_slippage": 0.1},
+    },
+}
+UNLIQUIDATED = {
+    "fee_model": SEEDED["fee_model"],
+    "liquidation_enabled": False,
+}
+OPTION_EXECUTION = {
+    "fee_model": {
+        "kind": "capped_option",
+        "config": {"maker_rate": "0.0003", "taker_rate": "0.0003", "cap_rate": "0.125"},
+    }
+}
 DECLARED_BAR = "spec_strategies:DeclaredBar"
 START = datetime(2024, 1, 1, tzinfo=UTC)
 END = datetime(2024, 2, 1, tzinfo=UTC)
@@ -126,34 +99,31 @@ BY_DATE = DateSplit(validation_start="2024-02-01", test_start="2024-02-15")
 
 
 @pytest.fixture
-def paths(tmp_path: Path) -> tuple[Path, Path]:
-    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+def paths(tmp_path: Path) -> Path:
+    spec = tmp_path / "spec.toml"
     spec.write_text(SPEC)
-    venues.write_text(VENUES)
-    return spec, venues
+    return spec
 
 
-def resolved(paths: tuple[Path, Path], **overrides: Any) -> ResolvedRunSpec:
+def resolved(paths: Path, **overrides: Any) -> ResolvedRunSpec:
     [spec] = loaded(paths, **overrides)
     return spec
 
 
-def loaded(paths: tuple[Path, Path], **overrides: Any) -> list[ResolvedRunSpec]:
-    spec, venues = paths
-    return load(spec, venues, overrides)
+def loaded(paths: Path, **overrides: Any) -> list[ResolvedRunSpec]:
+    return load(paths, overrides)
 
 
-def without(paths: tuple[Path, Path], key: str) -> tuple[Path, Path]:
+def without(paths: Path, key: str) -> Path:
     """The spec file with the line setting ``key`` dropped."""
-    spec, venues = paths
-    lines = spec.read_text().splitlines(keepends=True)
-    spec.write_text("".join(each for each in lines if not each.startswith(key)))
-    return spec, venues
+    lines = paths.read_text().splitlines(keepends=True)
+    paths.write_text("".join(each for each in lines if not each.startswith(key)))
+    return paths
 
 
 @pytest.mark.unit
 def test_strategy_run_has_instrument_ids_and_params_with_defaults(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     run = resolved(paths).strategy
 
@@ -164,7 +134,7 @@ def test_strategy_run_has_instrument_ids_and_params_with_defaults(
 
 
 @pytest.mark.unit
-def test_venue_profile_names_the_asset_profile(paths: tuple[Path, Path]) -> None:
+def test_the_instruments_name_the_asset_profile(paths: Path) -> None:
     asset = resolved(paths).asset
 
     assert (asset.asset_class, asset.instrument_class) == (
@@ -174,7 +144,7 @@ def test_venue_profile_names_the_asset_profile(paths: tuple[Path, Path]) -> None
 
 
 @pytest.mark.unit
-def test_the_venue_profile_names_the_data_source(paths: tuple[Path, Path]) -> None:
+def test_the_venue_of_the_instruments_names_the_data_source(paths: Path) -> None:
     spec = resolved(paths)
 
     assert spec.source == "bybit"
@@ -182,24 +152,8 @@ def test_the_venue_profile_names_the_data_source(paths: tuple[Path, Path]) -> No
 
 
 @pytest.mark.unit
-def test_the_data_source_is_not_part_of_the_spec_hash(
-    paths: tuple[Path, Path],
-) -> None:
-    assert resolved(paths).hash == resolved(paths, venue="other_source").hash
-
-
-@pytest.mark.unit
-def test_a_venue_profile_without_a_source_fails(paths: tuple[Path, Path]) -> None:
-    spec, venues = paths
-    venues.write_text(SOURCELESS)
-
-    with pytest.raises(InvalidVenueProfileError, match=r"sourceless.* source"):
-        load(spec, venues, {"venue": "sourceless"})
-
-
-@pytest.mark.unit
 def test_venue_arguments_start_from_the_asset_defaults(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     venue = resolved(paths).venue
 
@@ -211,20 +165,20 @@ def test_venue_arguments_start_from_the_asset_defaults(
 
 
 @pytest.mark.unit
-def test_liquidation_follows_the_venue_profile_by_default(
-    paths: tuple[Path, Path],
+def test_liquidation_follows_the_execution_table_by_default(
+    paths: Path,
 ) -> None:
-    venue = resolved(paths, venue="unliquidated_linear").venue
+    venue = resolved(paths, execution=UNLIQUIDATED).venue
 
     assert venue["liquidation_enabled"] is False
 
 
 @pytest.mark.unit
-def test_the_liquidation_key_overrides_the_venue_profile(
-    paths: tuple[Path, Path],
+def test_the_liquidation_key_overrides_the_execution_table(
+    paths: Path,
 ) -> None:
-    unset = resolved(paths, venue="unliquidated_linear")
-    liquidated = resolved(paths, venue="unliquidated_linear", liquidation=True)
+    unset = resolved(paths, execution=UNLIQUIDATED)
+    liquidated = resolved(paths, execution=UNLIQUIDATED, liquidation=True)
 
     assert liquidated.venue["liquidation_enabled"] is True
     assert liquidated.hash != unset.hash
@@ -232,7 +186,7 @@ def test_the_liquidation_key_overrides_the_venue_profile(
 
 @pytest.mark.unit
 def test_data_covers_declared_bars_and_the_asset_streams_from_warmup(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     data = resolved(paths).data
 
@@ -247,7 +201,7 @@ def test_data_covers_declared_bars_and_the_asset_streams_from_warmup(
 
 
 @pytest.mark.unit
-def test_bars_come_from_trades_by_default(paths: tuple[Path, Path]) -> None:
+def test_bars_come_from_trades_by_default(paths: Path) -> None:
     spec = resolved(paths)
 
     streamed = [each["data_type"] for each in spec.data]
@@ -261,7 +215,7 @@ def test_bars_come_from_trades_by_default(paths: tuple[Path, Path]) -> None:
 
 @pytest.mark.unit
 def test_a_candle_run_streams_one_minute_candles_instead_of_trades(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     data = resolved(paths, bars="candles").data
 
@@ -278,7 +232,7 @@ def test_a_candle_run_streams_one_minute_candles_instead_of_trades(
 
 @pytest.mark.unit
 def test_a_candle_run_has_the_strategy_aggregate_from_candles(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     assert resolved(paths).strategy.aggregated_from is None
     assert (
@@ -287,7 +241,7 @@ def test_a_candle_run_has_the_strategy_aggregate_from_candles(
 
 
 @pytest.mark.unit
-def test_the_bar_source_changes_the_hash(paths: tuple[Path, Path]) -> None:
+def test_the_bar_source_changes_the_hash(paths: Path) -> None:
     assert resolved(paths, bars="candles").hash != resolved(paths).hash
 
 
@@ -296,9 +250,7 @@ def test_the_bar_source_changes_the_hash(paths: tuple[Path, Path]) -> None:
     "bar",
     ["1-MINUTE-LAST", "15-MINUTE-LAST", "1-HOUR-LAST", "4-HOUR-LAST", "1-DAY-LAST"],
 )
-def test_whole_minute_bars_are_built_from_candles(
-    paths: tuple[Path, Path], bar: str
-) -> None:
+def test_whole_minute_bars_are_built_from_candles(paths: Path, bar: str) -> None:
     spec = resolved(paths, strategy=DECLARED_BAR, params={"bar": bar}, bars="candles")
 
     assert spec.data[0]["data_type"] == NautilusDataType.Bar
@@ -317,9 +269,7 @@ def test_whole_minute_bars_are_built_from_candles(
         "10-VOLUME-LAST",
     ],
 )
-def test_bars_candles_cannot_build_are_refused(
-    paths: tuple[Path, Path], bar: str
-) -> None:
+def test_bars_candles_cannot_build_are_refused(paths: Path, bar: str) -> None:
     with pytest.raises(CandleBarError, match=bar):
         resolved(paths, strategy=DECLARED_BAR, params={"bar": bar}, bars="candles")
 
@@ -328,7 +278,7 @@ def option_overrides(bar: str) -> dict[str, Any]:
     return {
         "strategy": DECLARED_BAR,
         "params": {"bar": bar},
-        "venue": "test_option",
+        "execution": OPTION_EXECUTION,
         "instruments": ["BTC-30JAN26-100000-C.DERIBIT"],
         "capital": "1 BTC",
     }
@@ -336,7 +286,7 @@ def option_overrides(bar: str) -> dict[str, Any]:
 
 @pytest.mark.unit
 def test_an_option_run_refuses_bars_made_from_trades(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     with pytest.raises(UnsupportedBarsError, match=r"1-HOUR-LAST.*MID, BID or ASK"):
         resolved(paths, **option_overrides("1-HOUR-LAST"))
@@ -344,20 +294,20 @@ def test_an_option_run_refuses_bars_made_from_trades(
 
 @pytest.mark.unit
 def test_an_option_run_accepts_bars_made_from_quotes(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     assert resolved(paths, **option_overrides("1-HOUR-MID"))
 
 
 @pytest.mark.unit
-def test_an_unknown_bar_source_is_refused(paths: tuple[Path, Path]) -> None:
+def test_an_unknown_bar_source_is_refused(paths: Path) -> None:
     with pytest.raises(UnknownBarSourceError, match="trades, candles"):
         resolved(paths, bars="quotes")
 
 
 @pytest.mark.unit
 def test_run_config_is_built_from_the_resolved_arguments(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     config = resolved(paths).run_config("/catalog", chunk_size=1000)
 
@@ -375,7 +325,7 @@ def test_run_config_is_built_from_the_resolved_arguments(
 
 
 @pytest.mark.unit
-def test_engine_arguments_reach_the_engine_config(paths: tuple[Path, Path]) -> None:
+def test_engine_arguments_reach_the_engine_config(paths: Path) -> None:
     engine = {"shutdown_on_error": True, "run_analysis": False}
 
     config = resolved(paths).run_config("/catalog", engine).engine
@@ -387,7 +337,7 @@ def test_engine_arguments_reach_the_engine_config(paths: tuple[Path, Path]) -> N
 
 @pytest.mark.unit
 def test_portfolio_samples_equity_at_the_interval_in_mark_prices(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     config = resolved(paths, equity_interval="15m").run_config("/catalog")
 
@@ -398,18 +348,18 @@ def test_portfolio_samples_equity_at_the_interval_in_mark_prices(
 
 
 @pytest.mark.unit
-def test_equity_interval_defaults_to_one_hour(paths: tuple[Path, Path]) -> None:
+def test_equity_interval_defaults_to_one_hour(paths: Path) -> None:
     assert resolved(paths).equity_interval_ms == 3_600_000
 
 
 @pytest.mark.unit
-def test_malformed_equity_interval_fails(paths: tuple[Path, Path]) -> None:
+def test_malformed_equity_interval_fails(paths: Path) -> None:
     with pytest.raises(ValueError, match="1h"):
         resolved(paths, equity_interval="an hour")
 
 
 @pytest.mark.unit
-def test_overrides_replace_file_values(paths: tuple[Path, Path]) -> None:
+def test_overrides_replace_file_values(paths: Path) -> None:
     spec = resolved(paths, period=["2024-01-15", "2024-03-01"], params={"lookback": 5})
 
     assert spec.start == datetime(2024, 1, 15, tzinfo=UTC)
@@ -417,7 +367,7 @@ def test_overrides_replace_file_values(paths: tuple[Path, Path]) -> None:
 
 
 @pytest.mark.unit
-def test_hash_is_stable_for_the_same_spec(paths: tuple[Path, Path]) -> None:
+def test_hash_is_stable_for_the_same_spec(paths: Path) -> None:
     first, second = resolved(paths), resolved(paths)
 
     assert first.hash == second.hash
@@ -425,7 +375,7 @@ def test_hash_is_stable_for_the_same_spec(paths: tuple[Path, Path]) -> None:
 
 
 @pytest.mark.unit
-def test_json_is_the_hashed_document(paths: tuple[Path, Path]) -> None:
+def test_json_is_the_hashed_document(paths: Path) -> None:
     spec = resolved(paths)
 
     document = json.loads(spec.to_json())
@@ -445,25 +395,23 @@ def test_json_is_the_hashed_document(paths: tuple[Path, Path]) -> None:
         {"instruments": ["ETHUSDT-LINEAR.BYBIT"]},
     ],
 )
-def test_hash_changes_with_the_backtest(
-    paths: tuple[Path, Path], overrides: dict[str, Any]
-) -> None:
+def test_hash_changes_with_the_backtest(paths: Path, overrides: dict[str, Any]) -> None:
     assert resolved(paths, **overrides).hash != resolved(paths).hash
 
 
 @pytest.mark.unit
 def test_hash_ignores_the_seed_without_a_random_fill_model(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     assert resolved(paths, seed=7).hash == resolved(paths).hash
 
 
 @pytest.mark.unit
-def test_seed_goes_to_the_fill_model(paths: tuple[Path, Path]) -> None:
-    seeded = resolved(paths, venue="seeded_linear", seed=7)
+def test_seed_goes_to_the_fill_model(paths: Path) -> None:
+    seeded = resolved(paths, execution=SEEDED, seed=7)
 
     assert seeded.venue["fill_model"]["config"]["random_seed"] == 7
-    assert seeded.hash != resolved(paths, venue="seeded_linear").hash
+    assert seeded.hash != resolved(paths, execution=SEEDED).hash
     [venue] = seeded.run_config("/catalog").venues
     assert venue.fill_model is not None
 
@@ -477,7 +425,7 @@ RISK = {
 
 @pytest.mark.unit
 def test_the_risk_table_becomes_the_risk_engine_config(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     config = resolved(paths, risk=RISK).run_config("/catalog").engine.risk_engine
 
@@ -488,18 +436,18 @@ def test_the_risk_table_becomes_the_risk_engine_config(
 
 
 @pytest.mark.unit
-def test_a_spec_without_risk_hashes_as_before(paths: tuple[Path, Path]) -> None:
+def test_a_spec_without_risk_hashes_as_before(paths: Path) -> None:
     assert "risk" not in json.loads(resolved(paths).to_json())
 
 
 @pytest.mark.unit
-def test_risk_changes_the_hash(paths: tuple[Path, Path]) -> None:
+def test_risk_changes_the_hash(paths: Path) -> None:
     assert resolved(paths, risk=RISK).hash != resolved(paths).hash
 
 
 @pytest.mark.unit
 def test_the_drawdown_limit_goes_to_the_strategy_not_the_risk_engine(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     spec = resolved(paths, risk={**RISK, "drawdown_limit": 0.2})
 
@@ -511,16 +459,14 @@ def test_the_drawdown_limit_goes_to_the_strategy_not_the_risk_engine(
 
 @pytest.mark.unit
 @pytest.mark.parametrize("limit", [0, 1, -0.1, 1.5])
-def test_a_drawdown_limit_outside_zero_and_one_fails(
-    paths: tuple[Path, Path], limit: float
-) -> None:
+def test_a_drawdown_limit_outside_zero_and_one_fails(paths: Path, limit: float) -> None:
     with pytest.raises(DrawdownLimitError, match="between 0 and 1"):
         resolved(paths, risk={"drawdown_limit": limit})
 
 
 @pytest.mark.unit
 def test_a_short_premium_table_turns_the_rules_on_with_the_book_defaults(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     spec = resolved(paths, risk={"short_premium": {}})
 
@@ -536,7 +482,7 @@ def test_a_short_premium_table_turns_the_rules_on_with_the_book_defaults(
 
 
 @pytest.mark.unit
-def test_short_premium_keys_override_the_defaults(paths: tuple[Path, Path]) -> None:
+def test_short_premium_keys_override_the_defaults(paths: Path) -> None:
     table = {
         "allocation": [0.1, 0.3],
         "undefined_cap": 0.04,
@@ -574,14 +520,14 @@ def test_short_premium_keys_override_the_defaults(paths: tuple[Path, Path]) -> N
     ],
 )
 def test_a_short_premium_fraction_outside_zero_and_one_is_refused(
-    paths: tuple[Path, Path], table: dict[str, Any]
+    paths: Path, table: dict[str, Any]
 ) -> None:
     with pytest.raises(ShortPremiumRuleError, match="between 0 and 1"):
         resolved(paths, risk={"short_premium": table})
 
 
 @pytest.mark.unit
-def test_an_unknown_short_premium_key_is_refused(paths: tuple[Path, Path]) -> None:
+def test_an_unknown_short_premium_key_is_refused(paths: Path) -> None:
     with pytest.raises(
         UnknownRiskKeyError,
         match=r"cap .* short_premium .* valid: allocation, defined_cap, "
@@ -591,7 +537,7 @@ def test_an_unknown_short_premium_key_is_refused(paths: tuple[Path, Path]) -> No
 
 
 @pytest.mark.unit
-def test_no_short_premium_table_means_no_rules(paths: tuple[Path, Path]) -> None:
+def test_no_short_premium_table_means_no_rules(paths: Path) -> None:
     spec = resolved(paths, risk=RISK)
 
     assert spec.strategy.short_premium is None
@@ -601,7 +547,7 @@ def test_no_short_premium_table_means_no_rules(paths: tuple[Path, Path]) -> None
 
 @pytest.mark.unit
 def test_an_unknown_risk_key_fails_listing_the_valid_ones(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     with pytest.raises(
         UnknownRiskKeyError,
@@ -613,29 +559,15 @@ def test_an_unknown_risk_key_fails_listing_the_valid_ones(
 
 @pytest.mark.unit
 def test_unknown_parameter_fails_listing_the_valid_ones(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     with pytest.raises(UnknownParameterError, match="valid: lookback, stop"):
         resolved(paths, params={"lookbak": 5})
 
 
 @pytest.mark.unit
-def test_unknown_venue_profile_fails_listing_the_known_ones(
-    paths: tuple[Path, Path],
-) -> None:
-    with pytest.raises(UnknownVenueProfileError, match="seeded_linear, test_linear"):
-        resolved(paths, venue="binance_linear")
-
-
-@pytest.mark.unit
-def test_instrument_on_another_venue_fails(paths: tuple[Path, Path]) -> None:
-    with pytest.raises(InstrumentVenueError, match=re.escape("BTCUSDT-LINEAR.BINANCE")):
-        resolved(paths, instruments=[BTC, "BTCUSDT-LINEAR.BINANCE"])
-
-
-@pytest.mark.unit
 def test_unknown_spec_key_fails_listing_the_valid_ones(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     with pytest.raises(
         UnknownSpecKeyError,
@@ -645,7 +577,7 @@ def test_unknown_spec_key_fails_listing_the_valid_ones(
 
 
 @pytest.mark.unit
-def test_the_period_is_utc(paths: tuple[Path, Path]) -> None:
+def test_the_period_is_utc(paths: Path) -> None:
     spec = resolved(
         paths,
         period=[datetime.fromisoformat("2024-01-01T02:00:00+02:00"), "2024-03-01"],
@@ -655,7 +587,7 @@ def test_the_period_is_utc(paths: tuple[Path, Path]) -> None:
 
 
 @pytest.mark.unit
-def test_the_part_sets_the_run_dates(paths: tuple[Path, Path]) -> None:
+def test_the_part_sets_the_run_dates(paths: Path) -> None:
     spec = resolved(paths, part="validation")
 
     config = spec.run_config("/catalog")
@@ -665,7 +597,7 @@ def test_the_part_sets_the_run_dates(paths: tuple[Path, Path]) -> None:
 
 
 @pytest.mark.unit
-def test_warmup_reads_data_from_before_the_part(paths: tuple[Path, Path]) -> None:
+def test_warmup_reads_data_from_before_the_part(paths: Path) -> None:
     data = resolved(paths, part="validation").data
 
     assert {each["start_time"] for each in data} == {
@@ -675,7 +607,7 @@ def test_warmup_reads_data_from_before_the_part(paths: tuple[Path, Path]) -> Non
 
 @pytest.mark.unit
 def test_the_resolved_spec_carries_the_split_and_part(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     spec = resolved(paths)
 
@@ -684,7 +616,7 @@ def test_the_resolved_spec_carries_the_split_and_part(
 
 @pytest.mark.unit
 def test_the_split_and_part_are_in_the_hashed_document(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     document = json.loads(resolved(paths).to_json())
 
@@ -698,7 +630,7 @@ def test_the_split_and_part_are_in_the_hashed_document(
 
 @pytest.mark.unit
 def test_the_same_dates_under_another_split_change_the_hash(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     by_date = resolved(paths)
     by_fraction = resolved(paths, split=FractionSplit(validation=0.25, test=14 / 60))
@@ -708,17 +640,16 @@ def test_the_same_dates_under_another_split_change_the_hash(
 
 
 @pytest.mark.unit
-def test_a_splitter_can_be_given_as_an_override(paths: tuple[Path, Path]) -> None:
+def test_a_splitter_can_be_given_as_an_override(paths: Path) -> None:
     split = FractionSplit(validation=0.25, test=0.25)
 
     assert resolved(paths, split=split).split == split
 
 
-def with_params(paths: tuple[Path, Path], lines: str) -> tuple[Path, Path]:
+def with_params(paths: Path, lines: str) -> Path:
     """The spec file with its ``[params]`` table holding ``lines``."""
-    spec, venues = paths
-    spec.write_text(spec.read_text().replace("lookback = 30\n", lines))
-    return spec, venues
+    paths.write_text(paths.read_text().replace("lookback = 30\n", lines))
+    return paths
 
 
 def params(runs: list[ResolvedRunSpec]) -> list[dict[str, Any]]:
@@ -726,7 +657,7 @@ def params(runs: list[ResolvedRunSpec]) -> list[dict[str, Any]]:
 
 
 @pytest.mark.unit
-def test_a_spec_with_a_part_loads_as_one_run(paths: tuple[Path, Path]) -> None:
+def test_a_spec_with_a_part_loads_as_one_run(paths: Path) -> None:
     [spec] = loaded(paths)
 
     assert spec.part == "train"
@@ -734,7 +665,7 @@ def test_a_spec_with_a_part_loads_as_one_run(paths: tuple[Path, Path]) -> None:
 
 @pytest.mark.unit
 def test_a_parameter_list_expands_into_one_run_per_value(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     short, long = loaded(with_params(paths, "lookback = [20, 50]\n"))
 
@@ -748,7 +679,7 @@ def test_a_parameter_list_expands_into_one_run_per_value(
 
 @pytest.mark.unit
 def test_parameter_lists_expand_into_their_cartesian_product(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     runs = loaded(with_params(paths, 'lookback = [20, 50]\nstop = ["0.01", "0.02"]\n'))
 
@@ -775,7 +706,7 @@ def test_a_list_valued_parameter_is_written_as_a_list_in_the_list() -> None:
 
 
 @pytest.mark.unit
-def test_parameter_lists_expand_with_every_part(paths: tuple[Path, Path]) -> None:
+def test_parameter_lists_expand_with_every_part(paths: Path) -> None:
     runs = loaded(with_params(without(paths, "part"), "lookback = [20, 50]\n"))
 
     assert [(each.part, each.strategy.params["lookback"]) for each in runs] == [
@@ -788,7 +719,7 @@ def test_parameter_lists_expand_with_every_part(paths: tuple[Path, Path]) -> Non
 
 @pytest.mark.unit
 def test_the_runs_come_in_part_then_parameter_order(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     lines = 'stop = ["0.02", "0.01"]\nlookback = [50, 20]\n'
     expanded = with_params(without(paths, "part"), lines)
@@ -808,7 +739,7 @@ def test_the_runs_come_in_part_then_parameter_order(
 
 
 @pytest.mark.unit
-def test_instruments_stay_one_universe(paths: tuple[Path, Path]) -> None:
+def test_instruments_stay_one_universe(paths: Path) -> None:
     [spec] = loaded(paths, instruments=[BTC, ETH])
 
     assert spec.strategy.instruments == [
@@ -819,7 +750,7 @@ def test_instruments_stay_one_universe(paths: tuple[Path, Path]) -> None:
 
 @pytest.mark.unit
 def test_a_parameter_list_given_as_an_override_expands(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     runs = loaded(paths, params={"lookback": [20, 50]})
 
@@ -828,7 +759,7 @@ def test_a_parameter_list_given_as_an_override_expands(
 
 @pytest.mark.unit
 def test_one_invalid_combination_fails_the_whole_load(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     bars = {"bar": ["1-HOUR-LAST", "1-SECOND-LAST"]}
 
@@ -841,33 +772,33 @@ def test_one_invalid_combination_fails_the_whole_load(
 
 
 @pytest.mark.unit
-def test_a_repeated_value_fails_as_a_duplicate_run(paths: tuple[Path, Path]) -> None:
+def test_a_repeated_value_fails_as_a_duplicate_run(paths: Path) -> None:
     with pytest.raises(DuplicateRunError, match="lookback=20"):
         loaded(with_params(paths, "lookback = [20, 20]\n"))
 
 
 @pytest.mark.unit
 def test_values_that_resolve_to_the_same_run_fail_as_duplicates(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     with pytest.raises(DuplicateRunError, match=r"stop='0.02' .* stop=0.02"):
         loaded(with_params(paths, 'stop = ["0.02", 0.02]\n'))
 
 
 @pytest.mark.unit
-def test_an_empty_list_fails_naming_its_key(paths: tuple[Path, Path]) -> None:
+def test_an_empty_list_fails_naming_its_key(paths: Path) -> None:
     with pytest.raises(EmptyListError, match="lookback"):
         loaded(with_params(paths, "lookback = []\n"))
 
 
 @pytest.mark.unit
-def test_an_empty_list_of_parts_fails(paths: tuple[Path, Path]) -> None:
+def test_an_empty_list_of_parts_fails(paths: Path) -> None:
     with pytest.raises(EmptyListError, match="part"):
         loaded(paths, part=[])
 
 
 @pytest.mark.unit
-def test_start_and_end_are_no_longer_spec_keys(paths: tuple[Path, Path]) -> None:
+def test_start_and_end_are_no_longer_spec_keys(paths: Path) -> None:
     with pytest.raises(
         UnknownSpecKeyError,
         match=r"start .* valid: .*params, part, period, risk, seed, split",
@@ -876,14 +807,14 @@ def test_start_and_end_are_no_longer_spec_keys(paths: tuple[Path, Path]) -> None
 
 
 @pytest.mark.unit
-def test_a_spec_without_a_split_fails(paths: tuple[Path, Path]) -> None:
+def test_a_spec_without_a_split_fails(paths: Path) -> None:
     with pytest.raises(MissingSplitError):
         resolved(without(paths, "split"))
 
 
 @pytest.mark.unit
 def test_without_a_part_a_spec_expands_into_a_train_and_a_validation_run(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     train, validation = loaded(without(paths, "part"))
 
@@ -896,7 +827,7 @@ def test_without_a_part_a_spec_expands_into_a_train_and_a_validation_run(
 
 @pytest.mark.unit
 def test_a_list_of_parts_expands_into_one_run_per_part(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     runs = loaded(paths, part=["validation", "test"])
 
@@ -904,7 +835,7 @@ def test_a_list_of_parts_expands_into_one_run_per_part(
 
 
 @pytest.mark.unit
-def test_an_unknown_part_fails_listing_the_parts(paths: tuple[Path, Path]) -> None:
+def test_an_unknown_part_fails_listing_the_parts(paths: Path) -> None:
     with pytest.raises(UnknownPartError, match=r"holdout.* train, validation, test"):
         resolved(paths, part="holdout")
 
@@ -919,7 +850,7 @@ def test_an_unknown_part_fails_listing_the_parts(paths: tuple[Path, Path]) -> No
     ],
 )
 def test_a_split_table_that_fits_no_splitter_fails_listing_the_forms(
-    paths: tuple[Path, Path], table: dict[str, Any], keys: str
+    paths: Path, table: dict[str, Any], keys: str
 ) -> None:
     with pytest.raises(
         UnknownSplitError,
@@ -930,8 +861,8 @@ def test_a_split_table_that_fits_no_splitter_fails_listing_the_forms(
 
 
 @pytest.mark.unit
-def test_a_split_table_of_fractions_resolves(paths: tuple[Path, Path]) -> None:
-    spec_file, _ = paths
+def test_a_split_table_of_fractions_resolves(paths: Path) -> None:
+    spec_file = paths
     spec_file.write_text(
         spec_file.read_text().replace(
             "split = { validation_start = 2024-02-01, test_start = 2024-02-15 }",
@@ -947,7 +878,7 @@ def test_a_split_table_of_fractions_resolves(paths: tuple[Path, Path]) -> None:
 
 @pytest.mark.unit
 def test_a_resolved_spec_is_rebuilt_from_its_document(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     spec = resolved(
         paths,
@@ -963,13 +894,16 @@ def test_a_resolved_spec_is_rebuilt_from_its_document(
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    ("venue", "bars"), [("seeded_linear", "trades"), ("test_linear", "candles")]
+    ("execution", "bars"), [(SEEDED, "trades"), (UNLIQUIDATED, "candles")]
 )
-def test_a_spec_is_rebuilt_whatever_its_venue_and_bars(
-    paths: tuple[Path, Path], venue: str, bars: str
+def test_a_spec_is_rebuilt_whatever_its_execution_and_bars(
+    paths: Path, execution: dict[str, Any], bars: str
 ) -> None:
     spec = resolved(
-        paths, venue=venue, bars=bars, split={"validation": 0.25, "test": 0.25}
+        paths,
+        execution=execution,
+        bars=bars,
+        split={"validation": 0.25, "test": 0.25},
     )
 
     rebuilt = ResolvedRunSpec.from_document(json.loads(spec.to_json()))
@@ -991,22 +925,21 @@ def test_every_spec_error_is_a_spec_error() -> None:
     assert [each for each in errors if not issubclass(each, SpecError)] == []
 
 
-def in_study(paths: tuple[Path, Path], name: str) -> tuple[Path, Path]:
+def in_study(paths: Path, name: str) -> Path:
     """The spec file with ``study = name`` at its top."""
-    spec, venues = paths
-    spec.write_text(f"study = {name!r}\n{spec.read_text()}")
-    return spec, venues
+    paths.write_text(f"study = {name!r}\n{paths.read_text()}")
+    return paths
 
 
 @pytest.mark.unit
-def test_a_spec_names_its_study(paths: tuple[Path, Path]) -> None:
+def test_a_spec_names_its_study(paths: Path) -> None:
     runs = loaded(in_study(without(paths, "part"), "ma-btc"))
 
     assert [each.study.name for each in runs if each.study] == ["ma-btc", "ma-btc"]
 
 
 @pytest.mark.unit
-def test_the_study_does_not_enter_the_hash(paths: tuple[Path, Path]) -> None:
+def test_the_study_does_not_enter_the_hash(paths: Path) -> None:
     outside = resolved(paths)
 
     inside = resolved(in_study(paths, "ma-btc"))
@@ -1016,7 +949,7 @@ def test_the_study_does_not_enter_the_hash(paths: tuple[Path, Path]) -> None:
 
 
 @pytest.mark.unit
-def test_a_study_name_must_be_a_slug(paths: tuple[Path, Path]) -> None:
+def test_a_study_name_must_be_a_slug(paths: Path) -> None:
     with pytest.raises(InvalidStudyNameError, match=re.escape("../x")):
         resolved(in_study(paths, "../x"))
 
@@ -1028,32 +961,24 @@ TABLE_SPEC = SPEC.replace('part = "train"', 'part = ["train", "validation"]').re
 
 @pytest.mark.unit
 def test_load_table_resolves_every_run_a_table_expands_into(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
-    spec, venues = paths
-    spec.write_text(TABLE_SPEC)
+    paths.write_text(TABLE_SPEC)
 
-    from_table = load_table(tomllib.loads(TABLE_SPEC), venues)
+    from_table = load_table(tomllib.loads(TABLE_SPEC))
 
     assert len(from_table) == 4
-    assert [each.hash for each in from_table] == [
-        each.hash for each in load(spec, venues)
-    ]
+    assert [each.hash for each in from_table] == [each.hash for each in load(paths)]
 
 
 @pytest.mark.unit
-def test_load_table_rejects_unknown_keys_and_a_missing_split(
-    paths: tuple[Path, Path],
-) -> None:
-    _, venues = paths
+def test_load_table_rejects_unknown_keys_and_a_missing_split() -> None:
     table = tomllib.loads(SPEC)
 
     with pytest.raises(UnknownSpecKeyError, match="symbols"):
-        load_table({**table, "symbols": []}, venues)
+        load_table({**table, "symbols": []})
     with pytest.raises(MissingSplitError):
-        load_table(
-            {key: value for key, value in table.items() if key != "split"}, venues
-        )
+        load_table({key: value for key, value in table.items() if key != "split"})
 
 
 CHAIN = "BTC-OPTIONS.DERIBIT"
@@ -1063,7 +988,7 @@ def chain_overrides(**extra: Any) -> dict[str, Any]:
     return {
         "strategy": "spec_strategies:NoBars",
         "params": {},
-        "venue": "test_option",
+        "execution": OPTION_EXECUTION,
         "instruments": [CHAIN],
         "capital": "1 BTC",
         **extra,
@@ -1071,7 +996,7 @@ def chain_overrides(**extra: Any) -> dict[str, Any]:
 
 
 @pytest.mark.unit
-def test_a_spec_can_name_an_option_chain(paths: tuple[Path, Path]) -> None:
+def test_a_spec_can_name_an_option_chain(paths: Path) -> None:
     spec = resolved(paths, **chain_overrides())
 
     assert spec.strategy.instruments == [InstrumentId.from_str(CHAIN)]
@@ -1080,7 +1005,7 @@ def test_a_spec_can_name_an_option_chain(paths: tuple[Path, Path]) -> None:
 
 @pytest.mark.unit
 def test_a_chain_table_sets_its_dte_and_strike_bands(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     table = {"min_dte": 7, "max_dte": 30, "strike_band": 0.25}
 
@@ -1091,7 +1016,7 @@ def test_a_chain_table_sets_its_dte_and_strike_bands(
 
 @pytest.mark.unit
 def test_a_chain_table_is_refused_for_a_single_contract_or_a_perpetual(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     contract = option_overrides("1-HOUR-MID")
     with pytest.raises(InvalidChainError, match="names no chain"):
@@ -1110,16 +1035,14 @@ def test_a_chain_table_is_refused_for_a_single_contract_or_a_perpetual(
         {"expiry": 7},
     ],
 )
-def test_an_invalid_chain_table_is_refused(
-    paths: tuple[Path, Path], table: dict[str, Any]
-) -> None:
+def test_an_invalid_chain_table_is_refused(paths: Path, table: dict[str, Any]) -> None:
     with pytest.raises(InvalidChainError, match="chain setting is invalid"):
         resolved(paths, **chain_overrides(chain=table))
 
 
 @pytest.mark.unit
 def test_the_chain_bands_change_the_hash_and_a_chain_spec_is_rebuilt(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     wide = resolved(paths, **chain_overrides())
     narrow = resolved(paths, **chain_overrides(chain={"max_dte": 30}))
@@ -1133,7 +1056,7 @@ def test_the_chain_bands_change_the_hash_and_a_chain_spec_is_rebuilt(
 
 @pytest.mark.unit
 def test_a_spec_names_two_chains_and_streams_the_feeds_of_each(
-    paths: tuple[Path, Path], tmp_path: Path
+    paths: Path, tmp_path: Path
 ) -> None:
     build_two_chain_catalog(tmp_path / "catalog")
     bands = {"min_dte": 0, "max_dte": 90, "strike_band": "0.5"}
@@ -1166,7 +1089,7 @@ def test_a_spec_names_two_chains_and_streams_the_feeds_of_each(
 
 @pytest.mark.unit
 def test_capital_takes_a_list_and_the_first_currency_reports(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     capital = ["1 BTC", "20 ETH"]
 
@@ -1181,7 +1104,7 @@ def test_capital_takes_a_list_and_the_first_currency_reports(
 
 @pytest.mark.unit
 def test_capital_as_a_string_still_resolves_as_before(
-    paths: tuple[Path, Path],
+    paths: Path,
 ) -> None:
     spec = resolved(paths, **chain_overrides())
 
@@ -1191,6 +1114,6 @@ def test_capital_as_a_string_still_resolves_as_before(
 
 
 @pytest.mark.unit
-def test_an_empty_capital_list_is_refused(paths: tuple[Path, Path]) -> None:
+def test_an_empty_capital_list_is_refused(paths: Path) -> None:
     with pytest.raises(InvalidCapitalError, match="names no balance"):
         resolved(paths, **chain_overrides(capital=[]))

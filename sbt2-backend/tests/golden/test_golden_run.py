@@ -11,7 +11,6 @@ from sbt2.cli import app
 from sbt2.core.results import ParquetResultStore
 
 HERE = Path(__file__).parent
-CONFIG = HERE.parent / "config"
 METRICS = [
     "net_return",
     "annualized_return",
@@ -62,9 +61,7 @@ def _rows(frame: pd.DataFrame, columns: list[str]) -> list[list[str]]:
 
 
 def run(spec: Path, data: Path) -> Result:
-    return CliRunner().invoke(
-        app, ["run", str(spec), "--data", str(data), "--config", str(CONFIG)]
-    )
+    return CliRunner().invoke(app, ["run", str(spec), "--data", str(data)])
 
 
 @pytest.fixture

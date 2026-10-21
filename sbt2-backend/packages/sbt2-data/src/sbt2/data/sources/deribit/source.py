@@ -6,9 +6,11 @@ from pathlib import Path, PurePosixPath
 from typing import Any, override
 
 from nautilus_trader.model import (
+    AssetClass,
     Bar,
     FundingRateUpdate,
     IndexPriceUpdate,
+    InstrumentClass,
     InstrumentId,
     MarkPriceUpdate,
     OptionGreeks,
@@ -81,6 +83,18 @@ class DeribitSource(Source):
         if instrument_id.venue.value != parse.VENUE or currency not in _CURRENCIES:
             raise ValueError(f"{instrument_id} is not a deribit option instrument")
         return currency
+
+    @override
+    def asset_classes(
+        self, instrument_id: InstrumentId
+    ) -> tuple[AssetClass, InstrumentClass]:
+        if instrument_id.symbol.value in perpetual.SYMBOLS:
+            return AssetClass.CRYPTOCURRENCY, InstrumentClass.SWAP
+        return AssetClass.CRYPTOCURRENCY, InstrumentClass.OPTION
+
+    @override
+    def serves_marks(self, instrument_id: InstrumentId) -> bool:
+        return instrument_id.symbol.value not in perpetual.SYMBOLS
 
     def day_file(self, symbol: str, data_type: type, day: date) -> RawFile:
         if symbol in perpetual.SYMBOLS:

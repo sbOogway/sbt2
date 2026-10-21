@@ -9,7 +9,7 @@ from deribit_perpetual_catalog import (
     perpetual,
     price_in_hour,
 )
-from deribit_perpetual_runs import SPEC, VENUES, run
+from deribit_perpetual_runs import SPEC, run
 from nautilus_trader.model import Bar, FundingRateUpdate, Money
 from nautilus_trader.persistence import ParquetDataCatalog
 from synthetic_catalog import START
@@ -117,11 +117,10 @@ def test_the_pl_of_an_inverse_perpetual_is_in_the_coin(
 def test_marks_from_bars_stream_bars_and_funding_but_no_mark_prices(
     tmp_path: Path,
 ) -> None:
-    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+    spec = tmp_path / "spec.toml"
     spec.write_text(SPEC)
-    venues.write_text(VENUES)
 
-    [resolved] = load(spec, venues)
+    [resolved] = load(spec)
 
     assert set(resolved.data_types) == {Bar, FundingRateUpdate}
 
@@ -131,10 +130,9 @@ def test_a_run_without_bars_cannot_make_the_marks(tmp_path: Path) -> None:
     empty = tmp_path / "catalog"
     empty.mkdir()
     ParquetDataCatalog(str(empty)).write_instruments([perpetual()])
-    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+    spec = tmp_path / "spec.toml"
     spec.write_text(SPEC)
-    venues.write_text(VENUES)
-    [resolved] = load(spec, venues)
+    [resolved] = load(spec)
     sink = ParquetResultStore(tmp_path / "results").new_run(resolved)
 
     with pytest.raises(NoMarksError, match="1-minute bars"):

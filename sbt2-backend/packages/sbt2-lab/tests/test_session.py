@@ -11,7 +11,12 @@ from sbt2.server import Outbox
 SPEC = {
     "instruments": ["BTCUSDT-PERP.BYBIT"],
     "period": ["2024-01-01", "2024-07-01"],
-    "venue": "bybit",
+    "execution": {
+        "fee_model": {
+            "kind": "maker_taker",
+            "config": {"maker_rate": "0.0002", "taker_rate": "0.00055"},
+        }
+    },
     "capital": "10000 USDT",
     "split": {"validation": 0.2, "test": 0.2},
 }

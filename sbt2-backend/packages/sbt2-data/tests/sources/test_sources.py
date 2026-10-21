@@ -2,7 +2,13 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from nautilus_trader.model import Bar, InstrumentId, TradeTick
+from nautilus_trader.model import (
+    AssetClass,
+    Bar,
+    InstrumentClass,
+    InstrumentId,
+    TradeTick,
+)
 
 from sbt2.data.sources import (
     Gap,
@@ -15,6 +21,7 @@ from sbt2.data.sources import (
     listed_gaps,
     remove_known_gaps,
     source,
+    source_for,
     source_name,
 )
 from sbt2.data.sources.binance import BinanceSource
@@ -249,3 +256,50 @@ def test_the_source_of_an_instrument_is_the_one_of_its_venue(
 def test_an_instrument_of_an_unknown_venue_has_no_source() -> None:
     with pytest.raises(UnknownSourceError, match="no source for the venue KRAKEN"):
         source_name(InstrumentId.from_str("BTC-PERP.KRAKEN"))
+
+
+CRYPTO_SWAP = (AssetClass.CRYPTOCURRENCY, InstrumentClass.SWAP)
+CRYPTO_OPTION = (AssetClass.CRYPTOCURRENCY, InstrumentClass.OPTION)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "instrument_id",
+    [
+        "BTCUSDT-LINEAR.BYBIT",
+        "BTCUSDT-PERP.BINANCE",
+        "ETH-USDT-SWAP.OKX",
+        "BTC-PERP.COINBASE_INTX",
+    ],
+)
+def test_each_source_names_the_class_of_its_symbols(instrument_id: str) -> None:
+    traded = InstrumentId.from_str(instrument_id)
+
+    assert source_for(traded).asset_classes(traded) == CRYPTO_SWAP
+
+
+@pytest.mark.unit
+def test_deribit_perpetual_is_a_swap_and_its_options_are_options() -> None:
+    perpetual = InstrumentId.from_str("BTC-PERPETUAL.DERIBIT")
+    options = InstrumentId.from_str("BTC-OPTIONS.DERIBIT")
+    option = InstrumentId.from_str("BTC-27DEC24-60000-C.DERIBIT")
+
+    deribit = source_for(perpetual)
+
+    assert isinstance(deribit, DeribitSource)
+    assert deribit.asset_classes(perpetual) == CRYPTO_SWAP
+    assert deribit.asset_classes(options) == CRYPTO_OPTION
+    assert deribit.asset_classes(option) == CRYPTO_OPTION
+
+
+@pytest.mark.unit
+def test_source_says_whether_it_serves_mark_prices() -> None:
+    bybit = InstrumentId.from_str("BTCUSDT-LINEAR.BYBIT")
+    binance = InstrumentId.from_str("BTCUSDT-PERP.BINANCE")
+    perpetual = InstrumentId.from_str("BTC-PERPETUAL.DERIBIT")
+    option = InstrumentId.from_str("BTC-27DEC24-60000-C.DERIBIT")
+
+    assert source_for(bybit).serves_marks(bybit)
+    assert not source_for(binance).serves_marks(binance)
+    assert not source_for(perpetual).serves_marks(perpetual)
+    assert source_for(option).serves_marks(option)

@@ -42,6 +42,7 @@ from sbt2.data.sources import (
     listed_gaps,
     remove_known_gaps,
     source,
+    source_for,
     source_name,
 )
 from sbt2.data.tally import Tally
@@ -85,5 +86,6 @@ __all__ = [
     "listed_gaps",
     "remove_known_gaps",
     "source",
+    "source_for",
     "source_name",
 ]

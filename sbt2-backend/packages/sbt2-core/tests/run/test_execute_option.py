@@ -18,16 +18,8 @@ instruments = ["BTC-1FEB24-50000-C.DERIBIT"]
 period = [2024-01-01T02:00:00, 2024-01-05]
 split = { validation_start = 2024-01-03, test_start = 2024-01-04 }
 part = "train"
-venue = "deribit_option"
+execution = { fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } } }
 capital = "1 BTC"
-"""
-VENUES = """
-[deribit_option]
-name = "DERIBIT"
-source = "deribit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "OPTION"
-fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } }
 """
 BASE_FEE = 0.0003
 BALANCE = 1.0
@@ -52,10 +44,9 @@ def far_trade_catalog(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def run(tmp_path: Path, catalog: Path, strategy: str) -> tuple[ParquetResultStore, str]:
-    spec, venues = tmp_path / "spec.toml", tmp_path / "venues.toml"
+    spec = tmp_path / "spec.toml"
     spec.write_text(SPEC.replace("run_strategies:BuyOneOption", strategy))
-    venues.write_text(VENUES)
-    [resolved] = load(spec, venues)
+    [resolved] = load(spec)
     store = ParquetResultStore(tmp_path / "results")
     sink = store.new_run(resolved)
     execute(resolved, sink, RunSettings(catalog))

@@ -10,9 +10,9 @@ from google.protobuf.struct_pb2 import Struct
 from sbt2.lab.errors import StrategyModuleError
 from sbt2.protocol.v1.runs_pb2 import SpecFile, SpecPeriod, StrategyModule, SubmitRun
 
-_PLAIN = ("instruments", "venue", "capital", "seed", "equity_interval")
+_PLAIN = ("instruments", "capital", "seed", "equity_interval")
 _OPTIONAL = ("liquidation", "bars", "study")
-_TABLES = ("split", "params", "risk", "chain")
+_TABLES = ("split", "params", "risk", "chain", "execution")
 _KEYS = {*_PLAIN, *_OPTIONAL, *_TABLES, "period", "part"}
 
 type Moment = date | datetime | str

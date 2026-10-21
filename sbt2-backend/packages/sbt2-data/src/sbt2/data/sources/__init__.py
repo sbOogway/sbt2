@@ -41,6 +41,7 @@ __all__ = [
     "listed_gaps",
     "remove_known_gaps",
     "source",
+    "source_for",
     "source_name",
 ]
 
@@ -77,10 +78,19 @@ def source(name: str, known_gaps_file: Path) -> Source:
 def source_name(instrument_id: InstrumentId) -> str:
     """The name of the source of the venue ``instrument_id`` trades on: the
     venue's name in lower case."""
+    return _venue_source(instrument_id).name
+
+
+def source_for(instrument_id: InstrumentId) -> Source:
+    """The source of the venue ``instrument_id`` trades on, without known gaps."""
+    return _venue_source(instrument_id)()
+
+
+def _venue_source(instrument_id: InstrumentId) -> type[Source]:
     venue = instrument_id.venue.value
     for each in _SOURCES:
         if each.name.upper() == venue:
-            return each.name
+            return each
     raise UnknownSourceError(f"no source for the venue {venue}")
 
 

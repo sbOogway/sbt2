@@ -22,7 +22,6 @@ TABLE: dict[str, Any] = {
         datetime(2024, 1, 1, tzinfo=UTC),
         datetime(2024, 3, 1, 12, 30, tzinfo=UTC),
     ],
-    "venue": "linear",
     "capital": "10000 USDT",
     "part": ["train", "validation"],
     "split": {"validation_start": "2024-02-01", "test_start": "2024-02-15"},
@@ -38,9 +37,16 @@ TABLE: dict[str, Any] = {
         "nested": {"depth": 2},
     },
     "risk": {"drawdown_limit": "0.2", "max_order_submit_rate": "100/00:00:01"},
+    "execution": {
+        "default_leverage": "10",
+        "fee_model": {
+            "kind": "maker_taker",
+            "config": {"maker_rate": "0.0002", "taker_rate": "0.00055"},
+        },
+    },
     "study": "trend-btc",
 }
-REQUIRED = ("strategy", "instruments", "period", "venue", "capital")
+REQUIRED = ("strategy", "instruments", "period", "capital")
 
 
 @pytest.mark.unit

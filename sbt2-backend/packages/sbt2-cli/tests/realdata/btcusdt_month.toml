@@ -3,8 +3,10 @@ instruments = ["BTCUSDT-LINEAR.BYBIT"]
 period = [2025-01-01, 2025-03-01]
 split = { validation_start = 2025-02-01, test_start = 2025-02-15 }
 part = "train"
-venue = "bybit_linear"
 capital = "10000 USDT"
+
+[execution]
+fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
 
 [params]
 fast = 10

@@ -25,7 +25,7 @@ def preflight(
     spec: ResolvedRunSpec, sources: Callable[[str], Source], folders: DataFolders
 ) -> tuple[Gap, ...]:
     """Check that ``spec`` can run, fetching the data it lacks: the run's own from
-    the source its venue profile names, the feeds' candles from the source of each
+    the source of its instruments' venue, the feeds' candles from the source of each
     feed's venue; ``sources`` finds a source by name.
 
     Returns the known-gap days the run will skip.

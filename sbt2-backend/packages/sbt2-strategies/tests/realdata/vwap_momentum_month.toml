@@ -4,5 +4,7 @@ period = [2022-01-01, 2022-02-05]
 split = { validation_start = 2022-02-01, test_start = 2022-02-03 }
 part = "train"
 bars = "candles"
-venue = "deribit_perpetual"
 capital = "1 BTC"
+
+[execution]
+fee_model = { kind = "maker_taker", config = { maker_rate = "0.00015", taker_rate = "0.00035" } }

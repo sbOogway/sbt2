@@ -8,7 +8,6 @@ submit_run {
       start_at { seconds: 1704067200 }
       end_at { seconds: 1709251200 }
     }
-    venue: "bybit_linear"
     capital: "10000 USDT"
     part: ["train", "validation"]
     split {
@@ -30,6 +29,25 @@ submit_run {
     chain {
       fields { key: "min_dte" value { number_value: 7 } }
       fields { key: "strike_band" value { string_value: "0.2" } }
+    }
+    execution {
+      fields {
+        key: "fee_model"
+        value {
+          struct_value {
+            fields { key: "kind" value { string_value: "maker_taker" } }
+            fields {
+              key: "config"
+              value {
+                struct_value {
+                  fields { key: "maker_rate" value { string_value: "0.0002" } }
+                  fields { key: "taker_rate" value { string_value: "0.00055" } }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
   strategy {

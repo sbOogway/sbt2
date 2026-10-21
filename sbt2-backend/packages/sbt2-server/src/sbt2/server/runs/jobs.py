@@ -17,7 +17,7 @@ class InvalidSubmissionError(ValueError):
 
 
 class NotFoundError(LookupError):
-    """A job, or a venue profile a submission names, that does not exist."""
+    """A job, or a venue a submission names, that does not exist."""
 
 
 @dataclass(frozen=True)

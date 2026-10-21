@@ -7,7 +7,7 @@ from typing import Annotated
 
 import typer
 
-from sbt2.core.config import ConfigFolder, Root
+from sbt2.core.config import Root
 from sbt2.protocol.v1.envelope_pb2 import Capability
 from sbt2.server import Address, Server, Settings, config, results, runs, strategies
 
@@ -15,7 +15,6 @@ HOST_ENV = "SBT2_SERVER_HOST"
 PORT_ENV = "SBT2_SERVER_PORT"
 CREDENTIAL_ENV = "SBT2_SERVER_TOKEN"
 DATA_ROOT_ENV = "SBT2_DATA"
-CONFIG_ENV = "SBT2_CONFIG"
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 
 app = typer.Typer(pretty_exceptions_enable=False)
@@ -33,15 +32,6 @@ def main(
             "edits PATH/known_gaps.toml, and runs strategies on PATH/catalog.",
         ),
     ],
-    config_folder: Annotated[
-        Path,
-        typer.Option(
-            "--config",
-            envvar=CONFIG_ENV,
-            show_envvar=True,
-            help="The config folder; edits PATH/venues.toml, which runs read.",
-        ),
-    ],
     host: Annotated[
         str,
         typer.Option(envvar=HOST_ENV, show_envvar=True, help="The address to bind."),
@@ -55,18 +45,18 @@ def main(
     in SBT2_SERVER_TOKEN."""
     token = _token()
     logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
-    server = _server(token, Root(data_root), ConfigFolder(config_folder))
+    server = _server(token, Root(data_root))
     with suppress(KeyboardInterrupt):
         asyncio.run(server.serve(Address(host, port)))
 
 
-def _server(token: str, root: Root, folder: ConfigFolder) -> Server:
+def _server(token: str, root: Root) -> Server:
     return Server(
         Settings(token),
         {
             **results.routes(root),
-            **config.routes(folder, root),
-            **runs.routes(runs.local_jobs(root, folder)),
+            **config.routes(root),
+            **runs.routes(runs.local_jobs(root)),
             **strategies.routes(),
         },
         [

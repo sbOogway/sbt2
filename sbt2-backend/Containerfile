@@ -27,12 +27,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 FROM ${PYTHON_IMAGE}
 RUN useradd --user-group --uid 10001 --create-home --home-dir /home/sbt2 sbt2 \
-    && mkdir /data /config \
-    && chown sbt2:sbt2 /data /config
+    && mkdir /data \
+    && chown sbt2:sbt2 /data
 COPY --from=build /opt/sbt2 /opt/sbt2
 ENV PATH=/opt/sbt2/bin:${PATH} \
     SBT2_DATA=/data \
-    SBT2_CONFIG=/config \
     SBT2_SERVER_HOST=0.0.0.0 \
     SBT2_SERVER_PORT=8765
 USER sbt2

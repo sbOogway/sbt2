@@ -5,3 +5,10 @@ lint:
 breaking:
   use:
     - FILE
+  # Venue profiles left the protocol (#371); drop this block once that change is on main.
+  ignore_only:
+    MESSAGE_NO_DELETE:
+      - sbt2/protocol/v1/config.proto
+    FIELD_NO_DELETE:
+      - sbt2/protocol/v1/envelope.proto
+      - sbt2/protocol/v1/runs.proto

@@ -6,9 +6,9 @@ import typer
 from nautilus_trader.common import LogLevel
 
 from sbt2.cli import progress, tables
-from sbt2.cli.options import CONFIG_ENV, data_option, failing, logger
+from sbt2.cli.options import data_option, failing, logger
 from sbt2.core import results, spec
-from sbt2.core.config import ConfigFolder, Root
+from sbt2.core.config import Root
 from sbt2.core.results import ResultStore
 from sbt2.core.run import (
     BatchSetup,
@@ -41,14 +41,6 @@ def run(
     data: Annotated[
         Path, data_option("Holds raw/, catalog/, results/ and known_gaps.toml.")
     ],
-    config: Annotated[
-        Path,
-        typer.Option(
-            envvar=CONFIG_ENV,
-            show_envvar=True,
-            help="The config folder; reads PATH/venues.toml.",
-        ),
-    ],
     memory_budget: Annotated[
         int | None,
         typer.Option(
@@ -80,7 +72,7 @@ def run(
         level = LogLevel.from_str(context.obj)
         memory = _memory(memory_budget, memory_per_run)
         launch = Launch(launcher_named(launcher), memory)
-        runs = spec.load(spec_file, ConfigFolder(config.resolve()).venues)
+        runs = spec.load(spec_file)
         _run(runs, BatchSetup.at(root, launch, level))
 
 

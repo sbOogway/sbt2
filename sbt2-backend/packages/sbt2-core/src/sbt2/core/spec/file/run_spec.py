@@ -24,7 +24,9 @@ class RunSpec:
 
     ``capital`` is a nautilus money string such as ``"10000 USDT"``, or a list of
     them, one per currency; the first currency reports the run.
-    ``liquidation`` overrides the venue profile's ``liquidation_enabled``.
+    ``execution`` holds the venue's arguments: ``fee_model``, which a run needs,
+    and what overrides the asset profile's defaults.
+    ``liquidation`` overrides ``liquidation_enabled``.
     ``bars`` says what the declared bars are aggregated from: ``"trades"`` or
     ``"candles"``.
     ``split`` is a splitter, or a spec file's table of its arguments; ``part``
@@ -39,10 +41,10 @@ class RunSpec:
     strategy: str
     instruments: list[str]
     period: tuple[datetime, datetime]
-    venue: str
     capital: str | list[str]
     part: str
     split: Splitter | Mapping[str, Any]
+    execution: Mapping[str, Any] = field(default_factory=dict)
     seed: int = 42
     equity_interval: str = "1h"
     liquidation: bool | None = None

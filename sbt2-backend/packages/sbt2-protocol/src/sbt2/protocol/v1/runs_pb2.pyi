@@ -107,7 +107,6 @@ class SpecFile(_message.Message):
     STRATEGY_FIELD_NUMBER: _builtins.int
     INSTRUMENTS_FIELD_NUMBER: _builtins.int
     PERIOD_FIELD_NUMBER: _builtins.int
-    VENUE_FIELD_NUMBER: _builtins.int
     CAPITAL_FIELD_NUMBER: _builtins.int
     PART_FIELD_NUMBER: _builtins.int
     SPLIT_FIELD_NUMBER: _builtins.int
@@ -120,10 +119,9 @@ class SpecFile(_message.Message):
     STUDY_FIELD_NUMBER: _builtins.int
     CHAIN_FIELD_NUMBER: _builtins.int
     CAPITALS_FIELD_NUMBER: _builtins.int
+    EXECUTION_FIELD_NUMBER: _builtins.int
     strategy: _builtins.str
     """The strategy's class in the uploaded module, as "module:Class"."""
-    venue: _builtins.str
-    """The name of a venue profile in the server's config."""
     capital: _builtins.str
     """A nautilus money string, such as "10000 USDT"."""
     seed: _builtins.int
@@ -168,13 +166,19 @@ class SpecFile(_message.Message):
         capital.
         """
 
+    @_builtins.property
+    def execution(self) -> _struct_pb2.Struct:
+        """The execution table: fee_model, which is required, and the other
+        BacktestVenueConfig arguments, such as fill_model and margin settings. A model
+        is a table of its kind and config. An integral number is read as an integer.
+        """
+
     def __init__(
         self,
         *,
         strategy: _builtins.str = ...,
         instruments: _abc.Iterable[_builtins.str] | None = ...,
         period: Global___SpecPeriod | None = ...,
-        venue: _builtins.str = ...,
         capital: _builtins.str = ...,
         part: _abc.Iterable[_builtins.str] | None = ...,
         split: _struct_pb2.Struct | None = ...,
@@ -187,10 +191,11 @@ class SpecFile(_message.Message):
         study: _builtins.str | None = ...,
         chain: _struct_pb2.Struct | None = ...,
         capitals: _abc.Iterable[_builtins.str] | None = ...,
+        execution: _struct_pb2.Struct | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal["_bars", b"_bars", "_equity_interval", b"_equity_interval", "_liquidation", b"_liquidation", "_seed", b"_seed", "_study", b"_study", "bars", b"bars", "chain", b"chain", "equity_interval", b"equity_interval", "liquidation", b"liquidation", "params", b"params", "period", b"period", "risk", b"risk", "seed", b"seed", "split", b"split", "study", b"study"]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["_bars", b"_bars", "_equity_interval", b"_equity_interval", "_liquidation", b"_liquidation", "_seed", b"_seed", "_study", b"_study", "bars", b"bars", "chain", b"chain", "equity_interval", b"equity_interval", "execution", b"execution", "liquidation", b"liquidation", "params", b"params", "period", b"period", "risk", b"risk", "seed", b"seed", "split", b"split", "study", b"study"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal["_bars", b"_bars", "_equity_interval", b"_equity_interval", "_liquidation", b"_liquidation", "_seed", b"_seed", "_study", b"_study", "bars", b"bars", "capital", b"capital", "capitals", b"capitals", "chain", b"chain", "equity_interval", b"equity_interval", "instruments", b"instruments", "liquidation", b"liquidation", "params", b"params", "part", b"part", "period", b"period", "risk", b"risk", "seed", b"seed", "split", b"split", "strategy", b"strategy", "study", b"study", "venue", b"venue"]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["_bars", b"_bars", "_equity_interval", b"_equity_interval", "_liquidation", b"_liquidation", "_seed", b"_seed", "_study", b"_study", "bars", b"bars", "capital", b"capital", "capitals", b"capitals", "chain", b"chain", "equity_interval", b"equity_interval", "execution", b"execution", "instruments", b"instruments", "liquidation", b"liquidation", "params", b"params", "part", b"part", "period", b"period", "risk", b"risk", "seed", b"seed", "split", b"split", "strategy", b"strategy", "study", b"study"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     _WhichOneofReturnType__bars: _TypeAlias = _typing.Literal["bars"]  # noqa: Y015
     _WhichOneofArgType__bars: _TypeAlias = _typing.Literal["_bars", b"_bars"]  # noqa: Y015

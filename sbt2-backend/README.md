@@ -34,7 +34,7 @@ From this directory:
 
 ```sh
 uv sync
-export SBT2_DATA=~/sbt2-data SBT2_CONFIG=~/sbt2-config
+export SBT2_DATA=~/sbt2-data
 uv run sbt2 download --source bybit --symbol BTCUSDT --start 2025-01-01 --end 2025-03-01
 uv run sbt2 ingest   --source bybit --symbol BTCUSDT --start 2025-01-01 --end 2025-03-01
 uv run sbt2 run spec.toml
@@ -42,31 +42,25 @@ uv run sbt2 run spec.toml
 
 Every command reads and writes the data root `SBT2_DATA` names, or the folder `--data` gives: raw files in `raw/`, the catalog in `catalog/`, results in `results/`, and in `known_gaps.toml` the days a source confirmed it lacks.
 
-`sbt2 run` also reads the config folder `SBT2_CONFIG` names, or the folder `--config` gives, on every run. sbt2 ships no venue profiles: write them to `venues.toml` in that folder, for example Bybit's USDT perpetuals at its base rates:
+A spec names its fees and the other settings of its venue in an `[execution]` table. Its venue is the venue of its instruments, and the data source follows from the venue. `fee_model` is required; sbt2 has no default fees. For example Bybit's USDT perpetuals at its base rates:
 
 ```toml
-[bybit_linear]
-name = "BYBIT"
-source = "bybit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "SWAP"
+[execution]
 fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
 ```
 
-and Deribit's BTC and ETH options, with the fee of 0.03 % of the underlying capped at 12.5 % of the option price:
+Deribit's perpetuals take their marks from the 1-minute bars, as Deribit serves no mark price history; set `marks = "catalog"` in `[execution]` to read stored marks instead. Deribit's BTC and ETH options, with the fee of 0.03 % of the underlying capped at 12.5 % of the option price:
 
 ```toml
-[deribit_option]
-name = "DERIBIT"
-source = "deribit"
-asset_class = "CRYPTOCURRENCY"
-instrument_class = "OPTION"
+[execution]
 fee_model = { kind = "capped_option", config = { maker_rate = "0.0003", taker_rate = "0.0003", cap_rate = "0.125" } }
 ```
 
-An option held to its expiry settles at Deribit's delivery price, with a delivery fee of 0.015 % of the underlying capped at 12.5 % of the settlement value. Set other rates with `delivery_fee = { rate = "0.00015", cap_rate = "0.125" }` in the profile.
+What `[execution]` leaves out takes the default of the instruments' asset profile.
 
-sbt2 margins the options itself, as Deribit's standard margin does, in the coin per contract. A long option needs its mark. A short call needs `max(0.15 - OTM amount / index, 0.1) + mark`; a short put needs the same, at least its maintenance margin of `0.075 + mark`. Set other rates with `margin = { base_rate = "0.15", floor_rate = "0.1", maintenance_rate = "0.075" }` in the profile. An order whose initial margin is more than the free equity (the equity less the initial margin of the open positions) is not sent, and the strategy hears why in `on_margin_refused`. A strategy reads `margin_of_order(order)` and `margin_of_positions()`. A run stores the margin used and the maintenance margin on the equity grid in its `margin` table.
+An option held to its expiry settles at Deribit's delivery price, with a delivery fee of 0.015 % of the underlying capped at 12.5 % of the settlement value. Set other rates with `delivery_fee = { rate = "0.00015", cap_rate = "0.125" }` in `[execution]`.
+
+sbt2 margins the options itself, as Deribit's standard margin does, in the coin per contract. A long option needs its mark. A short call needs `max(0.15 - OTM amount / index, 0.1) + mark`; a short put needs the same, at least its maintenance margin of `0.075 + mark`. Set other rates with `margin = { base_rate = "0.15", floor_rate = "0.1", maintenance_rate = "0.075" }` in `[execution]`. An order whose initial margin is more than the free equity (the equity less the initial margin of the open positions) is not sent, and the strategy hears why in `on_margin_refused`. A strategy reads `margin_of_order(order)` and `margin_of_positions()`. A run stores the margin used and the maintenance margin on the equity grid in its `margin` table.
 
 A spec describes the backtests to run:
 
@@ -76,9 +70,11 @@ instruments = ["BTCUSDT-LINEAR.BYBIT"]
 period = [2025-01-01, 2025-03-01]
 split = { validation_start = 2025-02-01, test_start = 2025-02-15 }
 part = "train"
-venue = "bybit_linear"
 capital = "10000 USDT"
 bars = "candles"
+
+[execution]
+fee_model = { kind = "maker_taker", config = { maker_rate = "0.0002", taker_rate = "0.00055" } }
 
 [params]
 fast = 10
@@ -101,7 +97,12 @@ runs = await lab.run(
     {
         "instruments": ["BTCUSDT-PERP.BYBIT"],
         "period": ["2024-01-01", "2024-07-01"],
-        "venue": "bybit",
+        "execution": {
+            "fee_model": {
+                "kind": "maker_taker",
+                "config": {"maker_rate": "0.0002", "taker_rate": "0.00055"},
+            }
+        },
         "capital": "10000 USDT",
         "split": {"validation": 0.2, "test": 0.2},
         "params": {"fast": [5, 10]},

@@ -8,9 +8,9 @@ from sbt2.protocol.v1.runs_pb2 import SpecFile, SubmitRun
 from sbt2.server.modules import module_name_problem
 from sbt2.server.runs.jobs import Module, Submission
 
-_REQUIRED = ("strategy", "instruments", "period", "venue", "capital")
+_REQUIRED = ("strategy", "instruments", "period", "capital")
 _OPTIONAL = ("seed", "equity_interval", "liquidation", "bars", "study")
-_TABLES = ("split", "params", "risk", "chain")
+_TABLES = ("split", "params", "risk", "chain", "execution")
 
 
 class InvalidArgumentError(ValueError):
@@ -27,7 +27,6 @@ def spec_table(spec: SpecFile) -> dict[str, Any]:
         "strategy": spec.strategy,
         "instruments": list(spec.instruments),
         "period": _period(spec),
-        "venue": spec.venue,
         "capital": list(spec.capitals) or spec.capital,
     }
     if spec.part:
