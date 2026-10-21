@@ -276,3 +276,9 @@ class HoldOppositeStraddles(HoldStraddleToExpiry):
             self.contract(OptionKind.CALL, 45000),
         )
         return Combo("straddle", tuple(Leg(each, side, quantity) for each in legs))
+
+
+class HoldNettingStraddles(HoldOppositeStraddles):
+    """Opens a long and a short straddle of one each: they net to no position."""
+
+    long = Decimal(1)

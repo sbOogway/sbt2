@@ -115,6 +115,11 @@ class ComboBook:
             self.holding(instrument_id),
         )
 
+    def settle(self, instrument_id: InstrumentId) -> list[tuple[Change, Combo]]:
+        """The contract settled with no order: close its leg in every combo that
+        holds it."""
+        return self._settle(instrument_id, self.holding(instrument_id))
+
     def forget(self, orders: Sequence[Any]) -> None:
         """The orders were not sent: a combo they opened never was, and one they
         closed is still open."""

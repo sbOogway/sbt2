@@ -117,6 +117,18 @@ def test_a_settlement_split_into_fills_settles_each_combo_once() -> None:
 
 
 @pytest.mark.unit
+def test_combos_that_net_to_zero_settle_without_an_order() -> None:
+    book = ComboBook()
+    long = opened(book, Leg(NEAR, OrderSide.BUY, Decimal(1)))
+    short = opened(book, Leg(NEAR, OrderSide.SELL, Decimal(1)))
+
+    changes = book.settle(NEAR.id)
+
+    assert ids(changes) == [(Change.SETTLED, long.id), (Change.SETTLED, short.id)]
+    assert book.opened() == ()
+
+
+@pytest.mark.unit
 def test_a_settlement_closes_only_the_expiring_leg() -> None:
     book = ComboBook()
     calendar = opened(

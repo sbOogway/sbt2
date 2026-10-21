@@ -210,6 +210,22 @@ def test_opposite_combos_on_one_contract_both_settle_at_expiry(
 
 
 @pytest.mark.integration
+def test_combos_that_net_to_zero_settle_at_expiry(
+    tmp_path: Path, expiring: Path
+) -> None:
+    OpenStrangle.clear()
+
+    store, run_id = run_options(
+        tmp_path, expiring, "combo_strategies:HoldNettingStraddles"
+    )
+
+    assert sorted(each.id for each in OpenStrangle.settled) == ["C1", "C2"]
+    assert OpenStrangle.seen[-1][1] == ()
+    assert all("SETTLEMENT" not in tags for tags in tags_of_fills(store, run_id))
+    assert set(store.load(run_id, "positions")["side"]) == {"FLAT"}
+
+
+@pytest.mark.integration
 def test_a_combo_beyond_the_free_equity_is_refused_as_a_whole(
     tmp_path: Path, ladder: Path
 ) -> None:

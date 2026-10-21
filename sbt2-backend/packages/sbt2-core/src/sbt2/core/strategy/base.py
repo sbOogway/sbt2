@@ -540,6 +540,9 @@ class Strategy[P](NautilusStrategy, ABC):
         positions = self.cache.positions_open(
             instrument_id=instrument_id, strategy_id=self.strategy_id
         )
+        if not positions:
+            for _, combo in self._combos.settle(instrument_id):
+                self.on_combo_settled(combo)
         for position in positions:
             order = self.order_factory.market(
                 instrument_id,
