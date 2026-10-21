@@ -39,7 +39,7 @@ def publish_docs(
     page = tmp_path / "index.html"
     page.write_text(html)
     return subprocess.run(
-        ["bash", "-c", f'. "{LIB}" && publish_docs {tag} "{page}"'],
+        ["bash", "-c", f'set -euo pipefail; . "{LIB}" && publish_docs {tag} "{page}"'],
         env=os.environ | NO_TOKENS | IDENTITY | {"SBT2_PAGES_REMOTE": str(remote)},
         check=False,
         capture_output=True,
@@ -63,3 +63,51 @@ def test_first_docs_publish_creates_the_pages_branch(tmp_path: Path) -> None:
     assert pages_file(remote, "latest/index.html") == "<h1>docs</h1>"
     assert pages_file(remote, ".nojekyll") == ""
     assert git("--git-dir", remote, "branch", "--list").split() == ["gh-pages"]
+
+
+def add_site_file(tmp_path: Path, remote: Path, name: str, text: str) -> None:
+    work = tmp_path / "site"
+    git("clone", "--quiet", "--branch", "gh-pages", remote, work)
+    (work / name).write_text(text)
+    git("add", "-A", cwd=work)
+    git("commit", "--quiet", "-m", "add site file", cwd=work)
+    git("push", "--quiet", "origin", "gh-pages", cwd=work)
+
+
+@pytest.mark.integration
+def test_docs_publish_preserves_other_versions_and_site_files(tmp_path: Path) -> None:
+    remote = make_remote(tmp_path)
+    publish_docs(tmp_path, remote, "v1.0.0", "old")
+    add_site_file(tmp_path, remote, "CNAME", "docs.example.com")
+
+    done = publish_docs(tmp_path, remote, "v1.1.0", "new")
+
+    assert done.returncode == 0, done.stderr
+    assert pages_file(remote, "v1.0.0/index.html") == "old"
+    assert pages_file(remote, "v1.1.0/index.html") == "new"
+    assert pages_file(remote, "latest/index.html") == "new"
+    assert pages_file(remote, "CNAME") == "docs.example.com"
+
+
+@pytest.mark.integration
+def test_repeated_docs_publish_keeps_the_same_commit(tmp_path: Path) -> None:
+    remote = make_remote(tmp_path)
+    publish_docs(tmp_path, remote, "v1.2.3", "docs")
+    first = git("--git-dir", remote, "rev-parse", "gh-pages")
+
+    done = publish_docs(tmp_path, remote, "v1.2.3", "docs")
+
+    assert done.returncode == 0, done.stderr
+    assert git("--git-dir", remote, "rev-parse", "gh-pages") == first
+
+
+@pytest.mark.integration
+def test_older_docs_publish_does_not_replace_latest(tmp_path: Path) -> None:
+    remote = make_remote(tmp_path)
+    publish_docs(tmp_path, remote, "v1.10.0", "newer")
+
+    done = publish_docs(tmp_path, remote, "v1.9.0", "older")
+
+    assert done.returncode == 0, done.stderr
+    assert pages_file(remote, "v1.9.0/index.html") == "older"
+    assert pages_file(remote, "latest/index.html") == "newer"

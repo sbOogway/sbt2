@@ -287,18 +287,31 @@ check_out_pages() {
     fi
 }
 
+# Succeeds when the tag $1 is the highest of the version directories in the site $2
+is_latest_docs() {
+    local newest
+    newest=$(cd "$2" && printf '%s\n' v[0-9]*.[0-9]*.[0-9]* | sort -V | tail -n 1)
+    [ "$newest" = "$1" ]
+}
+
 # Publishes the HTML file $2 as the protocol reference of tag $1 on the Pages branch, under
-# /$1/ and /latest/. Pages is a branch of the repo, so the site is part of the release.
+# /$1/, and under /latest/ unless a higher version is there. A re-run with the same file adds
+# no commit.
 publish_docs() {
     local tag=$1 html=$2 site
     site=$(mktemp -d)
     check_out_pages "$site"
-    mkdir -p "$site/$tag" "$site/latest"
+    mkdir -p "$site/$tag"
     cp "$html" "$site/$tag/index.html"
-    cp "$html" "$site/latest/index.html"
+    if is_latest_docs "$tag" "$site"; then
+        mkdir -p "$site/latest"
+        cp "$html" "$site/latest/index.html"
+    fi
     touch "$site/.nojekyll"
     git -C "$site" add -A
-    git -C "$site" commit --quiet -m "docs: publish the protocol reference of $tag"
-    git -C "$site" push --quiet origin "$PAGES_BRANCH" || die "cannot push $PAGES_BRANCH"
+    if ! git -C "$site" diff --cached --quiet; then
+        git -C "$site" commit --quiet -m "docs: publish the protocol reference of $tag"
+        git -C "$site" push --quiet origin "$PAGES_BRANCH" || die "cannot push $PAGES_BRANCH"
+    fi
     rm -rf "$site"
 }
