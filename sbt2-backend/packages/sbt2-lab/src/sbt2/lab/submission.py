@@ -51,6 +51,8 @@ def _class_path(strategy: type[Strategy[Any]]) -> str:
         raise _refused(strategy, "it is defined in __main__")
     if "<locals>" in strategy.__qualname__:
         raise _refused(strategy, "it is defined in a local scope")
+    if "." in strategy.__qualname__:
+        raise _refused(strategy, "it is nested in another class")
     return f"{strategy.__module__}:{strategy.__qualname__}"
 
 

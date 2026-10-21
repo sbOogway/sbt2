@@ -224,3 +224,14 @@ def test_a_local_strategy_class_is_refused_before_submission() -> None:
         pass
 
     assert refused(Local, r"Local.*local scope.*importable module") == []
+
+
+@pytest.mark.integration
+def test_a_nested_strategy_class_is_refused_before_submission(strategies: Path) -> None:
+    (strategies / "nested.py").write_text(
+        "from sbt2.core.strategy import Strategy\n\n\n"
+        "class Family:\n    class Cross(Strategy):\n        pass\n"
+    )
+    strategy = importlib.import_module("nested").Family.Cross
+
+    assert refused(strategy, r"Family\.Cross.*nested in another class") == []
