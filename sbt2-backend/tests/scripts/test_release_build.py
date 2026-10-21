@@ -103,6 +103,7 @@ def make_release_repo(tmp_path: Path) -> Path:
     shutil.copytree(ROOT / "scripts", repo / "scripts")
     write_stub(repo / "scripts", "build-image.sh", FAKE_BUILD_IMAGE)
     shutil.copytree(ROOT / "sbt2-protocol" / "sbt2", repo / "sbt2-protocol" / "sbt2")
+    shutil.copy(ROOT / ".pre-commit-config.yaml", repo)
     (repo / PROTO_DIR / "ignored_local.proto").write_text(IGNORED_PROTO)
     (repo / ".gitignore").write_text(f"{PROTO_DIR}/ignored_local.proto\n")
     origin = tmp_path / "origin.git"
@@ -177,3 +178,22 @@ def test_failed_protocol_html_build_keeps_the_previous_release_build(
     assert done.returncode != 0
     assert (previous / "docs" / "index.html").read_text() == "previous"
     assert not (previous / "files").exists()
+
+
+@pytest.mark.integration
+def test_release_build_installs_the_generator_with_the_hook_go_version(
+    tmp_path: Path,
+) -> None:
+    repo = make_release_repo(tmp_path)
+    seen = tmp_path / "toolchain"
+    spy = f'#!/bin/sh\necho "$GOTOOLCHAIN" >{seen}\nexit 1\n'
+
+    run_release_build(tmp_path, repo, {"go": spy})
+
+    hook = (ROOT / ".pre-commit-config.yaml").read_text()
+    version = (
+        hook.split("id: generate-protocol-docs")[1]
+        .split("language_version: ")[1]
+        .split()[0]
+    )
+    assert seen.read_text().strip() == f"go{version}"

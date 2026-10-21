@@ -117,10 +117,19 @@ build_all() {
     mv "$WORK/SHA256SUMS" "$files/"
 }
 
+# The Go version of the protocol reference hook, so the release build uses the same toolchain
+docs_go_version() {
+    awk '/id: generate-protocol-docs/ { found = 1 } found && /language_version:/ { print $2; exit }' \
+        "$WORK/src/.pre-commit-config.yaml"
+}
+
 # Builds the HTML protocol reference of the release source into $WORK/docs. It is not a release
 # file: make publish sends it to Pages.
 build_docs() {
-    run_build env GOBIN="$WORK/gobin" go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v1.5.1
+    local toolchain
+    toolchain="go$(docs_go_version)"
+    run_build env GOBIN="$WORK/gobin" GOTOOLCHAIN="$toolchain" \
+        go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v1.5.1
     (cd "$WORK/src" && run_build env PATH="$WORK/gobin:$PATH" SBT2_PROTOCOL_DOCS_FORMAT=html \
         SBT2_PROTOCOL_DOCS_DIR="$WORK/docs" scripts/generate-protocol-docs.sh)
 }
