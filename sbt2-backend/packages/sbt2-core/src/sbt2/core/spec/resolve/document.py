@@ -29,6 +29,8 @@ from sbt2.data import CANDLES
 
 type Document = Mapping[str, Any]
 
+_TICKS = frozenset({NautilusDataType.TradeTick, NautilusDataType.QuoteTick})
+
 
 class OutdatedRunError(SpecError):
     pass
@@ -108,9 +110,12 @@ def _strategy(
 
 
 def _aggregated_from(data: list[dict[str, Any]]) -> str | None:
-    """Only a run on candles streams bars; the others build theirs from ticks."""
+    """A run on candles streams bars and no ticks; the others build their bars
+    from ticks, and may stream bars to make marks from."""
     streamed = {each["data_type"] for each in data}
-    return CANDLES if NautilusDataType.Bar in streamed else None
+    if NautilusDataType.Bar not in streamed or streamed & _TICKS:
+        return None
+    return CANDLES
 
 
 def _venue(document: Document, asset: AssetProfile) -> dict[str, Any]:

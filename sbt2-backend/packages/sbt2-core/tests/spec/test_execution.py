@@ -473,3 +473,18 @@ def test_deribit_spot_execution() -> None:
 def test_a_spot_run_takes_no_delivery_fee() -> None:
     with pytest.raises(InvalidExecutionError, match="delivery_fee"):
         resolved(with_execution(spot(), delivery_fee={"rate": "0"}))
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "table", [perpetual(), future(), spot()], ids=["perpetual", "future", "spot"]
+)
+def test_a_trades_run_with_marks_from_bars_is_rebuilt_as_a_trades_run(
+    table: dict[str, Any],
+) -> None:
+    spec = resolved(table)
+
+    rebuilt = ResolvedRunSpec.from_document(json.loads(spec.to_json()))
+
+    assert rebuilt.strategy.aggregated_from is None
+    assert rebuilt == spec
