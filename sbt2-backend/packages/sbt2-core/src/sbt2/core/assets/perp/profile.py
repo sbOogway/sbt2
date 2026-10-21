@@ -12,7 +12,7 @@ from nautilus_trader.model import (
 from sbt2.core.assets.calendars import AlwaysOpen
 from sbt2.core.assets.conventions.buy_and_hold import BuyAndHoldConvention
 from sbt2.core.assets.conventions.carry import Carry
-from sbt2.core.assets.perp.marks import PerpMarks
+from sbt2.core.assets.marks import Marks
 from sbt2.core.assets.profile import AssetProfile
 
 CRYPTO_PERP = AssetProfile(
@@ -21,7 +21,7 @@ CRYPTO_PERP = AssetProfile(
     calendar=AlwaysOpen(),
     days_per_year=365,
     carry=Carry(data_types=(FundingRateUpdate,)),
-    quotes=PerpMarks(),
+    quotes=Marks(),
     venue_defaults=MappingProxyType(
         {
             "oms_type": OmsType.NETTING,
