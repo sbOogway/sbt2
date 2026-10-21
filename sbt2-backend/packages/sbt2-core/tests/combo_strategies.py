@@ -245,3 +245,34 @@ class TwoTrades(OpenStrangle):
             self.contract(OptionKind.CALL, 45000),
             self.quantity,
         )
+
+
+class HoldOppositeStraddles(HoldStraddleToExpiry):
+    """Opens a long straddle of ``long`` and a short straddle of ``short`` on the
+    contracts of 2 January, one tick apart, and holds both to expiry."""
+
+    long = Decimal(2)
+    short = Decimal(1)
+
+    @override
+    def on_start(self) -> None:
+        super().on_start()
+        self.ticks = 0
+
+    @override
+    def on_schedule(self, now: datetime) -> None:
+        if not self.warming_up:
+            self.ticks += 1
+            self.placed = True
+        if self.ticks == 1:
+            self.open_combo(self.straddle(OrderSide.BUY, self.long))
+        if self.ticks == 2:
+            self.open_combo(self.straddle(OrderSide.SELL, self.short))
+        super().on_schedule(now)
+
+    def straddle(self, side: OrderSide, quantity: Decimal) -> Combo:
+        legs = (
+            self.contract(OptionKind.PUT, 45000),
+            self.contract(OptionKind.CALL, 45000),
+        )
+        return Combo("straddle", tuple(Leg(each, side, quantity) for each in legs))

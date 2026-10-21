@@ -36,7 +36,6 @@ class Change(Enum):
 class _Role(Enum):
     OPEN = auto()
     CLOSE = auto()
-    SETTLE = auto()
 
 
 @dataclass
@@ -79,6 +78,12 @@ class _Tracked:
             del self.remaining[fill.instrument_id]
         return not self.remaining
 
+    def settle_leg(self, instrument_id: InstrumentId) -> bool:
+        """Close the leg of an expired contract in full; whether no leg is left."""
+        self.settled = True
+        self.remaining.pop(instrument_id, None)
+        return not self.remaining
+
 
 class ComboBook:
     """The combos of a strategy from the orders of their legs: it counts the fills
@@ -87,6 +92,7 @@ class ComboBook:
     def __init__(self) -> None:
         self._tracked: dict[str, _Tracked] = {}
         self._orders: dict[ClientOrderId, list[tuple[str, _Role]]] = {}
+        self._settlements: dict[ClientOrderId, tuple[InstrumentId, list[str]]] = {}
         self._count = 0
 
     def next_id(self) -> str:
@@ -102,10 +108,12 @@ class ComboBook:
         self._expect(combo_id, orders, _Role.CLOSE)
 
     def settling(self, instrument_id: InstrumentId, order: Any) -> None:
-        for combo_id in self.holding(instrument_id):
-            self._orders.setdefault(order.client_order_id, []).append(
-                (combo_id, _Role.SETTLE)
-            )
+        """``order`` settles the contract: its first fill closes the leg in every
+        combo that holds it now, whatever the fill quantity."""
+        self._settlements[order.client_order_id] = (
+            instrument_id,
+            self.holding(instrument_id),
+        )
 
     def forget(self, orders: Sequence[Any]) -> None:
         """The orders were not sent: a combo they opened never was, and one they
@@ -153,6 +161,8 @@ class ComboBook:
         ]
 
     def hear(self, fill: OrderFilled) -> list[tuple[Change, Combo]]:
+        if fill.client_order_id in self._settlements:
+            return self._settle(*self._settlements.pop(fill.client_order_id))
         changes = []
         for combo_id, role in self._orders.get(fill.client_order_id, []):
             change = self._filled(self._tracked[combo_id], fill, role)
@@ -182,10 +192,20 @@ class ComboBook:
                 tracked.open()
                 return Change.OPENED
             return None
-        tracked.settled |= role == _Role.SETTLE
         if not tracked.close_leg(fill):
             return None
         return Change.SETTLED if tracked.settled else Change.CLOSED
+
+    def _settle(
+        self, instrument_id: InstrumentId, combo_ids: list[str]
+    ) -> list[tuple[Change, Combo]]:
+        changes = []
+        for combo_id in combo_ids:
+            tracked = self._tracked.get(combo_id)
+            if tracked is not None and tracked.settle_leg(instrument_id):
+                changes.append((Change.SETTLED, tracked.combo))
+                self._finish(combo_id, Change.SETTLED)
+        return changes
 
     def _finish(self, combo_id: str, change: Change) -> None:
         if change in (Change.OPENED, Change.LATE_FILL):
