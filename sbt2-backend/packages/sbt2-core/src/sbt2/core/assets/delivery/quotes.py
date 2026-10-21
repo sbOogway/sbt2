@@ -1,7 +1,8 @@
 from decimal import ROUND_HALF_EVEN, Decimal
 
-from nautilus_trader.model import CryptoOption, Price, Quantity, QuoteTick
+from nautilus_trader.model import Price, Quantity, QuoteTick
 
+from sbt2.core.assets.delivery.prices import Expiring
 from sbt2.core.assets.option.quotes.quotes import QUOTE_SIZE
 
 # The strategy settles its position one nanosecond before the expiry, as nautilus
@@ -11,7 +12,7 @@ from sbt2.core.assets.option.quotes.quotes import QUOTE_SIZE
 _SETTLEMENT_NS_BEFORE_EXPIRY = 2
 
 
-def settlement_quotes(contract: CryptoOption, price: Decimal) -> list[QuoteTick]:
+def settlement_quotes(contract: Expiring, price: Decimal) -> list[QuoteTick]:
     """The last quotes of the contract: ``price`` to the tick as bid and ask just
     before the expiry, and again at the expiry. A market order then fills at the
     settlement price."""

@@ -8,6 +8,7 @@ from nautilus_trader.model import (
     CryptoFuture,
     Currency,
     CurrencyPair,
+    IndexPriceUpdate,
     InstrumentId,
     Price,
     Quantity,
@@ -82,3 +83,18 @@ def build_bars(path: Path, instrument: CryptoFuture | CurrencyPair) -> None:
             )
         )
     catalog.write_bars(bars)
+
+
+def write_delivery(path: Path, coin: str, prices: dict[datetime, float]) -> None:
+    """The coin's delivery price at each of the times of ``prices``."""
+    path.mkdir(parents=True, exist_ok=True)
+    series = InstrumentId.from_str(f"{coin}_USD_DELIVERY.DERIBIT")
+    updates = [
+        IndexPriceUpdate(series, Price(price, 2), ts, ts)
+        for ts, price in sorted(
+            (dt_to_unix_nanos(moment), price) for moment, price in prices.items()
+        )
+    ]
+    ParquetDataCatalog(str(path)).write_index_price_updates(
+        updates, updates[0].ts_event, updates[-1].ts_event
+    )

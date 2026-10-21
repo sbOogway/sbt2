@@ -11,7 +11,7 @@ from nautilus_trader.model import (
 from sbt2.core.assets.calendars import AlwaysOpen
 from sbt2.core.assets.conventions.buy_and_hold import NoBuyAndHold
 from sbt2.core.assets.conventions.carry import Carry
-from sbt2.core.assets.marks import Marks
+from sbt2.core.assets.future.quotes import FutureQuotes
 from sbt2.core.assets.profile import AssetProfile
 
 CRYPTO_FUTURE = AssetProfile(
@@ -20,7 +20,7 @@ CRYPTO_FUTURE = AssetProfile(
     calendar=AlwaysOpen(),
     days_per_year=365,
     carry=Carry(data_types=()),
-    quotes=Marks(),
+    quotes=FutureQuotes(),
     venue_defaults=MappingProxyType(
         {
             "oms_type": OmsType.NETTING,
