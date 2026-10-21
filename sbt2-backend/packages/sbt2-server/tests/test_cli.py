@@ -9,7 +9,7 @@ from typer.testing import CliRunner
 from sbt2.protocol.v1.envelope_pb2 import Capability, ClientMessage, Welcome
 from sbt2.protocol.v1.results_pb2 import ListRuns
 from sbt2.protocol.v1.runs_pb2 import DescribeStrategy, StrategyModule
-from sbt2.server import Address, Server
+from sbt2.server import Address, Server, strategies
 from sbt2.server.cli import app
 
 runner = CliRunner()
@@ -171,6 +171,7 @@ def test_the_server_command_answers_describe_strategy(
             reply = await ask(connection, request.SerializeToString())
         schemas.append(reply.strategy_schema.strategy)
 
-    run(scenario, server)
+    # A cold import of nautilus can take longer than run's default 10 s.
+    run(scenario, server, timeout=strategies.IMPORT_SECONDS + 10)
 
     assert schemas == ["cli_cross:Cross"]

@@ -21,10 +21,10 @@ async def serving(server: Server) -> AsyncGenerator[str]:
         yield f"ws://{bound.host}:{bound.port}"
 
 
-def run(scenario: Scenario, server: Server | None = None) -> None:
+def run(scenario: Scenario, server: Server | None = None, timeout: float = 10) -> None:
     async def main() -> None:
         async with serving(server or Server(Settings(TOKEN))) as url:
-            await asyncio.wait_for(scenario(url), timeout=10)
+            await asyncio.wait_for(scenario(url), timeout)
 
     asyncio.run(main())
 
