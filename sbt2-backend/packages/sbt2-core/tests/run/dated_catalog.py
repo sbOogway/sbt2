@@ -101,7 +101,7 @@ def build_bars(
                 price,
                 price,
                 price,
-                Quantity.from_int(1_000_000_000),
+                Quantity(1_000_000_000, instrument.size_precision),
                 ts,
                 ts,
             )
