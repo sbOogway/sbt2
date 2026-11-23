@@ -21,7 +21,7 @@ repos:
       - id: gitlint
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.17.1
+    rev: v0.17.6
     hooks:
       - id: ruff-check
         args: [--fix]
@@ -30,7 +30,7 @@ repos:
         files: ^(sbt2-backend|sbt2-notebooks)/
 
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.9.1
+    rev: 0.9.2
     hooks:
       # a tearsheet's output alone is megabytes
       - id: nbstripout
@@ -47,7 +47,7 @@ repos:
         args: [-w, -i, "4"]
 
   - repo: https://github.com/bufbuild/buf
-    rev: v1.74.0
+    rev: v1.75.0
     hooks:
       # buf takes sbt2-protocol/ as its module, so these hooks borrow buf-build's environment
       # for its buf binary and name the module themselves
